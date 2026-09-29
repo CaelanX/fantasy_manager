@@ -8,6 +8,7 @@ integrator can swap in a caching fetcher and tests can replay recorded fixtures.
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from datetime import date, datetime, timedelta
 from datetime import date as Date
@@ -415,6 +416,208 @@ def back_to_backs(dates: Iterable[date]) -> list[tuple[date, date]]:
     return [(a, b) for a, b in zip(ds, ds[1:]) if (b - a) == timedelta(days=1)]
 
 
+# --------------------------------------------------------------------------- deployment (per-game reports)
+#
+# Per-game rows of the stats REST reports (``isGame=true``) over a date window. Field names
+# verified 2026-09-29 against the 2025-26 regular season:
+#   skater/timeonice : playerId, gameId, gameDate, teamAbbrev, opponentTeamAbbrev, homeRoad,
+#                      timeOnIce, evTimeOnIce, ppTimeOnIce, shTimeOnIce, otTimeOnIce (seconds), shifts
+#   skater/powerplay : ... ppTimeOnIce, ppTimeOnIcePctPerGame (share of the team's PP time,
+#                      0..1), ppGoals, ppPoints, ppShots
+#   goalie/summary   : ... gamesStarted, shotsAgainst, saves, goalsAgainst, timeOnIce, wins,
+#                      losses, otLosses
+#   team/powerplay   : teamId, teamFullName (no abbreviation: it is taken from the other team's
+#                      opponentTeamAbbrev in the same game), ppTimeOnIcePerGame, ppOpportunities,
+#                      powerPlayGoalsFor
+# A team's PP time in a game equals the sum of its skaters' ppTimeOnIce / 5 (checked on every
+# game of 2026-04-01); that is the fallback when the team report lacks a game.
+# Season reports (``isGame=false``) carry the same player fields with ``teamAbbrevs``.
+
+HOUR_S = 3600.0
+TTL_GAME_WINDOW_OPEN = 12 * HOUR_S          # window reaching today: games may still be in progress
+TTL_GAME_WINDOW_CLOSED = 30 * 24 * HOUR_S   # finished days do not change
+TTL_SEASON_REPORT = 6 * HOUR_S
+_GAME_END_RE = re.compile(r'gameDate<="?(\d{4}-\d{2}-\d{2})')
+
+
+def game_window_ttl(params: dict | None, today: date | None = None) -> float | None:
+    """TTL for a per-game (``isGame=true``) date-window request: 12h when the window reaches
+    ``today`` (or has no end), 30 days for past days; None for any other request."""
+    params = params or {}
+    if str(params.get("isGame", "")).lower() != "true":
+        return None
+    m = _GAME_END_RE.search(str(params.get("cayenneExp", "")))
+    if not m:
+        return TTL_GAME_WINDOW_OPEN
+    end = date.fromisoformat(m.group(1))
+    return TTL_GAME_WINDOW_CLOSED if end < (today or date.today()) else TTL_GAME_WINDOW_OPEN
+
+
+class CachedNhlFetch:
+    """``fetch_json`` for NhlClient through an ``HttpCache``-like object (``get_json(url,
+    params=, ttl=)``): per-game windows use :func:`game_window_ttl`; everything else
+    ``ttl_for(url, params) -> (label, ttl)`` when given (e.g. ``providers.enrich.ttl_for``),
+    else ``default_ttl``."""
+
+    def __init__(self, cache: Any, today: date | None = None, default_ttl: float = TTL_SEASON_REPORT,
+                 ttl_for: Callable[[str, "dict | None"], tuple[str, float]] | None = None):
+        self.cache, self.today, self.default_ttl, self.ttl_for = cache, today, default_ttl, ttl_for
+
+    def ttl(self, url: str, params: dict | None) -> float:
+        t = game_window_ttl(params, self.today)
+        if t is not None:
+            return t
+        if self.ttl_for is not None:
+            return float(self.ttl_for(url, params)[1])
+        return self.default_ttl
+
+    def __call__(self, url: str, params: dict | None = None) -> Any:
+        return self.cache.get_json(url, params=params, ttl=self.ttl(url, params))
+
+
+def _secs(v: Any) -> float | None:
+    if isinstance(v, bool):
+        return None
+    return float(v) if isinstance(v, (int, float)) else parse_toi(v)
+
+
+def _home(flag: Any) -> bool | None:
+    return (flag == "H") if flag in ("H", "R") else None
+
+
+class NhlSkaterToiGame(BaseModel):
+    """One skater's ice time in one game (seconds)."""
+    player_id: int
+    game_id: int | None = None
+    date: Date
+    team: str | None = None
+    opponent: str | None = None
+    home: bool | None = None
+    name: str | None = None
+    position: str | None = None
+    toi: float | None = None
+    ev_toi: float | None = None
+    pp_toi: float | None = None
+    sh_toi: float | None = None
+    ot_toi: float | None = None
+    shifts: int | None = None
+
+
+class NhlSkaterPpGame(BaseModel):
+    """One skater's power play in one game; ``pp_share`` = NHL ppTimeOnIcePctPerGame (0..1)."""
+    player_id: int
+    game_id: int | None = None
+    date: Date
+    team: str | None = None
+    opponent: str | None = None
+    pp_toi: float | None = None          # seconds
+    pp_share: float | None = None
+    pp_goals: float = 0.0
+    pp_points: float = 0.0
+    pp_shots: float = 0.0
+
+
+class NhlGoalieGame(BaseModel):
+    player_id: int
+    game_id: int | None = None
+    date: Date
+    team: str | None = None
+    opponent: str | None = None
+    home: bool | None = None
+    name: str | None = None
+    started: bool = False
+    sa: float = 0.0
+    sv: float = 0.0
+    ga: float = 0.0
+    toi: float | None = None             # seconds
+    decision: str | None = None          # W / L / OTL
+
+
+class NhlTeamPpGame(BaseModel):
+    team: str | None = None              # abbreviation (from the opponent's row of the same game)
+    team_id: int | None = None
+    team_name: str | None = None
+    game_id: int | None = None
+    date: Date
+    opponent: str | None = None
+    pp_toi: float | None = None          # seconds of power play in the game
+    pp_opportunities: float = 0.0
+    pp_goals: float = 0.0
+
+
+class NhlSkaterDeploymentSeason(BaseModel):
+    """Season (``isGame=false``) deployment of one skater: per-game seconds and PP share."""
+    player_id: int
+    season: int
+    name: str | None = None
+    team: str | None = None
+    teams: list[str] = Field(default_factory=list)
+    gp: int = 0
+    toi_per_game: float | None = None
+    ev_toi_per_game: float | None = None
+    pp_toi_per_game: float | None = None
+    sh_toi_per_game: float | None = None
+    pp_share: float | None = None
+
+
+def _toi_game(r: dict) -> NhlSkaterToiGame:
+    return NhlSkaterToiGame(
+        player_id=int(r["playerId"]), game_id=r.get("gameId"), date=_parse_date(r.get("gameDate")),
+        team=r.get("teamAbbrev"), opponent=r.get("opponentTeamAbbrev"), home=_home(r.get("homeRoad")),
+        name=r.get("skaterFullName"), position=map_position(r.get("positionCode")),
+        toi=_secs(r.get("timeOnIce")), ev_toi=_secs(r.get("evTimeOnIce")), pp_toi=_secs(r.get("ppTimeOnIce")),
+        sh_toi=_secs(r.get("shTimeOnIce")), ot_toi=_secs(r.get("otTimeOnIce")),
+        shifts=int(r["shifts"]) if isinstance(r.get("shifts"), (int, float)) else None)
+
+
+def _pp_game(r: dict) -> NhlSkaterPpGame:
+    pct = r.get("ppTimeOnIcePctPerGame")
+    return NhlSkaterPpGame(
+        player_id=int(r["playerId"]), game_id=r.get("gameId"), date=_parse_date(r.get("gameDate")),
+        team=r.get("teamAbbrev"), opponent=r.get("opponentTeamAbbrev"), pp_toi=_secs(r.get("ppTimeOnIce")),
+        pp_share=float(pct) if isinstance(pct, (int, float)) and not isinstance(pct, bool) else None,
+        pp_goals=_num(r.get("ppGoals")), pp_points=_num(r.get("ppPoints")), pp_shots=_num(r.get("ppShots")))
+
+
+def _goalie_game(r: dict) -> NhlGoalieGame:
+    decision = ("W" if _num(r.get("wins")) else "L" if _num(r.get("losses"))
+                else "OTL" if _num(r.get("otLosses")) else None)
+    sa, ga = _num(r.get("shotsAgainst")), _num(r.get("goalsAgainst"))
+    return NhlGoalieGame(
+        player_id=int(r["playerId"]), game_id=r.get("gameId"), date=_parse_date(r.get("gameDate")),
+        team=r.get("teamAbbrev"), opponent=r.get("opponentTeamAbbrev"), home=_home(r.get("homeRoad")),
+        name=r.get("goalieFullName"), started=bool(_num(r.get("gamesStarted"))), sa=sa,
+        sv=_num(r.get("saves")) if r.get("saves") is not None else sa - ga, ga=ga,
+        toi=_secs(r.get("timeOnIce")), decision=decision)
+
+
+def _team_pp_games(rows: list[dict]) -> list[NhlTeamPpGame]:
+    """Team rows carry no abbreviation: take it from the other team's opponentTeamAbbrev."""
+    by_game: dict[Any, list[dict]] = {}
+    for r in rows:
+        by_game.setdefault(r.get("gameId"), []).append(r)
+    out = []
+    for r in rows:
+        others = [o for o in by_game.get(r.get("gameId"), []) if o.get("teamId") != r.get("teamId")]
+        abbrev = r.get("teamAbbrev") or (others[0].get("opponentTeamAbbrev") if len(others) == 1 else None)
+        out.append(NhlTeamPpGame(
+            team=abbrev, team_id=r.get("teamId"), team_name=r.get("teamFullName"), game_id=r.get("gameId"),
+            date=_parse_date(r.get("gameDate")), opponent=r.get("opponentTeamAbbrev"),
+            pp_toi=_secs(r.get("ppTimeOnIcePerGame")), pp_opportunities=_num(r.get("ppOpportunities")),
+            pp_goals=_num(r.get("powerPlayGoalsFor"))))
+    return out
+
+
+def game_window_filter(start: date | None, end: date | None) -> str | None:
+    """``gameDate>="start" and gameDate<="end"`` (either side optional)."""
+    parts = []
+    if start is not None:
+        parts.append(f'gameDate>="{start.isoformat()}"')
+    if end is not None:
+        parts.append(f'gameDate<="{end.isoformat()}"')
+    return " and ".join(parts) or None
+
+
 # --------------------------------------------------------------------------- client
 
 class NhlClient:
@@ -619,3 +822,87 @@ class NhlClient:
     def league_rosters(self, season: int | None = None,
                        teams: Iterable[str] = NHL_TEAMS) -> dict[str, list[NhlRosterPlayer]]:
         return {t: self.team_roster(t, season) for t in teams}
+
+    # ---- stats REST: per-game deployment (date windows) --------------------------------
+    def _game_rows(self, kind: str, report: str, season: int | None, start: date | None, end: date | None,
+                   game_type: int = 2) -> list[dict]:
+        """Per-game rows (``isGame=true``) of a stats report for games in [start, end]."""
+        season = season or self.season
+        cay = f"seasonId={season} and gameTypeId={game_type}"
+        extra = game_window_filter(start, end)
+        if extra:
+            cay += f" and {extra}"
+        id_field = "teamId" if kind == "team" else "playerId"
+        params = {
+            "isAggregate": "false",
+            "isGame": "true",
+            # every sort property must be a field of the report: gameDate / gameId / the row id are
+            "sort": json.dumps([{"property": "gameDate", "direction": "ASC"},
+                                {"property": "gameId", "direction": "ASC"},
+                                {"property": id_field, "direction": "ASC"}]),
+            "start": 0,
+            "limit": -1,
+            "cayenneExp": cay,
+        }
+        url = f"{STATS_BASE}/{kind}/{report}"
+        data = self.fetch_json(url, params) or {}
+        rows = [r for r in data.get("data") or [] if r.get("gameDate") and r.get(id_field) is not None]
+        total = data.get("total")
+        seen = {(r.get("gameId"), r.get(id_field)) for r in rows}
+        while isinstance(total, int) and 0 < len(rows) < total:
+            page = self.fetch_json(url, {**params, "start": len(rows), "limit": 100}) or {}
+            more = [r for r in page.get("data") or []
+                    if r.get("gameDate") and r.get(id_field) is not None
+                    and (r.get("gameId"), r.get(id_field)) not in seen]
+            if not more:
+                break
+            seen.update((r.get("gameId"), r.get(id_field)) for r in more)
+            rows.extend(more)
+        return rows
+
+    def skater_toi_games(self, season: int | None, start: date | None, end: date | None,
+                         game_type: int = 2) -> list[NhlSkaterToiGame]:
+        """Per-game skater ice time (all / EV / PP / SH seconds, shifts) for games in [start, end]."""
+        return [_toi_game(r) for r in self._game_rows("skater", "timeonice", season, start, end, game_type)]
+
+    def skater_pp_games(self, season: int | None, start: date | None, end: date | None,
+                        game_type: int = 2) -> list[NhlSkaterPpGame]:
+        """Per-game skater power play (PP seconds, share of the team's PP time, PP goals / points)."""
+        return [_pp_game(r) for r in self._game_rows("skater", "powerplay", season, start, end, game_type)]
+
+    def goalie_games(self, season: int | None, start: date | None, end: date | None,
+                     game_type: int = 2) -> list[NhlGoalieGame]:
+        """Per-game goalie lines (started, SA, SV, GA, TOI) for games in [start, end]."""
+        return [_goalie_game(r) for r in self._game_rows("goalie", "summary", season, start, end, game_type)]
+
+    def team_pp_toi_games(self, season: int | None, start: date | None, end: date | None,
+                          game_type: int = 2) -> list[NhlTeamPpGame]:
+        """Per-game team power-play time (seconds) and opportunities for games in [start, end]."""
+        return _team_pp_games(self._game_rows("team", "powerplay", season, start, end, game_type))
+
+    def skater_deployment_season(self, season: int | None = None,
+                                 game_type: int = 2) -> dict[int, NhlSkaterDeploymentSeason]:
+        """player_id -> season TOI / PP deployment from the season (``isGame=false``) timeonice
+        and powerplay reports; empty before the season's first game."""
+        season = season or self.season
+        toi = self._report("skater", "timeonice", season, game_type)
+        try:
+            pp = {r.get("playerId"): r for r in self._report("skater", "powerplay", season, game_type)}
+        except Exception:  # PP share is optional
+            pp = {}
+        out: dict[int, NhlSkaterDeploymentSeason] = {}
+        for r in toi:
+            if r.get("playerId") is None:
+                continue
+            pid = int(r["playerId"])
+            p = pp.get(r["playerId"]) or {}
+            teams = split_teams(r.get("teamAbbrevs"))
+            pct = p.get("ppTimeOnIcePctPerGame")
+            out[pid] = NhlSkaterDeploymentSeason(
+                player_id=pid, season=int(r.get("seasonId") or season), name=r.get("skaterFullName"),
+                team=teams[-1] if teams else None, teams=teams, gp=int(_num(r.get("gamesPlayed"))),
+                toi_per_game=_secs(r.get("timeOnIcePerGame")), ev_toi_per_game=_secs(r.get("evTimeOnIcePerGame")),
+                pp_toi_per_game=_secs(r.get("ppTimeOnIcePerGame")),
+                sh_toi_per_game=_secs(r.get("shTimeOnIcePerGame")),
+                pp_share=float(pct) if isinstance(pct, (int, float)) and not isinstance(pct, bool) else None)
+        return out

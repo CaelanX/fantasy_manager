@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import move_list, kind_chips, pill, plink, games_cell, player_table, prospect_mark with context %}
+{% from "_macros.html" import move_list, kind_chips, pill, plink, games_cell, player_table, prospect_mark, unit_badges with context %}
 {% block heading %}
 <p class="sc dateline">{{ now.strftime('%A, %B %d, %Y').replace(' 0', ' ') }} &middot; {{ res.ctx.name }} ({{ 'ESPN' if res.ctx.provider == 'espn' else res.ctx.provider|capitalize }})</p>
 <h1>{{ team.name if team else res.ctx.name }}</h1>
@@ -11,6 +11,14 @@
 {% block content %}
 <p class="lede" id="summary">{{ summary }}</p>
 
+{% if matchup %}{% set m = matchup.m %}
+<section id="matchup-strip" class="strip" aria-labelledby="h-mu">
+  <h2 id="h-mu">This week's matchup <a href="/matchup?league={{ league }}">Preview &rarr;</a></h2>
+  <p class="strip-line"><b>{{ m.my_team }}</b> {{ m.my_projected_total|n1 }} &ndash; {{ m.their_projected_total|n1 }} <b>{{ m.opponent_team }}</b>
+    <small>projected{% if m.days_left is not none %} &middot; {{ m.days_left }} days left{% endif %}{% if matchup.pct is not none %} &middot; win probability {{ matchup.pct }}%{% endif %}{% if m.stance %} &middot; {{ m.stance }}{% endif %}</small></p>
+</section>
+{% endif %}
+
 {% if week %}
 <section id="week" aria-labelledby="h-week">
   <h2 id="h-week">This week <span class="aside">{{ week.start.strftime('%b %d').replace(' 0', ' ') }}&ndash;{{ week.end.strftime('%b %d').replace(' 0', ' ') }}{% if week.preseason %} &middot; opening week{% endif %}</span></h2>
@@ -21,6 +29,16 @@
     <div><dt>Starter games</dt><dd>{{ week.games }} <small>{{ week.offnights }} off-night</small></dd></div>
     <div><dt>Lineup changes</dt><dd>{{ week.changes }}</dd></div>
   </dl>
+  {% if week.starts %}
+  <div class="strip starts" id="starts">
+    <h3 class="sub-h">Confirmed starts tonight</h3>
+    <ul class="starts-l">
+      {% for s in week.starts %}
+      <li><b>{{ plink(s.p, league) }}</b> <span class="{{ 'chg-in' if s.starting else 'chg-out' }}">{{ 'starting' if s.starting else 'not starting' }}</span>{% if s.source %} <small class="muted">{{ s.source }}</small>{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
   <div class="tbl"><table class="r stack week-t">
     <caption class="sr-only">Current and optimal lineup for the week</caption>
     <thead><tr>
@@ -30,7 +48,7 @@
     <tbody>
       {% for x in week.rows %}
       <tr{% if x.change %} class="chg"{% endif %}>
-        <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}<small>{{ x.pos }} &middot; {{ x.team }} &middot; {{ pill(x.status) }}</small></th>
+        <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}{{ unit_badges(x) }}<small>{{ x.pos }} &middot; {{ x.team }} &middot; {{ pill(x.status) }}</small></th>
         <td data-label="Now" class="slot">{{ x.slot }}</td>
         <td data-label="Optimal" class="slot">{{ x.opt_slot or ('IR' if x.slot == 'IR' else 'BN') }}</td>
         <td data-label="Games next 7">{{ games_cell(x) }}</td>

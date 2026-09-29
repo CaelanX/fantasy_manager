@@ -88,7 +88,7 @@ def test_empty_sections_render_placeholders():
     ctx, values = make_league()
     d = build_digest(ctx, values, [], {}, GEN)
     assert "No moves recommended today." in d.markdown
-    assert d.markdown.count("_None today._") == 4
+    assert d.markdown.count("_None today._") == 5          # lineup, waivers, trades, flags, alerts
     assert "No recent news" in d.html
 
 

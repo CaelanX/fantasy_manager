@@ -28,6 +28,19 @@
     <thead><tr>{% for k in cols_r %}<th scope="col" class="n">{{ RATE_LABEL.get(k, k) }}{% if k not in ('GAA', 'SVPCT') %}/GP{% endif %}</th>{% endfor %}</tr></thead>
     <tbody><tr>{% for k in cols_r %}<td class="n">{{ row.rates.get(k)|rate(k) }}</td>{% endfor %}</tr></tbody>
   </table></div>
+  {% if row.xg or row.badges or p.toi_per_game is not none %}
+  <h3 class="sub-h">Deployment and luck</h3>
+  <dl class="tiles">
+    {% if row.badges %}<div><dt>Line / PP</dt><dd class="small-dd">{{ row.badges|join(' · ') }}{% if row.line_change %} <small>{{ row.line_change }}</small>{% endif %}</dd></div>{% endif %}
+    {% if p.toi_per_game is not none %}<div><dt>TOI / GP</dt><dd>{{ p.toi_per_game|n1 }} <small>min{% if p.toi_trend is not none %} ({{ p.toi_trend|n1(True) }} recent){% endif %}</small></dd></div>{% endif %}
+    {% if p.pp_share is not none %}<div><dt>PP share</dt><dd>{{ (p.pp_share * 100)|n1 }}<small>%{% if p.pp_share_trend is not none %} ({{ (p.pp_share_trend * 100)|n1(True) }} pts){% endif %}</small></dd></div>{% endif %}
+    {% if row.xg %}
+    <div><dt>xG luck</dt><dd class="{{ 'pos' if row.xg.per_gp > 0.02 else ('neg' if row.xg.per_gp < -0.02 else '') }}">{{ '%+.2f'|format(row.xg.per_gp) }} <small>G &minus; ixG /GP</small></dd></div>
+    <div><dt>Goals vs ixG</dt><dd class="small-dd">{{ '%.2f'|format(row.xg.goals_pg) }} vs {{ '%.2f'|format(row.xg.ixg) }} <small>/GP over {{ row.xg.gp }} GP{% if row.xg.prior %}, last season{% endif %} ({{ '%+.1f'|format(row.xg.gmx) }} goals)</small></dd></div>
+    {% endif %}
+  </dl>
+  {% if row.xg %}<p class="foot-note">Positive xG luck = scoring above expected (tends to regress). Expected goals: MoneyPuck.com.</p>{% endif %}
+  {% endif %}
   {% set vreasons = pv.reasons if pv.reasons is defined else [] %}
   {% if vreasons %}
   <h3 class="sub-h">Valuation reasons</h3>

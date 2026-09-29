@@ -11,6 +11,17 @@ Field semantics of :class:`PlayerValue`:
   to an average NHL team in the same window.
 * ``proj_week`` - projected fantasy points over the 7-day window (None without a schedule):
   ``fpg * avail_week * games * (1 + 0.05 * offnight) * start_share``.
+
+In-season only (never the preseason multi-season baseline, where the backtest found no gain):
+once a skater has ``XG_MIN_GP`` (5) GP this season and MoneyPuck's ixG describes this season
+(``Player.xg_split == "season"``), his season-to-date goal rate is shrunk toward ixG/GP with
+``regression.shrink_goals`` (k = 15 games) before the baseline shrink and recency blend
+(reason XG_SHRINK; -1.5% MAE on single-season rates in ``backtest.xg_backtest``).
+
+Harness ledger inputs (opt-in, filled by the enrich deployment step only when a team has >= 5
+games in the ledger): ``ctx.goalie_actual_starts`` feeds ``start_share(actual=...)`` for goalies
+without a projection (START_ACTUAL) and ``ctx.b2b_second_night`` feeds
+``schedule_factor(b2b_p=...)`` for the week window (B2B).
 """
 from __future__ import annotations
 
@@ -30,11 +41,15 @@ from .blend import (PRIOR_SPLITS, baseline_k, blend_rates, blend_recency, multi_
                     shrink_k, shrink_toward)
 from .params import age_factor
 from .replacement import DEFAULT_SLOTS, ROSTERED_FALLBACK_PCT, best_slot, replacement_with_fallback, vorp
-from .schedule import context_window, proj_week, schedule_factor, start_share_parts
+from .regression import K_GOALS, shrink_goals
+from .schedule import context_window, proj_week, schedule_factor, start_share, start_share_parts
 
 PRIOR_TEAM_GAMES = 82
 PROJ_SHARE_K = 20
 MIN_GP_FOR_MEAN = {"F": 20, "D": 20, "G": 10}
+XG_MIN_GP = 5                # season GP before the xG goal shrink applies (regression.MIN_CURRENT_GP)
+XG_CREDIT = "ixG: MoneyPuck.com"
+MIN_LEDGER_TEAM_GAMES = 5    # ledger team games before actual starts / back-to-back rates are used
 
 
 class PlayerValue(BaseModel):
@@ -214,8 +229,14 @@ def _rates_for(p: Player, means: dict[str, dict[str, float]], scoring: ScoringSy
     base_rates, base_line, _, base_src = baseline_rates(p, means, age, params=params, history=history)
     gp = season.gp if season else 0
     k = shrink_k(p.is_goalie, params)
+    xg: tuple[float, float, float] | None = None
     if gp > 0:
-        shrunk = shrink_toward(season.per_game(), gp, base_rates, k)
+        season_rates = season.per_game()
+        if xg_applies(p, gp) and "G" in season_rates:
+            before = season_rates["G"]
+            season_rates = shrink_goals(season_rates, p.ixg_per_game, gp, K_GOALS)
+            xg = (before, float(p.ixg_per_game), season_rates["G"])  # type: ignore[arg-type]
+        shrunk = shrink_toward(season_rates, gp, base_rates, k)
     else:
         shrunk = dict(base_rates)
     l30, l15, l7 = (p.lines.get(s) for s in ("last30", "last15", "last7"))
@@ -227,6 +248,12 @@ def _rates_for(p: Player, means: dict[str, dict[str, float]], scoring: ScoringSy
         raw = f" (raw {scoring.value(base_line.per_game()):.2f})" if base_line is not None else ""
         reasons.append(Reason(code="BASELINE", text=f"Baseline from {base_src}: {base_fpg:.2f} FPG{raw}",
                               value=base_fpg))
+    if xg is not None:
+        g_rate, ixg_rate, new_g = xg
+        reasons.append(Reason(code="XG_SHRINK",
+                              text=f"Goals {g_rate:.2f}/GP vs ixG {ixg_rate:.2f}/GP over {gp} GP this season: goal "
+                                   f"rate shrunk to {new_g:.2f}/GP (k={K_GOALS:g} games; {XG_CREDIT})",
+                              value=g_rate, baseline=ixg_rate))
     if gp > 0:
         w = gp / (gp + k) if base_rates else 1.0
         reasons.append(Reason(code="SHRINK_GP",
@@ -242,6 +269,18 @@ def _rates_for(p: Player, means: dict[str, dict[str, float]], scoring: ScoringSy
     if not rates:
         reasons.append(Reason(code="NO_DATA", text="No current, projected or prior stats available"))
     return rates, reasons
+
+
+def xg_applies(p: Player, gp: int | None = None) -> bool:
+    """True when the in-season xG goal shrink applies: a skater with >= XG_MIN_GP games this
+    season whose MoneyPuck ixG describes this season (``xg_split`` "season"; when unknown, the
+    ``xg_enrich`` rule: this season once it has XG_MIN_GP games). Never the prior-season baseline."""
+    if p.is_goalie or p.ixg_per_game is None:
+        return False
+    gp = p.gp("season") if gp is None else gp
+    if gp < XG_MIN_GP:
+        return False
+    return p.xg_split in (None, "season")
 
 
 def team_games_played(ctx: LeagueContext) -> dict[str, int]:
@@ -357,17 +396,37 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                       value=share, baseline=ss_prior))
             else:
                 share, gs, tg = start_share_parts(p, team_games=goalie_team_games(p, team_gp))
-                share_parts = {"share_source": "history", "share_starts": gs, "share_team_games": tg}
-                reasons.append(Reason(code="START_SHARE",
-                                      text=f"Projected start share {share:.0%} ({gs:.0f} GS / {tg:.0f} team GP, "
-                                           f"k={ss_k:g} toward {ss_prior:.0%}): "
-                                           f"season value {fpg * a_season:.2f} -> {fpg * a_season * share:.2f} FPG",
-                                      value=share, baseline=ss_prior))
+                actual = ctx.goalie_actual_starts.get(p.cid)
+                if actual is not None and actual[1] >= MIN_LEDGER_TEAM_GAMES:
+                    line_share = share
+                    share = start_share(p, team_games=goalie_team_games(p, team_gp), actual=actual)
+                    share_parts = {"share_source": "actual"}
+                    reasons.append(Reason(code="START_ACTUAL",
+                                          text=f"Start share {share:.0%} from {actual[0]} starts in {actual[1]} team "
+                                               f"games this season (ledger), shrunk toward his prior share (k=10; "
+                                               f"stat-line estimate {line_share:.0%}): season value "
+                                               f"{fpg * a_season:.2f} -> {fpg * a_season * share:.2f} FPG",
+                                          value=share, baseline=line_share))
+                else:
+                    share_parts = {"share_source": "history", "share_starts": gs, "share_team_games": tg}
+                    reasons.append(Reason(code="START_SHARE",
+                                          text=f"Projected start share {share:.0%} ({gs:.0f} GS / {tg:.0f} team GP, "
+                                               f"k={ss_k:g} toward {ss_prior:.0%}): "
+                                               f"season value {fpg * a_season:.2f} -> {fpg * a_season * share:.2f} FPG",
+                                          value=share, baseline=ss_prior))
         pv = PlayerValue(player=p, fpg=fpg,
                          fpg_season=season_value if season_value is not None else fpg * a_season * share,
                          fpg_week=fpg * a_week * share, vorp=0.0, rates=rates, reasons=reasons,
                          start_share=share if p.is_goalie else None, **share_parts)
-        sf = schedule_factor(p, ctx.schedule, ctx.games_per_day, window, share=share) if window else None
+        b2b = ctx.b2b_second_night.get(normalize_team(p.team) or "") if p.is_goalie else None
+        sf = schedule_factor(p, ctx.schedule, ctx.games_per_day, window, share=share,
+                             b2b_p=b2b[0] if b2b else None) if window else None
+        if sf is not None and b2b is not None and abs(sf.start_share - share) > 1e-4:
+            seen = f"{b2b[1]} seen" + ("" if b2b[1] >= 5 else ", league prior until 5")
+            pv.reasons.append(Reason(code="B2B",
+                                     text=f"Back-to-back second nights {window.label()}: the #1 starts them with "
+                                          f"p={b2b[0]:.2f} ({seen}); week start share {share:.0%} -> "
+                                          f"{sf.start_share:.0%}", value=sf.start_share, baseline=share))
         if sf is not None:
             pw = proj_week(fpg, a_week, sf.games, sf.offnight) * sf.start_share
             pv.proj_week, pv.games_next7, pv.offnight_next7 = pw, sf.games, sf.offnight

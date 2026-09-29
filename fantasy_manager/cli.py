@@ -207,12 +207,29 @@ def _meta(lc: LeagueContext) -> dict[str, Any]:
             "sources": lc.source_notes, "warnings": lc.warnings}
 
 
+MONEYPUCK_CREDIT = "Expected goals: MoneyPuck.com"
+DFO_CREDIT = "Lines, power-play units and starting goalies: Daily Faceoff (dailyfaceoff.com)"
+
+
+def credit_lines(lc: LeagueContext) -> list[str]:
+    """Source credits owed when the data was used: MoneyPuck (xG) and Daily Faceoff (lines /
+    starting goalies), unless a source note already carries them."""
+    players = lc.all_players()
+    notes = " ".join(lc.source_notes)
+    out = []
+    if any(p.ixg_per_game is not None for p in players) and "MoneyPuck" not in notes:
+        out.append(MONEYPUCK_CREDIT)
+    if any(p.line or p.pp_unit or p.confirmed_start is not None for p in players) and "Daily Faceoff" not in notes:
+        out.append(DFO_CREDIT)
+    return out
+
+
 def _footer(lc: LeagueContext, errors: list[str] | None = None) -> None:
     if lc.dynasty:
         console.print(f"[dim]{escape(_mode_line(lc))}; {lc.keeper_horizon_years}-year horizon "
                       "(change with `fm mode contend|balanced|rebuild` or the dashboard toggle)[/]")
-    for n in lc.source_notes:
-        console.print(f"[dim]{n}[/]")
+    for n in [*lc.source_notes, *credit_lines(lc)]:
+        console.print(f"[dim]{escape(n)}[/]")
     for w in [*lc.warnings, *(errors or [])]:
         console.print(f"[dim yellow]! {w}[/]")
 
@@ -708,7 +725,7 @@ def sync(ctx: typer.Context,
 # -- milestone 4/5 helpers ------------------------------------------------------
 
 KIND_TITLE = {"injury": "Injuries", "lineup": "Lineup", "waiver": "Waivers", "trade": "Trades",
-              "sell_high": "Sell high", "buy_low": "Buy low"}
+              "sell_high": "Sell high", "buy_low": "Buy low", "alert": "Alerts"}
 LLM_HINT = ("LLM explanations are off: set OPENROUTER_API_KEY in .env (free models work: "
             "FM_LLM_MODEL=openrouter/free).")
 WEB_HINT = "The web dashboard needs the optional web extras: pip install -e .[web]"
@@ -807,7 +824,7 @@ def _history() -> Any:
 
 def _run_advise(d: Loaded, history: Any, errors: list[str], limit: int | None = None
                 ) -> list[Recommendation]:
-    """advise() for lineup/waivers/flags/injuries plus recommend_trades called directly (so
+    """advise() for lineup/waivers/flags/injuries/alerts plus recommend_trades called directly (so
     Fantrax trade-block `wants` reach it; advise() cannot forward that argument), merged
     and ordered exactly as advise() orders them."""
     from .recommend.advise import KIND_GROUP, PRIORITY, advise, normalize_scores
@@ -815,7 +832,7 @@ def _run_advise(d: Loaded, history: Any, errors: list[str], limit: int | None = 
 
     with _collect_logs("fantasy_manager.recommend.advise", errors, "advise"):
         recs = _safe(errors, "advise", advise, d.lc, d.values, dynasty_values=d.dyn, history=history,
-                     include=("lineup", "waivers", "flags", "injuries"), default=[])
+                     include=("lineup", "waivers", "flags", "injuries", "alerts"), default=[])
     trades = _safe(errors, "trades", recommend_trades, d.lc, d.values, dynasty_values=d.dyn,
                    wants=_trade_wants(d.lc, d.provider), default=[])
     merged = list(recs) + normalize_scores(trades)
@@ -1030,6 +1047,245 @@ def advise_cmd(ctx: typer.Context,
                       "# is the rank within the kind.[/]")
     for n in notes:
         console.print(f"[dim]{n}[/]")
+    _footer(lc, errors)
+
+
+@app.command("alerts")
+def alerts_cmd(ctx: typer.Context,
+               limit: int = typer.Option(25, "--limit", "-n", help="Max alerts."),
+               league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+               json_out: bool = typer.Option(False, "--json")) -> None:
+    """Every alert engine: line / PP-unit changes and confirmed goalie starts (Daily Faceoff),
+    role changes (NHL TOI / PP share) and rising free agents (% rostered)."""
+    from .recommend.advise import advise
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    d = _load_all(league_name)
+    lc, errors = d.lc, d.errors
+    with _collect_logs("fantasy_manager.recommend.advise", errors, "alerts"):
+        recs = _safe(errors, "alerts", advise, lc, d.values, dynasty_values=d.dyn, include=("alerts",),
+                     limit=limit, default=[]) or []
+    if as_json:
+        _json_out({"alerts": _recs_json(recs)}, lc, errors)
+        return
+    if recs:
+        console.print(_rec_table(recs, f"Alerts ({len(recs)})"))
+    else:
+        console.print("[green]No alerts: no line, power-play, role or goalie-start changes worth acting on.[/]")
+    _footer(lc, errors)
+
+
+@app.command("trending")
+def trending_cmd(ctx: typer.Context,
+                 fallers: bool = typer.Option(False, "--fallers", help="Biggest % rostered drops instead of rises."),
+                 limit: int = typer.Option(25, "--limit", "-n", help="Players to list."),
+                 league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+                 json_out: bool = typer.Option(False, "--json")) -> None:
+    """ESPN-wide % rostered risers (or fallers) this week, from the public ESPN player pool, tagged
+    free agent / rostered when they are in the chosen league."""
+    from .matching.normalize import normalize_name
+    from .providers.espn import EspnProvider
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    settings_ = get_settings()
+    cache = _cache()
+    errors: list[str] = []
+    lc: LeagueContext | None = None
+    try:
+        lc, provider = _load_context(league_name, cache)
+    except typer.Exit:
+        provider = None
+    espn = provider if isinstance(provider, EspnProvider) else EspnProvider(settings_, cache)
+    rows = _safe(errors, "ESPN trending", espn.trending, limit=limit, fallers=fallers, default=[]) or []
+    errors.extend(str(w) for w in getattr(espn, "warnings", []) or [] if "trending" in str(w).lower())
+    if lc is not None and lc.provider != "espn":        # tag by name + team in a non-ESPN league
+        fa = {normalize_name(p.name) for p in lc.free_agents}
+        rostered = {normalize_name(p.name) for t in lc.teams for p in t.players}
+        for r in rows:
+            n = normalize_name(r["name"])
+            r["in_league"] = "fa" if n in fa else "rostered" if n in rostered else None
+    if as_json:
+        _json_out({"fallers": fallers, "players": rows}, lc, errors)
+        return
+    what = "fallers" if fallers else "risers"
+    tbl = Table(title=f"ESPN % rostered {what} (all ESPN leagues, last 7 days)")
+    for c, j in (("#", "right"), ("Player", "left"), ("Pos", "left"), ("NHL", "left"), ("Status", "left"),
+                 ("% ros", "right"), ("Change", "right"), ("% start", "right"), ("In my league", "left")):
+        tbl.add_column(c, justify=j)
+    for i, r in enumerate(rows, 1):
+        where = {"fa": "[green]free agent[/]", "rostered": "rostered"}.get(r.get("in_league") or "", "-")
+        pct = r.get("pct_owned")
+        tbl.add_row(str(i), escape(r["name"]), "/".join(x for x in r.get("positions") or [] if x != "F") or "-",
+                    r.get("team") or "-", r.get("status") or "-", "-" if pct is None else f"{pct:.1f}",
+                    f"{r['pct_owned_change']:+.1f}", "-" if r.get("pct_started") is None else f"{r['pct_started']:.1f}",
+                    where)
+    console.print(tbl if rows else f"No ESPN {what} available.")
+    console.print("[dim]Source: ESPN public player pool (fantasy.espn.com, cached 6h).[/]")
+    if lc is not None:
+        _footer(lc, errors)
+    else:
+        for e in errors:
+            console.print(f"[dim yellow]! {escape(e)}[/]")
+
+
+def _dfo_client(cache: HttpCache) -> Any:
+    from .providers.dailyfaceoff import DailyFaceoffClient, make_cached_fetch_text
+
+    return DailyFaceoffClient(fetch_text=make_cached_fetch_text(cache))
+
+
+def _unit_label(x: str | None) -> str:
+    return x.upper() if x else "-"
+
+
+@app.command("lines")
+def lines_cmd(ctx: typer.Context,
+              team: Optional[str] = typer.Argument(None, help="NHL team (e.g. EDM); default: my players."),
+              league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+              json_out: bool = typer.Option(False, "--json")) -> None:
+    """Daily Faceoff line combinations and power-play units: one NHL team's lines, or every one of
+    my players' line / PP unit with the change since the last snapshot."""
+    from datetime import date as _date
+
+    from .matching.normalize import normalize_name, normalize_team
+    from .providers.lines_enrich import LineSnapshotStore, build_snapshot, diff_snapshots
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    if team:
+        abbrev = normalize_team(team)
+        from .providers.dailyfaceoff import TEAM_SLUGS
+        if abbrev not in TEAM_SLUGS:
+            _fail(f"unknown NHL team {team!r}; use an abbreviation like EDM, TOR or VGK")
+        cache = _cache()
+        errors: list[str] = []
+        tl = _safe(errors, f"Daily Faceoff {abbrev}", _dfo_client(cache).team_lines, abbrev)
+        if tl is None:
+            _fail(errors[0] if errors else f"Daily Faceoff lines for {abbrev} unavailable")
+        today = _date.today()
+        store = LineSnapshotStore(get_settings().fm_data_dir)
+        prev = store.previous(today)
+        changes = diff_snapshots(prev[1], build_snapshot(today, {abbrev: tl})) if prev else {}
+        mine: set[str] = set()
+        try:
+            lc0, _ = _load_context(league_name, cache)
+            mine = {normalize_name(p.name) for p in lc0.my_team.players}
+        except (typer.Exit, Exception):  # marking my players is optional
+            pass
+        groups = [("F1", "f1"), ("F2", "f2"), ("F3", "f3"), ("F4", "f4"), ("D1", "d1"), ("D2", "d2"), ("D3", "d3"),
+                  ("G", "g"), ("PP1", "pp1"), ("PP2", "pp2"), ("PK1", "pk1"), ("PK2", "pk2"), ("IR / out", "ir")]
+
+        def key(lp: Any) -> str:
+            return str(lp.dfo_id) if lp.dfo_id is not None else f"{abbrev}:{normalize_name(lp.name)}"
+
+        if as_json:
+            _dump({"team": abbrev, "updated_at": tl.updated_at, "source": tl.source, "source_url": tl.source_url,
+                   "previous_snapshot": prev[0].isoformat() if prev else None,
+                   "groups": {g: [{"name": lp.name, "position": lp.position, "change": changes.get(key(lp)),
+                                   "mine": normalize_name(lp.name) in mine, "injury": lp.injury_status}
+                                  for lp in tl.by_group(k)] for g, k in groups if tl.by_group(k)},
+                   "errors": errors})
+            return
+        tbl = Table(title=f"{abbrev} line combinations (Daily Faceoff)", show_lines=True)
+        tbl.add_column("Unit")
+        tbl.add_column("Players")
+        for label, k in groups:
+            members = tl.by_group(k)
+            if not members:
+                continue
+            cells = []
+            for lp in members:
+                name = escape(lp.name)
+                if normalize_name(lp.name) in mine:
+                    name = f"[bold green]{name}[/]"
+                ch = changes.get(key(lp))
+                cells.append(name + (f" [yellow]({escape(ch)})[/]" if ch else ""))
+            tbl.add_row(label, ", ".join(cells))
+        console.print(tbl)
+        when = tl.updated_at.strftime("%b %d %H:%M UTC") if tl.updated_at else "update time n/a"
+        since = f"; changes vs snapshot {prev[0]}" if prev else "; no earlier snapshot to compare"
+        console.print(f"[dim]{DFO_CREDIT}. Source: {escape(tl.source or 'Daily Faceoff')}, updated {when}{since}.[/]")
+        for e in errors:
+            console.print(f"[dim yellow]! {escape(e)}[/]")
+        return
+
+    d = _load_all(league_name)
+    lc = d.lc
+    players = sorted(lc.my_team.players, key=lambda p: (p.is_goalie, p.line or "zz", p.name))
+    rows = [{"cid": p.cid, "name": p.name, "pos": _pos(p), "team": p.team, "line": p.line, "pp_unit": p.pp_unit,
+             "pk_unit": p.pk_unit, "line_change": p.line_change, "confirmed_start": p.confirmed_start,
+             "start_source": p.start_source, "toi_per_game": p.toi_per_game, "pp_share": p.pp_share}
+            for p in players]
+    if as_json:
+        _json_out({"players": rows}, lc, d.errors)
+        return
+    tbl = Table(title=f"{lc.my_team.name}: lines and power-play units (Daily Faceoff)")
+    for c, j in (("Player", "left"), ("Pos", "left"), ("NHL", "left"), ("Line", "left"), ("PP", "left"),
+                 ("PK", "left"), ("TOI/GP", "right"), ("PP share", "right"), ("Change", "left")):
+        tbl.add_column(c, justify=j)
+    for r in rows:
+        ch = r["line_change"]
+        line = _unit_label(r["line"])
+        if r["line"] == "g" and r["confirmed_start"] is not None:
+            line = "G (starts tonight)" if r["confirmed_start"] else "G (not starting)"
+        tbl.add_row(escape(r["name"]), r["pos"], r["team"] or "-", line, _unit_label(r["pp_unit"]),
+                    _unit_label(r["pk_unit"]), _fmt(r["toi_per_game"]),
+                    "-" if r["pp_share"] is None else f"{r['pp_share']:.0%}",
+                    f"[yellow]{escape(ch)}[/]" if ch else "-")
+    console.print(tbl)
+    if not any(r["line"] for r in rows):
+        console.print("[dim]No Daily Faceoff lines matched your players (offline, or the pages failed).[/]")
+    _footer(lc, d.errors)
+
+
+@app.command("goalies")
+def goalies_cmd(ctx: typer.Context,
+                league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+                json_out: bool = typer.Option(False, "--json")) -> None:
+    """Tonight's starting goalies (Daily Faceoff, cached 3h) and whether my goalies start."""
+    from .matching.normalize import normalize_name, normalize_team
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    d = _load_all(league_name)
+    lc, errors = d.lc, d.errors
+    starts = _safe(errors, "Daily Faceoff starting goalies", _dfo_client(d.cache).starting_goalies, lc.as_of,
+                   default=[]) or []
+    mine = [p for p in lc.my_team.players if p.is_goalie]
+    mine_names = {normalize_name(p.name) for p in mine}
+    mine_rows = []
+    for p in mine:
+        team = normalize_team(p.team)
+        plays = lc.as_of in set(lc.schedule.get(team or "", []))
+        listed = next((x for x in starts if normalize_name(x.goalie_name) == normalize_name(p.name)), None)
+        state = ("no game tonight" if lc.schedule and not plays else
+                 "starting" if p.confirmed_start else "not starting" if p.confirmed_start is False else
+                 f"listed, {(listed.strength or 'unconfirmed').lower()}" if listed is not None else "unknown")
+        mine_rows.append({"cid": p.cid, "name": p.name, "team": p.team, "plays_tonight": plays if lc.schedule else None,
+                          "state": state, "source": p.start_source})
+    if as_json:
+        _json_out({"day": lc.as_of.isoformat(), "starts": [s.model_dump(mode="json") for s in starts],
+                   "my_goalies": mine_rows}, lc, errors)
+        return
+    tbl = Table(title=f"Starting goalies {lc.as_of:%a %b %d} (Daily Faceoff)")
+    for c in ("Game", "Team", "Goalie", "Status", "Reported by"):
+        tbl.add_column(c)
+    for s in sorted(starts, key=lambda s: (s.game_time or datetime.max.replace(tzinfo=timezone.utc), s.game, s.home)):
+        name = escape(s.goalie_name)
+        if normalize_name(s.goalie_name) in mine_names:
+            name = f"[bold green]{name} (mine)[/]"
+        style = "green" if s.is_confirmed else ("yellow" if s.is_start else "dim")
+        when = s.created_at.strftime("%H:%M UTC") if s.created_at else ""
+        tbl.add_row(s.game, s.team, name, f"[{style}]{escape(s.strength or 'unconfirmed')}[/]",
+                    escape(" ".join(x for x in (s.source or "", when) if x)) or "-")
+    console.print(tbl if starts else "No starting-goalie reports for today yet.")
+    mt = Table(title="My goalies tonight")
+    for c in ("Goalie", "NHL", "Tonight", "Source"):
+        mt.add_column(c)
+    for r in mine_rows:
+        style = {"starting": "green", "not starting": "red"}.get(r["state"], "dim")
+        mt.add_row(escape(r["name"]), r["team"] or "-", f"[{style}]{r['state']}[/]", escape(r["source"] or "-"))
+    console.print(mt)
+    console.print("[dim]The starting-goalies page is cached 3h; run again about an hour before puck drop "
+                  "for late confirmations.[/]")
     _footer(lc, errors)
 
 
@@ -1357,6 +1613,216 @@ def web(ctx: typer.Context,
         run(host, port, league_name)
     except ValueError as e:  # auth.InsecureBindError: non-loopback host without FM_WEB_PASSWORD
         _fail(str(e))
+
+
+# -- schedule grid / streaming planner and matchup preview (analysis/) ----------
+
+def _parse_day(text: Optional[str]) -> Any:
+    from datetime import date as _date
+
+    if not text:
+        return None
+    try:
+        return _date.fromisoformat(text.strip())
+    except ValueError:
+        _fail(f"--week expects a date like 2026-10-12, got {text!r}")
+
+
+def _load_schedule_ctx(league: str, need_values: bool) -> Loaded:
+    """provider.load -> NHL enrichment (schedule) [-> valuation when ``need_values``]."""
+    if need_values:
+        return _load_all(league)
+    from .providers.enrich import enrich_context
+
+    cache = _cache()
+    lc, provider = _load_context(league, cache)
+    try:
+        enrich_context(lc, get_settings(), cache)
+    except Exception as e:  # enrichment is best effort
+        lc.warnings.append(f"NHL enrichment failed: {e}")
+    return Loaded(lc, {}, None, provider, cache)
+
+
+def _week_table(view: Any) -> Table:
+    tbl = Table(title=f"NHL schedule, week of {view.start:%a %b %d} - {view.end:%a %b %d} "
+                      f"(off-night = fewer than {view.threshold} games, marked *)")
+    tbl.add_column("Team")
+    for d, n, off in zip(view.days, view.league_games, view.off_days):
+        tbl.add_column(f"{d:%a %m/%d}\n{n} gm" + (" *" if off else ""), justify="center")
+    for c in ("G", "Off", "B2B"):
+        tbl.add_column(c, justify="right")
+    for r in view.rows:
+        cells = []
+        for c in r.cells:
+            if c is None:
+                cells.append("[dim]-[/]")
+                continue
+            label = escape(c.opp or "x") + ("*" if c.off else "") + ("^" if c.b2b else "")
+            cells.append(f"[bold]{label}[/]" if c.off else label)
+        tbl.add_row(r.team, *cells, str(r.games), str(r.offnights), str(r.b2b))
+    return tbl
+
+
+def _stream_tables(plan: Any) -> list[Table]:
+    out = []
+    teams = Table(title=f"Best NHL teams to stream from ({plan.from_day:%a %b %d} - {plan.week_end:%a %b %d})")
+    for c, j in (("Team", "left"), ("Games", "right"), ("Off-night", "right"), ("B2B", "right"),
+                 ("Healthy FAs", "right")):
+        teams.add_column(c, justify=j)
+    for r in plan.teams:
+        teams.add_row(r.team, str(r.games), str(r.offnights), str(r.b2b),
+                      "-" if r.free_agents is None else str(r.free_agents))
+    out.append(teams)
+    for slot, targets in plan.by_slot.items():
+        tbl = Table(title=f"Streaming targets: {slot} (proj = per-game x games x (1 + {plan.bonus:g} x off-nights))")
+        for c, j in (("Player", "left"), ("Pos", "left"), ("NHL", "left"), ("GP", "right"), ("Off", "right"),
+                     ("FP/G", "right"), ("Proj", "right"), ("Own%", "right"), ("Opponents", "left")):
+            tbl.add_column(c, justify=j)
+        for t in targets:
+            name = escape(t.name) + ("" if t.status == "healthy" else f" [yellow]({t.status})[/]")
+            tbl.add_row(name, t.pos, t.team or "-", str(t.games), str(t.offnights), _fmt(t.per_game), _fmt(t.proj),
+                        "-" if t.pct_owned is None else f"{t.pct_owned:.0f}", escape(" ".join(t.opps)))
+        if not targets:
+            tbl.add_row("[dim](no free agents with games)[/]", "", "", "", "", "", "", "", "")
+        out.append(tbl)
+    return out
+
+
+def _playoff_table(po: Any, limit: int | None = None) -> Table:
+    heads = [f"P{p.number}\n{p.start:%m/%d}" for p in po.periods]
+    tbl = Table(title=f"Fantasy playoffs: games per NHL team (periods {', '.join(str(p.number) for p in po.periods)}; "
+                      f"{po.source})")
+    tbl.add_column("#", justify="right")
+    tbl.add_column("Team")
+    for h in heads:
+        tbl.add_column(h, justify="right")
+    for c in ("Total", "Off-night", "B2B", "vs avg"):
+        tbl.add_column(c, justify="right")
+    for i, t in enumerate(po.teams[:limit] if limit else po.teams, 1):
+        tbl.add_row(str(i), t.team, *[str(g) for g in t.games], str(t.total), str(t.total_offnights),
+                    str(t.total_b2b), f"{t.total - po.avg_total:+.1f}")
+    return tbl
+
+
+def _season_table(grid: Any) -> Table:
+    tbl = Table(title="Games per NHL team per fantasy week (Mon-Sun)")
+    tbl.add_column("Team")
+    for w in grid.weeks:
+        tbl.add_column(f"{w:%m/%d}", justify="right")
+    tbl.add_column("Total", justify="right")
+    for t in grid.teams:
+        tbl.add_row(t.team, *[str(g) for g in t.games], str(t.total_games))
+    tbl.add_row("[dim]NHL games[/]", *[f"[dim]{n}[/]" for n in grid.league_games], "")
+    return tbl
+
+
+@app.command("schedule")
+def schedule_cmd(ctx: typer.Context,
+                 week: Optional[str] = typer.Option(None, "--week", help="Any date in the week (YYYY-MM-DD); "
+                                                                         "default: this week."),
+                 playoffs: bool = typer.Option(False, "--playoffs", help="Games per NHL team in the fantasy playoffs."),
+                 stream: bool = typer.Option(False, "--stream", help="Free agents to stream this week, by slot."),
+                 season: bool = typer.Option(False, "--season", help="Season-long team x week game counts."),
+                 limit: int = typer.Option(10, "--limit", help="Streaming targets per slot."),
+                 league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+                 json_out: bool = typer.Option(False, "--json")) -> None:
+    """NHL schedule grid for a fantasy week (off-nights, back-to-backs), streaming targets and
+    fantasy-playoff schedule strength."""
+    from .analysis.schedule_grid import (default_week, playoff_weeks, season_grid, streaming_targets,
+                                         week_rows)
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    day = _parse_day(week)
+    d = _load_schedule_ctx(league_name, need_values=stream)
+    lc = d.lc
+    if not lc.schedule:
+        lc.warnings.append("No NHL schedule loaded (offline or the schedule request failed).")
+    start = day or default_week(lc)
+    view = week_rows(lc, start)
+    plan = streaming_targets(lc, d.values, view.start, limit=limit) if stream else None
+    if plan is None and lc.schedule:  # the team half of the streaming plan needs no values
+        plan = streaming_targets(lc, {}, view.start, limit=0)
+    po = playoff_weeks(lc, d.provider) if playoffs else None
+    grid = season_grid(lc) if season else None
+    if as_json:
+        _dump({"week": view.model_dump(mode="json"),
+               "streaming": plan.model_dump(mode="json") if plan else None,
+               "playoffs": po.model_dump(mode="json") if po else None,
+               "season": grid.model_dump(mode="json") if grid else None, "meta": _meta(lc)})
+        return
+    if lc.schedule:
+        console.print(_week_table(view))
+        console.print("[dim]* off-night game (fewer than 8 NHL games that night); ^ second night of a "
+                      "back-to-back; @XXX = away.[/]")
+    if plan is not None:
+        tables = _stream_tables(plan)
+        console.print(tables[0])
+        if stream:
+            for t in tables[1:]:
+                console.print(t)
+    if po is not None:
+        for n in po.notes:
+            console.print(f"[dim]{escape(n)}[/]")
+        if po.teams:
+            console.print(_playoff_table(po))
+    if grid is not None and grid.teams:
+        console.print(_season_table(grid))
+    _footer(lc)
+
+
+@app.command("matchup")
+def matchup_cmd(ctx: typer.Context,
+                seed: Optional[int] = typer.Option(None, "--seed", help="Random seed for the win-probability draws."),
+                league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+                json_out: bool = typer.Option(False, "--json")) -> None:
+    """This period's head-to-head matchup: score, projected remaining points, win probability and advice."""
+    from .analysis.matchup import current_matchup
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    d = _load_all(league_name)
+    lc = d.lc
+    m = current_matchup(lc, d.provider, d.values, seed=seed)
+    if as_json:
+        _dump({**m.to_json(), "meta": _meta(lc)})
+        return
+    when = f"period {m.period}" if m.period else "this period"
+    if m.start and m.end:
+        when += f", {m.start:%a %b %d} - {m.end:%a %b %d} ({m.days_left} days left)"
+    console.print(f"[bold]{escape(m.my_team)}[/] vs [bold]{escape(m.opponent_team or 'unknown opponent')}[/]"
+                  f" - {when}{' (playoffs)' if m.playoffs else ''}")
+    tbl = Table(title="Matchup")
+    for c in ("", "So far", "Proj remaining", "Proj total", "Games left", "SD"):
+        tbl.add_column(c, justify="right" if c else "left")
+    tbl.add_row(escape(m.my_team), _fmt(m.my_points_so_far), _fmt(m.my_projected_remaining),
+                _fmt(m.my_projected_total), str(m.my_games_left), _fmt(m.my_sd))
+    if m.opponent_team:
+        tbl.add_row(escape(m.opponent_team), _fmt(m.their_points_so_far), _fmt(m.their_projected_remaining),
+                    _fmt(m.their_projected_total), str(m.their_games_left), _fmt(m.their_sd))
+    console.print(tbl)
+    if m.win_probability is not None:
+        console.print(f"Win probability: [bold]{m.win_probability:.0%}[/] ({m.draws} draws) - "
+                      f"stance: [bold]{m.stance}[/]   margin {m.margin:+.1f}")
+    if m.gap_by_position:
+        gt = Table(title="Projected remaining by position")
+        for c in ("Pos", "Mine", "Theirs", "Gap"):
+            gt.add_column(c, justify="left" if c == "Pos" else "right")
+        for g, x in m.gap_by_position.items():
+            gt.add_row(g, _fmt(x.mine), _fmt(x.theirs), _fmt(x.gap, True))
+        console.print(gt)
+    if m.key_players_theirs:
+        kt = Table(title="Their key players")
+        for c in ("Player", "Tag", "Pos", "NHL", "Status", "GP left", "Proj", "Note"):
+            kt.add_column(c, justify="right" if c in ("GP left", "Proj") else "left")
+        for k in m.key_players_theirs:
+            kt.add_row(escape(k.name), k.tag, k.pos, k.team or "-", k.status, str(k.games_left),
+                       _fmt(k.proj_remaining), escape(k.note or ""))
+        console.print(kt)
+    for a in m.advice:
+        console.print(f"- {escape(a)}")
+    console.print(f"[dim]Lineups: {escape(m.lineup_basis)}; scores: {escape(m.source)}.[/]")
+    for w in m.warnings:
+        console.print(f"[dim yellow]! {escape(w)}[/]")
+    _footer(lc)
 
 
 if __name__ == "__main__":

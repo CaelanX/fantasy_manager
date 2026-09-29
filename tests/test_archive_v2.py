@@ -41,7 +41,7 @@ def test_v2_projection_archive_round_trip(tmp_path):
     path, status = A.archive_projections(ctx, tmp_path, values)
     assert status == "created"
     snap = A.load_snapshot(path)
-    assert snap["version"] == A.ARCHIVE_VERSION == 2
+    assert snap["version"] == A.ARCHIVE_VERSION >= 2
     assert snap["params_hash"] == VP.params_hash() and len(snap["code_hash"]) == 40
     rec = {r["cid"]: r for r in snap["players"]}["espn:1"]
     inp = rec["inputs"]
@@ -69,7 +69,7 @@ def test_v2_recommendation_records_carry_gain_fields(tmp_path):
     path, _ = A.archive_recommendations([rec], "espn", tmp_path, as_of=date(2026, 10, 20), league_id="1")
     snap = A.load_snapshot(path)
     r = snap["recommendations"][0]
-    assert snap["version"] == 2 and snap["code_hash"] and snap["params_hash"]
+    assert snap["version"] == A.ARCHIVE_VERSION >= 2 and snap["code_hash"] and snap["params_hash"]
     assert (r["predicted_gain"], r["gain_units"], r["horizon_days"], r["strength"]) == (0.95, "season_fpg", None, 6.2)
     assert r["subjects"][0]["cid"] == "espn:1"
 

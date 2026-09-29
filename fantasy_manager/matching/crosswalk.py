@@ -4,6 +4,12 @@ Confident matches (``exact`` / ``high`` from :func:`match_player`) are stored an
 ambiguous ones are recorded as ``pending`` for ``fm sync --review`` and can be settled with
 ``fm sync --confirm espn:123=8478402``. ``Player.cid`` is never changed: the NHL id is
 written to ``player.ids["nhl"]`` (exposed as ``Player.nhl_id``).
+
+Sources: league providers (``espn``, ``fantrax``) resolve :class:`Player` objects through
+:meth:`Crosswalk.resolve`; external feeds without NHL ids (``dfo`` = Daily Faceoff player ids)
+resolve plain (id, name, team, position) records through :meth:`Crosswalk.resolve_source`.
+Their pending rows show up in the same ``fm sync --review`` queue and are pinned the same way
+(``fm sync --confirm dfo:2477=8478420``).
 """
 from __future__ import annotations
 
@@ -19,6 +25,8 @@ from ..models import Player
 from .matcher import Candidate, PlayerIndex, match_player
 
 STORED = ("exact", "high", "confirmed")
+# Known id sources. "dfo" (Daily Faceoff) ids come from line / starting-goalie pages.
+SOURCES = ("espn", "fantrax", "dfo")
 
 
 class XrefRow(BaseModel):
@@ -31,6 +39,14 @@ class XrefRow(BaseModel):
     candidate_name: str | None = None
     score: float | None = None
     updated: float = 0.0
+
+
+class SourceItem(BaseModel):
+    """A player record from an external feed (no NHL id) to map to an NHL id."""
+    source_id: str
+    name: str
+    team: str | None = None
+    position: str | None = None      # "C", "LW", "D", "G", "C/LW", ... (None: unknown)
 
 
 class ResolveStats(BaseModel):
@@ -143,6 +159,45 @@ class Crosswalk:
 
     def close(self) -> None:
         self._db.close()
+
+    def resolve_source(self, source: str, items: Iterable[SourceItem],
+                       nhl_candidates: list[Candidate] | PlayerIndex, store_unmatched: bool = False
+                       ) -> tuple[dict[str, int], ResolveStats]:
+        """Map external-feed records (e.g. ``source="dfo"``) to NHL ids -> ({source_id: nhl_id},
+        stats). Stored confident / confirmed rows win; otherwise the fuzzy matcher runs with
+        the record's team and position. Pending matches are stored for ``fm sync --review``;
+        "none" rows are only stored with ``store_unmatched`` (a feed lists every NHL player,
+        most of them outside the candidate pool, and would flood the review queue)."""
+        index = nhl_candidates if isinstance(nhl_candidates, PlayerIndex) else PlayerIndex(nhl_candidates)
+        stats = ResolveStats()
+        out: dict[str, int] = {}
+        now = time.time()
+        for it in items:
+            sid = str(it.source_id)
+            if sid in out:
+                continue
+            stored = self.get(source, sid)
+            if stored and stored.confidence in STORED and stored.nhl_id is not None:
+                out[sid] = int(stored.nhl_id)
+                stats.resolved += 1
+                continue
+            if not len(index):
+                continue
+            m = match_player(it.name, index, team=it.team, position=it.position)
+            if m.matched:
+                out[sid] = int(m.key)
+                stats.resolved += 1
+                stats.new += 1
+            elif m.confidence == "pending":
+                stats.pending += 1
+            else:
+                stats.unmatched += 1
+                if not store_unmatched:
+                    continue
+            self._put(XrefRow(source=source, source_id=sid, name=it.name, team=it.team, confidence=m.confidence,
+                              candidate_name=m.name, score=m.score or None, updated=now,
+                              nhl_id=int(m.key) if m.key is not None else None))
+        return out, stats
 
     # -- resolution ------------------------------------------------------------
     def resolve(self, players: list[Player], nhl_candidates: list[Candidate] | PlayerIndex) -> ResolveStats:

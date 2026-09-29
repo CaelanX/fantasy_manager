@@ -7,7 +7,7 @@ Points, categories and roto leagues are supported. In categories/roto leagues th
 ## How players are valued
 
 1. **Baseline.** The last three NHL seasons weighted 5/4/3 by games played, shrunk toward the positional mean with k = 8 games (forwards), 14 (defense) or 120 (goalies), times a fitted year-over-year age factor (young forwards improve, 30+ decline). When the league has a projection (ESPN or Fantrax), the baseline is 0.6 × projection + 0.4 × that history for players with 40+ NHL games over those seasons, the projection alone for rookies, and a linear mix in between. These constants were fitted on 10 seasons of NHL history (`fm backtest`, see [docs/backtesting.md](docs/backtesting.md)) and ship in `fantasy_manager/valuation/fitted_params.json`.
-2. **Rates.** Current-season per-game stats are shrunk toward the baseline: `rate = (GP*current + k*baseline)/(GP+k)`, with k=25 for skaters and 40 for goalies. With 0 games played the value is just the baseline, so the tool works preseason.
+2. **Rates.** Current-season per-game stats are shrunk toward the baseline: `rate = (GP*current + k*baseline)/(GP+k)`, with k=25 for skaters and 40 for goalies. With 0 games played the value is just the baseline, so the tool works preseason. From 5 games on, a skater's season-to-date goal rate is first pulled toward his MoneyPuck expected goals (`(GP*G + 15*ixG/GP)/(GP+15)`, reason `XG_SHRINK`); the backtest found this helps single-season rates (-1.5% MAE) but not the multi-season baseline, so it is never applied preseason. Goalie start shares use this season's actual starts from the harness ledger once a team has 5 games there (`START_ACTUAL`), and the week projection accounts for back-to-back second nights (`B2B`).
 3. **Recent form.** Season 0.85, last 30 days 0.15, last 15 and last 7 days 0: in the backtest, short windows added noise rather than signal at every in-season checkpoint. A split with fewer games than expected gets a proportionally smaller weight, and the difference goes back to the season weight.
 4. **Scoring.** FPG = sum of (league point value × per-game rate).
 5. **Availability.** Healthy 1.0, day-to-day 0.75, out 0 this week / 0.6 for the season, IR 0 / 0.4, LTIR 0 / 0.1, suspended 0 / 0.5.
@@ -51,7 +51,13 @@ Every command takes `--league espn|fantrax` (default `espn`) and `--json`, eithe
 | `lineup` | Optimal starting lineup for the week (or season) and start/sit changes | `fm lineup` |
 | `injuries` | Injured players on your roster, status changes since the last run, IR moves and activations | `fm injuries --no-record` |
 | `trades` | 1-for-1 and 2-for-1 proposals that raise your lineup by > 0.5 FPG, pass a ±12% fairness band (VORP, or dynasty value in dynasty leagues) and don't hurt the other team much; uses Fantrax trade-block wants | `fm trades --per-team 2 -n 5` |
-| `flags` | Sell-high (your hot players with a shooting%/SV% spike) and buy-low (cold players whose shot rate held up) | `fm flags` |
+| `flags` | Sell-high (your hot players running above their expected goals, else with a shooting%/SV% spike) and buy-low (cold players whose shot rate held up and who are not finishing above expected) | `fm flags` |
+| `alerts` | Every alert engine: Daily Faceoff line / power-play unit changes and confirmed goalie starts, NHL role changes (TOI / PP share), free agents rising in % rostered | `fm alerts --league fantrax` |
+| `trending` | ESPN-wide % rostered risers (`--fallers`: drops) this week, tagged free agent / rostered in your league | `fm trending --fallers` |
+| `lines` | Daily Faceoff line combinations and PP units for one NHL team, or line / PP unit / change since the last snapshot for each of your players | `fm lines EDM` |
+| `goalies` | Tonight's starting goalies (Daily Faceoff) and whether your goalies start | `fm goalies` |
+| `schedule` | NHL schedule grid for a fantasy week (off-nights, back-to-backs); `--stream` streaming targets by slot, `--playoffs` fantasy-playoff schedule strength, `--season` games per team per week | `fm schedule --stream` |
+| `matchup` | This period's head-to-head: score so far, projected remaining points, win probability and advice | `fm matchup` |
 | `advise` | Everything above in one ranked list, grouped by kind (scores rescaled 0-10 per kind); `--explain` adds LLM explanations | `fm advise --explain` |
 | `news` | RotoWire/ESPN news matched to your roster and free agents (`--all`: every league player), with tags and age | `fm news --all -n 50` |
 | `ask` | Ask a question; the LLM answers from your league data, recommendations and news only | `fm ask "should I trade Hughes for Makar?"` |
@@ -71,6 +77,7 @@ Environment variables each command needs (all live in `.env`, see `.env.example`
 | Any `--league fantrax` command | `FANTRAX_LEAGUE_ID`, `FANTRAX_COOKIE` or `FANTRAX_COOKIE_FILE`; optional `FANTRAX_POINTS` (fallback when the Rules page cannot be read), `FANTRAX_TEAM`, `FANTRAX_DYNASTY`, `FANTRAX_KEEPER_HORIZON_YEARS`, `FANTRAX_MODE` |
 | `ask` (required), `advise --explain`, `report --explain` | `OPENROUTER_API_KEY`; optional `FM_LLM_MODEL` (default `openrouter/free`), `FM_LLM_FALLBACKS` |
 | `report --notify`, `notify` | `DISCORD_WEBHOOK_URL` and/or `SLACK_WEBHOOK_URL` |
+| Betting odds in `harness daily` / `harness odds` | `ODDS_API_KEY` (free tier); optional `ODDS_REGION` |
 | `web` on a network or server | `FM_WEB_PASSWORD` (required off-localhost); optional `FM_WEB_SECRET`, `FM_WEB_SESSION_DAYS`, `FM_WEB_ALLOW_INSECURE` |
 | Everything | optional `FM_DATA_DIR` (default `./data`), `FM_OFFLINE=1` (cache only, no network) |
 
@@ -79,6 +86,19 @@ Without `OPENROUTER_API_KEY`, `advise --explain` and `report --explain` still wo
 To run the report every morning with Windows Task Scheduler, see [docs/scheduling.md](docs/scheduling.md). The daily task runs `fm auth fantrax --ping`, `fm backtest archive`, `fm harness daily` and `fm report --notify`, in that order: the archive snapshots both leagues' projections and recommendations to `data/archive/`, and the harness grades them (see [docs/harness.md](docs/harness.md)).
 
 **Params provenance.** Valuation constants ship in `valuation/fitted_params.json`; the harness may layer a fitted version on top (`<FM_DATA_DIR>/harness/params/`). `fm settings`, `fm harness params` and the dashboard footer show which is in use (e.g. `fit 2026-09-28 (espn) + harness v0003 (2026-11-17)`); `fm harness rollback` or the Health tab undoes a version, and `FM_PARAMS_OVERRIDE=0` ignores harness versions.
+
+## Data sources
+
+| Source | What it feeds | Access and caching |
+|---|---|---|
+| ESPN league API (`espn_api`) | Your ESPN league: rosters, scoring, projections, % rostered | League cookies for private leagues; 15 min cache |
+| ESPN public player pool | `fm trending` (% rostered risers / fallers across all ESPN leagues) and ownership trends | No cookies; 6 h cache |
+| Fantrax | Your Fantrax league: rosters, Rules page (scoring, lineup lock), projections, % rostered change | Your session cookie; 15 min cache |
+| NHL stats / web APIs | Season stats, schedules, rosters, game logs, player pages, and the per-game TOI / power-play / goalie-start reports the harness stores daily (deployment, role alerts, actual start shares) | Public; 6 h (current season) to 30 days (finished seasons / days) |
+| ESPN injuries, RotoWire / ESPN news | Injury status and notes, news matched to players | Public feeds; 1 h / 30 min |
+| Daily Faceoff | Line combinations, power-play / penalty-kill units and starting goalies (lines on player rows, line alerts, confirmed starts in lineups) | One request per team page (32) at most every 12 h, the starting-goalies page every 3 h, one snapshot a day under `data/lines/`; identifies itself with a User-Agent. Please keep it that polite: it is a free site. Credit: Daily Faceoff (dailyfaceoff.com) |
+| MoneyPuck | Expected goals (ixG), goals above expected and on-ice shooting % (in-season goal shrink, sell-high / buy-low luck, the player page) | Two published season CSVs, 12 h (current) / 30 days (past); free for non-commercial use with credit: **Expected goals: MoneyPuck.com** (shown wherever the numbers appear) |
+| The Odds API | NHL moneylines and totals, implied team goals (`fm harness odds`, archived daily) | `ODDS_API_KEY`; one 2-credit call a day on the free tier |
 
 ## Hosting
 
@@ -92,7 +112,7 @@ To reach the dashboard from your phone anywhere and have the daily job run witho
 
 The tests use no network. ESPN parsing is tested against `tests/fixtures/espn/player_stats_sample.json`, a hand-built fixture shaped like `espn_api` `Player.stats`.
 
-Layout: `config.py` (settings), `cache.py` (HTTP cache and espn_api hook), `models.py`, `providers/` (ESPN, Fantrax, NHL, injuries, news, enrichment), `matching/`, `scoring/` (points, categories, roto), `valuation/` (blend, adjust, schedule, replacement, valuate, dynasty), `recommend/` (lineup, waivers, injuries, trades, flags, advise), `llm/` (OpenRouter client, narration, ask), `report/` (digest, news matching, webhooks), `web/` (dashboard), `cli.py`.
+Layout: `config.py` (settings), `cache.py` (HTTP cache and espn_api hook), `models.py`, `providers/` (ESPN, Fantrax, NHL, injuries, news, Daily Faceoff, MoneyPuck, odds, enrichment), `matching/`, `scoring/` (points, categories, roto), `valuation/` (blend, adjust, schedule, replacement, regression, valuate, dynasty), `recommend/` (lineup, waivers, injuries, trades, flags, alerts, advise), `analysis/` (schedule grid, matchup), `harness/` (ledger, deployment, grading, refit), `llm/` (OpenRouter client, narration, ask), `report/` (digest, news matching, webhooks), `web/` (dashboard), `cli.py`.
 
 ## Status
 

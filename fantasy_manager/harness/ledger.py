@@ -22,6 +22,15 @@ Tables (M1 fills the first nine, M2 grading fills ``outcomes`` and ``metric_snap
 
 Bookkeeping: ``archive_files`` (sha1 of every ingested archive file, so unchanged files are
 skipped) and ``realized_pulls`` (which game dates were pulled, including empty ones).
+
+Deployment (``harness.deployment``, NHL per-game reports; ``DEPLOYMENT_TABLES``, kept by
+``fm harness rebuild`` like the other pulled tables because the archive cannot restore them):
+
+* ``deployment_daily``  per skater per game date: TOI / EV / PP / SH minutes, shifts, the team's
+                        PP minutes that game and the skater's share of them
+* ``goalie_starts``     per goalie per game date: started, SA / SV / GA, TOI minutes and whether
+                        the team also played the previous day (``back_to_back``)
+* ``deployment_pulls``  which game dates were pulled (including empty ones)
 """
 from __future__ import annotations
 
@@ -106,6 +115,19 @@ CREATE TABLE IF NOT EXISTS metric_snapshots (
 CREATE TABLE IF NOT EXISTS param_versions (
     version TEXT PRIMARY KEY, parent TEXT, params_hash TEXT, status TEXT, created_at TEXT,
     metrics_json TEXT, changelog TEXT);
+CREATE TABLE IF NOT EXISTS deployment_daily (
+    nhl_id INTEGER NOT NULL, game_date TEXT NOT NULL, team TEXT, game_id INTEGER, opponent TEXT,
+    toi REAL, ev_toi REAL, pp_toi REAL, sh_toi REAL, shifts INTEGER,   -- minutes
+    team_pp_toi REAL, pp_share REAL, pulled_at TEXT,
+    PRIMARY KEY (nhl_id, game_date));
+CREATE INDEX IF NOT EXISTS ix_deployment_date ON deployment_daily(game_date);
+CREATE TABLE IF NOT EXISTS goalie_starts (
+    nhl_id INTEGER NOT NULL, game_date TEXT NOT NULL, team TEXT, game_id INTEGER, opponent TEXT,
+    started INTEGER NOT NULL, sa REAL, sv REAL, ga REAL, toi REAL, back_to_back INTEGER, pulled_at TEXT,
+    PRIMARY KEY (nhl_id, game_date));
+CREATE INDEX IF NOT EXISTS ix_goalie_starts_team ON goalie_starts(team, game_date);
+CREATE TABLE IF NOT EXISTS deployment_pulls (
+    game_date TEXT PRIMARY KEY, n_skaters INTEGER NOT NULL, n_goalies INTEGER NOT NULL, pulled_at TEXT);
 """
 
 # Columns added after schema v1 (``Ledger._migrate`` adds them to older dbs).
@@ -117,6 +139,9 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
 TABLES = ("runs", "recs", "rec_players", "rec_episodes", "transactions", "lineup_days", "projections",
           "realized_daily", "decisions", "outcomes", "metric_snapshots", "param_versions",
           "archive_files", "realized_pulls")
+# NHL deployment pulls (harness.deployment). Not in TABLES: `fm harness rebuild` deletes TABLES
+# minus a keep-list, and these cannot be restored from the archive.
+DEPLOYMENT_TABLES = ("deployment_daily", "goalie_starts", "deployment_pulls")
 
 
 def rec_key(league: str, kind: str, add: Iterable[str], drop: Iterable[str], counterparty: str | None = None,
@@ -207,7 +232,7 @@ class Ledger:
     def reset(self) -> None:
         """Drop every row of every table (``fm harness rebuild``)."""
         with self._lock:
-            for t in TABLES:
+            for t in TABLES + DEPLOYMENT_TABLES:
                 self.db.execute(f"DELETE FROM {t}")
             self.db.commit()
 

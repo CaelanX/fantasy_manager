@@ -22,7 +22,15 @@ Version 2 (``ARCHIVE_VERSION``) adds what is needed to refit the model later:
 * recommendation records add ``predicted_gain`` / ``gain_units`` / ``horizon_days``,
   ``strength`` and ``subjects``.
 
-v1 files stay readable: every v2 key is optional for readers (``load_snapshot``).
+Version 3 adds the new per-player signals to each projection record's ``inputs`` (flat keys,
+only when the Player carries a value; see ``SIGNAL_FIELDS``): deployment (toi_per_game,
+pp_toi_per_game, pp_share, toi_trend, pp_share_trend), market (pct_owned_change, pct_started,
+adp, adp_change), lines / units / starts (line, pp_unit, pk_unit, confirmed_start) and luck
+(ixg_per_game, goals_minus_ixg, onice_sh_pct, onice_xg_pct and ``xg_split``, the season they describe),
+so the harness can test them later (and ``harness.refit`` replays the in-season xG goal shrink).
+
+v1 and v2 files stay readable: every v2 key is optional for readers (``load_snapshot``), and a
+v3 signal missing from ``inputs`` means "unknown" (``signal_inputs`` fills None for all of them).
 
 ``score_archive`` compares the provider projection, and ours, with actual season FPG.
 """
@@ -39,7 +47,13 @@ from .data import PlayerSeason
 from .evaluate import metrics
 from .scoring import fpg, scorer
 
-ARCHIVE_VERSION = 2
+ARCHIVE_VERSION = 3
+# Player fields archived in ``inputs`` when set (v3). Filled by different enrichers; the archive
+# captures whatever is there so the harness can grade them.
+SIGNAL_FIELDS = ("toi_per_game", "pp_toi_per_game", "pp_share", "toi_trend", "pp_share_trend",
+                 "pct_owned_change", "pct_started", "adp", "adp_change",
+                 "line", "pp_unit", "pk_unit", "confirmed_start",
+                 "ixg_per_game", "goals_minus_ixg", "onice_sh_pct", "onice_xg_pct", "xg_split")
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
 CODE_HASH_DIRS = ("valuation", "recommend")
 
@@ -170,7 +184,27 @@ def player_inputs(p: Player, pv: Any, as_of: date, means: Mapping[str, Mapping[s
         "birth_date": p.birth_date.isoformat() if p.birth_date else None, "age": age,
         "pct_owned": p.pct_owned, "positions": list(p.positions),
     })
+    inp.update(player_signals(p))
     return inp
+
+
+def player_signals(p: Player) -> dict[str, Any]:
+    """The v3 signals the Player carries (``SIGNAL_FIELDS`` that are not None; floats rounded)."""
+    out: dict[str, Any] = {}
+    for f in SIGNAL_FIELDS:
+        v = getattr(p, f, None)
+        if v is None:
+            continue
+        if isinstance(v, float):
+            v = round(v, 5)
+        out[f] = v
+    return out
+
+
+def signal_inputs(inputs: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Every ``SIGNAL_FIELDS`` value of an archived ``inputs`` block (any version; None when
+    absent)."""
+    return {f: (inputs or {}).get(f) for f in SIGNAL_FIELDS}
 
 
 def _position_means(players: list[Player]) -> dict[str, dict[str, float]] | None:
@@ -234,7 +268,8 @@ def archive_recommendations(recs: Iterable[Recommendation], provider: str, data_
 
 
 def load_snapshot(path: Path | str) -> dict[str, Any]:
-    """Read an archive file (v1 or v2); v2-only keys are filled with None / [] for v1 files."""
+    """Read an archive file (v1, v2 or v3); v2-only keys are filled with None / [] for v1 files.
+    v3 signals are left out of older ``inputs`` blocks (read them with ``signal_inputs``)."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     data.setdefault("version", 1)
     data.setdefault("params_hash", None)

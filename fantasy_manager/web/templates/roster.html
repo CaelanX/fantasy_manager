@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import pill, plink, games_cell, prospect_mark with context %}
+{% from "_macros.html" import pill, plink, games_cell, prospect_mark, unit_badges with context %}
 {% block heading %}
 <p class="sc dateline">{{ res.ctx.name }} &middot; roster</p>
 <h1>{{ team.name if team else 'Roster' }}{% if team and team.owner_is_me %} <span class="me-tag">me</span>{% endif %}</h1>
@@ -48,7 +48,7 @@
     <tr class="grp"><th scope="colgroup" colspan="{{ ncols }}">{{ label }} &middot; {{ items|length }}</th></tr>
     {% for x in items %}
     <tr{% if not x.starting %} class="bench"{% endif %}>
-      <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}<small>{{ x.pos }} &middot; {{ x.team }}</small></th>
+      <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}{{ unit_badges(x) }}<small>{{ x.pos }} &middot; {{ x.team }}</small></th>
       <td data-label="Slot" class="slot">{{ x.slot }}</td>
       <td data-label="Status" class="wrap">{{ pill(x.status) }}{% if x.note %}<small class="note-s" title="{{ x.note }}">{{ x.note|truncate(34) }}</small>{% endif %}</td>
       <td data-label="Age" class="n">{{ x.age|int if x.age is not none else '-' }}</td>

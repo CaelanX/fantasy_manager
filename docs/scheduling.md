@@ -9,7 +9,7 @@ The daily task runs four commands, in this order:
 |---|---|---|---|
 | 1 | `fm auth fantrax --ping` | Keeps the Fantrax session alive (re-logs in when needed) | yes (one cheap request) |
 | 2 | `fm backtest archive` | Snapshots today's projections and recommendations to `data\archive\` | yes (one file per league per day) |
-| 3 | `fm harness daily` | Ingests the archive, pulls transactions, lineups and NHL results, matches your moves, grades on Mondays, refits on refit days | yes (a second run the same day changes nothing) |
+| 3 | `fm harness daily` | Ingests the archive, pulls transactions, lineups, NHL results and NHL deployment (TOI / PP / goalie starts), takes the day's Daily Faceoff lines snapshot, matches your moves, grades on Mondays, refits on refit days | yes (a second run the same day changes nothing) |
 | 4 | `fm report --notify` | Writes the digest and posts the summary to your webhooks | no: every run posts again |
 
 The ping goes first so the other steps find a live Fantrax session; the report goes last so its
@@ -137,3 +137,4 @@ and `schtasks /Delete /TN ... /F`.
   files already exist. Run it every day: the ESPN and Fantrax activity feeds only keep the most
   recent moves. The dashboard's Health tab shows the last daily run and any capture warnings.
   See `docs/harness.md`.
+- **Betting odds.** With `ODDS_API_KEY` in `.env`, `fm harness daily` also fetches NHL moneylines and totals from The Odds API once a day (2 of the free tier's 500 monthly credits) and archives them with implied team totals to `data\archive\odds-YYYY-MM-DD.json`; without a key the step is skipped. `fm harness odds` shows the slate and the remaining quota.

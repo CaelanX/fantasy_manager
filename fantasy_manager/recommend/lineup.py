@@ -10,11 +10,23 @@ Start/sit recommendations come from the slot diff between the current lineup and
 one (re-arranged so as many starters as possible keep their current slot type): each change
 is one chain "bench player enters slot T [, starter moves from T to T2 ...], a starter leaves",
 so a player is only ever paired with a slot he can fill (a goalie only with a goalie slot).
+
+Lineup lock: ``providers.fantrax.lineup_lock_for`` (the Fantrax Rules page, parsed once by
+``FantraxProvider.lineup_lock``). Weekly-lock leagues get the "for this week's lineup (locks
+Monday)" wording and a LINEUP_LOCK reason; daily leagues (ESPN, Fantrax set to daily) do not.
+
+Daily-lineup leagues: when Daily Faceoff has named tonight's starter
+(``Player.confirmed_start`` / ``start_source``, see providers.lines_enrich) and the goalie's
+team plays today, today's game in his week projection uses a start probability of 1.0
+(confirmed) / 0.8 (likely or expected) for the starter and 0.0 / 0.2 for the other goalie
+instead of his season start share (CONFIRMED_START reason on the recs involving him).
 """
 from __future__ import annotations
 
+import re
 from typing import Callable, Mapping, NamedTuple
 
+from ..matching.normalize import normalize_team
 from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation
 from ..valuation.adjust import Horizon
 from ..valuation.replacement import eligible_slots
@@ -27,6 +39,10 @@ MIN_GAIN_ABS = 0.5
 MIN_GAIN_REL = 0.08
 STABILITY_BONUS = 1e-6       # tie-break toward current starters
 UNAVAILABLE = ("out", "ir", "ltir", "suspended")
+# Start probability for today's game from a Daily Faceoff report: (starter, other goalie).
+START_PROB_CONFIRMED = (1.0, 0.0)
+START_PROB_LIKELY = (0.8, 0.2)
+_START_STRENGTH_RE = re.compile(r"\b(Confirmed|Likely|Expected)\b", re.I)
 
 
 def starting_slots(roster_shape: Mapping[str, int]) -> list[str]:
@@ -237,6 +253,55 @@ def _chain_title(chain: list[SlotChange], by_cid: Mapping[str, Player]) -> str:
     return title[0].upper() + title[1:]
 
 
+def confirmed_start_probability(p: Player) -> float | None:
+    """Today's start probability from ``confirmed_start`` (None when unknown): 1.0 / 0.0 for
+    a confirmed report, 0.8 / 0.2 for likely / expected (read from ``start_source``)."""
+    if not p.is_goalie or p.confirmed_start is None:
+        return None
+    m = _START_STRENGTH_RE.search(p.start_source or "")
+    starter, other = START_PROB_LIKELY if m and m.group(1).lower() != "confirmed" else START_PROB_CONFIRMED
+    return starter if p.confirmed_start else other
+
+
+def apply_confirmed_starts(ctx: LeagueContext, values: Mapping[str, PlayerValue], horizon: Horizon = "week"
+                           ) -> tuple[Mapping[str, PlayerValue], dict[str, tuple[float, float]]]:
+    """Daily-lineup leagues (ESPN, Fantrax set to daily), week horizon: re-project my goalies
+    whose start tonight is known.
+    Today's game counts ``prob`` starts instead of the start share, i.e. ``proj_week +
+    proj_week / (games * share) * (prob - share)``. Returns (values, {cid: (prob, share)})."""
+    if horizon != "week" or _lock(ctx) != "daily":
+        return values, {}
+    try:
+        team = ctx.my_team
+    except LookupError:
+        return values, {}
+    out: dict[str, PlayerValue] | None = None
+    used: dict[str, tuple[float, float]] = {}
+    for p in team.players:
+        prob = confirmed_start_probability(p)
+        pv = values.get(p.cid)
+        if prob is None or pv is None or pv.proj_week is None or not pv.games_next7:
+            continue
+        if ctx.as_of not in (ctx.schedule.get(normalize_team(p.team) or "") or ()):
+            continue
+        share = pv.start_share if pv.start_share is not None else 1.0
+        if share <= 0:
+            continue
+        per_start = pv.proj_week / (pv.games_next7 * share)
+        new = max(0.0, pv.proj_week + per_start * (prob - share))
+        if out is None:
+            out = dict(values)
+        out[p.cid] = pv.model_copy(update={"proj_week": new})
+        used[p.cid] = (prob, share)
+    return (out if out is not None else values), used
+
+
+def _start_reason(p: Player, prob: float, share: float) -> Reason:
+    return Reason(code="CONFIRMED_START",
+                  text=f"{p.name}: start probability today {prob:.0%} (season share {share:.0%}); "
+                       f"{p.start_source or 'Daily Faceoff'}", value=prob, baseline=share)
+
+
 def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                      horizon: Horizon = "week") -> list[Recommendation]:
     """Start/sit changes that beat the current lineup, plus injured starters and healthy IR
@@ -244,6 +309,7 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
     its gain is the week (or FPG) delta of that chain, and the gains of all chains add up to
     optimal - current."""
     team = ctx.my_team
+    values, starts = apply_confirmed_starts(ctx, values, horizon)
     recs: list[Recommendation] = []
     slots = starting_slots(ctx.roster_shape)
     by_cid = {p.cid: p for p in team.players}
@@ -298,7 +364,13 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                 reasons=[Reason(code="STATUS", text=f"{p.name} is {p.status} but sits in an IR slot"
                                 + (f" ({p.status_note})" if p.status_note else ""))]
                 + _week_reasons(p, pv, horizon)[:1]))
-    if ctx.provider == "fantrax":
+    if starts:
+        by_cid_all = {p.cid: p for p in team.players}
+        for r in recs:
+            for cid in dict.fromkeys(x.cid for x in (*r.add, *r.drop, *r.subjects)):
+                if cid in starts:
+                    r.reasons.append(_start_reason(by_cid_all[cid], *starts[cid]))
+    if _lock(ctx) == "weekly":
         recs = [_weekly_lock(r) for r in recs]
     recs.sort(key=lambda r: r.score, reverse=True)
     return apply_ranks(apply_strength(recs))
@@ -319,12 +391,19 @@ def _gain_units(players: list[Player], values: Mapping[str, PlayerValue], horizo
 WEEKLY_LOCK_TEXT = "for this week's lineup (locks Monday)"
 
 
+def _lock(ctx: LeagueContext) -> str:
+    from ..providers.fantrax import lineup_lock_for
+
+    return lineup_lock_for(ctx)
+
+
 def _weekly_lock(r: Recommendation) -> Recommendation:
-    """Fantrax lineups are set once per scoring period (weekly, locking Monday)."""
+    """Weekly-lock leagues (Fantrax "Lineup changes are executed: Weekly"): the lineup is set once
+    per scoring period, locking Monday."""
     return r.model_copy(update={
         "title": f"{r.title} {WEEKLY_LOCK_TEXT}",
         "reasons": list(r.reasons) + [Reason(code="LINEUP_LOCK",
-                                             text="Fantrax lineup changes take effect weekly: "
+                                             text="Fantrax lineup changes are executed weekly (Rules page): "
                                                   "the lineup locks Monday for the whole scoring period, "
                                                   "so this uses the week horizon")],
     })

@@ -21,9 +21,12 @@ REC_SECTIONS: list[tuple[str, tuple[str, ...]]] = [
     ("Waivers", ("waiver",)),
     ("Trades", ("trade",)),
     ("Flags", ("sell_high", "buy_low")),
+    ("Alerts", ("alert",)),
 ]
 KIND_LABEL = {"lineup": "Lineup", "waiver": "Waiver", "trade": "Trade", "sell_high": "Sell high",
-              "buy_low": "Buy low", "injury": "Injury"}
+              "buy_low": "Buy low", "injury": "Injury", "alert": "Alert"}
+MONEYPUCK_CREDIT = "Expected goals: MoneyPuck.com"
+DFO_CREDIT = "Lines, power-play units and starting goalies: Daily Faceoff (dailyfaceoff.com)"
 
 
 @dataclass
@@ -91,6 +94,31 @@ def _alert_text(a: _Alert) -> str:
     return " - ".join(bits) + (f" ({', '.join(extra)})" if extra else "")
 
 
+def _starts(ctx: LeagueContext) -> list[tuple[Player, str]]:
+    """My goalies with a Daily Faceoff start report for today: (player, "starting" / "not starting")."""
+    out = []
+    for p in ctx.my_team.players:
+        if p.is_goalie and p.confirmed_start is not None:
+            out.append((p, "starting" if p.confirmed_start else "not starting"))
+    return sorted(out, key=lambda t: (t[1] != "starting", t[0].name))
+
+
+def _start_text(p: Player, state: str) -> str:
+    src = f" - {p.start_source}" if p.start_source else ""
+    return f"{p.name} ({p.team or 'FA'}): {state}{src}"
+
+
+def credits(ctx: LeagueContext) -> list[str]:
+    """Credits owed for data used in this digest (MoneyPuck xG, Daily Faceoff lines / starts)."""
+    players = ctx.all_players()
+    out = []
+    if any(p.ixg_per_game is not None for p in players):
+        out.append(MONEYPUCK_CREDIT)
+    if any(p.line or p.pp_unit or p.confirmed_start is not None for p in players):
+        out.append(DFO_CREDIT)
+    return out
+
+
 # --------------------------------------------------------------------------- markdown
 
 def _md_rec(r: Recommendation, level: str = "###") -> list[str]:
@@ -131,6 +159,9 @@ def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts
         md += _md_rec(r)
     if alerts:
         md += [f"- {_alert_text(a)}" for a in alerts] + [""]
+    starts = _starts(ctx)
+    if starts:
+        md += ["## Confirmed starts tonight", ""] + [f"- {_start_text(p, st)}" for p, st in starts] + [""]
     for title, kinds in REC_SECTIONS:
         md += [f"## {title}", ""]
         items = [r for r in ranked if r.kind in kinds]
@@ -150,6 +181,9 @@ def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts
         md += [""]
     if health:
         md += ["## Model health", ""] + [f"- {line}" for line in health] + [""]
+    cr = credits(ctx)
+    if cr:
+        md += [f"*Data: {'; '.join(cr)}*", ""]
     return "\n".join(md).rstrip() + "\n"
 
 
@@ -226,6 +260,11 @@ def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, ne
     if alerts:
         b.append('<div class="card alert"><ul>' +
                  "".join(f"<li>{_e(_alert_text(a))}</li>" for a in alerts) + "</ul></div>")
+    starts = _starts(ctx)
+    if starts:
+        b.append("<h2>Confirmed starts tonight</h2>")
+        b.append('<div class="card"><ul>' + "".join(f"<li>{_e(_start_text(p, st))}</li>" for p, st in starts)
+                 + "</ul></div>")
     for title, kinds in REC_SECTIONS:
         b.append(f"<h2>{_e(title)}</h2>")
         items = [r for r in ranked if r.kind in kinds]
@@ -240,6 +279,9 @@ def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, ne
     if health:
         b.append("<h2>Model health</h2>")
         b.append('<ul class="model-health">' + "".join(f"<li>{_e(line)}</li>" for line in health) + "</ul>")
+    cr = credits(ctx)
+    if cr:
+        b.append(f'<p class="meta credits">Data: {_e("; ".join(cr))}</p>')
     title = f"Fantasy digest - {ctx.name} - {generated_at:%Y-%m-%d}"
     return ("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
@@ -266,6 +308,9 @@ def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts,
         f"{a.player.name} ({STATUS_LABEL.get(a.player.status, a.player.status)})" for a in alerts]
     if injured:
         lines.append(f"Injury alerts ({len(injured)}): " + "; ".join(dict.fromkeys(injured)))
+    starts = _starts(ctx)
+    if starts:
+        lines.append("Goalies tonight: " + "; ".join(f"{p.name} {st}" for p, st in starts))
     counts = [f"{title} {sum(r.kind in kinds for r in ranked)}" for title, kinds in REC_SECTIONS]
     lines.append("Counts: " + " | ".join(counts))
     if news_rows:

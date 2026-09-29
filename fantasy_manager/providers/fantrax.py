@@ -90,6 +90,9 @@ FPTS_IDS = ("SCORE", "fpts", "FPTS", "FPts")
 FPG_IDS = ("FPTS_PER_GAME", "fptsPerGame", "FP/G")
 AGE_IDS = ("age", "AGE", "Age")
 OWNED_IDS = ("OVERVIEW_PERCENT_OWNED_2", "Ros", "%Ros", "Own", "%Own")
+# Weekly change in % rostered (header shortName "+/-", which is ambiguous with plus-minus, so
+# only the sort key identifies it).
+OWNED_CHANGE_IDS = ("OVERVIEW_PLUS_MINUS_PERCENT_OWNED_2",)
 STATUS_IDS = ("status", "STATUS", "Sta")
 
 # Timeframes ("seasonOrProjection") -> StatLine split. The default roster / player views
@@ -207,6 +210,38 @@ def parse_cookie_text(text: str) -> dict[str, str]:
     if _looks_netscape(t):
         return parse_netscape_cookies(t)
     return parse_cookie_header(t)
+
+
+LINEUP_RULE = "Lineup changes are executed"
+
+
+def parse_lineup_lock(text: str | None) -> str:
+    """"daily" or "weekly" from the Rules page's "Lineup changes are executed" value ("Daily",
+    "Weekly every Monday", "Per scoring period"...). Unknown / missing -> "weekly" (the
+    conservative assumption: a weekly lock never recommends a swap that cannot happen)."""
+    t = " ".join(str(text or "").split()).lower()
+    if "dai" in t:
+        return "daily"
+    return "weekly"
+
+
+def lineup_lock_for(ctx: Any, provider: Any = None) -> str:
+    """The one place every consumer (recommend.lineup, analysis.matchup, describe_settings) reads
+    how lineup changes take effect: ``provider.lineup_lock`` (FantraxProvider), else a provider's
+    parsed ``rules``, else ``ctx.lineup_lock`` (set by FantraxProvider.load), else "weekly" for
+    Fantrax and "daily" for every other provider."""
+    if getattr(ctx, "provider", None) != "fantrax":
+        return getattr(ctx, "lineup_lock", None) or "daily"
+    lock = getattr(provider, "lineup_lock", None) if provider is not None else None
+    if lock in ("daily", "weekly"):
+        return lock
+    rules = getattr(provider, "rules", None) if provider is not None else None
+    if rules is not None:
+        try:
+            return parse_lineup_lock(rules.get(LINEUP_RULE))
+        except Exception:  # noqa: BLE001
+            pass
+    return getattr(ctx, "lineup_lock", None) or "weekly"
 
 
 def load_cookies(settings: Settings) -> dict[str, str]:
@@ -347,6 +382,13 @@ def strip_html(s: Any) -> str:
     return _TAG_RE.sub("", str(s or "")).strip()
 
 
+def _signed_num(content: Any) -> float | None:
+    """Like `_num` but keeps a leading minus written as a Unicode minus / en dash ("-7%")."""
+    if isinstance(content, str):
+        content = content.replace("\u2212", "-").replace("\u2013", "-")
+    return _num(content)
+
+
 def _num(content: Any) -> float | None:
     if content is None:
         return None
@@ -445,6 +487,7 @@ class RowStats:
     fpg: float | None = None
     age: float | None = None
     owned: float | None = None
+    owned_change: float | None = None      # "+/-": change in % rostered from the previous week
     status_cell: str | None = None
     status_team_id: str | None = None
 
@@ -471,6 +514,8 @@ def parse_row_cells(header_cells: list[Mapping[str, Any]], cells: list[Mapping[s
         out.age = _num(c.get("content"))
     if (c := cell(_find(idx, OWNED_IDS))) is not None:
         out.owned = _num(c.get("content"))
+    if (c := cell(_find(idx, OWNED_CHANGE_IDS))) is not None:
+        out.owned_change = _signed_num(c.get("content"))
     if (c := cell(_find(idx, STATUS_IDS))) is not None:
         out.status_cell = strip_html(c.get("content")) or None
         out.status_team_id = c.get("teamId")
@@ -516,6 +561,7 @@ def player_from_scorer(scorer: Mapping[str, Any], rs: RowStats | None = None,
         status_note=note,
         lines=lines,
         pct_owned=rs.owned if rs is not None else None,
+        pct_owned_change=rs.owned_change if rs is not None else None,
     )
 
 
@@ -846,12 +892,11 @@ def parse_player_pool(data: Mapping[str, Any], codes: Mapping[str, Mapping[str, 
     return players, rows, pages
 
 
-def parse_taken_ownership(data: Mapping[str, Any]) -> dict[str, tuple[float | None, float | None]]:
-    """getPlayerStats (statusOrTeamFilter=ALL_TAKEN) -> {cid: (% rostered, age)} for players
-    on a fantasy team. The roster view has no "Ros" column, so this is where rostered
-    players' ownership comes from."""
+def parse_taken_rows(data: Mapping[str, Any]) -> dict[str, RowStats]:
+    """getPlayerStats (statusOrTeamFilter=ALL_TAKEN) -> {cid: row stats} for players on a
+    fantasy team (% rostered in ``owned``, its weekly change in ``owned_change``, age)."""
     header = (data.get("tableHeader") or {}).get("cells") or []
-    out: dict[str, tuple[float | None, float | None]] = {}
+    out: dict[str, RowStats] = {}
     for entry in data.get("statsTable") or []:
         sid = (entry.get("scorer") or {}).get("scorerId")
         if not sid:
@@ -859,8 +904,15 @@ def parse_taken_ownership(data: Mapping[str, Any]) -> dict[str, tuple[float | No
         rs = parse_row_cells(header, entry.get("cells") or [])
         if not rs.status_team_id:
             continue
-        out[f"fantrax:{sid}"] = (rs.owned, rs.age)
+        out[f"fantrax:{sid}"] = rs
     return out
+
+
+def parse_taken_ownership(data: Mapping[str, Any]) -> dict[str, tuple[float | None, float | None]]:
+    """getPlayerStats (statusOrTeamFilter=ALL_TAKEN) -> {cid: (% rostered, age)} for players
+    on a fantasy team. The roster view has no "Ros" column, so this is where rostered
+    players' ownership comes from."""
+    return {cid: (rs.owned, rs.age) for cid, rs in parse_taken_rows(data).items()}
 
 
 # -- timeframes ---------------------------------------------------------------
@@ -926,6 +978,8 @@ def merge_lines(target: Player, other: Player) -> None:
         target.lines.setdefault(split, line)
     if target.pct_owned is None and other.pct_owned is not None:
         target.pct_owned = other.pct_owned
+    if target.pct_owned_change is None and other.pct_owned_change is not None:
+        target.pct_owned_change = other.pct_owned_change
 
 
 def pick_fantasy_points(by_split: Mapping[str, tuple[float | None, float | None]], player: Player
@@ -1492,6 +1546,7 @@ class FantraxProvider:
             dynasty=bool(s.fantrax_dynasty) or self.rules_dynasty,
             keeper_horizon_years=int(s.fantrax_keeper_horizon_years),
             dynasty_mode=getattr(s, "fantrax_mode", None) or "balanced",
+            lineup_lock=self.lineup_lock,
             as_of=self.today or date.today(),
         )
         return self._ctx
@@ -1537,6 +1592,12 @@ class FantraxProvider:
             else:  # "Not Used"
                 shape.pop(slot, None)
         return shape
+
+    @property
+    def lineup_lock(self) -> str:
+        """"daily" or "weekly": parsed once from the Rules page ("Lineup changes are executed");
+        "weekly" when the page is unavailable. See ``parse_lineup_lock``."""
+        return parse_lineup_lock(self.rules.get(LINEUP_RULE) if self.rules is not None else None)
 
     @property
     def rules_dynasty(self) -> bool:
@@ -1712,9 +1773,10 @@ class FantraxProvider:
         return list(players.values()), rows
 
     def _rostered_ownership(self, teams: list[FantasyTeam], positions: Mapping[str, str]) -> None:
-        """Fill `pct_owned` (Fantrax-wide % rostered) and missing ages for rostered players from
-        getPlayerStats with statusOrTeamFilter=ALL_TAKEN (skaters and goalies, one page each
-        covers a full league). Best effort: failures only add a warning."""
+        """Fill `pct_owned` (Fantrax-wide % rostered), `pct_owned_change` (its weekly change) and
+        missing ages for rostered players from getPlayerStats with statusOrTeamFilter=ALL_TAKEN
+        (skaters and goalies, one page each covers a full league). Best effort: failures only add
+        a warning."""
         by_cid = {p.cid: p for t in teams for p in t.players}
         if not by_cid:
             return
@@ -1730,15 +1792,17 @@ class FantraxProvider:
                                                   "pageNumber": str(page)}))
                 if not r:
                     break
-                for cid, (owned, age) in parse_taken_ownership(r[0]).items():
+                for cid, rs in parse_taken_rows(r[0]).items():
                     p = by_cid.get(cid)
                     if p is None:
                         continue
-                    if owned is not None and p.pct_owned is None:
-                        p.pct_owned = owned
+                    if rs.owned is not None and p.pct_owned is None:
+                        p.pct_owned = rs.owned
                         found += 1
-                    if age is not None:
-                        self.ages.setdefault(cid, age)
+                    if rs.owned_change is not None and p.pct_owned_change is None:
+                        p.pct_owned_change = rs.owned_change
+                    if rs.age is not None:
+                        self.ages.setdefault(cid, rs.age)
                 pages = int((r[0].get("paginatedResultSet") or {}).get("totalNumPages") or 1)
                 page += 1
         if found == 0:
@@ -1824,8 +1888,8 @@ class FantraxProvider:
             if (n := val("Number of rounds available for draft pick trading")):
                 extra.append(f"{n} rounds")
             lines.append(f"Draft picks tradeable: {v}" + (f" ({', '.join(extra)})" if extra else ""))
-        if (v := val("Lineup changes are executed")):
-            lines.append(f"Lineup changes: {v}")
+        if (v := val(LINEUP_RULE)):
+            lines.append(f"Lineup changes: {self.lineup_lock} (Rules page: {v})")
         if (v := val("Playoffs will begin in this Scoring Period")):
             teams = val("Number of teams qualifying for playoffs")
             lines.append(f"Playoffs: start scoring period {v}" + (f", {teams} teams" if teams else ""))

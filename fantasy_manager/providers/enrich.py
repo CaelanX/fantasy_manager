@@ -14,6 +14,17 @@ rest still runs, so offline / partial runs degrade gracefully):
    unproven (no prior season with >= 40 GP) players, rostered first, then the most-owned
    free agents; at most ``pedigree_limit`` uncached pages per run (30-day cache)
 7. ``deep=True``: last7/15/30 lines from per-player game logs (date windows ending ``as_of``)
+8. ``deployment=True``: TOI / PP share per skater (``providers.deployment_enrich``) from the
+   harness ledger (``<fm_data_dir>/harness.db``, only when it exists; never created here), else
+   the NHL season reports (preseason: last season's); goalie starts / back-to-back rates from the
+   ledger once a team has 5 games there (``ctx.goalie_actual_starts`` / ``ctx.b2b_second_night``)
+9. ``lines=True``: Daily Faceoff lines, PP units and starting goalies (``providers.lines_enrich``;
+   32 team pages cached 12 h, the starting-goalies page 3 h, one snapshot per day under
+   ``<fm_data_dir>/lines``)
+10. ``xg=True``: MoneyPuck expected goals (``providers.xg_enrich``; 2 season CSVs, 12 h / 30 d)
+
+Steps 9 and 10 need an HTTP cache (skipped when ``cache`` is None unless a client is injected),
+so tests and offline runs never reach those sites by accident.
 """
 from __future__ import annotations
 
@@ -28,6 +39,7 @@ from ..matching.matcher import Candidate, PlayerIndex
 from ..matching.normalize import normalize_team
 from ..models import CANONICAL_STATS, LeagueContext, Player, StatLine
 from .injuries import INJURIES_URL, InjuryReport, fetch_injuries
+from .nhl import CachedNhlFetch
 from .nhl import (NHL_TEAMS, WEB_BASE, NhlClient, NhlGameLogEntry, NhlGoalieSeason, NhlRosterPlayer, NhlSkaterSeason,
                   current_season, games_per_day, prior_season)
 
@@ -277,8 +289,14 @@ def _short(e: Exception) -> str:
 def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = False, *,
                    nhl: NhlClient | None = None, injuries_fetch: Callable | None = None,
                    crosswalk: Crosswalk | None = None, teams: Iterable[str] = NHL_TEAMS,
-                   deep_fa_limit: int = DEEP_FA_LIMIT, pedigree_limit: int = PEDIGREE_LIMIT) -> LeagueContext:
-    """Mutates and returns ``ctx``; never raises for a single failing data source."""
+                   deep_fa_limit: int = DEEP_FA_LIMIT, pedigree_limit: int = PEDIGREE_LIMIT,
+                   deployment: bool = True, lines: bool = True, xg: bool = True,
+                   ledger: Any = None, lines_client: Any = None, xg_client: Any = None) -> LeagueContext:
+    """Mutates and returns ``ctx``; never raises for a single failing data source.
+
+    ``deployment`` / ``lines`` / ``xg`` switch steps 8-10 off (tests, offline runs). ``ledger``
+    (a harness Ledger) overrides opening ``<fm_data_dir>/harness.db``; ``lines_client`` (a
+    DailyFaceoffClient) and ``xg_client`` (a MoneyPuckClient) replace the cached network clients."""
     tracker = SourceTracker(cache) if cache is not None else None
     fetch = tracker.fetch_json if tracker else None
     season = current_season(ctx.as_of)
@@ -387,7 +405,130 @@ def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = F
 
     if tracker:
         ctx.source_notes.extend(tracker.notes())
+
+    # 8-10. deployment, lines, expected goals (each best effort) -------------------------------
+    if deployment:
+        dep_nhl = nhl if nhl is not None else (
+            NhlClient(fetch_json=CachedNhlFetch(cache, today=ctx.as_of, ttl_for=ttl_for), season=season)
+            if cache is not None else None)
+        step("Deployment", lambda: _deployment_step(ctx, settings, dep_nhl, ledger))
+    if lines:
+        if cache is None and lines_client is None:
+            ctx.source_notes.append("Daily Faceoff lines skipped (no HTTP cache)")
+        else:
+            step("Daily Faceoff lines", lambda: _lines_step(ctx, settings, cache, crosswalk, lines_client))
+    if xg:
+        if cache is None and xg_client is None:
+            ctx.source_notes.append("MoneyPuck expected goals skipped (no HTTP cache)")
+        else:
+            step("MoneyPuck expected goals", lambda: _xg_step(ctx, cache, xg_client))
     return ctx
+
+
+# --------------------------------------------------------------------------- steps 8-10
+
+def _cached_at(cache: Any, url: str, headers: dict | None = None) -> float | None:
+    """When ``url`` was fetched into the HTTP cache (epoch seconds), None if unknown."""
+    lookup = getattr(cache, "_lookup", None)
+    if lookup is None:
+        return None
+    try:
+        row = lookup(cache_key("GET", url, None, headers))
+    except Exception:
+        return None
+    return float(row[3]) if row else None
+
+
+def _open_ledger(settings: Any) -> Any:
+    """The harness ledger when ``<fm_data_dir>/harness.db`` exists (never created here)."""
+    from pathlib import Path
+
+    from ..harness.ledger import DB_NAME, Ledger
+
+    data_dir = getattr(settings, "fm_data_dir", None)
+    if not data_dir or not (Path(data_dir) / DB_NAME).exists():
+        return None
+    return Ledger(data_dir)
+
+
+MIN_LEDGER_TEAM_GAMES = 5
+
+
+def _deployment_step(ctx: LeagueContext, settings: Any, nhl: Any, ledger: Any = None) -> None:
+    """Step 8: TOI / PP deployment per skater, and (ledger with >= 5 team games) goalie starts
+    and back-to-back second-night rates for valuation."""
+    from ..harness.deployment import b2b_second_night_rate, team_goalie_counts
+    from .deployment_enrich import enrich_deployment
+
+    own = ledger is None
+    led = _open_ledger(settings) if own else ledger
+    try:
+        res = enrich_deployment(ctx, led, as_of=ctx.as_of, nhl=nhl)
+        ctx.deployment_details = dict(res.get("details") or {})
+        counts = team_goalie_counts(led, ctx.as_of) if led is not None else {}
+        ready = {t: d for t, d in counts.items() if d["games"] >= MIN_LEDGER_TEAM_GAMES}
+        for t in ready:
+            ctx.b2b_second_night[t] = b2b_second_night_rate(led, t, ctx.as_of, counts=counts)
+        for p in ctx.all_players():
+            team = normalize_team(p.team)
+            if not p.is_goalie or p.nhl_id is None or team not in ready:
+                continue
+            d = ready[team]
+            ctx.goalie_actual_starts[p.cid] = (int(d["starts"].get(int(p.nhl_id), 0)), int(d["games"]))
+        fresh = ""
+        if led is not None:
+            last = led.query("SELECT MAX(game_date) d, MAX(pulled_at) t FROM deployment_pulls")
+            if last and last[0]["d"]:
+                fresh = f"; ledger through {last[0]['d']}"
+        src = "ledger" if led is not None else "no harness ledger"
+        ctx.source_notes.append(
+            f"Deployment (NHL TOI / PP reports, {src}): {res['skaters']} skaters - {res['ledger']} from the ledger, "
+            f"{res['season_report']} from the season report, {res['prior_season']} from last season, "
+            f"{res['missing']} missing; {res['trends']} with trends; {len(ready)} teams with >= "
+            f"{MIN_LEDGER_TEAM_GAMES} ledger games (goalie starts / back-to-backs){fresh}")
+    finally:
+        if own and led is not None:
+            led.close()
+
+
+def _lines_step(ctx: LeagueContext, settings: Any, cache: Any, crosswalk: Crosswalk | None,
+                client: Any = None) -> None:
+    """Step 9: Daily Faceoff lines / units / starting goalies (and the daily snapshot)."""
+    from .dailyfaceoff import USER_AGENT, goalies_url
+    from .lines_enrich import enrich_lines
+
+    own = crosswalk is None
+    xw = crosswalk
+    try:
+        if own:
+            try:
+                xw = Crosswalk(settings.fm_data_dir)
+            except Exception as e:  # match without persisting
+                ctx.warnings.append(f"Daily Faceoff crosswalk unavailable ({_short(e)})")
+                xw = None
+        enrich_lines(ctx, cache, xw, as_of=ctx.as_of, snapshot_store=getattr(settings, "fm_data_dir", None),
+                     client=client)
+    finally:
+        if own and xw is not None:
+            xw.close()
+    if cache is not None:
+        t = _cached_at(cache, goalies_url(ctx.as_of), {"User-Agent": USER_AGENT})
+        if t is not None:
+            ctx.source_notes.append(f"Daily Faceoff (dailyfaceoff.com; lines cached 12h, starting goalies 3h): "
+                                    f"starting goalies fetched {_age(time.time() - t)}")
+
+
+def _xg_step(ctx: LeagueContext, cache: Any, client: Any = None) -> None:
+    """Step 10: MoneyPuck expected goals (credit line added by ``enrich_xg``)."""
+    from .moneypuck import current_start_year, season_url
+    from .xg_enrich import enrich_xg
+
+    res = enrich_xg(ctx, cache, client=client)
+    if cache is not None and res.count:
+        t = _cached_at(cache, season_url(current_start_year(ctx.as_of)))
+        if t is not None:
+            ctx.source_notes.append(f"MoneyPuck: {res.count} skaters with xG; current-season file fetched "
+                                    f"{_age(time.time() - t)}")
 
 
 def needs_pedigree(p: Player, as_of: date) -> bool:

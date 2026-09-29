@@ -5,7 +5,7 @@ import re
 import unicodedata
 import datetime as _dt
 from datetime import date
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -68,6 +68,32 @@ class Player(BaseModel):
     draft_round: int | None = None
     draft_year: int | None = None
     career_gp: int | None = None      # NHL regular-season games played, career
+    # Market / ownership trend signals (provider-specific scale, percent of leagues)
+    pct_owned_change: float | None = None   # change in % rostered over the provider's trend window
+    pct_started: float | None = None
+    adp: float | None = None
+    adp_change: float | None = None
+    # Deployment (from NHL per-game TOI/PP reports; per game, minutes)
+    toi_per_game: float | None = None
+    pp_toi_per_game: float | None = None
+    pp_share: float | None = None           # share of team PP time, 0..1
+    toi_trend: float | None = None          # last-5/10 GP minus season baseline, minutes
+    pp_share_trend: float | None = None
+    # Lines / units / goalie starts (Daily Faceoff snapshot)
+    line: str | None = None                 # f1..f4, d1..d3, g
+    pp_unit: str | None = None              # pp1, pp2 or None
+    pk_unit: str | None = None
+    line_change: str | None = None          # human-readable change vs previous snapshot, e.g. "PP2 -> PP1"
+    confirmed_start: bool | None = None     # goalies: confirmed/likely starter today (None = unknown)
+    start_source: str | None = None         # who confirmed it and when
+    # Luck / regression inputs (MoneyPuck)
+    ixg_per_game: float | None = None       # individual expected goals per game (season)
+    goals_minus_ixg: float | None = None    # season total goals minus ixG
+    onice_sh_pct: float | None = None
+    onice_xg_pct: float | None = None
+    # which season the MoneyPuck fields describe: "season" (this season, >= 5 GP) or "prior"
+    # (providers.xg_enrich; None when unknown)
+    xg_split: str | None = None
 
     @property
     def is_goalie(self) -> bool:
@@ -137,6 +163,17 @@ class LeagueContext(BaseModel):
     # team -> game date -> opponent label ("BOS" at home, "@BOS" away), same source as schedule
     opponents: dict[str, dict[date, str]] = Field(default_factory=dict)
     season_start: date | None = None
+    # How lineup changes take effect: "daily" or "weekly" (Fantrax: parsed once from the Rules page
+    # by ``FantraxProvider.lineup_lock``; ESPN is daily). None when the provider did not say.
+    lineup_lock: Literal["daily", "weekly"] | None = None
+    # From the harness ledger (providers.enrich deployment step; empty when the ledger has fewer
+    # than 5 games for the team): goalie cid -> (starts, team games) this season, and NHL team ->
+    # (P(#1 starts the second night of a back-to-back), back-to-backs seen). Opt-in inputs of
+    # valuation.valuate (START_ACTUAL / B2B reasons).
+    goalie_actual_starts: dict[str, tuple[int, int]] = Field(default_factory=dict)
+    b2b_second_night: dict[str, tuple[float, int]] = Field(default_factory=dict)
+    # cid -> deployment summary (harness.deployment.summarize_rows) for exact role-alert numbers
+    deployment_details: dict[str, dict[str, Any]] = Field(default_factory=dict, exclude=True)
     # Human-readable data freshness notes and non-fatal warnings per source.
     source_notes: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -166,7 +203,7 @@ class Reason(BaseModel):
 
 
 class Recommendation(BaseModel):
-    kind: Literal["lineup", "waiver", "trade", "sell_high", "buy_low", "injury"]
+    kind: Literal["lineup", "waiver", "trade", "sell_high", "buy_low", "injury", "alert"]
     score: float
     title: str
     add: list[Player] = Field(default_factory=list)

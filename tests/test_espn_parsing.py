@@ -192,3 +192,87 @@ def test_espn_box_scores_to_lineup_days():
     assert prov.scoring_period_for(date(2026, 10, 9), today=date(2026, 10, 10)) == 11
     assert len(prov.box_scores(11, date(2026, 10, 9))) == 4
     assert prov.box_scores(0) == []                             # before the first scoring period: no-op
+
+
+# -- ownership / market-trend fields -------------------------------------------
+
+TRENDING = json.loads((Path(__file__).parent / "fixtures" / "espn" / "trending.json").read_text(encoding="utf-8"))
+
+
+def test_ownership_fields_from_espn_block():
+    from fantasy_manager.providers.espn import ownership_fields
+
+    own = ownership_fields(TRENDING["players"][0]["player"])          # Sergei Murashov
+    assert own == {"pct_owned": 73.17, "pct_owned_change": 7.69, "pct_started": 61.03, "adp": 99.96,
+                   "adp_change": 0.98}
+    # rostered players' league entries have no averageDraftPositionPercentChange; ADP 0 = none
+    assert ownership_fields({"ownership": {"percentOwned": 99.9, "percentChange": 0.01,
+                                           "averageDraftPosition": 0}}) == {
+        "pct_owned": 99.9, "pct_owned_change": 0.01, "pct_started": None, "adp": None, "adp_change": None}
+    assert ownership_fields({}) == dict.fromkeys(("pct_owned", "pct_owned_change", "pct_started", "adp",
+                                                  "adp_change"))
+
+
+def test_ownership_reaches_rostered_and_free_agent_players():
+    from espn_api.hockey.player import Player as EspnPlayer
+
+    from fantasy_manager.providers.espn import _ownership_from_league, ownership_fields
+
+    entries = TRENDING["players"]
+    raw_league = {"teams": [{"roster": {"entries": [{"playerPoolEntry": {"player": e["player"]}}
+                                                    for e in entries[:2]]}}]}
+    owned = _ownership_from_league(raw_league)
+    assert set(owned) == {5188366, entries[1]["player"]["id"]}
+    assert owned[5188366]["pct_owned_change"] == 7.69
+    rostered = player_from_espn(EspnPlayer(entries[0]), YEAR, ownership=owned[5188366])
+    assert (rostered.pct_owned, rostered.pct_owned_change, rostered.pct_started, rostered.adp) == (
+        73.17, 7.69, 61.03, 99.96)
+    fa_raw = entries[4]                                                # a faller, as a free-agent row
+    fa = player_from_espn(EspnPlayer(fa_raw), YEAR, ownership=ownership_fields(fa_raw["player"]))
+    assert fa.name == "Filip Gustavsson" and fa.pct_owned_change == -3.82 and fa.adp_change == -1.19
+    assert fa.positions == ["G"] and fa.team == "MIN"
+    # an explicit pct_owned wins over the block's
+    assert player_from_espn(EspnPlayer(fa_raw), YEAR, pct_owned=1.0,
+                            ownership=ownership_fields(fa_raw["player"])).pct_owned == 1.0
+
+
+def test_parse_trending_risers_and_fallers():
+    from fantasy_manager.providers.espn import parse_trending
+
+    up = parse_trending(TRENDING, YEAR, limit=3)
+    assert [d["name"] for d in up] == ["Sergei Murashov", "Luke Evangelista", "Carter Hart"]
+    first = up[0]
+    assert first["cid"] == "espn:5188366" and first["espn_id"] == "5188366" and first["positions"] == ["G"]
+    assert first["pct_owned_change"] == 7.69 and first["pct_owned"] == 73.17 and first["adp"] == 99.96
+    assert up[1]["team"] and up[1]["positions"]
+    down = parse_trending(TRENDING, YEAR, fallers=True)
+    assert [(d["name"], d["pct_owned_change"]) for d in down] == [("Filip Gustavsson", -3.82),
+                                                                    ("Kevin Fiala", -2.82)]
+    assert len(parse_trending(TRENDING, YEAR, limit=50)) == 4       # fallers never listed as risers
+    assert parse_trending({"players": [{"player": {"id": 1, "fullName": "X"}}]}, YEAR) == []
+
+
+def test_trending_goes_through_the_cache_with_the_sort_filter():
+    from fantasy_manager.providers.espn import TRENDING_TTL, EspnProvider
+
+    calls = []
+
+    class FakeCache:
+        def get_json(self, url, params=None, headers=None, ttl=None, **kw):
+            calls.append((url, params, json.loads(headers["x-fantasy-filter"]), ttl))
+            return TRENDING
+
+    prov = EspnProvider(SimpleNamespace(espn_year=2027), cache=FakeCache())
+    got = prov.trending(limit=2)
+    assert [d["name"] for d in got] == ["Sergei Murashov", "Luke Evangelista"]
+    url, params, filt, ttl = calls[0]
+    assert "/seasons/2027/segments/0/leaguedefaults/1" in url and params == {"view": "kona_player_info"}
+    assert filt["players"]["sortPercChanged"] == {"sortPriority": 1, "sortAsc": False} and ttl == TRENDING_TTL
+    prov.trending(fallers=True)
+    assert calls[1][2]["players"]["sortPercChanged"]["sortAsc"] is True
+
+    class Broken:
+        def get_json(self, *a, **kw):
+            raise RuntimeError("offline")
+    bad = EspnProvider(SimpleNamespace(espn_year=2027), cache=Broken())
+    assert bad.trending() == [] and "offline" in bad.warnings[0]

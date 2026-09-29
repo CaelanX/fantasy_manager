@@ -110,6 +110,11 @@ class Settings(BaseSettings):
     discord_webhook_url: str | None = Field(default=None, exclude=True, repr=False)
     slack_webhook_url: str | None = Field(default=None, exclude=True, repr=False)
 
+    # Betting-market context (providers/odds.py): The Odds API key (free tier 500 credits/month; one
+    # 2-credit call a day) and the bookmaker region.
+    odds_api_key: SecretStr | None = Field(default=None, exclude=True)
+    odds_region: str = "us"
+
     # Runtime
     fm_data_dir: Path = Path("./data")
     fm_offline: bool = False

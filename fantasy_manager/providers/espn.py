@@ -12,6 +12,12 @@ from ..models import (CANONICAL_STATS, ActivityItem, FantasyTeam, LeagueContext,
 from .base import ProviderError
 
 ESPN_TTL = 15 * 60
+TRENDING_TTL = 6 * 3600
+# League-independent ("leaguedefaults") player pool: ESPN-wide % rostered and its change, no
+# cookies needed. {year} is the season (ESPN_YEAR).
+TRENDING_URL = ("https://lm-api-reads.fantasy.espn.com/apis/v3/games/fhl/seasons/{year}"
+                "/segments/0/leaguedefaults/1")
+TRENDING_POOL = 300
 
 # espn_api STATS_MAP abbreviations that differ from our canonical keys.
 STAT_ALIASES = {"+/-": "PM", "SV%": "SVPCT"}
@@ -116,8 +122,13 @@ def positions_from_espn(eligible_slots: Iterable[str], default_position: str | N
     return pos
 
 
-def player_from_espn(p: Any, year: int, pct_owned: float | None = None) -> Player:
-    """Build a Player from an espn_api hockey Player (duck-typed)."""
+def player_from_espn(p: Any, year: int, pct_owned: float | None = None,
+                     ownership: Mapping[str, float | None] | None = None) -> Player:
+    """Build a Player from an espn_api hockey Player (duck-typed). ``ownership`` (from
+    ``ownership_fields``) fills the market fields; its pct_owned is used when ``pct_owned`` is None."""
+    own = dict(ownership or {})
+    if pct_owned is None:
+        pct_owned = own.get("pct_owned")
     status_raw = getattr(p, "injuryStatus", None)
     note = status_raw if isinstance(status_raw, str) and status_raw not in ("", "ACTIVE", "NORMAL") else None
     return Player(
@@ -131,6 +142,10 @@ def player_from_espn(p: Any, year: int, pct_owned: float | None = None) -> Playe
         status_note=note,
         lines=parse_stat_lines(getattr(p, "stats", {}) or {}, year),
         pct_owned=pct_owned,
+        pct_owned_change=own.get("pct_owned_change"),
+        pct_started=own.get("pct_started"),
+        adp=own.get("adp"),
+        adp_change=own.get("adp_change"),
     )
 
 
@@ -199,20 +214,79 @@ def find_my_team(teams: list[Any], swid: str | None, team_hint: str | None) -> A
     raise ProviderError(f"Could not identify your ESPN team. Set ESPN_TEAM to one of: {listing}")
 
 
+def _float(val: Any) -> float | None:
+    try:
+        return float(val) if val is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def ownership_fields(raw_player: Mapping[str, Any] | None) -> dict[str, float | None]:
+    """ESPN ``player.ownership`` block -> Player market fields.
+
+    percentOwned -> pct_owned, percentChange -> pct_owned_change (ESPN's weekly "+/-" of %
+    rostered, in points), percentStarted -> pct_started, averageDraftPosition -> adp (None when
+    0 / absent), averageDraftPositionPercentChange -> adp_change (free-agent / pool rows only;
+    rostered players' league entries omit it)."""
+    o = (raw_player or {}).get("ownership") or {}
+    adp = _float(o.get("averageDraftPosition"))
+    return {"pct_owned": _float(o.get("percentOwned")),
+            "pct_owned_change": _float(o.get("percentChange")),
+            "pct_started": _float(o.get("percentStarted")),
+            "adp": adp if adp and adp > 0 else None,
+            "adp_change": _float(o.get("averageDraftPositionPercentChange"))}
+
+
 def _pct_owned(raw_player: dict) -> float | None:
-    val = (raw_player or {}).get("ownership", {}).get("percentOwned")
-    return float(val) if val is not None else None
+    return ownership_fields(raw_player)["pct_owned"]
 
 
-def _ownership_from_league(raw: dict) -> dict[int, float]:
-    out: dict[int, float] = {}
+def _ownership_from_league(raw: dict) -> dict[int, dict[str, float | None]]:
+    """Raw league JSON (teams with rosters) -> {player id: ownership_fields} per rostered player."""
+    out: dict[int, dict[str, float | None]] = {}
     for team in raw.get("teams", []):
         for entry in team.get("roster", {}).get("entries", []):
             pl = entry.get("playerPoolEntry", {}).get("player", {})
-            pct = _pct_owned(pl)
-            if pl.get("id") is not None and pct is not None:
-                out[pl["id"]] = pct
+            own = ownership_fields(pl)
+            if pl.get("id") is not None and any(v is not None for v in own.values()):
+                out[pl["id"]] = own
     return out
+
+
+def trending_filter(year: int, limit: int = TRENDING_POOL, fallers: bool = False) -> dict[str, Any]:
+    """X-Fantasy-Filter for the leaguedefaults pool sorted by % rostered change (risers first,
+    or fallers first with ``fallers``). Stats are limited to the season total (~0.6 MB instead
+    of ~9 MB for 300 players)."""
+    return {"players": {"sortPercChanged": {"sortPriority": 1, "sortAsc": bool(fallers)},
+                        "limit": int(limit),
+                        "filterStatsForTopScoringPeriodIds": {"value": 1, "additionalValue": [f"00{year}"]}}}
+
+
+def parse_trending(data: Mapping[str, Any] | list, year: int, limit: int = 50,
+                   fallers: bool = False) -> list[dict[str, Any]]:
+    """leaguedefaults ``kona_player_info`` JSON -> player-lite dicts, largest % rostered rise
+    first (only rises > 0), or largest fall first with ``fallers`` (only falls < 0).
+
+    Each dict: cid, espn_id, name, team, positions, status, pct_owned, pct_owned_change,
+    pct_started, adp, adp_change."""
+    from espn_api.hockey.player import Player as EspnPlayer
+
+    entries = data.get("players", []) if isinstance(data, Mapping) else list(data or [])
+    out: list[dict[str, Any]] = []
+    for raw in entries:
+        pl = (raw or {}).get("player") or {}
+        own = ownership_fields(pl)
+        chg = own["pct_owned_change"]
+        if pl.get("id") is None or chg is None or (chg >= 0 if fallers else chg <= 0):
+            continue
+        try:
+            p = player_from_espn(EspnPlayer(raw), year, ownership=own)
+        except Exception:  # noqa: BLE001 - one odd row never sinks the list
+            continue
+        out.append({"cid": p.cid, "espn_id": p.ids["espn"], "name": p.name, "team": p.team,
+                    "positions": p.positions, "status": p.status, **own})
+    out.sort(key=lambda d: d["pct_owned_change"], reverse=not fallers)
+    return out[:max(0, int(limit))]
 
 
 # -- league activity and daily lineups (harness capture) ----------------------
@@ -386,6 +460,28 @@ class EspnProvider:
             self._warn(f"ESPN box scores unavailable (period {scoring_period}): {type(e).__name__}: {e}")
             return []
 
+    def trending(self, limit: int = 50, fallers: bool = False) -> list[dict[str, Any]]:
+        """ESPN-wide % rostered risers (or fallers) as player-lite dicts (``parse_trending``)
+        from the public leaguedefaults pool, through the HTTP cache (TTL 6h, no cookies). Covers
+        players outside our free-agent pool; once a league is loaded each dict also gets
+        ``in_league``: "fa", "rostered" or None (not in our league data). Best effort: [] with a
+        warning on failure."""
+        year = int(getattr(self.settings, "espn_year", None) or date.today().year + 1)
+        try:
+            data = self.cache.get_json(TRENDING_URL.format(year=year), params={"view": "kona_player_info"},
+                                       headers={"x-fantasy-filter": json.dumps(trending_filter(year, fallers=fallers))},
+                                       ttl=TRENDING_TTL)
+            out = parse_trending(data, year, limit=limit, fallers=fallers)
+        except Exception as e:  # noqa: BLE001
+            self._warn(f"ESPN trending players unavailable: {type(e).__name__}: {e}")
+            return []
+        if self._ctx is not None:
+            fa = {p.cid for p in self._ctx.free_agents}
+            rostered = {p.cid for t in self._ctx.teams for p in t.players}
+            for d in out:
+                d["in_league"] = "fa" if d["cid"] in fa else "rostered" if d["cid"] in rostered else None
+        return out
+
     def _league(self) -> Any:
         s = self.settings
         if not s.espn_league_id:
@@ -442,14 +538,14 @@ class EspnProvider:
             slots = []
             for p in t.roster:
                 slot = SLOT_NAMES.get(p.lineupSlot, "BN")
-                slots.append(RosterSlot(slot=slot, player=player_from_espn(p, year, owned.get(p.playerId)),
+                slots.append(RosterSlot(slot=slot, player=player_from_espn(p, year, ownership=owned.get(p.playerId)),
                                         starting=slot not in ("BN", "IR")))
             teams.append(FantasyTeam(team_id=str(t.team_id), name=t.team_name, owner_is_me=t is mine,
                                      slots=slots, record=(t.wins, t.losses, t.ties)))
 
         fas: dict[str, Player] = {}
         for ep, raw in fa_raw:
-            pl = player_from_espn(ep, year, _pct_owned(raw.get("player", {})))
+            pl = player_from_espn(ep, year, ownership=ownership_fields(raw.get("player", {})))
             fas.setdefault(pl.cid, pl)
 
         st = league.settings

@@ -549,7 +549,11 @@ def test_provider_live_shape_end_to_end(tmp_path):
     owned = {p.name: p.pct_owned for p in ctx.my_team.players}
     assert owned == {"Jack Eichel": 99.0, "Dylan Holloway": 97.0, "William Nylander": 99.0,
                      "Mackenzie Blackwood": 91.0}
+    change = {p.name: p.pct_owned_change for p in ctx.my_team.players}   # ALL_TAKEN "+/-" column
+    assert change == {"Jack Eichel": 0.0, "Dylan Holloway": -1.0, "William Nylander": 0.0,
+                      "Mackenzie Blackwood": -2.0}
     fas = ctx.free_agents
+    assert all(p.pct_owned_change is not None for p in fas)                # pool "+/-" column
     goalies = [p for p in fas if p.is_goalie]
     assert len(fas) == 6 and [p.name for p in goalies] == ["Sergei Murashov", "Jake Allen", "Kevin Lankinen"]
     assert goalies[0].pct_owned == 64 and prov.ages[goalies[0].cid] == 22
@@ -566,12 +570,14 @@ def test_provider_live_shape_end_to_end(tmp_path):
     for s in ("Scoring (Fantrax league rules): A=2", "goalies: A=3, G=20", "Scoring check: mean abs error 0.000",
               "Roster: max total 16, active 10, reserve 6, IR Not Used, minors Not Used",
               "Active by position (max): F 5, D 3, G 2", "Keeper league type: Dynasty",
-              "Draft picks tradeable: Yes (3 future years, 10 rounds)", "Lineup changes: Weekly every Monday",
+              "Draft picks tradeable: Yes (3 future years, 10 rounds)",
+              "Lineup changes: weekly (Rules page: Weekly every Monday)",
               "Playoffs: start scoring period 25", ", 6 teams", "My draft picks: 2027: 10 picks (rounds 1-10)",
               "Dynasty: yes (from Fantrax keeper league type", "FANTRAX_POINTS (not used: league rules win)",
               "To match the league rules set: FANTRAX_POINTS=A=2,", "Free agents loaded: 6 (3 goalies)"):
         assert s in text, s
     assert "Commish" not in text and "secret" not in text
+    assert prov.lineup_lock == "weekly" and ctx.lineup_lock == "weekly"
     raw = prov.raw_settings()
     assert raw["league_rules"]["Keeper League"]["Keeper league Type"] == "Dynasty"
     assert raw["position_limits"]["G"]["max_active"] == 2 and raw["draftPickTradingAllowed"] is True
@@ -697,3 +703,49 @@ def test_fantrax_activity_failure_is_a_warning(tmp_path):
     prov.load = boom
     assert prov.activity() == [] and prov.lineup_snapshot() == []
     assert any("activity unavailable" in w for w in prov.warnings)
+
+
+def test_player_pool_parses_roster_percent_change():
+    from fantasy_manager.providers.fantrax import parse_row_cells, stat_columns
+
+    players, rows, _ = parse_player_pool(fx("player_pool"))
+    by = {p.cid: p for p in players}
+    assert by["fantrax:f1"].pct_owned_change == 2.0 and rows["fantrax:f1"].owned_change == 2.0   # "+2%"
+    assert by["fantrax:f2"].pct_owned_change == 0.0
+    proj, _, _ = parse_player_pool(fx("pool_skaters_projected"))
+    assert proj[0].pct_owned == 66 and proj[0].pct_owned_change == -7.0                           # "-7%"
+    header = fx("pool_skaters_projected")["tableHeader"]["cells"]
+    plus_minus = next(i for i, c in enumerate(header) if c.get("shortName") == "+/-")
+    assert plus_minus not in stat_columns(header)                     # still not a plus-minus stat
+    assert "PM" not in proj[0].lines.get("projected", proj[0].lines.get("season")).stats
+    # a Unicode minus sign is still negative
+    rs = parse_row_cells(header, [{"content": "1"}, {"content": "FA"}, {"content": "24"}, {"content": "1"},
+                                  {"content": "1"}, {"content": "5%"}, {"content": "−3%"}])
+    assert rs.owned_change == -3.0
+
+
+def test_taken_rows_carry_roster_percent_change():
+    from fantasy_manager.providers.fantrax import parse_taken_rows
+
+    rows = parse_taken_rows(fx("pool_taken"))
+    assert rows["fantrax:03924"].owned_change == 0.0                  # Jack Eichel "0%"
+    assert rows["fantrax:051yz"].owned_change == -1.0                 # Dylan Holloway "-1%"
+    assert rows["fantrax:03mbn"].owned == 91.0 and rows["fantrax:03mbn"].owned_change == -2.0
+
+
+def test_lineup_lock_is_parsed_once_and_shared():
+    """One parsed value (FantraxProvider.lineup_lock / lineup_lock_for) drives describe_settings,
+    the lineup wording and the matchup preview."""
+    from types import SimpleNamespace
+
+    from fantasy_manager.providers.fantrax import lineup_lock_for, parse_lineup_lock
+
+    assert parse_lineup_lock("Daily") == "daily"
+    assert parse_lineup_lock("Weekly                 every Monday") == "weekly"
+    assert parse_lineup_lock(None) == parse_lineup_lock("") == "weekly"
+    fx = SimpleNamespace(provider="fantrax", lineup_lock=None)
+    assert lineup_lock_for(fx) == "weekly"
+    assert lineup_lock_for(fx, SimpleNamespace(lineup_lock="daily")) == "daily"
+    assert lineup_lock_for(fx, SimpleNamespace(rules=SimpleNamespace(get=lambda k: "Daily"))) == "daily"
+    assert lineup_lock_for(SimpleNamespace(provider="fantrax", lineup_lock="daily")) == "daily"
+    assert lineup_lock_for(SimpleNamespace(provider="espn", lineup_lock=None)) == "daily"

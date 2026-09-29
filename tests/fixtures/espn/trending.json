@@ -1,0 +1,203 @@
+{
+ "_comment": "Trimmed real public response (2026-09-29): GET .../games/fhl/seasons/2027/segments/0/leaguedefaults/1?view=kona_player_info, X-Fantasy-Filter sortPercChanged. Stats removed. Four risers, then two fallers (from the sortAsc=true request).",
+ "players": [
+  {
+   "id": 5188366,
+   "onTeamId": 0,
+   "status": "WAIVERS",
+   "player": {
+    "defaultPositionId": 5,
+    "eligibleSlots": [
+     5,
+     7,
+     8
+    ],
+    "firstName": "Sergei",
+    "fullName": "Sergei Murashov",
+    "id": 5188366,
+    "injured": false,
+    "injuryStatus": "ACTIVE",
+    "lastName": "Murashov",
+    "ownership": {
+     "activityLevel": null,
+     "auctionValueAverage": 8.38,
+     "auctionValueAverageChange": -0.02,
+     "averageDraftPosition": 99.96,
+     "averageDraftPositionPercentChange": 0.98,
+     "date": 1790695839070,
+     "leagueType": 0,
+     "percentChange": 7.69,
+     "percentOwned": 73.17,
+     "percentStarted": 61.03
+    },
+    "proTeamId": 16
+   }
+  },
+  {
+   "id": 4697446,
+   "onTeamId": 0,
+   "status": "WAIVERS",
+   "player": {
+    "defaultPositionId": 3,
+    "eligibleSlots": [
+     3,
+     2,
+     6,
+     7,
+     8
+    ],
+    "firstName": "Luke",
+    "fullName": "Luke Evangelista",
+    "id": 4697446,
+    "injured": false,
+    "injuryStatus": "ACTIVE",
+    "lastName": "Evangelista",
+    "ownership": {
+     "activityLevel": null,
+     "auctionValueAverage": 2.28,
+     "auctionValueAverageChange": -0.15,
+     "averageDraftPosition": 162.03,
+     "averageDraftPositionPercentChange": -0.18,
+     "date": 1790695838727,
+     "leagueType": 0,
+     "percentChange": 6.16,
+     "percentOwned": 64.71,
+     "percentStarted": 31.34
+    },
+    "proTeamId": 11
+   }
+  },
+  {
+   "id": 4064582,
+   "onTeamId": 0,
+   "status": "WAIVERS",
+   "player": {
+    "defaultPositionId": 5,
+    "eligibleSlots": [
+     5,
+     7,
+     8
+    ],
+    "firstName": "Carter",
+    "fullName": "Carter Hart",
+    "id": 4064582,
+    "injured": false,
+    "injuryStatus": "ACTIVE",
+    "lastName": "Hart",
+    "ownership": {
+     "activityLevel": null,
+     "auctionValueAverage": 2.7,
+     "auctionValueAverageChange": -0.01,
+     "averageDraftPosition": 149.58,
+     "averageDraftPositionPercentChange": 0.1,
+     "date": 1790695838208,
+     "leagueType": 0,
+     "percentChange": 6.04,
+     "percentOwned": 69.92,
+     "percentStarted": 59.55
+    },
+    "proTeamId": 37
+   }
+  },
+  {
+   "id": 3735,
+   "onTeamId": 0,
+   "status": "WAIVERS",
+   "player": {
+    "defaultPositionId": 3,
+    "eligibleSlots": [
+     3,
+     2,
+     6,
+     7,
+     8
+    ],
+    "firstName": "Patrick",
+    "fullName": "Patrick Kane",
+    "id": 3735,
+    "injured": false,
+    "injuryStatus": "ACTIVE",
+    "lastName": "Kane",
+    "ownership": {
+     "activityLevel": null,
+     "auctionValueAverage": 5.32,
+     "auctionValueAverageChange": -0.33,
+     "averageDraftPosition": 124.0,
+     "averageDraftPositionPercentChange": -0.2,
+     "date": 1790695837468,
+     "leagueType": 0,
+     "percentChange": 3.66,
+     "percentOwned": 85.47,
+     "percentStarted": 72.66
+    },
+    "proTeamId": 4
+   }
+  },
+  {
+   "id": 4272674,
+   "onTeamId": 0,
+   "status": "WAIVERS",
+   "player": {
+    "defaultPositionId": 5,
+    "eligibleSlots": [
+     5,
+     7,
+     8
+    ],
+    "firstName": "Filip",
+    "fullName": "Filip Gustavsson",
+    "id": 4272674,
+    "injured": true,
+    "injuryStatus": "INJURY_RESERVE",
+    "lastName": "Gustavsson",
+    "ownership": {
+     "activityLevel": null,
+     "auctionValueAverage": 1.2,
+     "auctionValueAverageChange": 0.09,
+     "averageDraftPosition": 192.41,
+     "averageDraftPositionPercentChange": -1.19,
+     "date": 1790695838351,
+     "leagueType": 0,
+     "percentChange": -3.82,
+     "percentOwned": 65.09,
+     "percentStarted": 23.46
+    },
+    "proTeamId": 30
+   }
+  },
+  {
+   "id": 3114743,
+   "onTeamId": 0,
+   "status": "WAIVERS",
+   "player": {
+    "defaultPositionId": 2,
+    "eligibleSlots": [
+     3,
+     1,
+     6,
+     7,
+     8
+    ],
+    "firstName": "Kevin",
+    "fullName": "Kevin Fiala",
+    "id": 3114743,
+    "injured": true,
+    "injuryStatus": "INJURY_RESERVE",
+    "lastName": "Fiala",
+    "ownership": {
+     "activityLevel": null,
+     "auctionValueAverage": 0.8,
+     "auctionValueAverageChange": 0.04,
+     "averageDraftPosition": 199.15,
+     "averageDraftPositionPercentChange": -0.54,
+     "date": 1790695837949,
+     "leagueType": 0,
+     "percentChange": -2.82,
+     "percentOwned": 65.65,
+     "percentStarted": 20.0
+    },
+    "proTeamId": 8
+   }
+  }
+ ]
+}

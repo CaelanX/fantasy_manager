@@ -115,7 +115,127 @@ def _daily_league(lg: str, settings: Any, ledger: Any, today: date, since: date,
         out["match"] = {"episodes": m.episodes, "by_status": m.by_status, "decisions": m.decisions}
     finally:
         cache.close()
+    if ctx is not None and ctx.schedule:
+        out["_schedule"] = ctx.schedule       # for the deployment pull; dropped from the summary
     return out
+
+
+def _deployment_step(ledger: Any, settings: Any, day: date, schedule: Any, client: Any = None) -> dict[str, Any]:
+    """Per-game TOI / PP / goalie starts for ``day`` into the ledger (harness.deployment), never
+    raises. A date is marked pulled only when complete (the schedule confirms no game, or every
+    scheduled team is in the reports); games not final yet are left for the next run."""
+    from .backtest.data import CountingFetcher
+    from .harness.deployment import pull_deployment
+    from .providers.nhl import NhlClient
+
+    out: dict[str, Any] = {"day": day.isoformat()}
+    cache = None
+    try:
+        if client is None:
+            cache = _cache(settings)
+            client = NhlClient(fetch_json=CountingFetcher(cache))
+        if not schedule:
+            out["skipped"] = "no NHL schedule loaded (league loads failed); nothing recorded"
+            return out
+        r = pull_deployment(ledger, client, day, schedule=schedule, record_empty=False)
+        out.update(skaters=r["skaters"], goalies=r["goalies"], not_final=r.get("not_final") or [],
+                   scheduled=sum(1 for ds in schedule.values() if day in set(ds)))
+    except Exception as e:  # noqa: BLE001 - NHL API hiccups must not fail the run
+        out["error"] = f"{type(e).__name__}: {e}"
+    finally:
+        if cache is not None:
+            cache.close()
+    return out
+
+
+def _deployment_line(dp: dict[str, Any]) -> str:
+    day = dp.get("day")
+    if dp.get("error"):
+        return f"[yellow]deployment {day}: {escape(dp['error'])}[/]"
+    if dp.get("skipped"):
+        return f"[dim]deployment {day}: skipped ({escape(dp['skipped'])})[/]"
+    if dp.get("not_final"):
+        return (f"deployment {day}: {dp.get('skaters', 0)} skater / {dp.get('goalies', 0)} goalie rows, "
+                f"games not final yet ({dp.get('scheduled', 0)} teams scheduled); not marked pulled, "
+                "the next run completes it")
+    if not dp.get("scheduled"):
+        return f"deployment {day}: no NHL regular-season games (schedule-confirmed), recorded"
+    return f"deployment {day}: {dp.get('skaters', 0)} skater / {dp.get('goalies', 0)} goalie rows"
+
+
+def _lines_step(settings: Any, today: date, client: Any = None) -> dict[str, Any]:
+    """Make sure today's Daily Faceoff snapshot exists (``<fm_data_dir>/lines``); the league loads
+    usually wrote it already through ``enrich_context``. Never raises. The starting-goalies page
+    is cached 3 h: a later `fm advise` before puck drop refreshes the confirmed starters."""
+    from .models import LeagueContext, ScoringConfig
+    from .providers.lines_enrich import LineSnapshotStore, enrich_lines
+
+    out: dict[str, Any] = {"day": today.isoformat()}
+    try:
+        store = LineSnapshotStore(settings.fm_data_dir)
+        if store.load(today) is not None:
+            out["snapshot"] = "already taken today"
+            return out
+        cache = _cache(settings)
+        try:
+            ctx = LeagueContext(provider="nhl", league_id="-", season=today.year, name="lines snapshot",
+                                scoring=ScoringConfig(kind="points"), roster_shape={}, teams=[], free_agents=[],
+                                matchup_period=None, as_of=today)
+            res = enrich_lines(ctx, cache, None, as_of=today, snapshot_store=store, client=client)
+        finally:
+            cache.close()
+        out.update(snapshot="taken" if res.snapshot_path else "not taken", teams=res.teams,
+                   starts=len(res.starts), warnings=list(res.warnings)[:5])
+    except Exception as e:  # noqa: BLE001 - lines are context only
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
+def _lines_line(ln: dict[str, Any]) -> str:
+    if ln.get("error"):
+        return f"[yellow]lines {ln['day']}: {escape(ln['error'])}[/]"
+    extra = f" ({ln.get('teams', 0)} teams, {ln.get('starts', 0)} goalie reports)" if "teams" in ln else ""
+    return f"lines {ln['day']}: Daily Faceoff snapshot {ln.get('snapshot')}{extra}"
+
+
+def _odds_step(settings: Any, today: date, client: Any = None) -> dict[str, Any]:
+    """Betting-market odds for today (providers/odds.py): archive once per day, never raises.
+    Today's archive is reused as is, so a rerun costs no API credits."""
+    from .providers.odds import OddsClient, archive_odds, load_odds
+
+    out: dict[str, Any] = {"day": today.isoformat()}
+    try:
+        client = client or OddsClient.from_settings(settings)
+        if not client.available:
+            out["skipped"] = "ODDS_API_KEY not set"
+            return out
+        snap = load_odds(settings.fm_data_dir, today)
+        if snap is not None:
+            games = snap["games"]
+            out.update(source="archive", archive="already archived today", fetched_at=snap.get("fetched_at"),
+                       quota=snap.get("quota"))
+        else:
+            games = client.nhl_odds()
+            _, st = archive_odds(games, settings.fm_data_dir, today, fetched_at=client.fetched_at,
+                                 quota=client.quota, region=client.region)
+            out.update(source="cache" if client.from_cache else "api", archive=st,
+                       fetched_at=client.fetched_at.isoformat() if client.fetched_at else None, quota=client.quota)
+            if client.warnings:
+                out["warnings"] = list(client.warnings)
+        out["games"] = games
+    except Exception as e:  # noqa: BLE001 - odds are context only; never fail the run
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
+def _odds_line(o: dict[str, Any]) -> str:
+    if o.get("skipped"):
+        return f"[dim]odds: skipped ({escape(o['skipped'])})[/]"
+    if o.get("error"):
+        return f"[yellow]odds: {escape(o['error'])}[/]"
+    q = (o.get("quota") or {}).get("remaining")
+    quota = "" if q is None else f", {q} API credits left"
+    return f"odds: {o.get('games', 0)} upcoming games, archive {escape(str(o.get('archive')))} "            f"(source {o.get('source')}{quota})"
 
 
 def last_monday(day: date) -> date:
@@ -173,7 +293,11 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
                                          help="Also grade outcomes and this week's bar (always on Mondays)."),
               json_out: bool = typer.Option(False, "--json")) -> None:
     """Idempotent daily capture: archive -> ingest -> transactions / lineups / NHL results -> match
-    (-> grade on Mondays or with --grade)."""
+    -> NHL deployment (TOI / PP / goalie starts) -> Daily Faceoff lines snapshot -> betting odds
+    (when ODDS_API_KEY is set) (-> grade on Mondays or with --grade).
+
+    Starting goalies are fetched with the lines (3 h cache); one daily run cannot catch the
+    ~1 h-before-puck-drop confirmations, so run `fm advise` (or load the dashboard) before games."""
     from .backtest.data import CountingFetcher
     from .harness.ingest import record_run
     from .harness.realized import pull_realized
@@ -197,12 +321,19 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
             realized["error"] = f"{type(e).__name__}: {e}"
         finally:
             cache.close()
+        schedule = next((r.pop("_schedule") for r in results if r.get("_schedule")), None)
+        for r in results:
+            r.pop("_schedule", None)
+        deployment = _deployment_step(ledger, settings, rday, schedule)
+        lines = _lines_step(settings, today)
+        odds = _odds_step(settings, today)
+        odds["games"] = len(odds.get("games") or [])
         graded = None
         if grade or today.weekday() == 0:
             graded = _grade_leagues(ledger, _leagues(league), last_monday(today), today)
         refit = _daily_refit(ledger, settings, today)
-        summary = {"leagues": results, "realized": realized, "grade": graded, "refit": refit,
-                   "seconds": round(time.perf_counter() - t0, 1)}
+        summary = {"leagues": results, "realized": realized, "deployment": deployment, "lines": lines,
+                   "odds": odds, "grade": graded, "refit": refit, "seconds": round(time.perf_counter() - t0, 1)}
         failed = [r["league"] for r in results if r.get("skipped")]
         record_run(ledger, "daily", league, today, summary, "partial" if failed or "error" in realized else "ok")
     finally:
@@ -234,6 +365,9 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
     else:
         note = "" if rl.get("players") else " (no NHL regular-season games that day)"
         console.print(f"NHL results {rl['day']}: {rl.get('players', 0)} players{note}")
+    console.print(_deployment_line(summary["deployment"]))
+    console.print(_lines_line(summary["lines"]))
+    console.print(_odds_line(summary["odds"]))
     for g in summary.get("grade") or []:
         _print_grade(g)
     rf = summary.get("refit")
@@ -244,6 +378,57 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
             console.rule(f"Refit ({rf.get('mode')})")
             _print_refit(rf)
     console.print(f"[dim]{summary['seconds']}s[/]")
+
+
+@harness_app.command("odds")
+def odds_cmd(show_all: bool = typer.Option(False, "--all", help="List every upcoming game, not only the next slate."),
+             json_out: bool = typer.Option(False, "--json")) -> None:
+    """Betting-market context: fetch NHL moneylines / totals from The Odds API (at most once a day),
+    archive them to data/archive/odds-YYYY-MM-DD.json and show the implied team totals."""
+    settings = _settings()
+    today = date.today()
+    o = _odds_step(settings, today)
+    games = o.get("games") or []
+    if json_out:
+        typer.echo(json.dumps({**o, "games": [g.to_dict(with_books=False) for g in games]}, indent=2, default=str))
+        return
+    if o.get("skipped"):
+        console.print(f"Odds disabled: {escape(o['skipped'])}. Add ODDS_API_KEY to .env (free key at "
+                      "the-odds-api.com; one 2-credit call a day).")
+        return
+    if o.get("error"):
+        console.print(f"[yellow]odds: {escape(o['error'])}[/]")
+        raise typer.Exit(1)
+    if not games:
+        console.print("No upcoming NHL games with odds.")
+    else:
+        slate = min((g.game_date for g in games if g.game_date >= today), default=None)
+        shown = games if show_all or slate is None else [g for g in games if g.game_date == slate]
+        label = "Upcoming games" if show_all or slate is None else             ("Tonight's games" if slate == today else f"Next slate ({slate.isoformat()})")
+        t = Table(title=f"{label}: market consensus (implied team totals = Poisson split of the total)")
+        for c in ("Date", "Away", "Home", "Away ML", "Home ML", "Home win", "Total", "O/U", "Away TT",
+                  "Home TT", "Books"):
+            t.add_column(c, justify="left" if c in ("Date", "Away", "Home") else "right")
+
+        def ml(v: Any) -> str:
+            return "-" if v is None else f"{v:+d}"
+
+        def num(v: Any, nd: int = 2) -> str:
+            return "-" if v is None else f"{v:.{nd}f}"
+
+        for g in shown:
+            ou = "-" if g.over_price is None else f"{g.over_price:+d}/{g.under_price:+d}"
+            t.add_row(g.game_date.isoformat(), g.away, g.home, ml(g.away_ml), ml(g.home_ml),
+                      "-" if g.home_win_prob is None else f"{g.home_win_prob:.0%}", num(g.total, 1), ou,
+                      num(g.implied_away_total), num(g.implied_home_total), str(g.bookmaker_count))
+        console.print(t)
+    q = o.get("quota") or {}
+    quota = (f"{q.get('remaining')} API credits left ({q.get('used')} used)" if q.get("remaining") is not None
+             else "quota unknown")
+    console.print(f"[dim]source {o.get('source')}, fetched {o.get('fetched_at') or '-'}, archive "
+                  f"{escape(str(o.get('archive')))}; {quota}[/]")
+    for w in o.get("warnings") or []:
+        console.print(f"  [dim]{escape(str(w))}[/]")
 
 
 @harness_app.command("ledger")

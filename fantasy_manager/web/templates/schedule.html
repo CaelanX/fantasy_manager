@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pill, plink with context %}
+{% block heading %}
+<p class="sc dateline">{{ res.ctx.name }} &middot; NHL schedule</p>
+<h1>Week of {{ view.start.strftime('%b %d').replace(' 0', ' ') }}</h1>
+<p class="sub">{{ view.start.strftime('%a %b %d').replace(' 0', ' ') }} &ndash; {{ view.end.strftime('%a %b %d').replace(' 0', ' ') }}
+  &middot; {{ view.league_games|sum }} NHL games &middot; {{ view.off_days|select|list|length }} off-nights{% if week_idx is not none %} &middot; fantasy week {{ week_idx + 1 }} of {{ grid.weeks|length }}{% endif %}</p>
+<nav class="weeknav" aria-label="Week">
+  <a class="chip-f" href="/schedule?league={{ league }}&amp;week={{ prev.isoformat() }}">&larr; Previous</a>
+  <a class="chip-f" href="/schedule?league={{ league }}"{% if start == this_week %} aria-current="page"{% endif %}>This week</a>
+  <a class="chip-f" href="/schedule?league={{ league }}&amp;week={{ next.isoformat() }}">Next &rarr;</a>
+  <form method="get" action="/schedule" class="inline-form">
+    <input type="hidden" name="league" value="{{ league }}">
+    <label for="week-pick">Go to</label>
+    <input id="week-pick" type="date" name="week" value="{{ start.isoformat() }}">
+    <button type="submit" class="btn">Show</button>
+  </form>
+</nav>
+{% endblock %}
+{% block content %}
+{% if not has_schedule %}
+<p class="empty">No NHL schedule is loaded (offline, or the schedule request failed). See the warnings below.</p>
+{% else %}
+<section id="grid" aria-labelledby="h-grid">
+  <h2 id="h-grid">Games by team <span class="aside">most games first &middot; shaded = off-night (fewer than {{ view.threshold }} NHL games)</span></h2>
+  <div class="tbl"><table class="r sched-grid">
+    <caption class="sr-only">NHL games per team and day for the week, with opponents</caption>
+    <thead><tr>
+      <th scope="col">Team</th>
+      {% for d in view.days %}
+      <th scope="col" class="day{% if view.off_days[loop.index0] %} off-col{% endif %}{% if d == res.ctx.as_of %} today{% endif %}">
+        <span class="dname">{{ d.strftime('%a') }}</span> {{ d.day }}
+        <small>{{ view.league_games[loop.index0] }} gm{% if view.off_days[loop.index0] %} &middot; off{% endif %}</small>
+      </th>
+      {% endfor %}
+      <th scope="col" class="n">Games</th><th scope="col" class="n">Off</th><th scope="col" class="n"><abbr title="Back-to-back second nights">B2B</abbr></th>
+    </tr></thead>
+    <tbody>
+      {% for r in view.rows %}
+      <tr>
+        <th scope="row">{{ r.team }}</th>
+        {% for c in r.cells %}
+        {% if c %}
+        <td class="gcell{% if c.off %} offn{% endif %}">{{ c.opp or 'game' }}{% if c.b2b %}<sup title="Second night of a back-to-back">b2b</sup>{% endif %}</td>
+        {% else %}
+        <td class="gcell none"><span class="sr-only">no game</span></td>
+        {% endif %}
+        {% endfor %}
+        <td class="n"><b>{{ r.games }}</b></td>
+        <td class="n">{{ r.offnights }}</td>
+        <td class="n">{{ r.b2b }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="foot-note">Opponent labels: <code>BOS</code> at home, <code>@BOS</code> away. Off-night games matter because fewer teams play, so a streamer's game rarely collides with your starters; <sup>b2b</sup> marks the second night of a back-to-back (a likely backup-goalie start).</p>
+</section>
+
+<section id="streaming" aria-labelledby="h-stream">
+  <h2 id="h-stream">Streaming targets <span class="aside">{{ plan.from_day.strftime('%a %b %d').replace(' 0', ' ') }} &ndash; {{ plan.week_end.strftime('%a %b %d').replace(' 0', ' ') }} &middot; proj = FP/G &times; games &times; (1 + {{ plan.bonus }} &times; off-nights)</span></h2>
+  <div class="cols stream-cols">
+    <div>
+      {% for slot, targets in plan.by_slot.items() %}
+      <h3 class="sub-h">{{ {'F': 'Forwards', 'D': 'Defense', 'G': 'Goalies'}.get(slot, slot) }}</h3>
+      {% if targets %}
+      <div class="tbl"><table class="r stack stream-t">
+        <caption class="sr-only">Free agents to stream at {{ slot }}</caption>
+        <thead><tr><th scope="col">Player</th><th scope="col" class="n">Games</th><th scope="col" class="n">Off</th>
+          <th scope="col" class="n">FP/G</th><th scope="col" class="n">Proj</th><th scope="col" class="n">% ros</th><th scope="col">Opponents</th></tr></thead>
+        <tbody>
+          {% for t in targets %}
+          <tr>
+            <th scope="row" class="pname" data-label="Player">{{ plink(t, league) }}<small>{{ t.pos }} &middot; {{ t.team }}{% if t.status != 'healthy' %} &middot; {{ pill(t.status) }}{% endif %}</small></th>
+            <td data-label="Games" class="n">{{ t.games }}</td>
+            <td data-label="Off-nights" class="n">{{ t.offnights }}</td>
+            <td data-label="FP/G" class="n">{{ t.per_game|n1 }}</td>
+            <td data-label="Proj pts" class="n"><b>{{ t.proj|n1 }}</b></td>
+            <td data-label="% rostered" class="n">{{ (t.pct_owned|n1 ~ '%') if t.pct_owned is not none else '-' }}</td>
+            <td data-label="Opponents" class="wrap opp">{{ t.opps|join(', ') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {% else %}
+      <p class="empty">No healthy free agents with games left this week.</p>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <aside class="side" aria-labelledby="h-stream-teams">
+      <section>
+        <h3 id="h-stream-teams" class="sub-h">Best teams to stream from</h3>
+        <div class="tbl"><table class="r stack">
+          <caption class="sr-only">NHL teams with the most games left this week</caption>
+          <thead><tr><th scope="col">Team</th><th scope="col" class="n">Games</th><th scope="col" class="n">Off</th><th scope="col" class="n">B2B</th><th scope="col" class="n">FAs</th></tr></thead>
+          <tbody>
+            {% for r in plan.teams %}
+            <tr>
+              <th scope="row" data-label="Team">{{ r.team }}</th>
+              <td data-label="Games" class="n"><b>{{ r.games }}</b></td>
+              <td data-label="Off-nights" class="n">{{ r.offnights }}</td>
+              <td data-label="Back-to-backs" class="n">{{ r.b2b }}</td>
+              <td data-label="Healthy free agents" class="n">{{ r.free_agents if r.free_agents is not none else '-' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<section id="playoffs" aria-labelledby="h-po">
+  <h2 id="h-po">Fantasy playoffs {% if playoffs and playoffs.periods %}<span class="aside">periods {{ playoffs.periods|map(attribute='number')|join(', ') }} &middot; {{ playoffs.periods[0].start.strftime('%b %d').replace(' 0', ' ') }} &ndash; {{ playoffs.periods[-1].end.strftime('%b %d').replace(' 0', ' ') }} &middot; {{ playoffs.source }}</span>{% endif %}</h2>
+  {% if playoffs and playoffs.teams %}
+  <div class="tbl"><table class="r stack po-t">
+    <caption class="sr-only">Games per NHL team in the fantasy playoffs</caption>
+    <thead><tr>
+      <th scope="col">Team</th><th scope="col" class="n">#</th>
+      {% for p in playoffs.periods %}<th scope="col" class="n">P{{ p.number }} <small>{{ p.start.strftime('%m/%d') }}</small></th>{% endfor %}
+      <th scope="col" class="n">Total</th><th scope="col" class="n">Off-night</th><th scope="col" class="n">B2B</th><th scope="col" class="n">vs avg</th>
+    </tr></thead>
+    <tbody>
+      {% for t in playoffs.teams %}
+      <tr{% if t.total > playoffs.avg_total + 0.5 %} class="po-top"{% endif %}>
+        <th scope="row" data-label="Team">{{ t.team }}</th>
+        <td data-label="Rank" class="n">{{ loop.index }}</td>
+        {% for g in t.games %}<td data-label="Period {{ playoffs.periods[loop.index0].number }}" class="n">{{ g }}</td>{% endfor %}
+        <td data-label="Total" class="n"><b>{{ t.total }}</b></td>
+        <td data-label="Off-night games" class="n">{{ t.total_offnights }}</td>
+        <td data-label="Back-to-backs" class="n">{{ t.total_b2b }}</td>
+        <td data-label="vs average" class="n {{ 'pos-val' if t.total > playoffs.avg_total else ('neg-val' if t.total < playoffs.avg_total else '') }}">{{ '%+.1f'|format(t.total - playoffs.avg_total) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="empty">The fantasy-playoff periods could not be determined.</p>
+  {% endif %}
+  {% if playoffs %}{% for n in playoffs.notes %}<p class="foot-note">{{ n }}</p>{% endfor %}{% endif %}
+  {% for n in notes %}<p class="foot-note">{{ n }}</p>{% endfor %}
+</section>
+
+<section id="season" aria-labelledby="h-season">
+  <h2 id="h-season">Season at a glance <span class="aside">games per team per fantasy week (Mon&ndash;Sun)</span></h2>
+  <details class="season-d">
+    <summary>Show all {{ grid.weeks|length }} weeks</summary>
+    <div class="tbl"><table class="r season-t">
+      <caption class="sr-only">Games per NHL team per week for the whole season</caption>
+      <thead><tr>
+        <th scope="col">Team</th>
+        {% for w in grid.weeks %}<th scope="col" class="n{% if w == start %} cur{% endif %}"><a href="/schedule?league={{ league }}&amp;week={{ w.isoformat() }}" title="Week of {{ w.strftime('%b %d') }}">{{ w.strftime('%m/%d') }}</a></th>{% endfor %}
+        <th scope="col" class="n">Total</th>
+      </tr></thead>
+      <tbody>
+        {% for t in grid.teams %}
+        <tr>
+          <th scope="row">{{ t.team }}</th>
+          {% for g in t.games %}<td class="n heat h{{ [g, 5]|min }}{% if grid.weeks[loop.index0] == start %} cur{% endif %}">{{ g }}</td>{% endfor %}
+          <td class="n"><b>{{ t.total_games }}</b></td>
+        </tr>
+        {% endfor %}
+        <tr class="league-row"><th scope="row">NHL games</th>{% for n in grid.league_games %}<td class="n">{{ n }}</td>{% endfor %}<td class="n">{{ grid.league_games|sum }}</td></tr>
+      </tbody>
+    </table></div>
+  </details>
+</section>
+{% endif %}
+{% endblock %}

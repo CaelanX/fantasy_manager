@@ -8,6 +8,11 @@
 <a href="/player/{{ p.cid|q }}?league={{ league }}">{{ p.name }}</a>
 {%- endmacro %}
 
+{# Daily Faceoff line / PP-unit badges ("F1", "PP1"); a line change as a tooltip. #}
+{% macro unit_badges(row) -%}
+{% for b in row.badges or [] %}<span class="ub{% if b.startswith('PP') %} ub-pp{% endif %}"{% if row.line_change %} title="Change: {{ row.line_change }}"{% endif %}>{{ b }}</span>{% endfor %}
+{%- endmacro %}
+
 {% macro prospect_mark(flag) -%}
 {% if flag %}<span class="pm" title="Prospect" aria-hidden="true">*</span><span class="sr-only">, prospect</span>{% endif %}
 {%- endmacro %}
@@ -74,7 +79,7 @@
   <caption class="sr-only">Players in this move, side by side</caption>
   <thead><tr>
     <th scope="col"><span class="sr-only">Metric</span></th>
-    {% for c in cmp.cols %}<th scope="col" class="n cmp-p"><span class="verb {{ c.side }}">{{ c.verb }}</span> {{ plink(c.row.p, league) }}{{ prospect_mark(c.row.prospect) }}</th>{% endfor %}
+    {% for c in cmp.cols %}<th scope="col" class="n cmp-p"><span class="verb {{ c.side }}">{{ c.verb }}</span> {{ plink(c.row.p, league) }}{{ prospect_mark(c.row.prospect) }}{{ unit_badges(c.row) }}</th>{% endfor %}
     {% if net %}<th scope="col" class="n">Net <span class="sr-only">(in minus out)</span></th>{% endif %}
   </tr></thead>
   <tbody>
@@ -86,6 +91,7 @@
     <tr><th scope="row">FPG healthy</th>{% for c in cmp.cols %}<td class="n">{{ c.row.fpg|n1 }}</td>{% endfor %}{{ netcell(net, 'fpg') }}</tr>
     {% if cmp.has_proj %}<tr><th scope="row">Proj pts/wk</th>{% for c in cmp.cols %}<td class="n">{{ c.row.proj_week|n1 }}</td>{% endfor %}{{ netcell(net, 'proj_week') }}</tr>{% endif %}
     <tr><th scope="row">Games next 7</th>{% for c in cmp.cols %}<td class="n">{{ games_cell(c.row) }}</td>{% endfor %}{{ netcell(net, 'games_n') }}</tr>
+    {% if cmp.has_xg %}<tr><th scope="row"><abbr title="Goals minus individual expected goals per game (MoneyPuck.com); positive = finishing above expected">Goals &minus; ixG /GP</abbr></th>{% for c in cmp.cols %}<td class="n">{% if c.row.xg %}{{ '%+.2f'|format(c.row.xg.per_gp) }}{% if c.row.xg.prior %} <small>(last szn)</small>{% endif %}{% else %}-{% endif %}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>{% endif %}
     <tr><th scope="row">VORP (FPG)</th>{% for c in cmp.cols %}<td class="n{% if c.row.vorp is not none and c.row.vorp > 0 %} pos-val{% elif c.row.vorp is not none and c.row.vorp < 0 %} neg-val{% endif %}">{{ c.row.vorp|n1(True) }}</td>{% endfor %}{{ netcell(net, 'vorp') }}</tr>
     {% if cmp.has_dyn %}<tr><th scope="row">Dynasty value</th>{% for c in cmp.cols %}<td class="n">{{ c.row.dyn|n1 }}</td>{% endfor %}{{ netcell(net, 'dyn') }}</tr>{% endif %}
     {% if cmp.has_pct %}<tr><th scope="row">% rostered</th>{% for c in cmp.cols %}<td class="n">{{ c.row.pct|n1 if c.row.pct is not none else '-' }}{% if c.row.pct is not none %}%{% endif %}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>{% endif %}

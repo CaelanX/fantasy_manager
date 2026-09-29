@@ -19,9 +19,10 @@ RATE_LABEL = {"SVPCT": "SV%"}
 ALERT_STATUSES = ("dtd", "out", "ir", "ltir", "suspended")
 SLOT_ORDER = {s: i for i, s in enumerate(("C", "LW", "RW", "F", "D", "UTIL", "G", "BN", "IR"))}
 MOVE_LABEL = {"waiver": ("Add", "Drop"), "injury": ("Add", "Drop"), "trade": ("Get", "Give"),
-              "lineup": ("Start", "Sit"), "sell_high": ("Buy", "Sell"), "buy_low": ("Buy", "Sell")}
+              "lineup": ("Start", "Sit"), "sell_high": ("Buy", "Sell"), "buy_low": ("Buy", "Sell"),
+              "alert": ("Add", "Drop")}
 KIND_PLURAL = {"injury": "injury moves", "lineup": "lineup moves", "waiver": "waivers", "trade": "trades",
-               "sell_high": "sell-high flags", "buy_low": "buy-low flags"}
+               "sell_high": "sell-high flags", "buy_low": "buy-low flags", "alert": "alerts"}
 GAIN_UNITS = {"week_pts": "pts/wk", "season_fpg": "FPG", "lineup_fpg": "lineup FPG", "dynasty": "dynasty value"}
 SPLIT_ORDER = ("season", "last30", "last15", "last7", "prior", "prior2", "prior3", "projected")
 SPLIT_LABEL = {"season": "Season", "last7": "Last 7 days", "last15": "Last 15 days", "last30": "Last 30 days",
@@ -136,6 +137,43 @@ def rate_line(p: Player, pv: Any) -> dict[str, float | None]:
     return {c: _num(rates.get(c)) for c in cols}
 
 
+def unit_badges(p: Player) -> list[str]:
+    """Daily Faceoff line / power-play unit labels, e.g. ["F1", "PP1"] (goalies: "G1" / "G2" is
+    not known here, so "G" only when listed)."""
+    out = []
+    if p.line:
+        out.append(p.line.upper())
+    if p.pp_unit:
+        out.append(p.pp_unit.upper())
+    return out
+
+
+def xg_luck(p: Player) -> dict[str, Any] | None:
+    """MoneyPuck finishing luck of a skater: goals - ixG (season total and per game), ixG/GP and
+    whether it is last season's line. None without xG data."""
+    from ..valuation.regression import luck_signals
+
+    try:
+        sig = luck_signals(p)
+    except Exception:  # display only
+        return None
+    if sig is None or sig.gp <= 0:
+        return None
+    return {"gmx": sig.goals_minus_ixg, "per_gp": sig.goals_minus_ixg / sig.gp, "ixg": sig.ixg_per_game,
+            "goals_pg": sig.goals_per_game, "gp": sig.gp, "prior": sig.from_prior,
+            "onice_sh_delta": sig.onice_sh_pct_delta}
+
+
+def credits(ctx: LeagueContext) -> list[str]:
+    """Data credits owed on pages that show MoneyPuck xG or Daily Faceoff lines / starts."""
+    from ..report.digest import credits as digest_credits
+
+    try:
+        return digest_credits(ctx)
+    except Exception:  # never let a footer line sink a page
+        return []
+
+
 def player_row(res: Any, p: Player, slot: Any = None, owner: str | None = None) -> dict[str, Any]:
     ctx = res.ctx
     pv = res.values.get(p.cid)
@@ -155,6 +193,8 @@ def player_row(res: Any, p: Player, slot: Any = None, owner: str | None = None) 
         "offnight": getattr(pv, "offnight_next7", None), "vorp": _num(getattr(pv, "vorp", None)),
         "dyn": _num(getattr(d, "value", None)), "pct": _num(p.pct_owned),
         "start_share": _num(getattr(pv, "start_share", None)), "rates": rate_line(p, pv),
+        "badges": unit_badges(p), "line_change": p.line_change, "confirmed_start": p.confirmed_start,
+        "xg": xg_luck(p),
     }
 
 
@@ -207,7 +247,8 @@ def compare(res: Any, r: Recommendation) -> dict[str, Any]:
             net[k] = a - b if a is not None and b is not None else None
     return {"cols": cols, "rate_cols": rate_cols, "net": net,
             "has_dyn": res.dynasty is not None, "has_pct": any(x["pct"] is not None for x in rows),
-            "has_proj": any(x["proj_week"] is not None for x in rows)}
+            "has_proj": any(x["proj_week"] is not None for x in rows),
+            "has_xg": any(x["xg"] is not None for x in rows)}
 
 
 def _confidence(r: Recommendation) -> tuple[float | None, str | None]:
@@ -373,7 +414,9 @@ def week_panel(res: Any, team: FantasyTeam | None = None) -> dict[str, Any] | No
                    change_gain=gains.get(s.player.cid))
         rows.append(row)
     has_proj = any(r["proj_week"] is not None for r in rows)
-    return {"team": team, "rows": rows, "current": lu["current"], "optimal": lu["optimal"],
+    starts = [{"p": r["p"], "starting": bool(r["confirmed_start"]), "source": r["p"].start_source}
+              for r in rows if r["goalie"] and r["confirmed_start"] is not None]
+    return {"team": team, "rows": rows, "current": lu["current"], "optimal": lu["optimal"], "starts": starts,
             "delta": lu["optimal"] - lu["current"], "units": "pts/wk" if has_proj else "FPG",
             "start": start, "end": start + timedelta(days=days - 1), "preseason": preseason,
             "games": sum(r["games_n"] or 0 for r in rows if r["now_start"]),
@@ -483,3 +526,82 @@ def status_history(res: Any, cid: str) -> list[dict[str, Any]]:
         out.append({"when": datetime.fromtimestamp(seen) if isinstance(seen, (int, float)) else None,
                     "status": getattr(snap, "status", "unknown"), "note": getattr(snap, "note", None)})
     return list(reversed(out))
+
+
+# --------------------------------------------------------------------------- schedule grid + matchup
+
+def provider_for(loader: Any, league: str) -> Any:
+    """The provider object behind a cached pipeline load (``PipelineLoader`` keeps it on its
+    BaseLoad), or None (test loaders, other loaders): pages then fall back to calendar weeks and
+    projection-only matchups, with a warning."""
+    bases = getattr(loader, "_bases", None)
+    hit = bases.get(league) if isinstance(bases, dict) else None
+    base = hit[1] if isinstance(hit, tuple) and len(hit) == 2 else hit
+    return getattr(base, "provider", None)
+
+
+def _parse_week(text: str | None) -> date | None:
+    if not text:
+        return None
+    try:
+        return date.fromisoformat(str(text).strip()[:10])
+    except ValueError:
+        return None
+
+
+def schedule_page(res: Any, week: str | None = None, provider: Any = None, limit: int = 10) -> dict[str, Any]:
+    """/schedule: the week's team x day grid, streaming targets by slot, the teams with the most
+    games, the fantasy-playoff games table and the season-long team x week counts."""
+    from ..analysis.schedule_grid import (default_week, monday, playoff_weeks, season_grid, streaming_targets,
+                                          week_rows)
+
+    ctx = res.ctx
+    day = _parse_week(week)
+    start = monday(day) if day else default_week(ctx)
+    view = _memo(res, f"sched:week:{start}", lambda: week_rows(ctx, start))
+    plan = _memo(res, f"sched:stream:{start}", lambda: streaming_targets(ctx, res.values, start, limit=limit))
+    notes: list[str] = []
+
+    def playoffs() -> Any:
+        try:
+            return playoff_weeks(ctx, provider)
+        except Exception as e:  # never let the optional table sink the page
+            notes.append(f"Fantasy-playoff table unavailable: {e}")
+            return None
+
+    po = _memo(res, "sched:playoffs", playoffs)
+    grid = _memo(res, "sched:season", lambda: season_grid(ctx))
+    week_idx = grid.week_index(start) if grid.weeks else None
+    return {"view": view, "plan": plan, "playoffs": po, "grid": grid, "start": start,
+            "prev": start - timedelta(days=7), "next": start + timedelta(days=7),
+            "this_week": default_week(ctx), "week_idx": week_idx, "notes": notes,
+            "has_schedule": bool(ctx.schedule)}
+
+
+def matchup_strip(res: Any, provider: Any = None) -> dict[str, Any] | None:
+    """The overview's "This week's matchup" strip: both teams' projected totals and my win
+    probability (the /matchup preview, memoised with it). None without an opponent or on error."""
+    try:
+        page = matchup_page(res, provider)
+    except Exception:  # the strip is optional
+        return None
+    m = page["m"]
+    if not m.opponent_team:
+        return None
+    return {"m": m, "pct": page["pct"]}
+
+
+def matchup_page(res: Any, provider: Any = None) -> dict[str, Any]:
+    """/matchup: the current head-to-head preview (memoised per cached result)."""
+    from ..analysis.matchup import current_matchup
+
+    def build() -> Any:
+        return current_matchup(res.ctx, provider, res.values)
+
+    m = _memo(res, "matchup", build)
+    pct = round(m.win_probability * 100) if m.win_probability is not None else None
+    top = max([abs(g.gap) for g in m.gap_by_position.values()] + [1.0])
+    gaps = [{"group": g.group, "mine": g.mine, "theirs": g.theirs, "gap": g.gap,
+             "width": round(min(50.0, abs(g.gap) / top * 50.0), 1), "side": "pos" if g.gap >= 0 else "neg"}
+            for g in m.gap_by_position.values()]
+    return {"m": m, "pct": pct, "gaps": gaps}

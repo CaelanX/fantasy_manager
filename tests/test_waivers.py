@@ -242,3 +242,89 @@ def test_waiver_predicted_gain_units_and_strength():
     assert (r.rank_in_kind, r.kind_total) == (1, 1)
     week = recommend_waivers(ctx, values, horizon="week")[0]
     assert week.gain_units == "season_fpg" and week.horizon_days == 7   # no schedule: per-game week value
+
+
+# -- market timing: % rostered trend ------------------------------------------
+
+def test_market_multiplier_thresholds():
+    from fantasy_manager.recommend.waivers import market_multiplier
+
+    assert market_multiplier(None) == 1.0 and market_multiplier(2.9) == 1.0 and market_multiplier(-8) == 1.0
+    assert market_multiplier(3.0) == pytest.approx(1.15)
+    assert market_multiplier(9.5) == pytest.approx(1.475)
+    assert market_multiplier(10.0) == pytest.approx(1.5) and market_multiplier(40.0) == pytest.approx(1.5)
+
+
+def _trend_ctx(change, pct=32.0):
+    fa = mk("fa_c", ["C"], 1.0, gp=20)
+    fa.pct_owned, fa.pct_owned_change = pct, change
+    ctx = league([fa], [("C", mk("my_c", ["C"], 0.2))])
+    return ctx, valuate_league(ctx, PointsScoring({"G": 1.0}))
+
+
+def test_waiver_riser_gets_score_boost_and_reason():
+    base_ctx, base_vals = _trend_ctx(None)
+    base = recommend_waivers(base_ctx, base_vals)[0]
+    assert "OWNERSHIP_TREND" not in {r.code for r in base.reasons}
+    ctx, vals = _trend_ctx(9.5)
+    r = recommend_waivers(ctx, vals)[0]
+    assert r.score == pytest.approx(base.score * 1.475)
+    trend = next(x for x in r.reasons if x.code == "OWNERSHIP_TREND")
+    assert "rostered 32% (+9.5 this week)" in trend.text and trend.value == 9.5 and trend.baseline == 32.0
+    assert "OWNED" not in {x.code for x in r.reasons}          # folded into OWNERSHIP_TREND
+    assert r.strength == base.strength and r.predicted_gain == base.predicted_gain   # gain untouched
+
+
+def test_waiver_faller_gets_a_note_only():
+    base_ctx, base_vals = _trend_ctx(None)
+    base = recommend_waivers(base_ctx, base_vals)[0]
+    ctx, vals = _trend_ctx(-4.0)
+    r = recommend_waivers(ctx, vals)[0]
+    assert r.score == pytest.approx(base.score)
+    trend = next(x for x in r.reasons if x.code == "OWNERSHIP_TREND")
+    assert "(-4.0 this week)" in trend.text and "falling" in trend.text
+    small_ctx, small_vals = _trend_ctx(2.0)                   # below +3: reason, no boost
+    small = recommend_waivers(small_ctx, small_vals)[0]
+    assert small.score == pytest.approx(base.score) and "rising" not in small.reasons[-1].text
+
+
+def test_trending_alerts_thresholds():
+    from fantasy_manager.recommend.waivers import recommend_trending_alerts
+
+    riser = mk("riser", ["C"], 1.0, gp=20)                    # positive VORP
+    riser.pct_owned, riser.pct_owned_change = 32.0, 9.5
+    edge = mk("edge", ["C"], 1.0, gp=20)
+    edge.pct_owned, edge.pct_owned_change = 20.0, 5.0         # exactly the threshold
+    small = mk("small", ["C"], 1.0, gp=20)
+    small.pct_owned_change = 4.9                              # not enough of a rise
+    dud = mk("dud", ["C"], 0.0)                               # rising but no value, no deployment data
+    dud.pct_owned_change = 12.0
+    deployed = mk("deployed", ["C"], 0.0)                     # no value, but more ice time
+    deployed.pct_owned_change, deployed.toi_trend = 6.0, 1.8
+    pp_guy = mk("pp_guy", ["C"], 0.0)
+    pp_guy.pct_owned_change, pp_guy.pp_share_trend = 30.0, 0.2
+    ctx = league([riser, edge, small, dud, deployed, pp_guy], [("C", mk("my_c", ["C"], 0.2))])
+
+    class PV:                                                 # VORP +0.5 for the valued, -0.5 otherwise
+        def __init__(self, vorp):
+            self.vorp = vorp
+
+        def vorp_for(self, horizon):
+            return self.vorp
+
+        def fpg_for(self, horizon):
+            return 1.0 + self.vorp
+    vals = {p.cid: PV(0.5 if p.cid in ("riser", "edge", "small") else -0.5) for p in ctx.free_agents}
+    recs = recommend_trending_alerts(ctx, values=vals)
+    assert [r.subjects[0].cid for r in recs] == ["pp_guy", "riser", "deployed", "edge"]
+    top = recs[1]
+    assert top.kind == "alert" and top.title == "Rising: riser (+9.5% rostered this week)"
+    assert top.counterparty == "FA" and top.horizon_days == 7 and top.add == [] and top.drop == []
+    assert top.strength == pytest.approx(3 + 9.5 / 3, abs=0.01)
+    assert recs[0].strength == 10.0                           # capped
+    assert {r.code for r in top.reasons} >= {"OWNERSHIP_TREND", "VORP"}
+    assert "TOI_TREND" in {r.code for r in recs[2].reasons}
+    assert (recs[0].rank_in_kind, recs[0].kind_total) == (1, 4)
+    assert len(recommend_trending_alerts(ctx, limit=2, values=vals)) == 2
+    # values omitted: computed from the context (here only the deployment risers qualify)
+    assert [r.subjects[0].cid for r in recommend_trending_alerts(ctx)] == ["pp_guy", "deployed"]

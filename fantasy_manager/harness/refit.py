@@ -295,6 +295,9 @@ def obs_from_inputs(league: str, snap: date, row: Mapping[str, Any], inputs: Map
         lines["projected"] = proj
     p = Player(cid=str(row.get("cid") or row["nhl_id"]), name=str(row.get("name") or ""), name_norm="", ids={},
                team=None, positions=positions or ["C"], status=status, lines=lines)
+    for f in ("ixg_per_game", "goals_minus_ixg", "xg_split"):   # v3: the in-season xG goal shrink
+        if inputs.get(f) is not None:
+            setattr(p, f, inputs[f])
     hist = inputs.get("history") or {}
     history = ({k: float(v) for k, v in (hist.get("rates") or {}).items()}, int(hist.get("gp") or 0), "")
     share = inputs.get("share") or {}

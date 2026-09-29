@@ -48,8 +48,34 @@ Everything lives in `<FM_DATA_DIR>/harness.db` (sqlite). `fm harness daily` runs
    of it), *proposed* (a trade you offered), *expired* (you didn't; graded as *ignored*). Your
    moves that no recommendation explains are *your own moves* (`user_only`).
 
+Then, once for both leagues:
+
+6. **Pull yesterday's NHL deployment** (per-game TOI, even-strength / power-play / shorthanded
+   minutes, the team's PP time, goalie starts and back-to-backs) into `deployment_daily`,
+   `goalie_starts` and `deployment_pulls`. A date is marked pulled only when it is complete: the
+   schedule confirms no regular-season game that day, or every scheduled team is in the reports.
+   Games not final yet are stored but left unmarked (`not final yet` in the output) and the next
+   run completes them, so a half-pulled night never counts as an off day for back-to-backs. These
+   rows feed the role-change alerts (TOI / PP share trends), actual goalie start shares
+   (`START_ACTUAL`, from 5 team games) and the second-night start rate (`B2B`).
+7. **Snapshot Daily Faceoff lines** (`data/lines/lines-YYYY-MM-DD.json`) when no command has
+   taken today's yet; line changes (e.g. "PP2 -> PP1") are diffs between these daily snapshots.
+   Starting goalies are cached 3 h, so one morning run cannot see confirmations posted about an
+   hour before puck drop: run `fm advise` / `fm goalies` (or open the dashboard) before games.
+8. **Betting odds** (with `ODDS_API_KEY`).
+
 On Mondays it also grades; on refit days it runs the refit. A second run the same day changes
 nothing. Provider problems become warnings, never a failed run for the other league.
+
+**New archived signals (archive v3, from 2026-09-29).** Each projection's `inputs` also carries,
+when the player has them: deployment (`toi_per_game`, `pp_toi_per_game`, `pp_share`,
+`toi_trend`, `pp_share_trend`), market (`pct_owned_change`, `pct_started`, `adp`, `adp_change`),
+Daily Faceoff lines / starts (`line`, `pp_unit`, `pk_unit`, `confirmed_start`) and MoneyPuck luck
+(`ixg_per_game`, `goals_minus_ixg`, `onice_sh_pct`, `onice_xg_pct`, and `xg_split`: whether the
+xG line is this season's or last season's). They are not graded yet; they are captured so a later
+refit can test whether they predict what happened. The refit replay also reads `ixg_per_game` /
+`xg_split` so the in-season xG goal shrink (`XG_SHRINK`) is replayed exactly. Older files simply
+lack the keys (read as unknown).
 
 Run it every day: the ESPN activity feed pages back 25 moves at a time and Fantrax keeps only the
 last 50 transactions, so skipped days can lose moves for good.
@@ -180,7 +206,9 @@ later count as your own.
 ## Known limits
 
 - ESPN's activity feed has no IR or lineup messages; IR moves are detected from lineup slots.
-- Fantrax lineups are known only from roster snapshots, so a week's lineup is captured once
-  `fm harness daily` runs after the Monday lock.
+- Fantrax lineups are known only from roster snapshots (one per `fm harness daily` run). The
+  league's lineup lock (daily or weekly) is read once from its Rules page
+  (`FantraxProvider.lineup_lock`); with a weekly lock a week's lineup is captured once the daily
+  run follows the Monday lock, with a daily lock each run captures that day's lineup.
 - Recommendations archived on 2026-09-28 (archive v1) have no predicted gain.
 - Players without an NHL id (see "unmatched ids" on `/health`) can't be graded; `fm sync --review` fixes most.

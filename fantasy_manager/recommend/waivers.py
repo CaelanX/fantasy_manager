@@ -21,6 +21,14 @@ Dynasty leagues add three rules:
   FPG) when his own this-season projection is low (< 40 GP or < 2.0 FPG) - reason
   CONTEND_DROP. Skipped drops are reported in ``debug`` (PROSPECT_PROTECTED), never as recs;
 * recommendations are scored by dynasty gain (x confidence), not season gain.
+
+Market timing: when the provider reports the weekly change in % rostered (``pct_owned_change``,
+ESPN ``percentChange`` / Fantrax "+/-"), an OWNERSHIP_TREND reason (value = change, baseline = %
+rostered) replaces the plain OWNED one. Risers (change >= RISER_MIN points) get their score
+multiplied by ``1 + min(0.5, change / 20)`` (act before the rest of the league does); fallers
+(change <= -RISER_MIN) only get a note. Eligibility and the gain thresholds are unchanged. ``recommend_trending_alerts`` separately flags free agents
+rising >= ALERT_MIN_CHANGE points this week who also have positive VORP or a rising TOI / PP
+share (kind "alert").
 """
 from __future__ import annotations
 
@@ -38,6 +46,36 @@ DYNASTY_MIN_RATIO = 1.15
 CONTEND_CLEAR_GAIN = 1.0
 CONTEND_LOW_GP = 40
 CONTEND_LOW_FPG = 2.0
+# Market timing (% rostered change, in percentage points over the provider's trend window)
+RISER_MIN = 3.0
+RISER_MAX_BOOST = 0.5
+RISER_SCALE = 20.0
+ALERT_MIN_CHANGE = 5.0
+ALERT_TOI_TREND_MIN = 0.5      # minutes per game above the season baseline
+ALERT_PP_SHARE_TREND_MIN = 0.05
+
+
+def market_multiplier(change: float | None) -> float:
+    """Score multiplier for a pickup whose % rostered moved ``change`` points this week:
+    1 + min(0.5, change / 20) for risers (change >= RISER_MIN), else 1."""
+    if change is None or change < RISER_MIN:
+        return 1.0
+    return 1.0 + min(RISER_MAX_BOOST, change / RISER_SCALE)
+
+
+def ownership_trend_reason(p: Player) -> Reason | None:
+    """OWNERSHIP_TREND: "X rostered 32% (+9.5 this week)", with a note for risers / fallers."""
+    chg = p.pct_owned_change
+    if chg is None:
+        return None
+    owned = f"rostered {p.pct_owned:.0f}%" if p.pct_owned is not None else "% rostered"
+    text = f"{p.name} {owned} ({chg:+.1f} this week)"
+    mult = market_multiplier(chg)
+    if mult > 1.0:
+        text += f": rising, grab him before the league does (score x{mult:.2f})"
+    elif chg <= -RISER_MIN:
+        text += ": falling league-wide, no rush (others are dropping him)"
+    return Reason(code="OWNERSHIP_TREND", text=text, value=chg, baseline=p.pct_owned)
 
 
 def _low_this_season(p: Player, pv: PlayerValue) -> str | None:
@@ -175,7 +213,9 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                 reasons.append(Reason(code="STATUS", text=f"{pl.name} is {pl.status}"
                                       + (f" ({pl.status_note})" if pl.status_note else ""),
                                       value=pv.fpg_for(horizon) / pv.fpg if pv.fpg else None))
-        if fa.pct_owned is not None:
+        if (trend := ownership_trend_reason(fa)) is not None:   # % rostered and its weekly change
+            reasons.append(trend)
+        elif fa.pct_owned is not None:
             reasons.append(Reason(code="OWNED", text=f"{fa.name} rostered in {fa.pct_owned:.1f}% of leagues",
                                   value=fa.pct_owned))
         if drop is not None:
@@ -184,7 +224,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
             title = f"Add {fa.name} (open roster spot)"
         else:
             title = f"Add {fa.name}, move {ir_move.name} to IR"
-        score = (dyn_gain if dyn_gain is not None else gain) * conf
+        score = (dyn_gain if dyn_gain is not None else gain) * conf * market_multiplier(fa.pct_owned_change)
         pred, units, days = predicted_gain(fv, cv, gain, horizon)
         recs.append(Recommendation(kind="waiver", score=score, title=title,
                                    add=[fa], drop=[drop] if drop is not None else [], reasons=reasons,
@@ -204,3 +244,53 @@ def predicted_gain(add: PlayerValue, cmp: PlayerValue, fpg_gain: float, horizon:
             return float(add.proj_week - cmp.proj_week), "week_pts", 7
         return float(fpg_gain), "season_fpg", 7
     return float(fpg_gain), "season_fpg", None
+
+
+def recommend_trending_alerts(ctx: LeagueContext, values: Mapping[str, PlayerValue] | None = None,
+                              limit: int = 10, horizon: Horizon = "season") -> list[Recommendation]:
+    """Kind "alert": free agents whose % rostered rose >= ALERT_MIN_CHANGE points this week
+    and who back it up with positive VORP (``values``; computed from ``ctx`` when omitted) or a
+    rising deployment (``toi_trend`` >= 0.5 min or ``pp_share_trend`` >= 0.05, when present).
+    Title "Rising: <name> (+9.5% rostered this week)", counterparty "FA", the player in
+    ``subjects``, strength min(10, 3 + change / 3), horizon 7 days; biggest risers first."""
+    if values is None:
+        try:
+            from ..scoring import from_config
+            from ..valuation.valuate import valuate_league
+
+            values = valuate_league(ctx, from_config(ctx.scoring))
+        except Exception:  # noqa: BLE001 - alerts still work from deployment trends
+            values = {}
+    recs: list[Recommendation] = []
+    seen: set[str] = set()
+    for fa in ctx.free_agents:
+        chg = fa.pct_owned_change
+        if fa.cid in seen or chg is None or chg < ALERT_MIN_CHANGE:
+            continue
+        seen.add(fa.cid)
+        pv = values.get(fa.cid)
+        vorp = pv.vorp_for(horizon) if pv is not None else None
+        toi = getattr(fa, "toi_trend", None)
+        pp = getattr(fa, "pp_share_trend", None)
+        support: list[Reason] = []
+        if vorp is not None and vorp > 0:
+            support.append(Reason(code="VORP", text=f"VORP {vorp:+.2f} ({horizon}), "
+                                  f"{pv.fpg_for(horizon):.2f} FPG", value=vorp, baseline=0.0))
+        if toi is not None and toi >= ALERT_TOI_TREND_MIN:
+            support.append(Reason(code="TOI_TREND", text=f"TOI {toi:+.1f} min/game vs his season baseline",
+                                  value=toi, baseline=ALERT_TOI_TREND_MIN))
+        if pp is not None and pp >= ALERT_PP_SHARE_TREND_MIN:
+            support.append(Reason(code="PP_TREND", text=f"PP share {pp * 100:+.0f} pts vs his season baseline",
+                                  value=pp, baseline=ALERT_PP_SHARE_TREND_MIN))
+        if not support:
+            continue
+        reasons = [ownership_trend_reason(fa)] + support  # type: ignore[list-item]
+        if fa.status not in ("healthy", "unknown"):
+            reasons.append(Reason(code="STATUS", text=f"{fa.name} is {fa.status}"
+                                  + (f" ({fa.status_note})" if fa.status_note else "")))
+        recs.append(Recommendation(kind="alert", score=float(chg),
+                                   title=f"Rising: {fa.name} ({chg:+.1f}% rostered this week)",
+                                   counterparty="FA", subjects=[fa], reasons=reasons, horizon_days=7,
+                                   strength=round(min(10.0, 3.0 + chg / 3.0), 2)))
+    recs.sort(key=lambda r: r.score, reverse=True)
+    return apply_ranks(recs[:limit])

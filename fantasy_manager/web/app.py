@@ -54,10 +54,11 @@ STATUS_LABEL = {"healthy": "Healthy", "dtd": "Day-to-day", "out": "Out", "ir": "
 STATUS_CLASS = {"healthy": "ok", "dtd": "dtd", "out": "out", "ir": "ir", "ltir": "ir",
                 "suspended": "susp", "unknown": "unk"}
 KIND_LABEL = {"lineup": "Lineup", "waiver": "Waiver", "trade": "Trade", "sell_high": "Sell high",
-              "buy_low": "Buy low", "injury": "Injury"}
+              "buy_low": "Buy low", "injury": "Injury", "alert": "Alert"}
 # (label for rec.add, label for rec.drop) per kind
 MOVE_LABEL = {"waiver": ("Add", "Drop"), "injury": ("Add", "Drop"), "trade": ("Get", "Give"),
-              "lineup": ("Start", "Sit"), "sell_high": ("Buy", "Sell"), "buy_low": ("Buy", "Sell")}
+              "lineup": ("Start", "Sit"), "sell_high": ("Buy", "Sell"), "buy_low": ("Buy", "Sell"),
+              "alert": ("Add", "Drop")}
 # filter key -> (tab label, rec kinds), in display priority order
 KIND_FILTERS: dict[str, tuple[str, tuple[str, ...]]] = {
     "injury": ("Injury", ("injury",)),
@@ -65,6 +66,7 @@ KIND_FILTERS: dict[str, tuple[str, tuple[str, ...]]] = {
     "waiver": ("Waiver", ("waiver",)),
     "trade": ("Trade", ("trade",)),
     "flags": ("Flags", ("sell_high", "buy_low")),
+    "alert": ("Alerts", ("alert",)),
 }
 OVERVIEW_MOVES = 5          # moves listed on the overview
 REASONS_SHOWN = 3           # reasons shown per move before the "more reasons" disclosure
@@ -168,6 +170,9 @@ class BaseLoad:
     news_by_cid: Mapping[str, list[Any]]
     loaded_at: datetime
     seconds: float
+    # the provider's HTTP cache, kept open while the base is cached: the /matchup preview and the
+    # overview's matchup strip call the provider (ESPN scoreboard) after the load
+    cache: Any = None
 
 
 def load_base(league: str) -> BaseLoad:
@@ -182,6 +187,7 @@ def load_base(league: str) -> BaseLoad:
     t0 = time.perf_counter()
     settings = get_settings()
     cache = HttpCache(settings.fm_data_dir, offline=settings.fm_offline)
+    ok = False
     try:
         provider = get_provider(league, settings, cache)
         try:
@@ -200,10 +206,12 @@ def load_base(league: str) -> BaseLoad:
         except Exception as e:
             ctx.warnings.append(f"News feeds failed: {e}")
             news = {}
+        ok = True
     finally:
-        cache.close()
+        if not ok:
+            cache.close()
     return BaseLoad(ctx=ctx, values=values, provider=provider, news_by_cid=news, loaded_at=datetime.now(),
-                    seconds=time.perf_counter() - t0)
+                    seconds=time.perf_counter() - t0, cache=cache)
 
 
 def finish(base: BaseLoad, mode: str, source: str, recalc_only: bool = False) -> LoadResult:
@@ -260,7 +268,14 @@ class PipelineLoader:
             return finish(hit[1], mode, source, recalc_only=True)
         base = self.base_loader(league)
         with self._guard:
+            old = self._bases.get(league)
             self._bases[league] = (self.clock(), base)
+        old_cache = getattr(old[1], "cache", None) if old is not None else None
+        if old_cache is not None and old_cache is not getattr(base, "cache", None):
+            try:  # the replaced base's provider is no longer reachable from the pages
+                old_cache.close()
+            except Exception:  # noqa: BLE001
+                pass
         return finish(base, mode, source)
 
     def invalidate(self, league: str | None = None) -> None:
@@ -745,7 +760,7 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                        strength_info=views.strength_info, counterparty=views.counterparty, rec_key=rec_key,
                        SKATER_RATES=views.SKATER_RATES, GOALIE_RATES=views.GOALIE_RATES,
                        RATE_LABEL=views.RATE_LABEL, POSITION_FILTERS=views.POSITION_FILTERS,
-                       EXPLAIN_FAILED=EXPLAIN_FAILED, auth_enabled=False)
+                       EXPLAIN_FAILED=EXPLAIN_FAILED, auth_enabled=False, credits=views.credits)
     if auth is not None:
         web_auth.install(app, auth, templates)
     make_llm = llm or default_llm
@@ -767,7 +782,8 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
 
     def render(request: Request, name: str, league: str, status_code: int = 200, **ctx: Any) -> HTMLResponse:
         path = request.url.path
-        switch_path = path if path in ("/", "/roster", "/recommendations", "/news", "/health") else "/"
+        switch_path = path if path in ("/", "/roster", "/recommendations", "/news", "/health",
+                                         "/schedule", "/matchup") else "/"
         query = [(k, v) for k, v in request.query_params.multi_items() if k != "msg"]
         here = path + (f"?{urlencode(query)}" if query else "")
         cur_mode, cur_source = current_mode()
@@ -854,7 +870,8 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                       summary=overview_summary(res.recs, alerts, prospects), alerts=alerts,
                       news=news[:4], total=len(res.recs), week=views.week_panel(res, team),
                       standings=views.standings(res), free_agents=views.free_agents(res),
-                      league_injuries=views.league_injuries(res), title="Overview")
+                      league_injuries=views.league_injuries(res),
+                      matchup=views.matchup_strip(res, views.provider_for(loader, league)), title="Overview")
 
     @app.get("/roster", response_class=HTMLResponse)
     def roster(request: Request, league: str = LeagueQ, team: str | None = None, view: str = "fantasy"):
@@ -968,6 +985,27 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                       preseason=preseason, history=views.status_history(res, cid),
                       breakdown=views.dynasty_breakdown(dyn), weights=weights,
                       news=list(res.news_by_cid.get(cid, []))[:20], title=p.name)
+
+    @app.get("/schedule", response_class=HTMLResponse)
+    def schedule(request: Request, league: str = LeagueQ, week: str | None = None):
+        res = load_or_error(request, league)
+        if isinstance(res, Response):
+            return res
+        page = views.schedule_page(res, week, views.provider_for(loader, league))
+        return render(request, "schedule.html", league, res=res, title="Schedule", **page)
+
+    @app.get("/matchup", response_class=HTMLResponse)
+    def matchup(request: Request, league: str = LeagueQ):
+        res = load_or_error(request, league)
+        if isinstance(res, Response):
+            return res
+        try:
+            page = views.matchup_page(res, views.provider_for(loader, league))
+        except Exception as e:  # the preview is best effort; the rest of the dashboard still works
+            log.exception("matchup preview for %s failed", league)
+            return render(request, "error.html", league, status_code=500, res=res, title="Matchup unavailable",
+                          error=f"{type(e).__name__}: {e}")
+        return render(request, "matchup.html", league, res=res, title="Matchup", **page)
 
     @app.post("/explain")
     async def explain(request: Request):

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pill, plink with context %}
+{% block heading %}
+<p class="sc dateline">{{ res.ctx.name }} &middot; head to head{% if m.playoffs %} &middot; playoffs{% endif %}</p>
+<h1>{% if m.opponent_team %}{{ m.my_team }} <span class="vs">vs</span> {{ m.opponent_team }}{% else %}{{ m.my_team }}{% endif %}</h1>
+<p class="sub">{% if m.period %}Period {{ m.period }}{% else %}This period{% endif %}{% if m.start and m.end %} &middot; {{ m.start.strftime('%a %b %d').replace(' 0', ' ') }} &ndash; {{ m.end.strftime('%a %b %d').replace(' 0', ' ') }} &middot; {{ m.days_left }} day{{ '' if m.days_left == 1 else 's' }} left{% endif %}</p>
+{% endblock %}
+{% block content %}
+{% if not m.opponent_team %}
+<p class="lede">No opponent was found for this period ({{ m.source }}). Your lineup projects <b>{{ m.my_projected_remaining|n1 }}</b> more points over {{ m.my_games_left }} games.</p>
+{% else %}
+<section class="mu-bug" aria-label="Score">
+  <div class="mu-side mine">
+    <p class="sc">You</p>
+    <p class="mu-name">{{ m.my_team }}</p>
+    <p class="mu-score">{{ m.my_points_so_far|n1 }}</p>
+    <p class="mu-proj">proj <b>{{ m.my_projected_total|n1 }}</b> <small>+{{ m.my_projected_remaining|n1 }} over {{ m.my_games_left }} games</small></p>
+  </div>
+  <div class="mu-mid" aria-hidden="true">vs</div>
+  <div class="mu-side theirs">
+    <p class="sc">Opponent</p>
+    <p class="mu-name">{{ m.opponent_team }}</p>
+    <p class="mu-score">{{ m.their_points_so_far|n1 }}</p>
+    <p class="mu-proj">proj <b>{{ m.their_projected_total|n1 }}</b> <small>+{{ m.their_projected_remaining|n1 }} over {{ m.their_games_left }} games</small></p>
+  </div>
+</section>
+
+<section class="wp" aria-labelledby="h-wp">
+  <h2 id="h-wp">Win probability <span class="aside">{{ '{:,}'.format(m.draws) }} simulated finishes</span></h2>
+  <div class="wp-row">
+    <b class="wp-v {{ m.stance }}">{{ pct }}%</b>
+    <div class="wp-bar" role="img" aria-label="Win probability {{ pct }} percent"><i style="width: {{ pct }}%"></i></div>
+    <span class="wp-stance stance-{{ m.stance }}">{{ {'chase': 'Chase', 'protect': 'Protect', 'even': 'Even'}.get(m.stance, '') }}</span>
+  </div>
+  <dl class="kpis">
+    <div><dt>Projected margin</dt><dd class="{{ 'pos' if m.margin > 0 else '' }}">{{ m.margin|n1(True) }}</dd></div>
+    <div><dt>Games left</dt><dd>{{ m.my_games_left }} <small>vs {{ m.their_games_left }}</small></dd></div>
+    <div><dt>Spread (SD)</dt><dd>{{ m.my_sd|n1 }} <small>vs {{ m.their_sd|n1 }}</small></dd></div>
+  </dl>
+</section>
+{% endif %}
+
+<section id="advice" aria-labelledby="h-advice">
+  <h2 id="h-advice">What to do</h2>
+  <ul class="advice">
+    {% for a in m.advice %}<li>{{ a }}</li>{% endfor %}
+  </ul>
+</section>
+
+{% if gaps or m.key_players_theirs %}
+<div class="cols">
+  {% if gaps %}
+  <section aria-labelledby="h-gap">
+    <h2 id="h-gap">Gap by position <span class="aside">projected remaining points</span></h2>
+    <div class="tbl"><table class="r stack gap-t">
+      <caption class="sr-only">Projected remaining points by position group, mine against theirs</caption>
+      <thead><tr><th scope="col">Pos</th><th scope="col" class="n">Mine</th><th scope="col" class="n">Theirs</th><th scope="col" class="n">Gap</th></tr></thead>
+      <tbody>
+        {% for g in gaps %}
+        <tr>
+          <th scope="row" data-label="Position">{{ {'F': 'Forwards', 'D': 'Defense', 'G': 'Goalies'}.get(g.group, g.group) }}</th>
+          <td data-label="Mine" class="n">{{ g.mine|n1 }}</td>
+          <td data-label="Theirs" class="n">{{ g.theirs|n1 }}</td>
+          <td data-label="Gap" class="n"><span class="vorp"><span class="vbar" aria-hidden="true"><i class="{{ g.side }}" style="width: {{ g.width }}%"></i></span><span class="{{ g.side }}">{{ g.gap|n1(True) }}</span></span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+  {% endif %}
+  {% if m.key_players_theirs %}
+  <section aria-labelledby="h-key">
+    <h2 id="h-key">Their key players</h2>
+    <ul class="alerts">
+      {% for k in m.key_players_theirs %}
+      <li>
+        <div class="name">{{ plink(k, league) }} <span class="tag">{{ k.tag }}</span>{% if k.status != 'healthy' %} {{ pill(k.status) }}{% endif %}</div>
+        <div class="meta">{{ k.pos }}, {{ k.team or 'FA' }} &middot; {{ k.games_left }} games left &middot; {{ k.proj_remaining|n1 }} proj{% if k.recent_fpg is not none %} &middot; {{ k.recent_fpg|n1 }} FPG lately{% endif %}{% if k.fpg is not none %} ({{ k.fpg|n1 }} model){% endif %}</div>
+        {% if k.note %}<p class="note">{{ k.note }}</p>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</div>
+{% endif %}
+
+{% for label, players in [('Your lineup', m.my_players), ('Their lineup', m.their_players)] if players %}
+<section aria-labelledby="h-lu-{{ loop.index }}">
+  <h2 id="h-lu-{{ loop.index }}">{{ label }} <span class="aside">{{ m.lineup_basis }}</span></h2>
+  <div class="tbl"><table class="r stack">
+    <caption class="sr-only">{{ label }}: games left and projected points</caption>
+    <thead><tr><th scope="col">Player</th><th scope="col">Slot</th><th scope="col" class="n">Games left</th><th scope="col" class="n">Proj</th><th scope="col" class="n">SD</th></tr></thead>
+    <tbody>
+      {% for x in players %}
+      <tr>
+        <th scope="row" class="pname" data-label="Player">{{ plink(x, league) }}<small>{{ x.pos }} &middot; {{ x.team or 'FA' }}{% if x.status != 'healthy' %} &middot; {{ pill(x.status) }}{% endif %}</small></th>
+        <td data-label="Slot" class="slot">{{ x.slot or '-' }}</td>
+        <td data-label="Games left" class="n">{{ x.games_left }}</td>
+        <td data-label="Proj" class="n">{{ x.proj_remaining|n1 }}</td>
+        <td data-label="SD" class="n">{{ x.sd|n1 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endfor %}
+<p class="foot-note">Scores: {{ m.source }}. Remaining points apportion each starter's week projection to his games left; win probability draws each starter's remaining points with a per-game SD of 1.3&times;&radic;FPG (goalies 2.5&times;&radic;FPG).{% for w in m.warnings %} {{ w }}{{ "" if w.endswith(".") else "." }}{% endfor %}</p>
+{% endblock %}
