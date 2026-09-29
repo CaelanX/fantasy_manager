@@ -1,0 +1,57 @@
+{
+ "table": {
+  "rows": [
+   {
+    "txSetId": "a1",
+    "transactionCode": "CLAIM",
+    "claimType": "FA",
+    "scorer": {
+     "scorerId": "p4",
+     "name": "Bench Guy",
+     "shortName": "B. Guy",
+     "teamName": "WAS (full)",
+     "teamShortName": "WAS",
+     "posShortNames": "RW",
+     "posIds": [],
+     "posIdsNoFlex": [],
+     "rookie": false,
+     "minorsEligible": false
+    },
+    "cells": [
+     {
+      "teamId": "t1",
+      "content": "Caelan's Crushers"
+     },
+     {
+      "content": "Mon Sep 21, 2026, 10:15AM"
+     }
+    ]
+   },
+   {
+    "txSetId": "a1",
+    "transactionCode": "DROP",
+    "scorer": {
+     "scorerId": "x9",
+     "name": "Dropped Dude",
+     "shortName": "D. Dude",
+     "teamName": "BUF (full)",
+     "teamShortName": "BUF",
+     "posShortNames": "D",
+     "posIds": [],
+     "posIdsNoFlex": [],
+     "rookie": false,
+     "minorsEligible": false
+    },
+    "cells": [
+     {
+      "teamId": "t1",
+      "content": "Caelan's Crushers"
+     },
+     {
+      "content": "Mon Sep 21, 2026, 10:15AM"
+     }
+    ]
+   }
+  ]
+ }
+}

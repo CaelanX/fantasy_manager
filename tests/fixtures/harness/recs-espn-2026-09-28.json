@@ -1,0 +1,603 @@
+{
+ "version": 1,
+ "provider": "espn",
+ "league_id": "0000",
+ "as_of": "2026-09-28",
+ "archived_at": "2026-09-28T21:26:37",
+ "recommendations": [
+  {
+   "kind": "injury",
+   "score": 10.0,
+   "title": "Move Brad Marchand to IR and add Jonathan Lekkerimaki",
+   "add": [
+    {
+     "cid": "espn:5080159",
+     "name": "Jonathan Lekkerimaki",
+     "nhl_id": 8483476,
+     "team": "VAN",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "counterparty": null,
+   "reasons": [
+    {
+     "code": "STATUS",
+     "text": "Brad Marchand is ir (Lower Body: Marchand will miss Florida's first 14 regular-season games if he's able to return Nov. ...",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "IR_SLOT",
+     "text": "2 of 2 IR slot(s) free",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "WAIVER_ADD",
+     "text": "Jonathan Lekkerimaki (RW, VAN): 2.18 FPG, no drop needed",
+     "value": 2.177151449966923,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 2.677 (rank 1/1)",
+     "value": 2.677151449966923,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 10.0,
+   "title": "Start Morgan Frost over Connor Hellebuyck",
+   "add": [
+    {
+     "cid": "espn:4233685",
+     "name": "Morgan Frost",
+     "nhl_id": 8480028,
+     "team": "CGY",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3020225",
+     "name": "Connor Hellebuyck",
+     "nhl_id": 8476945,
+     "team": "WPG",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "reasons": [
+    {
+     "code": "LINEUP_GAIN",
+     "text": "+4.32 (week) from this change",
+     "value": 4.316140662845228,
+     "baseline": 0.5
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Morgan Frost: 3 games next 7 days (1 off-night)",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "PROJ_WEEK",
+     "text": "Morgan Frost: 4.3 projected pts this week",
+     "value": 4.31614066284523,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Connor Hellebuyck: 2 games next 7 days (2 off-night)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "PROJ_WEEK",
+     "text": "Connor Hellebuyck: 0.0 projected pts this week",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "STATUS",
+     "text": "Connor Hellebuyck is suspended (suspension (est. return 2026-10-17))",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 4.316 (rank 1/3)",
+     "value": 4.316140662845228,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 10.0,
+   "title": "Add Kevin Lankinen, move Brad Marchand to IR",
+   "add": [
+    {
+     "cid": "espn:4341584",
+     "name": "Kevin Lankinen",
+     "nhl_id": 8480947,
+     "team": "VAN",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [],
+   "counterparty": null,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+0.86 FPG (season) over benching Connor Hellebuyck",
+     "value": 0.8567194730023083,
+     "baseline": 0.3
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Kevin Lankinen: 1.49 FPG, VORP +0.40",
+     "value": 1.4926154570975159,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Connor Hellebuyck: 0.64 FPG, VORP -0.45",
+     "value": 0.6358959840952075,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "0 GP this season -> confidence 0.25",
+     "value": 0.0,
+     "baseline": 0.25
+    },
+    {
+     "code": "IR_MOVE",
+     "text": "Move Brad Marchand (IR) to IR (2 IR slots free): no drop needed",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "STATUS",
+     "text": "Connor Hellebuyck is suspended (suspension (est. return 2026-10-17))",
+     "value": 0.34146341463414637,
+     "baseline": null
+    },
+    {
+     "code": "OWNED",
+     "text": "Kevin Lankinen rostered in 10.5% of leagues",
+     "value": 10.54,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 0.214 (rank 1/1)",
+     "value": 0.21417986825057708,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 10.0,
+   "title": "Trade Jack Eichel to Opponent B for Jake Sanderson + John Gibson",
+   "add": [
+    {
+     "cid": "espn:4697386",
+     "name": "Jake Sanderson",
+     "nhl_id": 8482105,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:2590824",
+     "name": "John Gibson",
+     "nhl_id": 8476434,
+     "team": "DET",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3648002",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Opponent B",
+   "reasons": [
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Jake Sanderson (0.62), John Gibson (0.18): 0.80 VORP",
+     "value": 0.801617679897527,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (0.70): 0.70 VORP",
+     "value": 0.7032292679036607,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Value gap 12% (band 15%)",
+     "value": 0.122737327857394,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.66 FPG (optimal_lineup)",
+     "value": 0.6642088460430671,
+     "baseline": 0.5
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Opponent B lineup -1.10 FPG",
+     "value": -1.097451497179474,
+     "baseline": -0.25
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Jack Eichel fills Opponent B's weakest slot F (starter VORP -0.04)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "IR_MOVE",
+     "text": "You would move Brad Marchand to IR (no drop)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.615 (rank 1/10)",
+     "value": 0.6154830974533301,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 9.0,
+   "title": "Trade Artemi Panarin to Opponent D for Mike Matheson + Juuse Saros",
+   "add": [
+    {
+     "cid": "espn:2976851",
+     "name": "Mike Matheson",
+     "nhl_id": 8476875,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:3042109",
+     "name": "Juuse Saros",
+     "nhl_id": 8477424,
+     "team": "NSH",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3891952",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Opponent D",
+   "reasons": [
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Mike Matheson (0.35), Juuse Saros (0.20): 0.55 VORP",
+     "value": 0.5518643506061223,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (0.48): 0.48 VORP",
+     "value": 0.4806763199152817,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Value gap 13% (band 15%)",
+     "value": 0.12899552328874575,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.64 FPG (optimal_lineup)",
+     "value": 0.6370084647400418,
+     "baseline": 0.5
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Opponent D lineup -1.06 FPG",
+     "value": -1.0583009303968502,
+     "baseline": -0.25
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Artemi Panarin fills Opponent D's weakest slot F (starter VORP -0.06)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "IR_MOVE",
+     "text": "You would move Brad Marchand to IR (no drop)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.608 (rank 2/10)",
+     "value": 0.6078579995416167,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 8.0,
+   "title": "Trade Jack Eichel to Opponent D for MacKenzie Weegar + Juuse Saros",
+   "add": [
+    {
+     "cid": "espn:3042269",
+     "name": "MacKenzie Weegar",
+     "nhl_id": 8477346,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:3042109",
+     "name": "Juuse Saros",
+     "nhl_id": 8477424,
+     "team": "NSH",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3648002",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Opponent D",
+   "reasons": [
+    {
+     "code": "VALUE_IN",
+     "text": "Receive MacKenzie Weegar (0.57), Juuse Saros (0.20): 0.77 VORP",
+     "value": 0.7684425911222912,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (0.70): 0.70 VORP",
+     "value": 0.7032292679036607,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Value gap 8% (band 15%)",
+     "value": 0.08486427479688241,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.63 FPG (optimal_lineup)",
+     "value": 0.6310337572678328,
+     "baseline": 0.5
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Opponent D lineup -1.05 FPG",
+     "value": -1.0523262229246377,
+     "baseline": -0.25
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Jack Eichel fills Opponent D's weakest slot F (starter VORP -0.06)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "IR_MOVE",
+     "text": "You would move Brad Marchand to IR (no drop)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.605 (rank 3/10)",
+     "value": 0.604870645805514,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 6.6667,
+   "title": "Start Boone Jenner over Brad Marchand",
+   "add": [
+    {
+     "cid": "espn:2563054",
+     "name": "Boone Jenner",
+     "nhl_id": 8476432,
+     "team": "WSH",
+     "positions": [
+      "C",
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3852",
+     "name": "Brad Marchand",
+     "nhl_id": 8473419,
+     "team": "FLA",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "reasons": [
+    {
+     "code": "LINEUP_GAIN",
+     "text": "+1.99 (week) from this change",
+     "value": 1.9916318868008318,
+     "baseline": 0.5
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Boone Jenner: 2 games next 7 days (1 off-night)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "PROJ_WEEK",
+     "text": "Boone Jenner: 3.6 projected pts this week",
+     "value": 3.638383412080351,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Brad Marchand: 3 games next 7 days (2 off-night)",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "PROJ_WEEK",
+     "text": "Brad Marchand: 0.0 projected pts this week",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "STATUS",
+     "text": "Brad Marchand is ir (Lower Body: Marchand will miss Florida's first 14 regular-season games if he's able to return Nov. ...",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 1.992 (rank 2/3)",
+     "value": 1.9916318868008318,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 3.3333,
+   "title": "Start Justus Annunen over Shane Pinto",
+   "add": [
+    {
+     "cid": "espn:4393408",
+     "name": "Justus Annunen",
+     "nhl_id": 8481020,
+     "team": "NSH",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:4565255",
+     "name": "Shane Pinto",
+     "nhl_id": 8481596,
+     "team": "OTT",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "reasons": [
+    {
+     "code": "LINEUP_GAIN",
+     "text": "+1.28 (week) from this change",
+     "value": 1.281719007042284,
+     "baseline": 0.5
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Justus Annunen: 2 games next 7 days",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "PROJ_WEEK",
+     "text": "Justus Annunen: 1.3 projected pts this week",
+     "value": 1.2817190070422755,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Shane Pinto: 1 games next 7 days",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "PROJ_WEEK",
+     "text": "Shane Pinto: 1.6 projected pts this week",
+     "value": 1.6467515252795162,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 1.282 (rank 3/3)",
+     "value": 1.281719007042284,
+     "baseline": null
+    }
+   ]
+  }
+ ]
+}

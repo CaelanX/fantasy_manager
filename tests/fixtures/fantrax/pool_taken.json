@@ -1,0 +1,203 @@
+{
+ "tableHeader": {
+  "cells": [
+   {
+    "shortName": "Rk",
+    "key": "rankOv"
+   },
+   {
+    "shortName": "Sta",
+    "key": "status",
+    "sortKey": "STATUS",
+    "sortType": "STATUS"
+   },
+   {
+    "shortName": "Ros"
+   },
+   {
+    "shortName": "Age",
+    "key": "age",
+    "sortKey": "AGE",
+    "sortType": "AGE"
+   },
+   {
+    "shortName": "FPts",
+    "key": "fpts",
+    "sortKey": "SCORE",
+    "sortType": "SCORE"
+   },
+   {
+    "shortName": "FP/G",
+    "key": "fptsPerGame",
+    "sortKey": "FPTS_PER_GAME",
+    "sortType": "FPTS_PER_GAME"
+   },
+   {
+    "shortName": "Ros",
+    "sortKey": "OVERVIEW_PERCENT_OWNED_2",
+    "sortType": "OVERVIEW_PERCENT_OWNED_2"
+   },
+   {
+    "shortName": "+/-",
+    "sortKey": "OVERVIEW_PLUS_MINUS_PERCENT_OWNED_2",
+    "sortType": "OVERVIEW_PLUS_MINUS_PERCENT_OWNED_2"
+   }
+  ]
+ },
+ "statsTable": [
+  {
+   "scorer": {
+    "scorerId": "03924",
+    "name": "Jack Eichel",
+    "shortName": "J. Eichel",
+    "teamShortName": "VGK",
+    "posShortNames": "F"
+   },
+   "cells": [
+    {
+     "content": "10"
+    },
+    {
+     "content": "T1",
+     "toolTip": "Team One",
+     "teamId": "t1"
+    },
+    {
+     "content": "Act"
+    },
+    {
+     "content": "29"
+    },
+    {
+     "content": "18"
+    },
+    {
+     "content": "6"
+    },
+    {
+     "content": "99%"
+    },
+    {
+     "content": "0%"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "scorerId": "02yjj",
+    "name": "William Nylander",
+    "shortName": "W. Nylander",
+    "teamShortName": "TOR",
+    "posShortNames": "F"
+   },
+   "cells": [
+    {
+     "content": "25"
+    },
+    {
+     "content": "T1",
+     "toolTip": "Team One",
+     "teamId": "t1"
+    },
+    {
+     "content": "Act"
+    },
+    {
+     "content": "30"
+    },
+    {
+     "content": "15.31"
+    },
+    {
+     "content": "5.1"
+    },
+    {
+     "content": "99%"
+    },
+    {
+     "content": "0%"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "scorerId": "051yz",
+    "name": "Dylan Holloway",
+    "shortName": "D. Holloway",
+    "teamShortName": "STL",
+    "posShortNames": "F"
+   },
+   "cells": [
+    {
+     "content": "156"
+    },
+    {
+     "content": "T1",
+     "toolTip": "Team One",
+     "teamId": "t1"
+    },
+    {
+     "content": "Act"
+    },
+    {
+     "content": "25"
+    },
+    {
+     "content": "9.58"
+    },
+    {
+     "content": "4.79"
+    },
+    {
+     "content": "97%"
+    },
+    {
+     "content": "-1%"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "scorerId": "03mbn",
+    "name": "Mackenzie Blackwood",
+    "shortName": "M. Blackwood",
+    "teamShortName": "COL",
+    "posShortNames": "G"
+   },
+   "cells": [
+    {
+     "content": "17"
+    },
+    {
+     "content": "T1",
+     "toolTip": "Team One",
+     "teamId": "t1"
+    },
+    {
+     "content": "Act"
+    },
+    {
+     "content": "29"
+    },
+    {
+     "content": "12.19"
+    },
+    {
+     "content": "13.22"
+    },
+    {
+     "content": "91%"
+    },
+    {
+     "content": "-2%"
+    }
+   ]
+  }
+ ],
+ "paginatedResultSet": {
+  "totalNumPages": 1,
+  "pageNumber": 1,
+  "maxResultsPerPage": 200,
+  "totalNumResults": 4
+ }
+}

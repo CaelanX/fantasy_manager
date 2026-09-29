@@ -1,0 +1,28 @@
+{
+  "provider": "fantrax",
+  "scoring": {
+    "categories": [],
+    "goalie_weights": {
+      "A": 3.0,
+      "G": 20.0
+    },
+    "kind": "points",
+    "weights": {
+      "A": 2.0,
+      "BLK": 0.5,
+      "ENG": 2.0,
+      "FT": 3.0,
+      "G": 4.0,
+      "GA": -1.0,
+      "HIT": 0.3,
+      "PIM": 0.5,
+      "PPP": 1.0,
+      "SHG": 2.0,
+      "SO": 7.5,
+      "SOG": 0.5,
+      "SV": 0.25,
+      "W": 5.0
+    }
+  },
+  "season": 2027
+}

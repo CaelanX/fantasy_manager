@@ -1,0 +1,48 @@
+{
+ "tradeInfoList": [
+  {
+   "txSetId": "tx9",
+   "creatorTeamId": "t2",
+   "usefulInfo": [],
+   "moves": [
+    {
+     "from": {
+      "teamId": "t2"
+     },
+     "to": {
+      "teamId": "t1"
+     },
+     "scorer": {
+      "scorerId": "r2",
+      "name": "Old Dman",
+      "shortName": "O. Dman",
+      "teamName": "DAL (full)",
+      "teamShortName": "DAL",
+      "posShortNames": "D",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false
+     },
+     "score": 20.0,
+     "scorePerGame": 2.0
+    },
+    {
+     "from": {
+      "teamId": "t1"
+     },
+     "to": {
+      "teamId": "t2"
+     },
+     "draftPick": {
+      "round": 1,
+      "year": 2027,
+      "origOwnerTeam": {
+       "id": "t1"
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

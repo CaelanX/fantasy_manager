@@ -1,0 +1,49 @@
+{
+ "tradeBlocks": [
+  {
+   "teamId": "t2",
+   "lastUpdated": {
+    "date": 1789905600000
+   },
+   "comment": {
+    "body": "Looking for <b>D</b> help"
+   },
+   "scorersOffered": {
+    "scorers": {
+     "701": [
+      {
+       "scorerId": "r1",
+       "name": "Rival Center",
+       "shortName": "R. Center",
+       "teamName": "EDM (full)",
+       "teamShortName": "EDM",
+       "posShortNames": "C",
+       "posIds": [],
+       "posIdsNoFlex": [],
+       "rookie": false,
+       "minorsEligible": false
+      }
+     ]
+    }
+   },
+   "positionsWanted": {
+    "positions": [
+     "704"
+    ]
+   },
+   "statsWanted": {
+    "stats": [
+     {
+      "shortName": "Blk"
+     }
+    ]
+   }
+  },
+  {
+   "teamId": "t1",
+   "lastUpdated": {
+    "date": 1788264000000
+   }
+  }
+ ]
+}

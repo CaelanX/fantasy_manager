@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% from "_macros.html" import move_list, kind_chips, pill, plink, games_cell, player_table, prospect_mark with context %}
+{% block heading %}
+<p class="sc dateline">{{ now.strftime('%A, %B %d, %Y').replace(' 0', ' ') }} &middot; {{ res.ctx.name }} ({{ 'ESPN' if res.ctx.provider == 'espn' else res.ctx.provider|capitalize }})</p>
+<h1>{{ team.name if team else res.ctx.name }}</h1>
+<p class="sub">
+  {% if team and team.record %}Record {{ team.record|join('-') }} &middot; {% endif %}
+  {{ res.ctx.scoring.kind|capitalize }} scoring &middot; {{ res.ctx.season }} season{% if res.ctx.season_start and res.ctx.season_start > res.ctx.as_of %} &middot; opens {{ res.ctx.season_start.strftime('%b %d').replace(' 0', ' ') }}{% endif %}{% if res.ctx.dynasty %} &middot; dynasty, <span class="mode-tag">{{ res.mode or res.ctx.dynasty_mode }} mode</span>{% endif %}
+</p>
+{% endblock %}
+{% block content %}
+<p class="lede" id="summary">{{ summary }}</p>
+
+{% if week %}
+<section id="week" aria-labelledby="h-week">
+  <h2 id="h-week">This week <span class="aside">{{ week.start.strftime('%b %d').replace(' 0', ' ') }}&ndash;{{ week.end.strftime('%b %d').replace(' 0', ' ') }}{% if week.preseason %} &middot; opening week{% endif %}</span></h2>
+  <dl class="kpis">
+    <div><dt>Current lineup</dt><dd>{{ week.current|n1 }} <small>{{ week.units }}</small></dd></div>
+    <div><dt>Optimal lineup</dt><dd>{{ week.optimal|n1 }} <small>{{ week.units }}</small></dd></div>
+    <div><dt>Available gain</dt><dd class="{{ 'pos' if week.delta > 0.05 else '' }}">{{ week.delta|n1(True) }} <small>{{ week.units }}</small></dd></div>
+    <div><dt>Starter games</dt><dd>{{ week.games }} <small>{{ week.offnights }} off-night</small></dd></div>
+    <div><dt>Lineup changes</dt><dd>{{ week.changes }}</dd></div>
+  </dl>
+  <div class="tbl"><table class="r stack week-t">
+    <caption class="sr-only">Current and optimal lineup for the week</caption>
+    <thead><tr>
+      <th scope="col">Player</th><th scope="col">Now</th><th scope="col">Optimal</th><th scope="col">Games next 7</th>
+      <th scope="col" class="n">Off-nights</th><th scope="col" class="n">Proj pts/wk</th><th scope="col" class="n">FPG wk</th><th scope="col">Change</th>
+    </tr></thead>
+    <tbody>
+      {% for x in week.rows %}
+      <tr{% if x.change %} class="chg"{% endif %}>
+        <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}<small>{{ x.pos }} &middot; {{ x.team }} &middot; {{ pill(x.status) }}</small></th>
+        <td data-label="Now" class="slot">{{ x.slot }}</td>
+        <td data-label="Optimal" class="slot">{{ x.opt_slot or ('IR' if x.slot == 'IR' else 'BN') }}</td>
+        <td data-label="Games next 7">{{ games_cell(x) }}</td>
+        <td data-label="Off-nights" class="n">{{ x.offnight if x.offnight is not none else '-' }}</td>
+        <td data-label="Proj pts/wk" class="n">{{ x.proj_week|n1 }}</td>
+        <td data-label="FPG wk" class="n">{{ x.fpg_week|n1 }}</td>
+        <td data-label="Change">{% if x.change == 'start' %}<span class="chg-in">Start</span>{% if x.change_gain and x.change_gain.gain is not none %} <small>{{ x.change_gain.gain|n1(True) }} {{ week.units }}</small>{% endif %}{% elif x.change == 'sit' %}<span class="chg-out">Sit</span>{% if x.change_gain and x.change_gain.other %} <small>for {{ x.change_gain.other.name|last }}</small>{% endif %}{% else %}<span class="muted">&ndash;</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="foot-note">Projected points = FPG &times; availability &times; games, +5% per off-night game (fewer than 8 NHL games that night, marked <sup>off</sup>). The optimal lineup is solved exactly over your eligible slots; IR players are excluded.</p>
+</section>
+{% endif %}
+
+<section id="moves" aria-labelledby="h-moves">
+  <h2 id="h-moves">{% if kind == 'all' %}Top moves{% else %}Top {{ (KIND_FILTERS[kind][0] if kind in KIND_FILTERS else KIND_LABEL.get(kind, kind))|lower }} moves{% endif %}
+    {% if total %}<a href="/recommendations?league={{ league }}{% if kind != 'all' %}&amp;kind={{ kind }}{% endif %}">All {{ shown_total }} &rarr;</a>{% endif %}</h2>
+  {% if total %}{{ kind_chips('/', league, kind, counts, total, label='By type', anchor='#moves') }}{% endif %}
+  {% if moves %}
+  {{ move_list(moves) }}
+  {% if shown_total > moves|length %}<p class="all-link"><a href="/recommendations?league={{ league }}{% if kind != 'all' %}&amp;kind={{ kind }}{% endif %}">See all {{ shown_total }} moves &rarr;</a></p>{% endif %}
+  {% else %}
+  <p class="empty">{% if total %}No moves of this type right now.{% else %}No moves recommended right now.{% endif %}</p>
+  {% endif %}
+</section>
+
+<div class="cols">
+  <section id="injuries" aria-labelledby="h-injuries">
+    <h2 id="h-injuries">Injury alerts {% if alerts %}<span class="aside">{{ alerts|length }} on roster</span>{% endif %}</h2>
+    {% if alerts %}
+    <ul class="alerts">
+      {% for slot, p in alerts %}
+      {% set fpg = val(res.values, p.cid, 'fpg') %}
+      {% set v = val(res.values, p.cid, 'vorp') %}
+      <li>
+        <div class="name">{{ plink(p, league) }} {{ pill(p.status) }}</div>
+        <div class="meta">{{ p|pos }}, {{ p.team or 'FA' }} &middot; slot {{ slot }}{% if fpg is not none %} &middot; {{ fpg|n1 }} FPG healthy{% endif %}{% if v is not none %} &middot; VORP {{ v|n1(True) }}{% endif %}</div>
+        {% if p.status_note %}<p class="note">{{ p.status_note }}</p>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">No injury concerns on your roster.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="h-news">
+    <h2 id="h-news">Your players in the news <a href="/news?league={{ league }}">All news</a></h2>
+    {% if news %}
+    <ul class="newslist">
+      {% for p, n in news %}
+      <li>
+        <p class="meta">{{ p.name }} &middot; {{ n.source }}{% if n.published %} &middot; <time datetime="{{ n.published.isoformat() }}">{{ n.published.strftime('%b %d').replace(' 0', ' ') }}</time>{% endif %}</p>
+        {% if n.url|safe_url %}<a class="hl" href="{{ n.url|safe_url }}" rel="noopener noreferrer" target="_blank">{{ n.headline }}</a>{% else %}<span class="hl">{{ n.headline }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">No recent news for your players.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section id="standings" aria-labelledby="h-standings">
+  <h2 id="h-standings">Standings <span class="aside">{{ standings|length }} teams</span></h2>
+  <div class="tbl"><table class="r stack standings">
+    <caption class="sr-only">League standings with projected lineup strength</caption>
+    <thead><tr>
+      <th scope="col">Team</th><th scope="col" class="n">#</th><th scope="col" class="n">Record</th><th scope="col" class="n">Win %</th>
+      <th scope="col" class="n">Proj pts/wk</th><th scope="col" class="n">Proj rank</th><th scope="col" class="n">Lineup FPG</th>
+      <th scope="col" class="n">Roster VORP</th>{% if res.dynasty is not none %}<th scope="col" class="n">Dynasty total</th>{% endif %}
+      <th scope="col" class="n">Injured</th>
+    </tr></thead>
+    <tbody>
+      {% for x in standings %}
+      <tr{% if x.mine %} class="mine"{% endif %}>
+        <th scope="row" data-label="Team"><a href="/roster?league={{ league }}&amp;team={{ x.team.team_id|q }}">{{ x.team.name }}</a>{% if x.mine %} <span class="me-tag">me</span>{% endif %}</th>
+        <td data-label="#" class="n">{{ loop.index }}</td>
+        <td data-label="Record" class="n">{{ x.record|join('-') if x.record else '-' }}</td>
+        <td data-label="Win %" class="n">{{ '%.3f'|format(x.pct) if x.pct is not none else '-' }}</td>
+        <td data-label="Proj pts/wk" class="n">{{ x.proj_week|n1 }}</td>
+        <td data-label="Proj rank" class="n">{{ x.proj_rank }}</td>
+        <td data-label="Lineup FPG" class="n">{{ x.lineup_fpg|n1 }}</td>
+        <td data-label="Roster VORP" class="n">{{ x.vorp|n1(True) }}</td>
+        {% if res.dynasty is not none %}<td data-label="Dynasty total" class="n">{{ x.dyn|n1 }}</td>{% endif %}
+        <td data-label="Injured" class="n">{{ x.injured }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="foot-note">Record from the league; points for/against are not in the loaded league data. Proj pts/wk and Lineup FPG are each team's best possible lineup this week and per game this season; Roster VORP sums every rostered player.</p>
+</section>
+
+<section id="league-injuries" aria-labelledby="h-linj">
+  <h2 id="h-linj">Injuries around the league <span class="aside">{{ league_injuries|length }} on other rosters, most valuable first</span></h2>
+  {% if league_injuries %}
+  {{ player_table(league_injuries, 'Injured players on other fantasy teams', owner=True, slot=True, note=True) }}
+  {% else %}
+  <p class="empty">No injured players on other rosters.</p>
+  {% endif %}
+</section>
+
+<section id="free-agents" aria-labelledby="h-fa">
+  <h2 id="h-fa">Free agents <span class="aside">top {{ free_agents|length }} by VORP</span></h2>
+  {% if free_agents %}
+  {{ player_table(free_agents, 'Best free agents by value over replacement') }}
+  {% else %}
+  <p class="empty">No free agents loaded.</p>
+  {% endif %}
+</section>
+{% endblock %}

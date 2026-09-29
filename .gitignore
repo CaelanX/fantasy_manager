@@ -1,0 +1,34 @@
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.cookie
+cookies.txt
+fantrax_session.json
+
+# Local data: HTTP cache, crosswalk, status history, prefs, reports, archives, backtest tables
+data/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Claude Code / desktop app local config (launch config, local settings, permission grants)
+.claude/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

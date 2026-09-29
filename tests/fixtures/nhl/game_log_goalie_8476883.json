@@ -1,0 +1,183 @@
+{
+ "seasonId": 20252026,
+ "gameTypeId": 2,
+ "playerStatsSeasons": [
+  {
+   "season": 20252026,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20242025,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20232024,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20222023,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20212022,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20202021,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20192020,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20182019,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20172018,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20162017,
+   "gameTypes": [
+    2
+   ]
+  },
+  {
+   "season": 20152016,
+   "gameTypes": [
+    2,
+    3
+   ]
+  },
+  {
+   "season": 20142015,
+   "gameTypes": [
+    2,
+    3
+   ]
+  }
+ ],
+ "gameLog": [
+  {
+   "gameId": 2025021282,
+   "teamAbbrev": "TBL",
+   "homeRoadFlag": "H",
+   "gameDate": "2026-04-13",
+   "goals": 0,
+   "assists": 0,
+   "commonName": {
+    "default": "Lightning"
+   },
+   "opponentCommonName": {
+    "default": "Red Wings"
+   },
+   "gamesStarted": 1,
+   "decision": "W",
+   "shotsAgainst": 30,
+   "goalsAgainst": 3,
+   "savePctg": 0.9,
+   "shutouts": 0,
+   "pim": 0,
+   "toi": "60:27",
+   "opponentAbbrev": "DET"
+  },
+  {
+   "gameId": 2025021261,
+   "teamAbbrev": "TBL",
+   "homeRoadFlag": "R",
+   "gameDate": "2026-04-11",
+   "goals": 0,
+   "assists": 0,
+   "commonName": {
+    "default": "Lightning"
+   },
+   "opponentCommonName": {
+    "default": "Bruins"
+   },
+   "gamesStarted": 1,
+   "decision": "W",
+   "shotsAgainst": 21,
+   "goalsAgainst": 1,
+   "savePctg": 0.952381,
+   "shutouts": 0,
+   "pim": 0,
+   "toi": "59:57",
+   "opponentAbbrev": "BOS"
+  },
+  {
+   "gameId": 2025021248,
+   "teamAbbrev": "TBL",
+   "homeRoadFlag": "R",
+   "gameDate": "2026-04-09",
+   "goals": 0,
+   "assists": 0,
+   "commonName": {
+    "default": "Lightning"
+   },
+   "opponentCommonName": {
+    "default": "Canadiens"
+   },
+   "gamesStarted": 1,
+   "decision": "L",
+   "shotsAgainst": 21,
+   "goalsAgainst": 2,
+   "savePctg": 0.904762,
+   "shutouts": 0,
+   "pim": 0,
+   "toi": "58:15",
+   "opponentAbbrev": "MTL"
+  },
+  {
+   "gameId": 2025021229,
+   "teamAbbrev": "TBL",
+   "homeRoadFlag": "R",
+   "gameDate": "2026-04-06",
+   "goals": 0,
+   "assists": 0,
+   "commonName": {
+    "default": "Lightning"
+   },
+   "opponentCommonName": {
+    "default": "Sabres"
+   },
+   "gamesStarted": 1,
+   "decision": "L",
+   "shotsAgainst": 29,
+   "goalsAgainst": 3,
+   "savePctg": 0.896552,
+   "shutouts": 0,
+   "pim": 0,
+   "toi": "58:05",
+   "opponentAbbrev": "BUF"
+  }
+ ]
+}

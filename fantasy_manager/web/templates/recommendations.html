@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_macros.html" import move_list, kind_chips with context %}
+{% block heading %}
+<p class="sc dateline">{{ res.ctx.name }} &middot; ranked by score</p>
+<h1>Moves</h1>
+<p class="sub">Every recommended move with its predicted gain, the players side by side and every reason. Nothing here is executed for you: make the moves in {{ 'ESPN' if res.ctx.provider == 'espn' else res.ctx.provider|capitalize }}.</p>
+{% endblock %}
+{% block content %}
+<section id="recs" aria-labelledby="h-recs">
+  <h2 id="h-recs">{% if kind == 'all' %}All moves{% else %}{{ KIND_FILTERS[kind][0] if kind in KIND_FILTERS else KIND_LABEL.get(kind, kind) }} moves{% endif %} <span class="aside">{{ recs|length }} of {{ total }}</span></h2>
+  {{ kind_chips('/recommendations', league, kind, counts, total, extra=filter_qs) }}
+  <form method="get" action="/recommendations" class="filterbar" aria-label="Filter moves">
+    <input type="hidden" name="league" value="{{ league }}">
+    {% if kind != 'all' %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    <span class="fgroup"><label for="f-gain">Min gain</label>
+    <input id="f-gain" name="min_gain" type="number" step="0.1" inputmode="decimal" value="{{ min_gain if min_gain is not none else '' }}" placeholder="any"></span>
+    <span class="fgroup"><label for="f-pos">Position</label>
+    <select id="f-pos" name="pos">
+      <option value=""{% if not pos %} selected{% endif %}>Any</option>
+      {% for p in POSITION_FILTERS %}<option value="{{ p }}"{% if pos == p %} selected{% endif %}>{{ 'F (any forward)' if p == 'F' else p }}</option>{% endfor %}
+    </select></span>
+    <button type="submit" class="btn">Apply</button>
+    {% if filtered %}<a class="reset" href="/recommendations?league={{ league }}{% if kind != 'all' %}&amp;kind={{ kind }}{% endif %}">Clear filters</a>{% endif %}
+    <span class="filter-help">Min gain compares the predicted gain in the move's own units (FPG, pts/wk).</span>
+  </form>
+  {% if recs %}
+  {{ move_list(recs) }}
+  {% else %}
+  <p class="empty">{% if filtered %}No moves match these filters.{% else %}No moves of this type right now.{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}

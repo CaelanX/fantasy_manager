@@ -1,0 +1,234 @@
+{# Shared macros. Import them "with context": several read res, league, here and llm_ok. #}
+
+{% macro pill(status) -%}
+<span class="pill pill-{{ STATUS_CLASS.get(status, 'unk') }}">{{ STATUS_LABEL.get(status, status) }}</span>
+{%- endmacro %}
+
+{% macro plink(p, league) -%}
+<a href="/player/{{ p.cid|q }}?league={{ league }}">{{ p.name }}</a>
+{%- endmacro %}
+
+{% macro prospect_mark(flag) -%}
+{% if flag %}<span class="pm" title="Prospect" aria-hidden="true">*</span><span class="sr-only">, prospect</span>{% endif %}
+{%- endmacro %}
+
+{# Compact stat pills: season FPG, VORP and (dynasty leagues) dynasty value. #}
+{% macro stat_pills(res, p) -%}
+{% set fpg = val(res.values, p.cid, 'fpg_season') %}
+{% set v = val(res.values, p.cid, 'vorp') %}
+{% set d = dyn_value(res.dynasty, p.cid) %}
+{% if fpg is not none or v is not none or d is not none %}
+<span class="sp">
+  {% if fpg is not none %}<span class="sp-i"><small>FPG</small>{{ fpg|n1 }}</span>{% endif %}
+  {% if v is not none %}<span class="sp-i{% if v > 0 %} pos{% elif v < 0 %} neg{% endif %}"><small>VORP</small>{{ v|n1(True) }}</span>{% endif %}
+  {% if d is not none %}<span class="sp-i"><small>Dyn</small>{{ d|n1 }}</span>{% endif %}
+</span>
+{% endif %}
+{%- endmacro %}
+
+{# Games in the projection window with opponents; off-nights (fewer than 8 NHL games) flagged. #}
+{% macro games_cell(row) -%}
+{% if row.games %}<span class="gm"><b>{{ row.games|length }}</b><span class="opp">{% for g in row.games %}<span{% if g.off %} class="off" title="Off-night: {{ g.league_games }} NHL games that day"{% endif %}>{{ g.opp or g.date.strftime('%a') }}{% if g.off %}<sup>off</sup>{% endif %}</span>{% if not loop.last %}, {% endif %}{% endfor %}</span></span>
+{%- elif row.games_n is not none %}{{ row.games_n }}{% else %}-{% endif %}
+{%- endmacro %}
+
+{# Type chips that filter server-side via ?kind= (links, so they work without JS). #}
+{% macro kind_chips(base, league, kind, counts, total, label='Filter moves by type', anchor='', extra='') -%}
+<nav class="chips" aria-label="{{ label }}">
+  <a class="chip-f" href="{{ base }}?league={{ league }}{{ extra }}{{ anchor }}"{% if kind == 'all' %} aria-current="page"{% endif %}>All <i>{{ total }}</i></a>
+  {% for key, pair in KIND_FILTERS.items() %}
+  {% if counts[key] or kind == key %}
+  <a class="chip-f" href="{{ base }}?league={{ league }}&amp;kind={{ key }}{{ extra }}{{ anchor }}"{% if kind == key %} aria-current="page"{% endif %}>{{ pair[0] }} <i>{{ counts[key] }}</i></a>
+  {% else %}
+  <span class="chip-f off">{{ pair[0] }} <i>0</i></span>
+  {% endif %}
+  {% endfor %}
+</nav>
+{%- endmacro %}
+
+{% macro reason_items(items) -%}
+{% for x in items %}<li><b>{{ x.code|reason_label }}</b><span>{{ x.text }}</span></li>{% endfor %}
+{%- endmacro %}
+
+{# Every reason with its code and numbers. #}
+{% macro reasons_table(items, caption='Reasons') -%}
+<div class="tbl"><table class="r stack reasons-t">
+  <caption class="sr-only">{{ caption }}</caption>
+  <thead><tr><th scope="col">Code</th><th scope="col">Explanation</th><th scope="col" class="n">Value</th><th scope="col" class="n">Baseline</th></tr></thead>
+  <tbody>
+    {% for x in items %}
+    <tr><th scope="row" data-label="Code"><code>{{ x.code }}</code></th><td data-label="Explanation" class="wrap">{{ x.text }}</td>
+      <td data-label="Value" class="n">{{ x.value|num if x.value is not none else '-' }}</td>
+      <td data-label="Baseline" class="n">{{ x.baseline|num if x.baseline is not none else '-' }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{%- endmacro %}
+
+{% macro netcell(net, k, signed=True, rate=False) -%}{% if net %}<td class="n net" data-label="Net">{% if net[k] is not none %}{% if rate %}{{ '%+.2f'|format(net[k]) }}{% else %}{{ net[k]|n1(signed) }}{% endif %}{% else %}-{% endif %}</td>{% endif %}{%- endmacro %}
+
+{# Side-by-side comparison of every player in a move, with a net (in minus out) column. #}
+{% macro compare_table(cmp, league) -%}
+{% set net = cmp.net %}
+<div class="tbl cmp-wrap"><table class="r cmp">
+  <caption class="sr-only">Players in this move, side by side</caption>
+  <thead><tr>
+    <th scope="col"><span class="sr-only">Metric</span></th>
+    {% for c in cmp.cols %}<th scope="col" class="n cmp-p"><span class="verb {{ c.side }}">{{ c.verb }}</span> {{ plink(c.row.p, league) }}{{ prospect_mark(c.row.prospect) }}</th>{% endfor %}
+    {% if net %}<th scope="col" class="n">Net <span class="sr-only">(in minus out)</span></th>{% endif %}
+  </tr></thead>
+  <tbody>
+    <tr><th scope="row">Pos &middot; NHL</th>{% for c in cmp.cols %}<td class="n">{{ c.row.pos }} &middot; {{ c.row.team }}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
+    <tr><th scope="row">Age</th>{% for c in cmp.cols %}<td class="n">{{ c.row.age|int if c.row.age is not none else '-' }}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
+    <tr><th scope="row">Status</th>{% for c in cmp.cols %}<td class="n st-cell">{{ pill(c.row.status) }}{% if c.row.note %}<small class="note-s" title="{{ c.row.note }}">{{ c.row.note|truncate(70) }}</small>{% endif %}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
+    <tr><th scope="row">GP season</th>{% for c in cmp.cols %}<td class="n">{{ c.row.gp }}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
+    <tr><th scope="row">FPG season</th>{% for c in cmp.cols %}<td class="n">{{ c.row.fpg_season|n1 }}</td>{% endfor %}{{ netcell(net, 'fpg_season') }}</tr>
+    <tr><th scope="row">FPG healthy</th>{% for c in cmp.cols %}<td class="n">{{ c.row.fpg|n1 }}</td>{% endfor %}{{ netcell(net, 'fpg') }}</tr>
+    {% if cmp.has_proj %}<tr><th scope="row">Proj pts/wk</th>{% for c in cmp.cols %}<td class="n">{{ c.row.proj_week|n1 }}</td>{% endfor %}{{ netcell(net, 'proj_week') }}</tr>{% endif %}
+    <tr><th scope="row">Games next 7</th>{% for c in cmp.cols %}<td class="n">{{ games_cell(c.row) }}</td>{% endfor %}{{ netcell(net, 'games_n') }}</tr>
+    <tr><th scope="row">VORP (FPG)</th>{% for c in cmp.cols %}<td class="n{% if c.row.vorp is not none and c.row.vorp > 0 %} pos-val{% elif c.row.vorp is not none and c.row.vorp < 0 %} neg-val{% endif %}">{{ c.row.vorp|n1(True) }}</td>{% endfor %}{{ netcell(net, 'vorp') }}</tr>
+    {% if cmp.has_dyn %}<tr><th scope="row">Dynasty value</th>{% for c in cmp.cols %}<td class="n">{{ c.row.dyn|n1 }}</td>{% endfor %}{{ netcell(net, 'dyn') }}</tr>{% endif %}
+    {% if cmp.has_pct %}<tr><th scope="row">% rostered</th>{% for c in cmp.cols %}<td class="n">{{ c.row.pct|n1 if c.row.pct is not none else '-' }}{% if c.row.pct is not none %}%{% endif %}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>{% endif %}
+    <tr class="grp"><th scope="rowgroup" colspan="{{ cmp.cols|length + (2 if net else 1) }}">Per game (model rates)</th></tr>
+    {% for k in cmp.rate_cols %}
+    <tr><th scope="row">{{ RATE_LABEL.get(k, k) }}{% if k not in ('GAA', 'SVPCT') %}/GP{% endif %}</th>{% for c in cmp.cols %}<td class="n">{{ c.row.rates.get(k)|rate(k) if k in c.row.rates else '·' }}</td>{% endfor %}{{ netcell(net, k, rate=True) }}</tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{%- endmacro %}
+
+{# The predicted gain (primary number, with units and horizon) and the strength bar. #}
+{% macro gain_block(r, res) -%}
+{% set g = gain_info(r, res) %}
+{% set st = strength_info(r, res.recs) %}
+<div class="m-metrics">
+  <div class="gain">
+    {% if g %}
+    <b class="gain-v">{{ g.value|n1(True) }}</b> <span class="gain-u">{{ g.unit }}</span>
+    <span class="gain-h">{{ [g.horizon, g.confidence_label]|select|join(' · ') }}{% if g.dynasty is not none %}{{ ' · ' if g.horizon or g.confidence_label }}dynasty {{ g.dynasty|n1(True) }}{% endif %}</span>
+    {% else %}
+    <span class="gain-h">No numeric gain for this kind of move</span>
+    {% endif %}
+  </div>
+  <div class="strength s-{{ st.level }}">
+    <span class="sc">{{ 'Rank score' if st.is_rank else 'Strength' }}</span>
+    <span class="sbar" aria-hidden="true"><i style="width: {{ st.pct }}%"></i></span>
+    <b>{{ st.value|n1 }}</b>{% if st.is_rank %}<small class="muted"> rank</small>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{# A player table with the fantasy columns (free agents, other rosters, league injuries).
+   Stacks into key/value cards on phones without dropping columns. #}
+{% macro player_table(rows, caption, owner=False, slot=False, note=False) -%}
+{% set has_dyn = res.dynasty is not none %}
+{% set has_pct = rows|selectattr('pct', 'ne', none)|list|length > 0 %}
+<div class="tbl"><table class="r stack">
+  <caption class="sr-only">{{ caption }}</caption>
+  <thead><tr>
+    <th scope="col">Player</th>{% if owner %}<th scope="col">Fantasy team</th>{% endif %}{% if slot %}<th scope="col">Slot</th>{% endif %}
+    <th scope="col">Status</th><th scope="col" class="n">Age</th><th scope="col" class="n">GP</th>
+    <th scope="col" class="n">FPG szn</th><th scope="col" class="n">FPG healthy</th><th scope="col">Games next 7</th>
+    <th scope="col" class="n">Proj pts/wk</th><th scope="col" class="n">VORP</th>
+    {% if has_dyn %}<th scope="col" class="n">Dynasty</th>{% endif %}{% if has_pct %}<th scope="col" class="n">% ros</th>{% endif %}
+  </tr></thead>
+  <tbody>
+    {% for x in rows %}
+    <tr>
+      <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}<small>{{ x.pos }} &middot; {{ x.team }}</small></th>
+      {% if owner %}<td data-label="Fantasy team">{{ x.owner or '-' }}</td>{% endif %}
+      {% if slot %}<td data-label="Slot" class="slot">{{ x.slot or '-' }}</td>{% endif %}
+      <td data-label="Status" class="wrap">{{ pill(x.status) }}{% if note and x.note %}<small class="note-s">{{ x.note|truncate(110) }}</small>{% endif %}</td>
+      <td data-label="Age" class="n">{{ x.age|int if x.age is not none else '-' }}</td>
+      <td data-label="GP" class="n">{{ x.gp }}</td>
+      <td data-label="FPG szn" class="n">{{ x.fpg_season|n1 }}</td>
+      <td data-label="FPG healthy" class="n">{{ x.fpg|n1 }}</td>
+      <td data-label="Games next 7">{{ games_cell(x) }}</td>
+      <td data-label="Proj pts/wk" class="n">{{ x.proj_week|n1 }}</td>
+      <td data-label="VORP (FPG)" class="n{% if x.vorp is not none and x.vorp > 0 %} pos-val{% elif x.vorp is not none and x.vorp < 0 %} neg-val{% endif %}">{{ x.vorp|n1(True) }}</td>
+      {% if has_dyn %}<td data-label="Dynasty" class="n">{{ x.dyn|n1 }}</td>{% endif %}
+      {% if has_pct %}<td data-label="% rostered" class="n">{{ (x.pct|n1 ~ '%') if x.pct is not none else '-' }}</td>{% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{%- endmacro %}
+
+{# One numbered move. Primary line = what to do; then gain + strength, the comparison, the
+   top reasons, a "Why?" disclosure with every reason (and the trade partner's needs), and an
+   on-demand LLM explanation. Nothing here executes a move. #}
+{% macro move_item(r, rank) -%}
+{% set key = rec_key(league, r) %}
+{% set action = r|action %}
+{% set st = strength_info(r, res.recs) %}
+{% set reasons = r.reasons|rejectattr('code', 'in', HIDDEN_REASONS)|list %}
+<li class="move" id="rec-{{ key }}">
+  <span class="rank" aria-hidden="true">{{ rank }}</span>
+  <div class="m-body">
+    <div class="m-kind"><span>{{ KIND_LABEL.get(r.kind, r.kind) }}</span>{% if r.counterparty and r.counterparty.strip() %}<span class="m-cp">&middot; with {{ r.counterparty.strip() }}</span>{% endif %}{% if st.rank_text %}<span class="m-rank">{{ st.rank_text }}</span>{% endif %}</div>
+    <h3 class="do">{{ action }}</h3>
+    {% set note = r|action_note %}{% if note %}<p class="m-title">{{ note }}</p>{% endif %}
+    {{ gain_block(r, res) }}
+    {% set cmp = compare(res, r) %}
+    {% if cmp.cols %}{{ compare_table(cmp, league) }}{% endif %}
+    {% if r.narrative %}<p class="narr">{{ r.narrative }}</p>{% endif %}
+    <div id="explain-{{ key }}" class="explain-slot">
+      {% set ex = res.explanations.get(key) if res.explanations is defined else none %}
+      {% if ex and ex.text %}
+      <div class="explain"><p>{{ ex.text }}</p><p class="explain-by">Explained by {{ ex.model or 'the LLM' }} on request &middot; the numbers above are the basis</p></div>
+      {% elif ex and ex.error %}
+      <p class="explain-note">{{ ex.error }}</p>
+      {% endif %}
+    </div>
+    {% if reasons %}<ul class="why">{{ reason_items(reasons[:REASONS_SHOWN]) }}</ul>{% endif %}
+    <div class="m-actions">
+      <form method="post" action="/explain" class="explain-form" hx-post="/explain" hx-target="#explain-{{ key }}"
+            hx-select="#explain-{{ key }}" hx-swap="outerHTML" hx-disabled-elt="find button">
+        <input type="hidden" name="league" value="{{ league }}">
+        <input type="hidden" name="rec_key" value="{{ key }}">
+        <input type="hidden" name="next" value="{{ here }}">
+        {% if llm_ok %}
+        <button type="submit" class="ghost-btn">Explain</button>
+        {% else %}
+        <span title="set OPENROUTER_API_KEY"><button type="submit" class="ghost-btn" disabled title="set OPENROUTER_API_KEY" aria-describedby="nokey-{{ key }}">Explain</button><span id="nokey-{{ key }}" class="sr-only">Unavailable: set OPENROUTER_API_KEY</span></span>
+        {% endif %}
+        <span class="explain-busy" role="status">Asking the model&hellip;</span>
+      </form>
+      {% if reasons %}
+      <details class="why-d">
+        <summary class="ghost-btn">Why? ({{ reasons|length }} reason{{ 's' if reasons|length != 1 }})</summary>
+        <div class="why-body">
+          {{ reasons_table(reasons, 'Every reason for this move') }}
+          {% if r.kind == 'trade' %}{% set cp = counterparty(res, r) %}{% if cp %}
+          <h4 class="sub-h">{{ cp.team.name }}: weakest starting slots</h4>
+          <ul class="weak">
+            {% for w in cp.weakest %}<li><b>{{ w.slot }}</b> {% if w.player %}{{ plink(w.player, league) }} <span class="muted">VORP {{ w.vorp|n1(True) }} FPG</span>{% else %}<span class="muted">{{ w.empty }} empty</span>{% endif %}</li>{% endfor %}
+          </ul>
+          <h4 class="sub-h">{{ cp.team.name }}: roster</h4>
+          {{ player_table(cp.rows, 'Roster of ' ~ cp.team.name, slot=True) }}
+          {% endif %}{% endif %}
+        </div>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+</li>
+{%- endmacro %}
+
+{% macro move_list(recs, start=1) -%}
+<ol class="moves">
+  {% for r in recs %}{{ move_item(r, loop.index0 + start) }}{% endfor %}
+</ol>
+{%- endmacro %}
+
+{% macro news_item(n, league, players=None) -%}
+<article class="news-item">
+  <p class="news-meta">
+    <time{% if n.published %} datetime="{{ n.published.isoformat() }}"{% endif %}>{{ n.published.strftime('%b %d, %H:%M') if n.published else 'undated' }}</time>
+    &middot; {{ n.source }}{% if players %} &middot; {% for p in players %}{{ plink(p, league) }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+  </p>
+  <h3>{% if n.url|safe_url %}<a href="{{ n.url|safe_url }}" rel="noopener noreferrer" target="_blank">{{ n.headline }}</a>{% else %}{{ n.headline }}{% endif %}</h3>
+  {% if n.blurb %}<p>{{ n.blurb|truncate(360) }}</p>{% endif %}
+  {% if n.tags %}<p class="tags">{% for t in n.tags %}<span class="tag">{{ t }}</span>{% endfor %}</p>{% endif %}
+</article>
+{%- endmacro %}

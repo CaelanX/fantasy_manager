@@ -1,0 +1,495 @@
+{
+ "displayedStatusOrTeam": "ALL_AVAILABLE",
+ "displayedPosOrGroup": "POS_201",
+ "posOrGroupList": [
+  {
+   "name": "All Players",
+   "id": "ALL",
+   "shortName": "All"
+  },
+  {
+   "name": "Skaters",
+   "id": "HOCKEY_SKATING",
+   "shortName": "Skt"
+  },
+  {
+   "name": "Forward",
+   "id": "POS_207",
+   "shortName": "F"
+  },
+  {
+   "name": "Defense",
+   "id": "POS_202",
+   "shortName": "D"
+  },
+  {
+   "name": "Goalie",
+   "id": "POS_201",
+   "shortName": "G"
+  }
+ ],
+ "tableHeader": {
+  "cells": [
+   {
+    "sortDirection": 1,
+    "name": "Ranking based on fantasy points among all players of selected position",
+    "width": 4.0,
+    "shortName": "Rk",
+    "key": "rankOv"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "STATUS",
+    "sortType": "STATUS",
+    "name": "Status",
+    "width": 8.5,
+    "shortName": "Sta",
+    "key": "status"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "AGE",
+    "sortType": "AGE",
+    "name": "Age",
+    "width": 3.5,
+    "shortName": "Age",
+    "key": "age"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORE",
+    "sortType": "SCORE",
+    "width": 6.5,
+    "shortName": "FPts",
+    "key": "fpts"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "FPTS_PER_GAME",
+    "sortType": "FPTS_PER_GAME",
+    "width": 4.5,
+    "shortName": "FP/G",
+    "key": "fptsPerGame"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "OVERVIEW_PERCENT_OWNED_2",
+    "sortType": "OVERVIEW_PERCENT_OWNED_2",
+    "name": "% of Fantrax leagues that have this player on their roster this week",
+    "shortName": "Ros"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "OVERVIEW_PLUS_MINUS_PERCENT_OWNED_2",
+    "sortType": "OVERVIEW_PLUS_MINUS_PERCENT_OWNED_2",
+    "name": "Change in percent Rostered from previous week",
+    "shortName": "+/-"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2020#2100#-1",
+    "scipId": "2020#2100#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Games Played",
+    "width": 2.5,
+    "shortName": "GP",
+    "key": "2020#2100#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2020#231b#-1",
+    "scipId": "2020#231b#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Wins (Goalies only) -- Includes Overtime Wins and Shootout Wins. Skaters cannot get a win using this category - for that - use the \"regular\" Wins category.",
+    "width": 2.5,
+    "shortName": "W",
+    "key": "2020#231b#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": -1,
+    "sortKey": "SCORING_CATEGORY_2020#2140#-1",
+    "scipId": "2020#2140#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Goals Against",
+    "width": 3.5,
+    "shortName": "GA",
+    "key": "2020#2140#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2020#2230#-1",
+    "scipId": "2020#2230#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Saves",
+    "width": 4.5,
+    "shortName": "SV",
+    "key": "2020#2230#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2020#2290#-1",
+    "scipId": "2020#2290#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Shutouts",
+    "width": 3.5,
+    "shortName": "SHO",
+    "key": "2020#2290#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2020#2170#-1",
+    "scipId": "2020#2170#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Penalty Minutes -- By default, this is a positive category (i.e. the more Penalty Minutes the better).",
+    "width": 3.5,
+    "shortName": "PIM",
+    "key": "2020#2170#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2020#2130#-1",
+    "scipId": "2020#2130#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Goals",
+    "width": 1.5,
+    "shortName": "G",
+    "key": "2020#2130#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2020#2090#-1",
+    "scipId": "2020#2090#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Assists",
+    "width": 1.5,
+    "shortName": "A",
+    "key": "2020#2090#-1",
+    "maxWidth": 3.0
+   }
+  ]
+ },
+ "displayedSeasonOrProjection": {
+  "code": "PROJECTION_0_31n_SEASON",
+  "endDate": 1807415999000,
+  "name": "Projected - Season",
+  "shortName": "Proj - Season",
+  "timeframeTypeCode": "PROJECTED_SEASON",
+  "startDate": 1790654400000
+ },
+ "displayedSelections": {
+  "displayedSeasonOrProjection": {
+   "code": "PROJECTION_0_31n_SEASON",
+   "endDate": 1807415999000,
+   "name": "Projected - Season",
+   "shortName": "Proj - Season",
+   "timeframeTypeCode": "PROJECTED_SEASON",
+   "startDate": 1790654400000
+  }
+ },
+ "displayedLists": {
+  "displayedSeasonOrProjections": [
+   {
+    "code": "PROJECTION_0_31n_SEASON",
+    "endDate": 1807415999000,
+    "name": "Projected - Season",
+    "shortName": "Proj - Season",
+    "timeframeTypeCode": "PROJECTED_SEASON",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "PROJECTION_0_31n_EVENT_PROJECTED_WEEKLY",
+    "endDate": 1807415999000,
+    "name": "Projected - Per Game",
+    "shortName": "Proj - Per Game",
+    "timeframeTypeCode": "PROJECTED_WEEKLY",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "SEASON_31n_YEAR_TO_DATE",
+    "endDate": 1807415999000,
+    "name": "2026-27 Reg Season - YTD",
+    "showGoBackDays": true,
+    "shortName": "2026-27 Reg - YTD",
+    "timeframeTypeCode": "YEAR_TO_DATE",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "SEASON_31n_BY_PERIOD",
+    "endDate": 1807415999000,
+    "name": "2026-27 Reg Season - Period",
+    "showGoBackDays": true,
+    "shortName": "2026-27 Reg - Period",
+    "timeframeTypeCode": "BY_PERIOD",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "SEASON_31l_YEAR_TO_DATE",
+    "endDate": 1776398399000,
+    "name": "2025-26 Reg Season - YTD",
+    "shortName": "2025-26 Reg - YTD",
+    "timeframeTypeCode": "YEAR_TO_DATE",
+    "startDate": 1759809600000
+   },
+   {
+    "code": "SEASON_31j_YEAR_TO_DATE",
+    "endDate": 1744948799000,
+    "name": "2024-25 Reg Season - YTD",
+    "shortName": "2024-25 Reg - YTD",
+    "timeframeTypeCode": "YEAR_TO_DATE",
+    "startDate": 1728014400000
+   }
+  ]
+ },
+ "paginatedResultSet": {
+  "totalNumPages": 1,
+  "pageNumber": 1,
+  "maxResultsPerPage": 200,
+  "totalNumResults": 3
+ },
+ "statsTable": [
+  {
+   "scorer": {
+    "teamName": "Pittsburgh Penguins",
+    "urlName": "sergei-murashov",
+    "scorerId": "061i2",
+    "rank": 16,
+    "posIdsNoFlex": [
+     "201"
+    ],
+    "defaultPosId": "201",
+    "posShortNames": "G",
+    "team": false,
+    "icons": [
+     {
+      "tooltip": "news",
+      "typeId": "9"
+     }
+    ],
+    "rookie": true,
+    "minorsEligible": false,
+    "statusId": "5",
+    "posIds": [
+     "201"
+    ],
+    "teamId": "30040",
+    "name": "Sergei Murashov",
+    "teamShortName": "PIT",
+    "shortName": "S. Murashov"
+   },
+   "cells": [
+    {
+     "content": "16"
+    },
+    {
+     "content": "W <small>(Wed)</small>",
+     "toolTip": "Waiver Wire - Off Wed Sep 30, 5:46 PM MDT"
+    },
+    {
+     "content": "22"
+    },
+    {
+     "content": "315.5"
+    },
+    {
+     "content": "6.71"
+    },
+    {
+     "content": "64%"
+    },
+    {
+     "gainColor": -1,
+     "content": "-6%"
+    },
+    {
+     "content": "47"
+    },
+    {
+     "content": "25"
+    },
+    {
+     "content": "127"
+    },
+    {
+     "content": "1180"
+    },
+    {
+     "content": "3"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "0"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "teamName": "New Jersey Devils",
+    "urlName": "jake-allen",
+    "scorerId": "016kv",
+    "rank": 19,
+    "posIdsNoFlex": [
+     "201"
+    ],
+    "defaultPosId": "201",
+    "posShortNames": "G",
+    "team": false,
+    "icons": [
+     {
+      "tooltip": "news",
+      "typeId": "9"
+     }
+    ],
+    "rookie": false,
+    "minorsEligible": false,
+    "statusId": "4",
+    "posIds": [
+     "201"
+    ],
+    "teamId": "30000",
+    "name": "Jake Allen",
+    "teamShortName": "NJD",
+    "shortName": "J. Allen"
+   },
+   "cells": [
+    {
+     "content": "19"
+    },
+    {
+     "content": "FA",
+     "toolTip": "Free Agent"
+    },
+    {
+     "content": "36"
+    },
+    {
+     "content": "309.75"
+    },
+    {
+     "content": "6.45"
+    },
+    {
+     "content": "59%"
+    },
+    {
+     "gainColor": -1,
+     "content": "-1%"
+    },
+    {
+     "content": "48"
+    },
+    {
+     "content": "25"
+    },
+    {
+     "content": "134"
+    },
+    {
+     "content": "1203"
+    },
+    {
+     "content": "2"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "1"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "teamName": "Vancouver Canucks",
+    "urlName": "kevin-lankinen",
+    "scorerId": "04ai3",
+    "rank": 20,
+    "posIdsNoFlex": [
+     "201"
+    ],
+    "defaultPosId": "201",
+    "posShortNames": "G",
+    "team": false,
+    "icons": [
+     {
+      "tooltip": "news",
+      "typeId": "9"
+     }
+    ],
+    "rookie": false,
+    "minorsEligible": false,
+    "statusId": "4",
+    "posIds": [
+     "201"
+    ],
+    "teamId": "30240",
+    "name": "Kevin Lankinen",
+    "teamShortName": "VAN",
+    "shortName": "K. Lankinen"
+   },
+   "cells": [
+    {
+     "content": "20"
+    },
+    {
+     "content": "FA",
+     "toolTip": "Free Agent"
+    },
+    {
+     "content": "31"
+    },
+    {
+     "content": "309.25"
+    },
+    {
+     "content": "6.58"
+    },
+    {
+     "content": "32%"
+    },
+    {
+     "gainColor": 1,
+     "content": "+2%"
+    },
+    {
+     "content": "47"
+    },
+    {
+     "content": "15"
+    },
+    {
+     "content": "144"
+    },
+    {
+     "content": "1453"
+    },
+    {
+     "content": "1"
+    },
+    {
+     "content": "3"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "2"
+    }
+   ]
+  }
+ ]
+}

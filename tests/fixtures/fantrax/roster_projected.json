@@ -1,0 +1,951 @@
+{
+ "fantasyTeams": [
+  {
+   "id": "t1",
+   "name": "My Team",
+   "shortName": "ME"
+  },
+  {
+   "id": "t2",
+   "name": "Rival Team",
+   "shortName": "RT"
+  }
+ ],
+ "myTeamIds": [
+  "t1"
+ ],
+ "displayedSelections": {
+  "displayedPeriod": 1,
+  "displayedView": "STATS",
+  "displayedSeasonOrProjection": {
+   "code": "PROJECTION_0_31n_SEASON",
+   "endDate": 1807415999000,
+   "name": "Projected - Season",
+   "shortName": "Proj - Season",
+   "timeframeTypeCode": "PROJECTED_SEASON",
+   "startDate": 1790654400000
+  }
+ },
+ "displayedLists": {
+  "seasonOrProjections": [
+   {
+    "code": "PROJECTION_0_31n_SEASON",
+    "endDate": 1807415999000,
+    "name": "Projected - Season",
+    "shortName": "Proj - Season",
+    "timeframeTypeCode": "PROJECTED_SEASON",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "PROJECTION_0_31n_EVENT_PROJECTED_WEEKLY",
+    "endDate": 1807415999000,
+    "name": "Projected - Per Game",
+    "shortName": "Proj - Per Game",
+    "timeframeTypeCode": "PROJECTED_WEEKLY",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "SEASON_31n_YEAR_TO_DATE",
+    "endDate": 1807415999000,
+    "name": "2026-27 Reg Season - YTD",
+    "showGoBackDays": true,
+    "shortName": "2026-27 Reg - YTD",
+    "timeframeTypeCode": "YEAR_TO_DATE",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "SEASON_31n_BY_PERIOD",
+    "endDate": 1807415999000,
+    "name": "2026-27 Reg Season - Period",
+    "showGoBackDays": true,
+    "shortName": "2026-27 Reg - Period",
+    "timeframeTypeCode": "BY_PERIOD",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "SEASON_31l_YEAR_TO_DATE",
+    "endDate": 1776398399000,
+    "name": "2025-26 Reg Season - YTD",
+    "shortName": "2025-26 Reg - YTD",
+    "timeframeTypeCode": "YEAR_TO_DATE",
+    "startDate": 1759809600000
+   },
+   {
+    "code": "SEASON_31j_YEAR_TO_DATE",
+    "endDate": 1744948799000,
+    "name": "2024-25 Reg Season - YTD",
+    "shortName": "2024-25 Reg - YTD",
+    "timeframeTypeCode": "YEAR_TO_DATE",
+    "startDate": 1728014400000
+   }
+  ]
+ },
+ "miscData": {
+  "statusTotals": [
+   {
+    "total": 10,
+    "max": 10,
+    "name": "Active",
+    "id": "1"
+   },
+   {
+    "total": 6,
+    "max": 6,
+    "name": "Reserve",
+    "id": "2"
+   }
+  ],
+  "draftPickTradingAllowed": true,
+  "tradesAllowed": true
+ },
+ "draftPicksData": {
+  "tableData": [
+   [
+    "2027",
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10"
+   ],
+   [
+    "2028",
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10"
+   ],
+   [
+    "2029",
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10"
+   ]
+  ],
+  "draftPicksPerYear": [
+   {
+    "year": 2027,
+    "draftPickList": [
+     {
+      "round": 1,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 2,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 3,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 4,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 5,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 6,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 7,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 8,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 9,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 10,
+      "origOwnerTeamId": "t1"
+     }
+    ],
+    "actions": [
+     {
+      "typeId": "4"
+     }
+    ]
+   },
+   {
+    "year": 2028,
+    "draftPickList": [
+     {
+      "round": 1,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 2,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 3,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 4,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 5,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 6,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 7,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 8,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 9,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 10,
+      "origOwnerTeamId": "t1"
+     }
+    ],
+    "actions": [
+     {
+      "typeId": "4"
+     }
+    ]
+   },
+   {
+    "year": 2029,
+    "draftPickList": [
+     {
+      "round": 1,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 2,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 3,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 4,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 5,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 6,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 7,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 8,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 9,
+      "origOwnerTeamId": "t1"
+     },
+     {
+      "round": 10,
+      "origOwnerTeamId": "t1"
+     }
+    ],
+    "actions": [
+     {
+      "typeId": "4"
+     }
+    ]
+   }
+  ],
+  "tableTitle": "Draft Picks",
+  "tableHeader": [
+   "Year",
+   "Draft Picks"
+  ]
+ },
+ "tables": [
+  {
+   "scGroup": "2010",
+   "scGroupScorerHeader": "Skaters",
+   "header": {
+    "cells": [
+     {
+      "sortDirection": 1,
+      "sortKey": "AGE",
+      "sortType": "AGE",
+      "name": "Age",
+      "width": 3.0,
+      "shortName": "Age",
+      "key": "age"
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORE",
+      "sortType": "SCORE",
+      "name": "Fantasy Points",
+      "shortName": "FPts",
+      "key": "fpts"
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "FPTS_PER_GAME",
+      "sortType": "FPTS_PER_GAME",
+      "name": "Average Fantasy Points per Game",
+      "shortName": "FP/G",
+      "key": "fptsPerGame"
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2100#-1",
+      "scipId": "2010#2100#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Games Played",
+      "width": 4.2,
+      "shortName": "GP",
+      "key": "2010#2100#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2130#-1",
+      "scipId": "2010#2130#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Goals",
+      "width": 4.2,
+      "shortName": "G",
+      "key": "2010#2130#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2090#-1",
+      "scipId": "2010#2090#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Assists",
+      "width": 4.2,
+      "shortName": "A",
+      "key": "2010#2090#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2170#-1",
+      "scipId": "2010#2170#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Penalty Minutes -- By default, this is a positive category (i.e. the more Penalty Minutes the better).",
+      "width": 4.2,
+      "shortName": "PIM",
+      "key": "2010#2170#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2161#-1",
+      "scipId": "2010#2161#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Fights",
+      "width": 4.2,
+      "shortName": "Ft",
+      "key": "2010#2161#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2270#-1",
+      "scipId": "2010#2270#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Shots on Goal",
+      "width": 4.2,
+      "shortName": "SOG",
+      "key": "2010#2270#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2250#-1",
+      "scipId": "2010#2250#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Short-Handed Goals",
+      "width": 4.2,
+      "shortName": "SHG",
+      "key": "2010#2250#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2098#-1",
+      "scipId": "2010#2098#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Empty Net Goals",
+      "width": 4.2,
+      "shortName": "ENG",
+      "key": "2010#2098#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2327#-1",
+      "scipId": "2010#2327#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Power Play Points",
+      "width": 4.2,
+      "shortName": "PPP",
+      "key": "2010#2327#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2147#-1",
+      "scipId": "2010#2147#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Hits",
+      "width": 4.2,
+      "shortName": "Hit",
+      "key": "2010#2147#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2010#2092#-1",
+      "scipId": "2010#2092#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Blocks -- A player blocks a shot by an opposing shooter.",
+      "width": 4.2,
+      "shortName": "Blk",
+      "key": "2010#2092#-1",
+      "maxWidth": 3.0
+     }
+    ]
+   },
+   "rows": [
+    {
+     "scorer": {
+      "teamName": "Vegas Golden Knights",
+      "urlName": "jack-eichel",
+      "scorerId": "03924",
+      "posIdsNoFlex": [
+       "207"
+      ],
+      "defaultPosId": "206",
+      "posShortNames": "F",
+      "team": false,
+      "icons": [
+       {
+        "tooltip": "news",
+        "typeId": "9"
+       }
+      ],
+      "rookie": false,
+      "minorsEligible": false,
+      "posIds": [
+       "207"
+      ],
+      "teamId": "30255",
+      "name": "Jack Eichel",
+      "teamShortName": "VGK",
+      "shortName": "J. Eichel"
+     },
+     "eligibleStatusIds": [
+      "1",
+      "2"
+     ],
+     "posId": "207",
+     "cells": [
+      {
+       "content": "29"
+      },
+      {
+       "content": "440.4"
+      },
+      {
+       "content": "5.79"
+      },
+      {
+       "content": "76"
+      },
+      {
+       "content": "28"
+      },
+      {
+       "content": "62"
+      },
+      {
+       "content": "18"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "264"
+      },
+      {
+       "content": "1"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "29"
+      },
+      {
+       "content": "33"
+      },
+      {
+       "content": "45"
+      }
+     ],
+     "statusId": "1",
+     "eligiblePosIds": [
+      "207"
+     ]
+    },
+    {
+     "scorer": {
+      "teamName": "St. Louis Blues",
+      "urlName": "dylan-holloway",
+      "scorerId": "051yz",
+      "posIdsNoFlex": [
+       "207"
+      ],
+      "defaultPosId": "203",
+      "posShortNames": "F",
+      "team": false,
+      "rookie": false,
+      "minorsEligible": false,
+      "posIds": [
+       "207"
+      ],
+      "teamId": "30190",
+      "name": "Dylan Holloway",
+      "teamShortName": "STL",
+      "shortName": "D. Holloway"
+     },
+     "eligibleStatusIds": [
+      "1",
+      "2"
+     ],
+     "posId": "207",
+     "cells": [
+      {
+       "content": "25"
+      },
+      {
+       "content": "354.1"
+      },
+      {
+       "content": "5.13"
+      },
+      {
+       "content": "69"
+      },
+      {
+       "content": "26"
+      },
+      {
+       "content": "33"
+      },
+      {
+       "content": "23"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "180"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "2"
+      },
+      {
+       "content": "10"
+      },
+      {
+       "content": "152"
+      },
+      {
+       "content": "46"
+      }
+     ],
+     "statusId": "1",
+     "eligiblePosIds": [
+      "207"
+     ]
+    },
+    {
+     "scorer": {
+      "teamName": "Toronto Maple Leafs",
+      "urlName": "william-nylander",
+      "scorerId": "02yjj",
+      "posIdsNoFlex": [
+       "207"
+      ],
+      "defaultPosId": "204",
+      "posShortNames": "F",
+      "team": false,
+      "rookie": false,
+      "minorsEligible": false,
+      "posIds": [
+       "207"
+      ],
+      "teamId": "30090",
+      "name": "William Nylander",
+      "teamShortName": "TOR",
+      "shortName": "W. Nylander"
+     },
+     "eligibleStatusIds": [
+      "1",
+      "2"
+     ],
+     "posId": "207",
+     "cells": [
+      {
+       "content": "30"
+      },
+      {
+       "content": "430.8"
+      },
+      {
+       "content": "5.52"
+      },
+      {
+       "content": "78"
+      },
+      {
+       "content": "38"
+      },
+      {
+       "content": "55"
+      },
+      {
+       "content": "20"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "211"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "3"
+      },
+      {
+       "content": "27"
+      },
+      {
+       "content": "16"
+      },
+      {
+       "content": "31"
+      }
+     ],
+     "statusId": "1",
+     "eligiblePosIds": [
+      "207"
+     ]
+    },
+    {
+     "numSpotsAvailableText": "Reserve spot(s) available",
+     "description": "Reserve spot(s) available Limited by Max Players on Team",
+     "numSpotsAvailableDescription": "Limited by Max Players on Team",
+     "numSpotsAvailableIcon": "LIMITED_BY_MAX",
+     "cells": [
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      }
+     ],
+     "statusId": "2"
+    }
+   ]
+  },
+  {
+   "scGroup": "2020",
+   "scGroupScorerHeader": "Goalies",
+   "header": {
+    "cells": [
+     {
+      "sortDirection": 1,
+      "sortKey": "AGE",
+      "sortType": "AGE",
+      "name": "Age",
+      "width": 3.0,
+      "shortName": "Age",
+      "key": "age"
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORE",
+      "sortType": "SCORE",
+      "name": "Fantasy Points",
+      "shortName": "FPts",
+      "key": "fpts"
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "FPTS_PER_GAME",
+      "sortType": "FPTS_PER_GAME",
+      "name": "Average Fantasy Points per Game",
+      "shortName": "FP/G",
+      "key": "fptsPerGame"
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2020#2100#-1",
+      "scipId": "2020#2100#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Games Played",
+      "width": 4.2,
+      "shortName": "GP",
+      "key": "2020#2100#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2020#231b#-1",
+      "scipId": "2020#231b#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Wins (Goalies only) -- Includes Overtime Wins and Shootout Wins. Skaters cannot get a win using this category - for that - use the \"regular\" Wins category.",
+      "width": 4.2,
+      "shortName": "W",
+      "key": "2020#231b#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": -1,
+      "sortKey": "SCORING_CATEGORY_2020#2140#-1",
+      "scipId": "2020#2140#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Goals Against",
+      "width": 4.2,
+      "shortName": "GA",
+      "key": "2020#2140#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2020#2230#-1",
+      "scipId": "2020#2230#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Saves",
+      "width": 4.2,
+      "shortName": "SV",
+      "key": "2020#2230#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2020#2290#-1",
+      "scipId": "2020#2290#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Shutouts",
+      "width": 4.2,
+      "shortName": "SHO",
+      "key": "2020#2290#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2020#2170#-1",
+      "scipId": "2020#2170#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Penalty Minutes -- By default, this is a positive category (i.e. the more Penalty Minutes the better).",
+      "width": 4.2,
+      "shortName": "PIM",
+      "key": "2020#2170#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2020#2130#-1",
+      "scipId": "2020#2130#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Goals",
+      "width": 4.2,
+      "shortName": "G",
+      "key": "2020#2130#-1",
+      "maxWidth": 3.0
+     },
+     {
+      "sortDirection": 1,
+      "sortKey": "SCORING_CATEGORY_2020#2090#-1",
+      "scipId": "2020#2090#-1",
+      "sortType": "SCORING_CATEGORY",
+      "name": "Assists",
+      "width": 4.2,
+      "shortName": "A",
+      "key": "2020#2090#-1",
+      "maxWidth": 3.0
+     }
+    ]
+   },
+   "rows": [
+    {
+     "scorer": {
+      "teamName": "Colorado Avalanche",
+      "urlName": "mackenzie-blackwood",
+      "scorerId": "03mbn",
+      "posIdsNoFlex": [
+       "201"
+      ],
+      "defaultPosId": "201",
+      "posShortNames": "G",
+      "team": false,
+      "icons": [
+       {
+        "tooltip": "news",
+        "typeId": "9"
+       }
+      ],
+      "rookie": false,
+      "minorsEligible": false,
+      "posIds": [
+       "201"
+      ],
+      "teamId": "30210",
+      "name": "Mackenzie Blackwood",
+      "teamShortName": "COL",
+      "shortName": "M. Blackwood"
+     },
+     "eligibleStatusIds": [
+      "1",
+      "2"
+     ],
+     "posId": "201",
+     "cells": [
+      {
+       "content": "29"
+      },
+      {
+       "content": "279"
+      },
+      {
+       "content": "6.64"
+      },
+      {
+       "content": "42"
+      },
+      {
+       "content": "23"
+      },
+      {
+       "content": "106"
+      },
+      {
+       "content": "990"
+      },
+      {
+       "content": "3"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      }
+     ],
+     "statusId": "1",
+     "eligiblePosIds": [
+      "201"
+     ]
+    },
+    {
+     "numSpotsAvailableText": "Reserve spot(s) available",
+     "description": "Reserve spot(s) available Limited by Max Players on Team",
+     "numSpotsAvailableDescription": "Limited by Max Players on Team",
+     "numSpotsAvailableIcon": "LIMITED_BY_MAX",
+     "cells": [
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": ""
+      }
+     ],
+     "statusId": "2"
+    }
+   ]
+  }
+ ]
+}

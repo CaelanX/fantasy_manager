@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_macros.html" import news_item %}
+{% block heading %}
+<p class="sc dateline">{{ res.ctx.name }} &middot; matched to players in your league</p>
+<h1>News</h1>
+{% endblock %}
+{% block content %}
+<section aria-labelledby="h-mine">
+  <h2 id="h-mine">Your players <span class="aside">{{ mine|length }}</span></h2>
+  {% for e in mine %}{{ news_item(e.item, league, e.players) }}{% else %}<p class="empty">No recent news for your players.</p>{% endfor %}
+</section>
+<section aria-labelledby="h-league">
+  <h2 id="h-league">Around the league <span class="aside">{{ other|length }}</span></h2>
+  {% for e in other %}{{ news_item(e.item, league, e.players) }}{% else %}<p class="empty">No other matched news.</p>{% endfor %}
+</section>
+{% endblock %}

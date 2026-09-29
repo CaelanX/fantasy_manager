@@ -1,0 +1,863 @@
+{
+ "previousSeason": 20252026,
+ "currentSeason": 20262027,
+ "clubTimezone": "America/Edmonton",
+ "clubUTCOffset": "-06:00",
+ "games": [
+  {
+   "id": 2026020014,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-01",
+   "venue": {
+    "default": "Scotiabank Saddledome"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-02T01:00:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-06:00",
+   "venueTimezone": "America/Edmonton",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 289,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SNW",
+     "sequenceNumber": 34
+    },
+    {
+     "id": 652,
+     "market": "A",
+     "countryCode": "US",
+     "network": "Prime Video",
+     "sequenceNumber": 117
+    },
+    {
+     "id": 388,
+     "market": "A",
+     "countryCode": "US",
+     "network": "KONG",
+     "sequenceNumber": 654
+    }
+   ],
+   "awayTeam": {
+    "id": 55,
+    "commonName": {
+     "default": "Kraken"
+    },
+    "placeName": {
+     "default": "Seattle"
+    },
+    "placeNameWithPreposition": {
+     "default": "Seattle",
+     "fr": "de Seattle"
+    },
+    "abbrev": "SEA",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/SEA_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/SEA_dark.svg",
+    "awaySplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/SEA/20262027/SEA-radio.m3u8"
+   },
+   "homeTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "homeSplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8"
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://www.ticketmaster.ca/event/110064FC82C03262?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM1&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM1",
+   "ticketsLinkFr": "https://www.ticketmaster.ca/event/110064FC82C03262?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM1&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM1",
+   "gameCenterLink": "/gamecenter/sea-vs-cgy/2026/10/01/2026020014"
+  },
+  {
+   "id": 2026020033,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-03",
+   "venue": {
+    "default": "Rogers Arena"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-04T02:00:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-07:00",
+   "venueTimezone": "America/Vancouver",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 282,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SN",
+     "sequenceNumber": 107
+    },
+    {
+     "id": 291,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "TVAS2",
+     "sequenceNumber": 121
+    }
+   ],
+   "awayTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "awaySplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8"
+   },
+   "homeTeam": {
+    "id": 23,
+    "commonName": {
+     "default": "Canucks"
+    },
+    "placeName": {
+     "default": "Vancouver"
+    },
+    "placeNameWithPreposition": {
+     "default": "Vancouver",
+     "fr": "de Vancouver"
+    },
+    "abbrev": "VAN",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/VAN_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/VAN_dark.svg",
+    "homeSplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/VAN/20262027/VAN-radio.m3u8"
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://www.ticketmaster.ca/event/11006503F081BB3C?brand=canucks&artistid=806037&wt.mc_id=NHL_TEAM_VAN_SCHEDULE_GM2&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_VAN&utm_content=SCHEDULE_GM2",
+   "ticketsLinkFr": "https://www.ticketmaster.ca/event/11006503F081BB3C?brand=canucks&artistid=806037&wt.mc_id=NHL_TEAM_VAN_SCHEDULE_GM2&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_VAN&utm_content=SCHEDULE_GM2",
+   "gameCenterLink": "/gamecenter/cgy-vs-van/2026/10/03/2026020033"
+  },
+  {
+   "id": 2026020038,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-04",
+   "venue": {
+    "default": "Climate Pledge Arena"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-05T00:00:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-07:00",
+   "venueTimezone": "US/Pacific",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 289,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SNW",
+     "sequenceNumber": 34
+    },
+    {
+     "id": 652,
+     "market": "H",
+     "countryCode": "US",
+     "network": "Prime Video",
+     "sequenceNumber": 117
+    },
+    {
+     "id": 388,
+     "market": "H",
+     "countryCode": "US",
+     "network": "KONG",
+     "sequenceNumber": 654
+    }
+   ],
+   "awayTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "awaySplitSquad": false,
+    "promoLink": "",
+    "promoDesc": "",
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8",
+    "airlineLink": "",
+    "airlineDesc": "",
+    "hotelLink": "",
+    "hotelDesc": ""
+   },
+   "homeTeam": {
+    "id": 55,
+    "commonName": {
+     "default": "Kraken"
+    },
+    "placeName": {
+     "default": "Seattle"
+    },
+    "placeNameWithPreposition": {
+     "default": "Seattle",
+     "fr": "de Seattle"
+    },
+    "abbrev": "SEA",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/SEA_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/SEA_dark.svg",
+    "homeSplitSquad": false,
+    "promoLink": "",
+    "promoDesc": "",
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/SEA/20262027/SEA-radio.m3u8",
+    "airlineLink": "",
+    "airlineDesc": "",
+    "hotelLink": "https://stayinglevel.com/offers/seattle-climate-pledge-arena-fans/",
+    "hotelDesc": "Stay close to the action at Level"
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://www.ticketmaster.com/event/0F0064C4A033A21E?brand=seattlekraken&artistid=2763657&wt.mc_id=NHL_TEAM_SEA_SCHEDULE_GM1&utm_source=NHL.com&utm_medium=client&utm_campaign=NHL_TEAM_SEA&utm_content=SCHEDULE_GM1",
+   "ticketsLinkFr": "https://www.ticketmaster.com/event/0F0064C4A033A21E?brand=seattlekraken&artistid=2763657&wt.mc_id=NHL_TEAM_SEA_SCHEDULE_GM1&utm_source=NHL.com&utm_medium=client&utm_campaign=NHL_TEAM_SEA&utm_content=SCHEDULE_GM1",
+   "gameCenterLink": "/gamecenter/cgy-vs-sea/2026/10/04/2026020038"
+  },
+  {
+   "id": 2026020064,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-08",
+   "venue": {
+    "default": "Scotiabank Saddledome"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-09T01:00:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-06:00",
+   "venueTimezone": "America/Edmonton",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 289,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SNW",
+     "sequenceNumber": 34
+    },
+    {
+     "id": 2,
+     "market": "A",
+     "countryCode": "US",
+     "network": "ALT",
+     "sequenceNumber": 385
+    },
+    {
+     "id": 336,
+     "market": "A",
+     "countryCode": "US",
+     "network": "KTVD",
+     "sequenceNumber": 623
+    }
+   ],
+   "awayTeam": {
+    "id": 21,
+    "commonName": {
+     "default": "Avalanche"
+    },
+    "placeName": {
+     "default": "Colorado"
+    },
+    "placeNameWithPreposition": {
+     "default": "Colorado",
+     "fr": "du Colorado"
+    },
+    "abbrev": "COL",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/COL_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/COL_dark.svg",
+    "awaySplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/COL/20262027/COL-radio.m3u8"
+   },
+   "homeTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "homeSplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8"
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://www.ticketmaster.ca/event/110064FBA5A45410?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM2&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM2",
+   "ticketsLinkFr": "https://www.ticketmaster.ca/event/110064FBA5A45410?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM2&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM2",
+   "gameCenterLink": "/gamecenter/col-vs-cgy/2026/10/08/2026020064"
+  },
+  {
+   "id": 2026020082,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-10",
+   "venue": {
+    "default": "Scotiabank Saddledome"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-11T02:00:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-06:00",
+   "venueTimezone": "America/Edmonton",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 282,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SN",
+     "sequenceNumber": 107
+    },
+    {
+     "id": 652,
+     "market": "A",
+     "countryCode": "US",
+     "network": "Prime Video",
+     "sequenceNumber": 117
+    },
+    {
+     "id": 219,
+     "market": "A",
+     "countryCode": "US",
+     "network": "KCOP-13",
+     "sequenceNumber": 656
+    }
+   ],
+   "awayTeam": {
+    "id": 24,
+    "commonName": {
+     "default": "Ducks"
+    },
+    "placeName": {
+     "default": "Anaheim"
+    },
+    "placeNameWithPreposition": {
+     "default": "Anaheim",
+     "fr": "d'Anaheim"
+    },
+    "abbrev": "ANA",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/ANA_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/ANA_dark.svg",
+    "awaySplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/ANA/20262027/ANA-radio.m3u8"
+   },
+   "homeTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "homeSplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8"
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://www.ticketmaster.ca/event/110064FBA5AA5429?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM3&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM3",
+   "ticketsLinkFr": "https://www.ticketmaster.ca/event/110064FBA5AA5429?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM3&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM3",
+   "gameCenterLink": "/gamecenter/ana-vs-cgy/2026/10/10/2026020082"
+  },
+  {
+   "id": 2026020103,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-13",
+   "venue": {
+    "default": "Honda Center"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-14T01:45:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-07:00",
+   "venueTimezone": "America/Los_Angeles",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 289,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SNW",
+     "sequenceNumber": 34
+    },
+    {
+     "id": 652,
+     "market": "H",
+     "countryCode": "US",
+     "network": "Prime Video",
+     "sequenceNumber": 117
+    },
+    {
+     "id": 219,
+     "market": "H",
+     "countryCode": "US",
+     "network": "KCOP-13",
+     "sequenceNumber": 656
+    }
+   ],
+   "awayTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "awaySplitSquad": false,
+    "promoLink": "",
+    "promoDesc": "",
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8",
+    "airlineLink": "",
+    "airlineDesc": "",
+    "hotelLink": "",
+    "hotelDesc": ""
+   },
+   "homeTeam": {
+    "id": 24,
+    "commonName": {
+     "default": "Ducks"
+    },
+    "placeName": {
+     "default": "Anaheim"
+    },
+    "placeNameWithPreposition": {
+     "default": "Anaheim",
+     "fr": "d'Anaheim"
+    },
+    "abbrev": "ANA",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/ANA_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/ANA_dark.svg",
+    "homeSplitSquad": false,
+    "promoLink": "https://www.nhl.com/ducks/fans/promotional-schedule",
+    "promoDesc": "Wild Wing Mask Giveaway presented by UCI Health",
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/ANA/20262027/ANA-radio.m3u8",
+    "airlineLink": "",
+    "airlineDesc": "",
+    "hotelLink": "",
+    "hotelDesc": ""
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://www.ticketmaster.com/event/090064EA198C570A?brand=ducks&artistid=805893&wt.mc_id=NHL_TEAM_ANA_SCHEDULE_GM3&utm_source=NHL.com&utm_medium=client&utm_campaign=NHL_TEAM_ANA&utm_content=SCHEDULE_GM3",
+   "ticketsLinkFr": "https://www.ticketmaster.com/event/090064EA198C570A?brand=ducks&artistid=805893&wt.mc_id=NHL_TEAM_ANA_SCHEDULE_GM3&utm_source=NHL.com&utm_medium=client&utm_campaign=NHL_TEAM_ANA&utm_content=SCHEDULE_GM3",
+   "gameCenterLink": "/gamecenter/cgy-vs-ana/2026/10/13/2026020103"
+  },
+  {
+   "id": 2026020118,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-15",
+   "venue": {
+    "default": "T-Mobile Arena"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-16T02:00:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-07:00",
+   "venueTimezone": "US/Pacific",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 284,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SN1",
+     "sequenceNumber": 113
+    },
+    {
+     "id": 281,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "TVAS",
+     "sequenceNumber": 120
+    },
+    {
+     "id": 521,
+     "market": "H",
+     "countryCode": "US",
+     "network": "SCRIPPS",
+     "sequenceNumber": 657
+    }
+   ],
+   "awayTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "awaySplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8"
+   },
+   "homeTeam": {
+    "id": 54,
+    "commonName": {
+     "default": "Golden Knights"
+    },
+    "placeName": {
+     "default": "Vegas"
+    },
+    "placeNameWithPreposition": {
+     "default": "Vegas",
+     "fr": "de Vegas"
+    },
+    "abbrev": "VGK",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/VGK_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/VGK_dark.svg",
+    "homeSplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/VGK/20262027/VGK-radio.m3u8"
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://tix.axs.com/c8egKQAAAAAHgrfuAgAAAABr%2fv%2f%2f%2fwD%2f%2f%2f%2f%2fEnZlZ2FzZ29sZGVua25pZ2h0cwD%2f%2f%2f%2f%2f%2f%2f%2f%2f%2fw%3d%3d",
+   "ticketsLinkFr": "https://tix.axs.com/c8egKQAAAAAHgrfuAgAAAABr%2fv%2f%2f%2fwD%2f%2f%2f%2f%2fEnZlZ2FzZ29sZGVua25pZ2h0cwD%2f%2f%2f%2f%2f%2f%2f%2f%2f%2fw%3d%3d",
+   "gameCenterLink": "/gamecenter/cgy-vs-vgk/2026/10/15/2026020118"
+  },
+  {
+   "id": 2026020136,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-18",
+   "venue": {
+    "default": "Scotiabank Saddledome"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-19T00:00:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-06:00",
+   "venueTimezone": "America/Edmonton",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 289,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SNW",
+     "sequenceNumber": 34
+    },
+    {
+     "id": 281,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "TVAS",
+     "sequenceNumber": 120
+    },
+    {
+     "id": 646,
+     "market": "A",
+     "countryCode": "US",
+     "network": "CARNHL",
+     "sequenceNumber": 1
+    },
+    {
+     "id": 754,
+     "market": "A",
+     "countryCode": "US",
+     "network": "HHN",
+     "sequenceNumber": 1
+    }
+   ],
+   "awayTeam": {
+    "id": 12,
+    "commonName": {
+     "default": "Hurricanes"
+    },
+    "placeName": {
+     "default": "Carolina",
+     "fr": "Caroline"
+    },
+    "placeNameWithPreposition": {
+     "default": "Carolina",
+     "fr": "de la Caroline"
+    },
+    "abbrev": "CAR",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CAR_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CAR_dark.svg",
+    "awaySplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CAR/20262027/CAR-radio.m3u8"
+   },
+   "homeTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "homeSplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8"
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://www.ticketmaster.ca/event/110064FB8C53349B?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM4&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM4",
+   "ticketsLinkFr": "https://www.ticketmaster.ca/event/110064FB8C53349B?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM4&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM4",
+   "gameCenterLink": "/gamecenter/car-vs-cgy/2026/10/18/2026020136"
+  },
+  {
+   "id": 2026020162,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-22",
+   "venue": {
+    "default": "Scotiabank Saddledome"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-23T01:00:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-06:00",
+   "venueTimezone": "America/Edmonton",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 284,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SN1",
+     "sequenceNumber": 113
+    },
+    {
+     "id": 648,
+     "market": "A",
+     "countryCode": "US",
+     "network": "MINNHL",
+     "sequenceNumber": 1
+    },
+    {
+     "id": 758,
+     "market": "A",
+     "countryCode": "US",
+     "network": "Wild+",
+     "sequenceNumber": 1
+    }
+   ],
+   "awayTeam": {
+    "id": 30,
+    "commonName": {
+     "default": "Wild"
+    },
+    "placeName": {
+     "default": "Minnesota"
+    },
+    "placeNameWithPreposition": {
+     "default": "Minnesota",
+     "fr": "du Minnesota"
+    },
+    "abbrev": "MIN",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/MIN_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/MIN_dark.svg",
+    "awaySplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/MIN/20262027/MIN-radio.m3u8"
+   },
+   "homeTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "homeSplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8"
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://www.ticketmaster.ca/event/110064FB8C5A34A4?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM5&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM5",
+   "ticketsLinkFr": "https://www.ticketmaster.ca/event/110064FB8C5A34A4?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM5&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM5",
+   "gameCenterLink": "/gamecenter/min-vs-cgy/2026/10/22/2026020162"
+  },
+  {
+   "id": 2026020178,
+   "season": 20262027,
+   "gameType": 2,
+   "gameDate": "2026-10-24",
+   "venue": {
+    "default": "Scotiabank Saddledome"
+   },
+   "neutralSite": false,
+   "startTimeUTC": "2026-10-25T02:00:00Z",
+   "easternUTCOffset": "-04:00",
+   "venueUTCOffset": "-06:00",
+   "venueTimezone": "America/Edmonton",
+   "gameState": "FUT",
+   "gameScheduleState": "OK",
+   "tvBroadcasts": [
+    {
+     "id": 282,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "SN",
+     "sequenceNumber": 107
+    },
+    {
+     "id": 281,
+     "market": "N",
+     "countryCode": "CA",
+     "network": "TVAS",
+     "sequenceNumber": 120
+    },
+    {
+     "id": 645,
+     "market": "A",
+     "countryCode": "US",
+     "network": "DSN",
+     "sequenceNumber": 1
+    }
+   ],
+   "awayTeam": {
+    "id": 17,
+    "commonName": {
+     "default": "Red Wings"
+    },
+    "placeName": {
+     "default": "Detroit"
+    },
+    "placeNameWithPreposition": {
+     "default": "Detroit",
+     "fr": "de Detroit"
+    },
+    "abbrev": "DET",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/DET_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/DET_dark.svg",
+    "awaySplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/DET/20262027/DET-radio.m3u8"
+   },
+   "homeTeam": {
+    "id": 20,
+    "commonName": {
+     "default": "Flames"
+    },
+    "placeName": {
+     "default": "Calgary"
+    },
+    "placeNameWithPreposition": {
+     "default": "Calgary",
+     "fr": "de Calgary"
+    },
+    "abbrev": "CGY",
+    "logo": "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg",
+    "darkLogo": "https://assets.nhle.com/logos/nhl/svg/CGY_dark.svg",
+    "homeSplitSquad": false,
+    "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/CGY/20262027/CGY-radio.m3u8"
+   },
+   "periodDescriptor": {
+    "number": 1,
+    "periodType": "REG",
+    "maxRegulationPeriods": 3
+   },
+   "ticketsLink": "https://www.ticketmaster.ca/event/110064FBA5AF5431?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM6&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM6",
+   "ticketsLinkFr": "https://www.ticketmaster.ca/event/110064FBA5AF5431?brand=calgaryflames&artistid=805907&wt.mc_id=NHL_TEAM_CGY_SCHEDULE_GM6&utm_source=NHL.com&utm_medium=client_PM&utm_campaign=NHL_TEAM_CGY&utm_content=SCHEDULE_GM6",
+   "gameCenterLink": "/gamecenter/det-vs-cgy/2026/10/24/2026020178"
+  }
+ ]
+}

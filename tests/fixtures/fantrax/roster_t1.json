@@ -1,0 +1,619 @@
+{
+ "fantasyTeams": [
+  {
+   "id": "t1",
+   "name": "Caelan's Crushers",
+   "shortName": "CC",
+   "logoUrl128": "x"
+  },
+  {
+   "id": "t2",
+   "name": "Rival Team",
+   "shortName": "RT",
+   "logoUrl128": "x"
+  }
+ ],
+ "myTeamIds": [
+  "t1"
+ ],
+ "displayedSelections": {
+  "displayedPeriod": "1"
+ },
+ "miscData": {
+  "statusTotals": [
+   {
+    "name": "Active",
+    "total": 5,
+    "max": 6
+   },
+   {
+    "name": "Reserve",
+    "total": 1,
+    "max": 6
+   },
+   {
+    "name": "Inj Res",
+    "total": 1,
+    "max": 3
+   },
+   {
+    "name": "Minors",
+    "total": 1,
+    "max": 5
+   }
+  ]
+ },
+ "tables": [
+  {
+   "header": {
+    "cells": [
+     {
+      "shortName": "Age",
+      "key": "age",
+      "name": "Age"
+     },
+     {
+      "shortName": "Opp",
+      "key": "opponent",
+      "name": "Opponent"
+     },
+     {
+      "shortName": "FPts",
+      "key": "fpts",
+      "sortKey": "SCORE",
+      "name": "Fantasy Points"
+     },
+     {
+      "shortName": "FP/G",
+      "key": "fptsPerGame",
+      "sortKey": "FPTS_PER_GAME",
+      "name": "FP/G"
+     },
+     {
+      "shortName": "GP",
+      "key": "30#0000#-1",
+      "isStat": true,
+      "name": "GP"
+     },
+     {
+      "shortName": "G",
+      "key": "30#0001#-1",
+      "isStat": true,
+      "name": "G"
+     },
+     {
+      "shortName": "A",
+      "key": "30#0002#-1",
+      "isStat": true,
+      "name": "A"
+     },
+     {
+      "shortName": "Pts",
+      "key": "30#0003#-1",
+      "isStat": true,
+      "name": "Pts"
+     },
+     {
+      "shortName": "+/-",
+      "key": "30#0004#-1",
+      "isStat": true,
+      "name": "+/-"
+     },
+     {
+      "shortName": "PPP",
+      "key": "30#0005#-1",
+      "isStat": true,
+      "name": "PPP"
+     },
+     {
+      "shortName": "SOG",
+      "key": "30#0006#-1",
+      "isStat": true,
+      "name": "SOG"
+     },
+     {
+      "shortName": "Hit",
+      "key": "30#0007#-1",
+      "isStat": true,
+      "name": "Hit"
+     },
+     {
+      "shortName": "Blk",
+      "key": "30#0008#-1",
+      "isStat": true,
+      "name": "Blk"
+     }
+    ]
+   },
+   "rows": [
+    {
+     "posId": "701",
+     "statusId": "1",
+     "scorer": {
+      "scorerId": "p1",
+      "name": "Young Star",
+      "shortName": "Y. Star",
+      "teamName": "NJ (full)",
+      "teamShortName": "NJ",
+      "posShortNames": "<b>C</b>,RW",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false
+     },
+     "cells": [
+      {
+       "content": "21"
+      },
+      {
+       "content": "@NYR<br/>Wed 7:00PM"
+      },
+      {
+       "content": "46.0"
+      },
+      {
+       "content": "4.6"
+      },
+      {
+       "content": "10"
+      },
+      {
+       "content": "5"
+      },
+      {
+       "content": "7"
+      },
+      {
+       "content": "12"
+      },
+      {
+       "content": "3"
+      },
+      {
+       "content": "4"
+      },
+      {
+       "content": "30"
+      },
+      {
+       "content": "5"
+      },
+      {
+       "content": "3"
+      }
+     ]
+    },
+    {
+     "posId": "702",
+     "statusId": "1",
+     "scorer": {
+      "scorerId": "p2",
+      "name": "Veteran Winger",
+      "shortName": "V. Winger",
+      "teamName": "TB (full)",
+      "teamShortName": "TB",
+      "posShortNames": "LW",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false,
+      "icons": [
+       {
+        "typeId": "1",
+        "tooltip": "Lower Body - Day-to-Day"
+       },
+       {
+        "typeId": "9",
+        "tooltip": "news"
+       }
+      ]
+     },
+     "cells": [
+      {
+       "content": "33"
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "29.0"
+      },
+      {
+       "content": "2.9"
+      },
+      {
+       "content": "10"
+      },
+      {
+       "content": "3"
+      },
+      {
+       "content": "3"
+      },
+      {
+       "content": "6"
+      },
+      {
+       "content": "-2"
+      },
+      {
+       "content": "1"
+      },
+      {
+       "content": "20"
+      },
+      {
+       "content": "10"
+      },
+      {
+       "content": "5"
+      }
+     ]
+    },
+    {
+     "posId": "704",
+     "statusId": "1",
+     "scorer": {
+      "scorerId": "p3",
+      "name": "Steady Dman",
+      "shortName": "S. Dman",
+      "teamName": "LA (full)",
+      "teamShortName": "LA",
+      "posShortNames": "D",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false
+     },
+     "cells": [
+      {
+       "content": "27"
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "38.5"
+      },
+      {
+       "content": "3.85"
+      },
+      {
+       "content": "10"
+      },
+      {
+       "content": "1"
+      },
+      {
+       "content": "5"
+      },
+      {
+       "content": "6"
+      },
+      {
+       "content": "4"
+      },
+      {
+       "content": "2"
+      },
+      {
+       "content": "15"
+      },
+      {
+       "content": "20"
+      },
+      {
+       "content": "25"
+      }
+     ]
+    },
+    {
+     "posId": "706",
+     "statusId": "1",
+     "isEmptyRosterSlot": true,
+     "cells": []
+    },
+    {
+     "posId": "703",
+     "statusId": "2",
+     "scorer": {
+      "scorerId": "p4",
+      "name": "Bench Guy",
+      "shortName": "B. Guy",
+      "teamName": "WAS (full)",
+      "teamShortName": "WAS",
+      "posShortNames": "RW",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false
+     },
+     "cells": [
+      {
+       "content": "25"
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "11.2"
+      },
+      {
+       "content": "1.4"
+      },
+      {
+       "content": "8"
+      },
+      {
+       "content": "1"
+      },
+      {
+       "content": "1"
+      },
+      {
+       "content": "2"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "10"
+      },
+      {
+       "content": "4"
+      },
+      {
+       "content": "2"
+      }
+     ]
+    },
+    {
+     "posId": "701",
+     "statusId": "3",
+     "scorer": {
+      "scorerId": "p5",
+      "name": "Hurt Center",
+      "shortName": "H. Center",
+      "teamName": "MON (full)",
+      "teamShortName": "MON",
+      "posShortNames": "C",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false,
+      "icons": [
+       {
+        "typeId": "2",
+        "tooltip": "Knee - IR"
+       }
+      ]
+     },
+     "cells": [
+      {
+       "content": "29"
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "-"
+      },
+      {
+       "content": "-"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "-"
+      },
+      {
+       "content": "-"
+      },
+      {
+       "content": "-"
+      },
+      {
+       "content": "-"
+      },
+      {
+       "content": "-"
+      },
+      {
+       "content": "-"
+      },
+      {
+       "content": "-"
+      },
+      {
+       "content": "-"
+      }
+     ]
+    },
+    {
+     "posId": "702",
+     "statusId": "9",
+     "scorer": {
+      "scorerId": "p6",
+      "name": "Prospect Kid",
+      "shortName": "P. Kid",
+      "teamName": "SJ (full)",
+      "teamShortName": "SJ",
+      "posShortNames": "LW",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false
+     },
+     "cells": [
+      {
+       "content": "19"
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "header": {
+    "cells": [
+     {
+      "shortName": "Age",
+      "key": "age",
+      "name": "Age"
+     },
+     {
+      "shortName": "Opp",
+      "key": "opponent",
+      "name": "Opponent"
+     },
+     {
+      "shortName": "FPts",
+      "key": "fpts",
+      "sortKey": "SCORE",
+      "name": "Fantasy Points"
+     },
+     {
+      "shortName": "FP/G",
+      "key": "fptsPerGame",
+      "sortKey": "FPTS_PER_GAME",
+      "name": "FP/G"
+     },
+     {
+      "shortName": "GP",
+      "key": "40#0000#-1",
+      "isStat": true,
+      "name": "GP"
+     },
+     {
+      "shortName": "W",
+      "key": "40#0001#-1",
+      "isStat": true,
+      "name": "W"
+     },
+     {
+      "shortName": "GA",
+      "key": "40#0002#-1",
+      "isStat": true,
+      "name": "GA"
+     },
+     {
+      "shortName": "SV",
+      "key": "40#0003#-1",
+      "isStat": true,
+      "name": "SV"
+     },
+     {
+      "shortName": "SO",
+      "key": "40#0004#-1",
+      "isStat": true,
+      "name": "SO"
+     },
+     {
+      "shortName": "GAA",
+      "key": "40#0005#-1",
+      "isStat": true,
+      "name": "GAA"
+     },
+     {
+      "shortName": "SV%",
+      "key": "40#0006#-1",
+      "isStat": true,
+      "name": "SV%"
+     }
+    ]
+   },
+   "rows": [
+    {
+     "posId": "705",
+     "statusId": "1",
+     "scorer": {
+      "scorerId": "p7",
+      "name": "Top Goalie",
+      "shortName": "T. Goalie",
+      "teamName": "VEG (full)",
+      "teamShortName": "VEG",
+      "posShortNames": "G",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false
+     },
+     "cells": [
+      {
+       "content": "29"
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "61.0"
+      },
+      {
+       "content": "6.1"
+      },
+      {
+       "content": "10"
+      },
+      {
+       "content": "6"
+      },
+      {
+       "content": "22"
+      },
+      {
+       "content": "280"
+      },
+      {
+       "content": "1"
+      },
+      {
+       "content": "2.20"
+      },
+      {
+       "content": ".927"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

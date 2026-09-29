@@ -1,0 +1,64 @@
+{
+  "_comment": "Hand-built sample shaped like espn_api 0.46 hockey Player attributes (stats = Player.stats). Not real data.",
+  "year": 2027,
+  "players": [
+    {
+      "name": "Connor McDavid",
+      "playerId": 3895074,
+      "position": "Center",
+      "lineupSlot": "Center",
+      "eligibleSlots": ["Center", "Forward", "Util", "Bench", "IR"],
+      "proTeam": "Edmonton Oilers",
+      "injuryStatus": "ACTIVE",
+      "injured": false,
+      "stats": {
+        "Total 2027": {"total": {"G": 5.0, "A": 8.0, "+/-": 3.0, "PIM": 2.0, "PPG": 2.0, "PPA": 3.0, "SHG": 0.0, "SHA": 0.0, "GWG": 1.0, "FOW": 40.0, "FOL": 35.0, "ATOI": 21.5, "HAT": 0.0, "SOG": 30.0, "HIT": 4.0, "BLK": 2.0, "DEF": 0.0, "GP": 10.0, "STP": 0.0, "PPP": 5.0, "SHP": 0.0, "5": 0.0, "12": 1.0, "TTOI ?": 215.0}},
+        "Last 7 2027": {"total": {"G": 2.0, "A": 3.0, "+/-": 1.0, "SOG": 11.0, "HIT": 1.0, "BLK": 1.0, "PPP": 2.0, "GP": 3.0}},
+        "Total 2026": {"total": {"G": 48.0, "A": 84.0, "+/-": 20.0, "PIM": 30.0, "PPG": 15.0, "PPA": 40.0, "SOG": 290.0, "HIT": 40.0, "BLK": 25.0, "GP": 80.0, "PPP": 55.0, "SHP": 1.0}},
+        "Projected 2027": {"total": {"G": 50.0, "A": 82.0, "+/-": 18.0, "SOG": 300.0, "HIT": 41.0, "BLK": 24.0, "GP": 82.0, "PPP": 52.0}}
+      }
+    },
+    {
+      "name": "Sam Montembeault",
+      "playerId": 4063377,
+      "position": "Goalie",
+      "lineupSlot": "Bench",
+      "eligibleSlots": ["Goalie", "Bench", "IR"],
+      "proTeam": "Montr?al Canadiens",
+      "injuryStatus": "ACTIVE",
+      "injured": false,
+      "stats": {
+        "Total 2027": {"total": {"GS": 4.0, "W": 2.0, "L": 1.0, "SA": 120.0, "GA": 10.0, "SV": 110.0, "SO": 1.0, "OTL": 1.0, "GAA": 2.5, "SV%": 0.917, "GP": 4.0, "MIN ?": 240.0}},
+        "Total 2026": {"total": {"GS": 55.0, "W": 28.0, "L": 20.0, "SA": 1650.0, "GA": 150.0, "SV": 1500.0, "SO": 3.0, "OTL": 7.0, "GAA": 2.8, "SV%": 0.909, "GP": 58.0}}
+      }
+    },
+    {
+      "name": "Dylan Guenther",
+      "playerId": 4697390,
+      "position": "Right Wing",
+      "lineupSlot": "",
+      "eligibleSlots": ["Right Wing", "Forward", "Util", "Bench", "IR"],
+      "proTeam": "Utah Hockey Club",
+      "injuryStatus": "DAY_TO_DAY",
+      "injured": true,
+      "stats": {
+        "Projected 2027": {"total": {"G": 30.0, "A": 30.0, "SOG": 220.0, "HIT": 30.0, "BLK": 20.0, "GP": 78.0, "PPP": 20.0}}
+      }
+    }
+  ],
+  "scoringItems": [
+    {"statId": 13, "points": 2.0, "isReverseItem": false},
+    {"statId": 14, "points": 1.0, "isReverseItem": false},
+    {"statId": 15, "points": 0.5, "isReverseItem": false},
+    {"statId": 29, "points": 0.1, "isReverseItem": false},
+    {"statId": 31, "points": 0.1, "isReverseItem": false},
+    {"statId": 32, "points": 0.5, "isReverseItem": false},
+    {"statId": 38, "points": 0.5, "isReverseItem": false},
+    {"statId": 1, "points": 4.0, "isReverseItem": false},
+    {"statId": 4, "points": -2.0, "isReverseItem": true},
+    {"statId": 6, "points": 0.2, "isReverseItem": false},
+    {"statId": 7, "points": 3.0, "isReverseItem": false},
+    {"statId": 12, "points": 1.0, "isReverseItem": false}
+  ],
+  "lineupSlotCounts": {"0": 2, "1": 2, "2": 2, "3": 0, "4": 4, "5": 2, "6": 1, "7": 5, "8": 3}
+}

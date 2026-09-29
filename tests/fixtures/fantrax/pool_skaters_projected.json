@@ -1,0 +1,543 @@
+{
+ "displayedStatusOrTeam": "ALL_AVAILABLE",
+ "displayedPosOrGroup": "HOCKEY_SKATING",
+ "posOrGroupList": [
+  {
+   "name": "All Players",
+   "id": "ALL",
+   "shortName": "All"
+  },
+  {
+   "name": "Skaters",
+   "id": "HOCKEY_SKATING",
+   "shortName": "Skt"
+  },
+  {
+   "name": "Forward",
+   "id": "POS_207",
+   "shortName": "F"
+  },
+  {
+   "name": "Defense",
+   "id": "POS_202",
+   "shortName": "D"
+  },
+  {
+   "name": "Goalie",
+   "id": "POS_201",
+   "shortName": "G"
+  }
+ ],
+ "tableHeader": {
+  "cells": [
+   {
+    "sortDirection": 1,
+    "name": "Ranking based on fantasy points among all players",
+    "width": 4.0,
+    "shortName": "Rk",
+    "key": "rankOv"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "STATUS",
+    "sortType": "STATUS",
+    "name": "Status",
+    "width": 3.5,
+    "shortName": "Sta",
+    "key": "status"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "AGE",
+    "sortType": "AGE",
+    "name": "Age",
+    "width": 3.5,
+    "shortName": "Age",
+    "key": "age"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORE",
+    "sortType": "SCORE",
+    "width": 5.5,
+    "shortName": "FPts",
+    "key": "fpts"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "FPTS_PER_GAME",
+    "sortType": "FPTS_PER_GAME",
+    "width": 4.5,
+    "shortName": "FP/G",
+    "key": "fptsPerGame"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "OVERVIEW_PERCENT_OWNED_2",
+    "sortType": "OVERVIEW_PERCENT_OWNED_2",
+    "name": "% of Fantrax leagues that have this player on their roster this week",
+    "shortName": "Ros"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "OVERVIEW_PLUS_MINUS_PERCENT_OWNED_2",
+    "sortType": "OVERVIEW_PLUS_MINUS_PERCENT_OWNED_2",
+    "name": "Change in percent Rostered from previous week",
+    "shortName": "+/-"
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2100#-1",
+    "scipId": "2010#2100#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Games Played",
+    "width": 2.5,
+    "shortName": "GP",
+    "key": "2010#2100#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2130#-1",
+    "scipId": "2010#2130#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Goals",
+    "width": 2.5,
+    "shortName": "G",
+    "key": "2010#2130#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2090#-1",
+    "scipId": "2010#2090#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Assists",
+    "width": 2.5,
+    "shortName": "A",
+    "key": "2010#2090#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2170#-1",
+    "scipId": "2010#2170#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Penalty Minutes -- By default, this is a positive category (i.e. the more Penalty Minutes the better).",
+    "width": 3.5,
+    "shortName": "PIM",
+    "key": "2010#2170#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2161#-1",
+    "scipId": "2010#2161#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Fights",
+    "width": 2.5,
+    "shortName": "Ft",
+    "key": "2010#2161#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2270#-1",
+    "scipId": "2010#2270#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Shots on Goal",
+    "width": 3.5,
+    "shortName": "SOG",
+    "key": "2010#2270#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2250#-1",
+    "scipId": "2010#2250#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Short-Handed Goals",
+    "width": 3.5,
+    "shortName": "SHG",
+    "key": "2010#2250#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2098#-1",
+    "scipId": "2010#2098#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Empty Net Goals",
+    "width": 3.5,
+    "shortName": "ENG",
+    "key": "2010#2098#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2327#-1",
+    "scipId": "2010#2327#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Power Play Points",
+    "width": 3.5,
+    "shortName": "PPP",
+    "key": "2010#2327#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2147#-1",
+    "scipId": "2010#2147#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Hits",
+    "width": 3.5,
+    "shortName": "Hit",
+    "key": "2010#2147#-1",
+    "maxWidth": 3.0
+   },
+   {
+    "sortDirection": 1,
+    "sortKey": "SCORING_CATEGORY_2010#2092#-1",
+    "scipId": "2010#2092#-1",
+    "sortType": "SCORING_CATEGORY",
+    "name": "Blocks -- A player blocks a shot by an opposing shooter.",
+    "width": 3.5,
+    "shortName": "Blk",
+    "key": "2010#2092#-1",
+    "maxWidth": 3.0
+   }
+  ]
+ },
+ "displayedSeasonOrProjection": {
+  "code": "PROJECTION_0_31n_SEASON",
+  "endDate": 1807415999000,
+  "name": "Projected - Season",
+  "shortName": "Proj - Season",
+  "timeframeTypeCode": "PROJECTED_SEASON",
+  "startDate": 1790654400000
+ },
+ "displayedSelections": {
+  "displayedSeasonOrProjection": {
+   "code": "PROJECTION_0_31n_SEASON",
+   "endDate": 1807415999000,
+   "name": "Projected - Season",
+   "shortName": "Proj - Season",
+   "timeframeTypeCode": "PROJECTED_SEASON",
+   "startDate": 1790654400000
+  }
+ },
+ "displayedLists": {
+  "displayedSeasonOrProjections": [
+   {
+    "code": "PROJECTION_0_31n_SEASON",
+    "endDate": 1807415999000,
+    "name": "Projected - Season",
+    "shortName": "Proj - Season",
+    "timeframeTypeCode": "PROJECTED_SEASON",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "PROJECTION_0_31n_EVENT_PROJECTED_WEEKLY",
+    "endDate": 1807415999000,
+    "name": "Projected - Per Game",
+    "shortName": "Proj - Per Game",
+    "timeframeTypeCode": "PROJECTED_WEEKLY",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "SEASON_31n_YEAR_TO_DATE",
+    "endDate": 1807415999000,
+    "name": "2026-27 Reg Season - YTD",
+    "showGoBackDays": true,
+    "shortName": "2026-27 Reg - YTD",
+    "timeframeTypeCode": "YEAR_TO_DATE",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "SEASON_31n_BY_PERIOD",
+    "endDate": 1807415999000,
+    "name": "2026-27 Reg Season - Period",
+    "showGoBackDays": true,
+    "shortName": "2026-27 Reg - Period",
+    "timeframeTypeCode": "BY_PERIOD",
+    "startDate": 1790654400000
+   },
+   {
+    "code": "SEASON_31l_YEAR_TO_DATE",
+    "endDate": 1776398399000,
+    "name": "2025-26 Reg Season - YTD",
+    "shortName": "2025-26 Reg - YTD",
+    "timeframeTypeCode": "YEAR_TO_DATE",
+    "startDate": 1759809600000
+   },
+   {
+    "code": "SEASON_31j_YEAR_TO_DATE",
+    "endDate": 1744948799000,
+    "name": "2024-25 Reg Season - YTD",
+    "shortName": "2024-25 Reg - YTD",
+    "timeframeTypeCode": "YEAR_TO_DATE",
+    "startDate": 1728014400000
+   }
+  ]
+ },
+ "paginatedResultSet": {
+  "totalNumPages": 1,
+  "pageNumber": 1,
+  "maxResultsPerPage": 200,
+  "totalNumResults": 3
+ },
+ "statsTable": [
+  {
+   "scorer": {
+    "teamName": "New York Rangers",
+    "urlName": "will-cuylle",
+    "scorerId": "05kbn",
+    "rank": 92,
+    "posIdsNoFlex": [
+     "207"
+    ],
+    "defaultPosId": "203",
+    "posShortNames": "F",
+    "team": false,
+    "icons": [
+     {
+      "tooltip": "news",
+      "typeId": "9"
+     }
+    ],
+    "rookie": false,
+    "minorsEligible": false,
+    "statusId": "4",
+    "posIds": [
+     "207"
+    ],
+    "teamId": "30020",
+    "name": "Will Cuylle",
+    "teamShortName": "NYR",
+    "shortName": "W. Cuylle"
+   },
+   "cells": [
+    {
+     "content": "92"
+    },
+    {
+     "content": "FA",
+     "toolTip": "Free Agent"
+    },
+    {
+     "content": "24"
+    },
+    {
+     "content": "356.7"
+    },
+    {
+     "content": "4.25"
+    },
+    {
+     "content": "66%"
+    },
+    {
+     "gainColor": -1,
+     "content": "-7%"
+    },
+    {
+     "content": "84"
+    },
+    {
+     "content": "19"
+    },
+    {
+     "content": "19"
+    },
+    {
+     "content": "62"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "157"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "2"
+    },
+    {
+     "content": "6"
+    },
+    {
+     "content": "304"
+    },
+    {
+     "content": "64"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "teamName": "Los Angeles Kings",
+    "urlName": "alex-laferriere",
+    "scorerId": "05ltt",
+    "rank": 103,
+    "posIdsNoFlex": [
+     "207"
+    ],
+    "defaultPosId": "204",
+    "posShortNames": "F",
+    "team": false,
+    "rookie": false,
+    "minorsEligible": false,
+    "statusId": "4",
+    "posIds": [
+     "207"
+    ],
+    "teamId": "30270",
+    "name": "Alex Laferriere",
+    "teamShortName": "LAK",
+    "shortName": "A. Laferriere"
+   },
+   "cells": [
+    {
+     "content": "103"
+    },
+    {
+     "content": "FA",
+     "toolTip": "Free Agent"
+    },
+    {
+     "content": "24"
+    },
+    {
+     "content": "339.8"
+    },
+    {
+     "content": "4.05"
+    },
+    {
+     "content": "72%"
+    },
+    {
+     "gainColor": -1,
+     "content": "-7%"
+    },
+    {
+     "content": "84"
+    },
+    {
+     "content": "20"
+    },
+    {
+     "content": "22"
+    },
+    {
+     "content": "23"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "206"
+    },
+    {
+     "content": "2"
+    },
+    {
+     "content": "1"
+    },
+    {
+     "content": "4"
+    },
+    {
+     "content": "226"
+    },
+    {
+     "content": "47"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "teamName": "Chicago Blackhawks",
+    "urlName": "tyler-bertuzzi",
+    "scorerId": "031og",
+    "rank": 113,
+    "posIdsNoFlex": [
+     "207"
+    ],
+    "defaultPosId": "204",
+    "posShortNames": "F",
+    "team": false,
+    "rookie": false,
+    "minorsEligible": false,
+    "statusId": "4",
+    "posIds": [
+     "207"
+    ],
+    "teamId": "30150",
+    "name": "Tyler Bertuzzi",
+    "teamShortName": "CHI",
+    "shortName": "T. Bertuzzi"
+   },
+   "cells": [
+    {
+     "content": "113"
+    },
+    {
+     "content": "FA",
+     "toolTip": "Free Agent"
+    },
+    {
+     "content": "31"
+    },
+    {
+     "content": "329.3"
+    },
+    {
+     "content": "4.07"
+    },
+    {
+     "content": "63%"
+    },
+    {
+     "gainColor": -1,
+     "content": "-5%"
+    },
+    {
+     "content": "81"
+    },
+    {
+     "content": "30"
+    },
+    {
+     "content": "26"
+    },
+    {
+     "content": "46"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "163"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "0"
+    },
+    {
+     "content": "21"
+    },
+    {
+     "content": "61"
+    },
+    {
+     "content": "27"
+    }
+   ]
+  }
+ ]
+}

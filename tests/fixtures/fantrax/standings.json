@@ -1,0 +1,111 @@
+{
+ "tableList": [
+  {
+   "caption": "Standings",
+   "header": {
+    "cells": [
+     {
+      "key": "win"
+     },
+     {
+      "key": "loss"
+     },
+     {
+      "key": "tie"
+     },
+     {
+      "key": "points"
+     },
+     {
+      "key": "winpc"
+     },
+     {
+      "key": "pointsFor"
+     },
+     {
+      "key": "pointsAgainst"
+     },
+     {
+      "key": "wwOrder"
+     }
+    ]
+   },
+   "rows": [
+    {
+     "fixedCells": [
+      {
+       "content": "1"
+      },
+      {
+       "teamId": "t2",
+       "content": "Rival Team"
+      }
+     ],
+     "cells": [
+      {
+       "content": "3"
+      },
+      {
+       "content": "1"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "6"
+      },
+      {
+       "content": ".750"
+      },
+      {
+       "content": "1,234.5"
+      },
+      {
+       "content": "1,100.0"
+      },
+      {
+       "content": "2"
+      }
+     ]
+    },
+    {
+     "fixedCells": [
+      {
+       "content": "2"
+      },
+      {
+       "teamId": "t1",
+       "content": "Caelan's Crushers"
+      }
+     ],
+     "cells": [
+      {
+       "content": "2"
+      },
+      {
+       "content": "2"
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "4"
+      },
+      {
+       "content": ".500"
+      },
+      {
+       "content": "1,150.0"
+      },
+      {
+       "content": "1,200.0"
+      },
+      {
+       "content": "1"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

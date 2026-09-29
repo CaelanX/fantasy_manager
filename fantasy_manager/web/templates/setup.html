@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block heading %}
+<p class="sc dateline">{{ league|upper }} league</p>
+<h1>Setup needed for {{ league|upper }}</h1>
+{% endblock %}
+{% block content %}
+<div class="warn-box" role="alert">
+  <p><strong>Could not load the {{ league }} league.</strong></p>
+  <p>{{ error }}</p>
+</div>
+<section aria-labelledby="h-env">
+<h2 id="h-env">Settings to check in <code>.env</code></h2>
+<p>Copy <code>.env.example</code> to <code>.env</code> in the project folder, fill in these values, then press
+  <em>Refresh data</em> at the bottom of the page.</p>
+<table class="plain">
+  <caption class="sr-only">Environment variables for {{ league }}</caption>
+  <thead><tr><th scope="col">Variable</th><th scope="col">Currently</th><th scope="col">What it is</th></tr></thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <th scope="row"><code>{{ r.env }}</code></th>
+      <td>{% if r.set is none %}<span class="pill pill-unk">unknown</span>{% elif r.set %}<span class="pill pill-ok">set</span>{% else %}<span class="pill pill-out">not set</span>{% endif %}</td>
+      <td>{{ r.note }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="muted">Values are never shown here. The README explains how to copy the ESPN / Fantrax cookies from your browser.
+  {% for lg in LEAGUES if lg != league %}Or try the <a href="/?league={{ lg }}">{{ lg|upper }} league</a>.{% endfor %}</p>
+</section>
+{% endblock %}

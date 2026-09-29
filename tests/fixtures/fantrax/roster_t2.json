@@ -1,0 +1,166 @@
+{
+ "fantasyTeams": [
+  {
+   "id": "t1",
+   "name": "Caelan's Crushers",
+   "shortName": "CC",
+   "logoUrl128": "x"
+  },
+  {
+   "id": "t2",
+   "name": "Rival Team",
+   "shortName": "RT",
+   "logoUrl128": "x"
+  }
+ ],
+ "myTeamIds": [
+  "t1"
+ ],
+ "miscData": {
+  "statusTotals": [
+   {
+    "name": "Active",
+    "total": 3,
+    "max": 6
+   },
+   {
+    "name": "Reserve",
+    "total": 0,
+    "max": 6
+   }
+  ]
+ },
+ "tables": [
+  {
+   "header": {
+    "cells": [
+     {
+      "shortName": "Age",
+      "key": "age",
+      "name": "Age"
+     },
+     {
+      "shortName": "Opp",
+      "key": "opponent",
+      "name": "Opponent"
+     },
+     {
+      "shortName": "FPts",
+      "key": "fpts",
+      "sortKey": "SCORE",
+      "name": "Fantasy Points"
+     },
+     {
+      "shortName": "FP/G",
+      "key": "fptsPerGame",
+      "sortKey": "FPTS_PER_GAME",
+      "name": "FP/G"
+     }
+    ]
+   },
+   "rows": [
+    {
+     "posId": "701",
+     "statusId": "1",
+     "scorer": {
+      "scorerId": "r1",
+      "name": "Rival Center",
+      "shortName": "R. Center",
+      "teamName": "EDM (full)",
+      "teamShortName": "EDM",
+      "posShortNames": "C",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false
+     },
+     "cells": [
+      {
+       "content": "24"
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "50.0"
+      },
+      {
+       "content": "5.0"
+      }
+     ]
+    },
+    {
+     "posId": "704",
+     "statusId": "1",
+     "scorer": {
+      "scorerId": "r2",
+      "name": "Old Dman",
+      "shortName": "O. Dman",
+      "teamName": "DAL (full)",
+      "teamShortName": "DAL",
+      "posShortNames": "D",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false
+     },
+     "cells": [
+      {
+       "content": "35"
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "20.0"
+      },
+      {
+       "content": "2.0"
+      }
+     ]
+    },
+    {
+     "posId": "705",
+     "statusId": "1",
+     "scorer": {
+      "scorerId": "r3",
+      "name": "Backup Goalie",
+      "shortName": "B. Goalie",
+      "teamName": "SJ (full)",
+      "teamShortName": "SJ",
+      "posShortNames": "G",
+      "posIds": [],
+      "posIdsNoFlex": [],
+      "rookie": false,
+      "minorsEligible": false,
+      "icons": [
+       {
+        "typeId": "6",
+        "tooltip": "Suspended"
+       }
+      ]
+     },
+     "cells": [
+      {
+       "content": "31"
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "0"
+      },
+      {
+       "content": "0"
+      }
+     ]
+    },
+    {
+     "posId": "703",
+     "statusId": "2",
+     "cells": []
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>RotoWire.com Latest NHL News</title>
+    <copyright>Copyright (c) 2026 Roto Sports, Inc, All rights reserved.</copyright>
+    <description>Fantasy Sports from RotoWire.com</description>
+    <category>Fantasy Sports</category>
+    <language>en-us</language>
+    <ttl>10</ttl>
+    <image>
+      <title>RotoWire.com Fantasy Sports</title>
+      <width>120</width>
+      <height>30</height>
+      <link>https://www.rotowire.com</link>
+      <url>https://assets.rotowire.com/images/logo_roto_small.gif</url>
+    </image>
+    <link>https://www.rotowire.com</link>
+    <item>
+        <guid>nhl594131</guid>
+        <title>Brock Faber: Begins season on IR</title>
+        <link>https://www.rotowire.com//hockey/player/brock-faber-6317</link>
+        <description>Faber (upper body) will begin the 2026-27 regular season on injured reserve, per Dylan Loucks of The Hockey News.
+
+        Visit RotoWire.com for more analysis on this update.</description>
+        <pubDate>Mon, 28 Sep 2026 2:38:00 PM PDT</pubDate>
+    </item>
+    <item>
+        <guid>nhl594129</guid>
+        <title>Elvis Merzlikins: Shipped to Toronto</title>
+        <link>https://www.rotowire.com//hockey/player/elvis-merzlikins-4475</link>
+        <description>Merzlikins (shoulder), Kirill Marchenko and Miles Wood were traded to the Maple Leafs from the Blue Jackets on Monday in exchange for Matthew Knies, Steven Lorentz, Emil Andrae and a second-round pick, Elliotte Friedman of Sportsnet reports.
+
+        Visit RotoWire.com for more analysis on this update.</description>
+        <pubDate>Mon, 28 Sep 2026 2:36:00 PM PDT</pubDate>
+    </item>
+    <item>
+        <guid>nhl594126</guid>
+        <title>Filip Gustavsson: Moves to injured reserve</title>
+        <link>https://www.rotowire.com//hockey/player/filip-gustavsson-5165</link>
+        <description>Gustavsson (hip) was placed on injured reserve Monday, according to Dylan Loucks of The Hockey News.
+
+        Visit RotoWire.com for more analysis on this update.</description>
+        <pubDate>Mon, 28 Sep 2026 2:29:00 PM PDT</pubDate>
+    </item>
+    <item>
+        <guid>nhl594123</guid>
+        <title>Matthew Knies: Shipped to Columbus</title>
+        <link>https://www.rotowire.com//hockey/player/matthew-knies-6512</link>
+        <description>Knies, alongside Emil Andrae, Steven Lorentz and a second-round pick, was traded to the Blue Jackets from the Maple Leafs in exchange for Kirill Marchenko, Elvis Merzlikins and Miles Wood, per Elliotte Friedman of Sportsnet.
+
+        Visit RotoWire.com for more analysis on this update.</description>
+        <pubDate>Mon, 28 Sep 2026 2:22:00 PM PDT</pubDate>
+    </item>
+    <item>
+        <guid>nhl594122</guid>
+        <title>Jonathan Huberdeau: Lands on IR</title>
+        <link>https://www.rotowire.com//hockey/player/jonathan-huberdeau-3742</link>
+        <description>Huberdeau (hip) was placed on injured reserve Monday, per Pat Steinberg of QR Calgary 770 AM.
+
+        Visit RotoWire.com for more analysis on this update.</description>
+        <pubDate>Mon, 28 Sep 2026 2:15:00 PM PDT</pubDate>
+    </item>
+  </channel>
+</rss>

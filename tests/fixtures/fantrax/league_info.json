@@ -1,0 +1,55 @@
+{
+ "fantasySettings": {
+  "leagueName": "Test Dynasty League",
+  "subtitle": "2026-27 NHL Season",
+  "sportId": "NHL",
+  "season": {
+   "startDate": 1791374400000,
+   "endDate": 1807876800000
+  },
+  "rosterSettings": {
+   "maxActivePlayers": 10,
+   "maxReservePlayers": 6,
+   "maxMinorsPlayers": 5,
+   "keeperLimit": "ALL"
+  },
+  "draftSettings": {
+   "draftType": "ROOKIE",
+   "futureDraftPicksTradeable": true,
+   "numFutureYears": 2
+  },
+  "logoUrl": "https://example.invalid/logo.png"
+ },
+ "positionMap": {
+  "701": {
+   "id": "701",
+   "name": "Center",
+   "shortName": "C"
+  },
+  "702": {
+   "id": "702",
+   "name": "Left Wing",
+   "shortName": "LW"
+  },
+  "703": {
+   "id": "703",
+   "name": "Right Wing",
+   "shortName": "RW"
+  },
+  "704": {
+   "id": "704",
+   "name": "Defense",
+   "shortName": "D"
+  },
+  "705": {
+   "id": "705",
+   "name": "Goalie",
+   "shortName": "G"
+  },
+  "706": {
+   "id": "706",
+   "name": "Utility",
+   "shortName": "Util"
+  }
+ }
+}

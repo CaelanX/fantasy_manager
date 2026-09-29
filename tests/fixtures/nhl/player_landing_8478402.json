@@ -1,0 +1,287 @@
+{
+ "playerId": 8478402,
+ "isActive": true,
+ "currentTeamAbbrev": "EDM",
+ "firstName": {
+  "default": "Connor"
+ },
+ "lastName": {
+  "default": "McDavid"
+ },
+ "sweaterNumber": 97,
+ "position": "C",
+ "birthDate": "1997-01-13",
+ "shootsCatches": "L",
+ "featuredStats": {
+  "season": 20252026,
+  "regularSeason": {
+   "subSeason": {
+    "assists": 90,
+    "gameWinningGoals": 4,
+    "gamesPlayed": 82,
+    "goals": 48,
+    "otGoals": 1,
+    "pim": 44,
+    "plusMinus": 17,
+    "points": 138,
+    "powerPlayGoals": 13,
+    "powerPlayPoints": 54,
+    "shootingPctg": 0.156863,
+    "shorthandedGoals": 1,
+    "shorthandedPoints": 2,
+    "shots": 306
+   },
+   "career": {
+    "assists": 811,
+    "gameWinningGoals": 76,
+    "gamesPlayed": 794,
+    "goals": 409,
+    "otGoals": 17,
+    "pim": 330,
+    "plusMinus": 186,
+    "points": 1220,
+    "powerPlayGoals": 100,
+    "powerPlayPoints": 418,
+    "shootingPctg": 0.1507,
+    "shorthandedGoals": 9,
+    "shorthandedPoints": 19,
+    "shots": 2713
+   }
+  },
+  "playoffs": {
+   "subSeason": {
+    "assists": 5,
+    "gameWinningGoals": 0,
+    "gamesPlayed": 6,
+    "goals": 1,
+    "otGoals": 0,
+    "pim": 2,
+    "plusMinus": -8,
+    "points": 6,
+    "powerPlayGoals": 1,
+    "powerPlayPoints": 4,
+    "shootingPctg": 0.05,
+    "shorthandedGoals": 0,
+    "shorthandedPoints": 0,
+    "shots": 20
+   },
+   "career": {
+    "assists": 111,
+    "gameWinningGoals": 5,
+    "gamesPlayed": 102,
+    "goals": 45,
+    "otGoals": 2,
+    "pim": 30,
+    "plusMinus": 23,
+    "points": 156,
+    "powerPlayGoals": 14,
+    "powerPlayPoints": 58,
+    "shootingPctg": 0.1285,
+    "shorthandedGoals": 2,
+    "shorthandedPoints": 3,
+    "shots": 350
+   }
+  }
+ },
+ "last5Games": [
+  {
+   "assists": 0,
+   "gameDate": "2026-04-30",
+   "gameId": 2025030186,
+   "gameTypeId": 3,
+   "goals": 0,
+   "homeRoadFlag": "R",
+   "opponentAbbrev": "ANA",
+   "pim": 0,
+   "plusMinus": -3,
+   "points": 0,
+   "powerPlayGoals": 0,
+   "shifts": 27,
+   "shorthandedGoals": 0,
+   "shots": 3,
+   "teamAbbrev": "EDM",
+   "toi": "24:49"
+  },
+  {
+   "assists": 2,
+   "gameDate": "2026-04-28",
+   "gameId": 2025030185,
+   "gameTypeId": 3,
+   "goals": 0,
+   "homeRoadFlag": "H",
+   "opponentAbbrev": "ANA",
+   "pim": 0,
+   "plusMinus": 1,
+   "points": 2,
+   "powerPlayGoals": 0,
+   "shifts": 22,
+   "shorthandedGoals": 0,
+   "shots": 4,
+   "teamAbbrev": "EDM",
+   "toi": "24:09"
+  },
+  {
+   "assists": 2,
+   "gameDate": "2026-04-26",
+   "gameId": 2025030184,
+   "gameTypeId": 3,
+   "goals": 0,
+   "homeRoadFlag": "R",
+   "opponentAbbrev": "ANA",
+   "pim": 0,
+   "plusMinus": 0,
+   "points": 2,
+   "powerPlayGoals": 0,
+   "shifts": 26,
+   "shorthandedGoals": 0,
+   "shots": 3,
+   "teamAbbrev": "EDM",
+   "toi": "19:32"
+  },
+  {
+   "assists": 1,
+   "gameDate": "2026-04-24",
+   "gameId": 2025030183,
+   "gameTypeId": 3,
+   "goals": 1,
+   "homeRoadFlag": "R",
+   "opponentAbbrev": "ANA",
+   "pim": 2,
+   "plusMinus": -4,
+   "points": 2,
+   "powerPlayGoals": 1,
+   "shifts": 25,
+   "shorthandedGoals": 0,
+   "shots": 3,
+   "teamAbbrev": "EDM",
+   "toi": "23:50"
+  },
+  {
+   "assists": 0,
+   "gameDate": "2026-04-22",
+   "gameId": 2025030182,
+   "gameTypeId": 3,
+   "goals": 0,
+   "homeRoadFlag": "H",
+   "opponentAbbrev": "ANA",
+   "pim": 0,
+   "plusMinus": -2,
+   "points": 0,
+   "powerPlayGoals": 0,
+   "shifts": 25,
+   "shorthandedGoals": 0,
+   "shots": 4,
+   "teamAbbrev": "EDM",
+   "toi": "24:07"
+  }
+ ],
+ "seasonTotals": [
+  {
+   "assists": 90,
+   "avgToi": "22:59",
+   "faceoffWinningPctg": 0.495125,
+   "gameTypeId": 2,
+   "gameWinningGoals": 4,
+   "gamesPlayed": 82,
+   "goals": 48,
+   "leagueAbbrev": "NHL",
+   "otGoals": 1,
+   "pim": 44,
+   "plusMinus": 17,
+   "points": 138,
+   "powerPlayGoals": 13,
+   "powerPlayPoints": 54,
+   "season": 20252026,
+   "sequence": 1,
+   "shootingPctg": 0.156863,
+   "shorthandedGoals": 1,
+   "shorthandedPoints": 2,
+   "shots": 306,
+   "teamCommonName": {
+    "default": "Oilers"
+   },
+   "teamName": {
+    "default": "Edmonton Oilers",
+    "fr": "Oilers d'Edmonton"
+   },
+   "teamPlaceNameWithPreposition": {
+    "default": "Edmonton",
+    "fr": "d'Edmonton"
+   }
+  },
+  {
+   "assists": 11,
+   "avgToi": "20:14",
+   "faceoffWinningPctg": 0.55,
+   "gameTypeId": 2,
+   "gameWinningGoals": 0,
+   "gamesPlayed": 6,
+   "goals": 2,
+   "leagueAbbrev": "OG",
+   "otGoals": 0,
+   "pim": 0,
+   "plusMinus": 5,
+   "points": 13,
+   "powerPlayGoals": 1,
+   "season": 20252026,
+   "sequence": 11,
+   "shootingPctg": 0.08,
+   "shorthandedGoals": 0,
+   "shots": 26,
+   "teamCommonName": {
+    "default": "Canada",
+    "cs": "Kanada",
+    "de": "Kanada",
+    "es": "Canadá",
+    "fi": "Kanada",
+    "sk": "Kanada",
+    "sv": "Kanada"
+   },
+   "teamName": {
+    "default": "Canada",
+    "cs": "Kanada",
+    "de": "Kanada",
+    "es": "Canadá",
+    "fi": "Kanada",
+    "sk": "Kanada",
+    "sv": "Kanada"
+   },
+   "teamPlaceNameWithPreposition": {
+    "default": ""
+   }
+  },
+  {
+   "assists": 5,
+   "avgToi": "23:33",
+   "faceoffWinningPctg": 0.492537,
+   "gameTypeId": 3,
+   "gameWinningGoals": 0,
+   "gamesPlayed": 6,
+   "goals": 1,
+   "leagueAbbrev": "NHL",
+   "otGoals": 0,
+   "pim": 2,
+   "plusMinus": -8,
+   "points": 6,
+   "powerPlayGoals": 1,
+   "powerPlayPoints": 4,
+   "season": 20252026,
+   "sequence": 1,
+   "shootingPctg": 0.05,
+   "shorthandedGoals": 0,
+   "shorthandedPoints": 0,
+   "shots": 20,
+   "teamCommonName": {
+    "default": "Oilers"
+   },
+   "teamName": {
+    "default": "Edmonton Oilers",
+    "fr": "Oilers d'Edmonton"
+   },
+   "teamPlaceNameWithPreposition": {
+    "default": "Edmonton",
+    "fr": "d'Edmonton"
+   }
+  }
+ ]
+}

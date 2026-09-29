@@ -1,0 +1,25 @@
+{
+  "provider": "espn",
+  "scoring": {
+    "categories": [],
+    "goalie_weights": {},
+    "kind": "points",
+    "weights": {
+      "A": 1.0,
+      "BLK": 0.5,
+      "DEF": 0.1,
+      "G": 2.0,
+      "GA": -1.5,
+      "HAT": 1.0,
+      "HIT": 0.1,
+      "OTL": 1.0,
+      "PPP": 0.5,
+      "SHP": 0.5,
+      "SO": 2.0,
+      "SOG": 0.1,
+      "SV": 0.2,
+      "W": 2.0
+    }
+  },
+  "season": 2027
+}

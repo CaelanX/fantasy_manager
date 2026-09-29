@@ -1,0 +1,966 @@
+{
+ "timestamp": "2026-09-28T22:24:35Z",
+ "status": "success",
+ "season": {
+  "year": 2027,
+  "type": 2,
+  "name": "Regular Season",
+  "displayName": "2026-27"
+ },
+ "injuries": [
+  {
+   "id": "25",
+   "displayName": "Anaheim Ducks",
+   "injuries": [
+    {
+     "id": "593968",
+     "longComment": "day-to-day",
+     "shortComment": "day-to-day",
+     "status": "Day-To-Day",
+     "date": "2026-09-27T13:59Z",
+     "athlete": {
+      "firstName": "A.J.",
+      "lastName": "Greer",
+      "displayName": "A.J. Greer",
+      "shortName": "A.J. Greer",
+      "links": [
+       {
+        "language": "en-US",
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/_/id/3648015",
+        "text": "Player Card",
+        "shortText": "Player Card",
+        "isExternal": false,
+        "isPremium": false
+       },
+       {
+        "language": "en-US",
+        "rel": [
+         "stats",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/stats/_/id/3648015/aj-greer",
+        "text": "Stats",
+        "shortText": "Stats",
+        "isExternal": false,
+        "isPremium": false
+       }
+      ],
+      "position": {
+       "id": "2",
+       "name": "Left Wing",
+       "displayName": "Left Wing",
+       "abbreviation": "LW",
+       "leaf": true
+      },
+      "team": {
+       "id": "25",
+       "abbreviation": "ANA",
+       "displayName": "Anaheim Ducks",
+       "slug": "anaheim-ducks"
+      },
+      "notes": {
+       "items": [
+        {
+         "id": "593968",
+         "type": "news",
+         "date": "2026-09-27T13:59Z",
+         "headline": "day-to-day",
+         "text": "day-to-day",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/3648015/injuries/593968?lang=en&region=us"
+         }
+        }
+       ]
+      },
+      "status": {
+       "id": "1",
+       "name": "Active",
+       "type": "active",
+       "abbreviation": "Active"
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "Day-To-Day",
+       "abbreviation": "Day-To-Day"
+      },
+      "type": "Upper Body",
+      "returnDate": "2026-10-02"
+     }
+    },
+    {
+     "id": "593299",
+     "longComment": "Terry underwent hip surgery in June and received a recovery timeline of 5-6 months. He still seems to be on track for a November return, but the exact date remains unclear. Terry compiled 19 goals, 57 points and 161 shots on net in 61 games during the 2025-26 regular season. Once he's ready to play, he will likely occupy a top-line role.",
+     "shortComment": "Terry (hip) is slated to be out for another 2-3 months, according to Zach Cavanagh of The Sporting Tribune on Saturday.",
+     "status": "Out",
+     "date": "2026-09-19T17:40Z",
+     "athlete": {
+      "firstName": "Troy",
+      "lastName": "Terry",
+      "displayName": "Troy Terry",
+      "shortName": "T. Terry",
+      "links": [
+       {
+        "language": "en-US",
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/_/id/3942905",
+        "text": "Player Card",
+        "shortText": "Player Card",
+        "isExternal": false,
+        "isPremium": false
+       },
+       {
+        "language": "en-US",
+        "rel": [
+         "stats",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/stats/_/id/3942905/troy-terry",
+        "text": "Stats",
+        "shortText": "Stats",
+        "isExternal": false,
+        "isPremium": false
+       }
+      ],
+      "position": {
+       "id": "3",
+       "name": "Right Wing",
+       "displayName": "Right Wing",
+       "abbreviation": "RW",
+       "leaf": true
+      },
+      "team": {
+       "id": "25",
+       "abbreviation": "ANA",
+       "displayName": "Anaheim Ducks",
+       "slug": "anaheim-ducks"
+      },
+      "notes": {
+       "items": []
+      },
+      "status": {
+       "id": "1",
+       "name": "Active",
+       "type": "active",
+       "abbreviation": "Active"
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "4",
+      "name": "INJURY_STATUS_OUT",
+      "description": "out",
+      "abbreviation": "O"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OUT",
+       "abbreviation": "OUT"
+      },
+      "type": "Hip",
+      "detail": "Surgery",
+      "returnDate": "2026-11-21"
+     }
+    }
+   ]
+  },
+  {
+   "id": "1",
+   "displayName": "Boston Bruins",
+   "injuries": [
+    {
+     "id": "594005",
+     "longComment": "Poitras suffered his lower-body injury during Tuesday's practice session and was kept out of the Bruins' preseason finale Friday. The 22-year-old center saw limited action at the NHL level last season, where he posted a goal and eight shots on net across three regular-season appearances. When he's healthy enough to return from IR, the Bruins will have to make a decision on whether he will factor into the NHL lineup or to start his 2026-27 campaign with AHL Providence, where he posted 44 points in 69 regular-season games a year ago.",
+     "shortComment": "Poitras (lower body) was placed on injured reserve by the Bruins on Sunday, per Conor Ryan of The Boston Globe.",
+     "status": "Injured Reserve",
+     "date": "2026-09-27T18:16Z",
+     "athlete": {
+      "firstName": "Matthew",
+      "lastName": "Poitras",
+      "displayName": "Matthew Poitras",
+      "shortName": "M. Poitras",
+      "links": [
+       {
+        "language": "en-US",
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/_/id/5080221",
+        "text": "Player Card",
+        "shortText": "Player Card",
+        "isExternal": false,
+        "isPremium": false
+       },
+       {
+        "language": "en-US",
+        "rel": [
+         "stats",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/stats/_/id/5080221/matthew-poitras",
+        "text": "Stats",
+        "shortText": "Stats",
+        "isExternal": false,
+        "isPremium": false
+       }
+      ],
+      "position": {
+       "id": "1",
+       "name": "Center",
+       "displayName": "Center",
+       "abbreviation": "C",
+       "leaf": true
+      },
+      "team": {
+       "id": "1",
+       "abbreviation": "BOS",
+       "displayName": "Boston Bruins",
+       "slug": "boston-bruins"
+      },
+      "notes": {
+       "items": [
+        {
+         "id": "594010",
+         "type": "news",
+         "date": "2026-09-27T18:17Z",
+         "headline": "ir",
+         "text": "ir",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080221/injuries/594010?lang=en&region=us"
+         }
+        },
+        {
+         "id": "594005",
+         "type": "news",
+         "date": "2026-09-27T18:16Z",
+         "headline": "Poitras (lower body) was placed on injured reserve by the Bruins on Sunday, per Conor Ryan of The Boston Globe.",
+         "text": "Poitras suffered his lower-body injury during Tuesday's practice session and was kept out of the Bruins' preseason finale Friday. The 22-year-old center saw limited action at the NHL level last season, where he posted a goal and eight shots on net across three regular-season appearances. When he's healthy enough to return from IR, the Bruins will have to make a decision on whether he will factor into the NHL lineup or to start his 2026-27 campaign with AHL Providence, where he posted 44 points in 69 regular-season games a year ago.",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080221/injuries/594005?lang=en&region=us"
+         }
+        },
+        {
+         "id": "593988",
+         "type": "news",
+         "date": "2026-09-27T14:22Z",
+         "headline": "day-to-day",
+         "text": "day-to-day",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080221/injuries/593988?lang=en&region=us"
+         }
+        },
+        {
+         "id": "593764",
+         "type": "news",
+         "date": "2026-09-25T15:27Z",
+         "headline": "Poitras (lower body) isn't on the roster for Friday's preseason finale against the Capitals, Scott McLaughlin of WEEI reports.",
+         "text": "Poitras is considered day-to-day due to a lower-body injury that he sustained during Tuesday's practice session, and he'll be held out for the team's final preseason game. The 22-year-old was ultimately limited to just one preseason appearance due to his injury, and it's not yet clear whether the lower-body issue will impact his availability for Tuesday's Opening Night matchup against the Rangers.",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080221/injuries/593764?lang=en&region=us"
+         }
+        },
+        {
+         "id": "593596",
+         "type": "news",
+         "date": "2026-09-23T19:22Z",
+         "headline": "out",
+         "text": "out",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080221/injuries/593596?lang=en&region=us"
+         }
+        },
+        {
+         "id": "593552",
+         "type": "news",
+         "date": "2026-09-23T17:20Z",
+         "headline": "Poitras is day-to-day due to a lower-body injury, Conor Ryan of The Boston Globe reports Wednesday.",
+         "text": "Poitras sustained the injury during Tuesday's practice, and he missed Wednesday's morning skate. The 22-year-old had 13 goals, 44 points and 48 PIM in 69 regular-season appearances with AHL Providence in 2025-26. He also had a goal in three regular-season outings with Boston last year. Poitras is likely to spend the majority of the upcoming campaign in the minors.",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080221/injuries/593552?lang=en&region=us"
+         }
+        },
+        {
+         "id": "593532",
+         "type": "news",
+         "date": "2026-09-23T15:38Z",
+         "headline": "day-to-day",
+         "text": "day-to-day",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080221/injuries/593532?lang=en&region=us"
+         }
+        }
+       ]
+      },
+      "status": {
+       "id": "1",
+       "name": "Active",
+       "type": "active",
+       "abbreviation": "Active"
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "5",
+      "name": "INJURY_STATUS_IR",
+      "description": "Injured Reserve",
+      "abbreviation": "IR"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "IR",
+       "abbreviation": "IR"
+      },
+      "type": "Lower Body",
+      "returnDate": "2026-10-05"
+     }
+    },
+    {
+     "id": "593387",
+     "longComment": "McAvoy is set to serve a six-game suspension to begin the year after slashing the Sabres' Zach Benson during the Bruins' first-round series loss last season. While the right-shot defenseman's draft stock may have dipped ever so slightly because of the suspension, fantasy managers should keep in mind that McAvoy is coming off a career-best year (11 goals, 61 points in 69 regular-season games), so don't let him fall too far in upcoming drafts. The 28-year-old is eligible to make his 2026-27 debut Oct. 13 in San Jose.",
+     "shortComment": "McAvoy logged an even-strength goal on three shots and four PIM in a game-high 28:35 of ice time during Sunday's 3-2 shootout win over the Capitals in preseason play.",
+     "status": "Suspension",
+     "date": "2026-09-21T05:14Z",
+     "athlete": {
+      "firstName": "Charlie",
+      "lastName": "McAvoy",
+      "displayName": "Charlie McAvoy",
+      "shortName": "C. McAvoy",
+      "links": [
+       {
+        "language": "en-US",
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/_/id/3988803",
+        "text": "Player Card",
+        "shortText": "Player Card",
+        "isExternal": false,
+        "isPremium": false
+       },
+       {
+        "language": "en-US",
+        "rel": [
+         "stats",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/stats/_/id/3988803/charlie-mcavoy",
+        "text": "Stats",
+        "shortText": "Stats",
+        "isExternal": false,
+        "isPremium": false
+       }
+      ],
+      "position": {
+       "id": "4",
+       "name": "Defense",
+       "displayName": "Defense",
+       "abbreviation": "D",
+       "leaf": true
+      },
+      "team": {
+       "id": "1",
+       "abbreviation": "BOS",
+       "displayName": "Boston Bruins",
+       "slug": "boston-bruins"
+      },
+      "notes": {
+       "items": []
+      },
+      "status": {
+       "id": "1",
+       "name": "Active",
+       "type": "active",
+       "abbreviation": "Active"
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "17",
+      "name": "INJURY_STATUS_SUSPENSION",
+      "description": "Suspension",
+      "abbreviation": "SUSP"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OUT",
+       "abbreviation": "OUT"
+      },
+      "type": "Suspension",
+      "returnDate": "2026-10-13"
+     }
+    }
+   ]
+  },
+  {
+   "id": "11",
+   "displayName": "New Jersey Devils",
+   "injuries": [
+    {
+     "id": "593970",
+     "longComment": "day-to-day",
+     "shortComment": "day-to-day",
+     "status": "Day-To-Day",
+     "date": "2026-09-27T13:59Z",
+     "athlete": {
+      "firstName": "Johnathan",
+      "lastName": "Kovacevic",
+      "displayName": "Johnathan Kovacevic",
+      "shortName": "J. Kovacevic",
+      "links": [
+       {
+        "language": "en-US",
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/_/id/4587933",
+        "text": "Player Card",
+        "shortText": "Player Card",
+        "isExternal": false,
+        "isPremium": false
+       },
+       {
+        "language": "en-US",
+        "rel": [
+         "stats",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/stats/_/id/4587933/johnathan-kovacevic",
+        "text": "Stats",
+        "shortText": "Stats",
+        "isExternal": false,
+        "isPremium": false
+       }
+      ],
+      "position": {
+       "id": "4",
+       "name": "Defense",
+       "displayName": "Defense",
+       "abbreviation": "D",
+       "leaf": true
+      },
+      "team": {
+       "id": "11",
+       "abbreviation": "NJ",
+       "displayName": "New Jersey Devils",
+       "slug": "new-jersey-devils"
+      },
+      "notes": {
+       "items": [
+        {
+         "id": "593970",
+         "type": "news",
+         "date": "2026-09-27T13:59Z",
+         "headline": "day-to-day",
+         "text": "day-to-day",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/4587933/injuries/593970?lang=en&region=us"
+         }
+        }
+       ]
+      },
+      "status": {
+       "id": "1",
+       "name": "Active",
+       "type": "active",
+       "abbreviation": "Active"
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "Day-To-Day",
+       "abbreviation": "Day-To-Day"
+      },
+      "type": "Knee",
+      "side": "Right",
+      "returnDate": "2026-10-01"
+     }
+    },
+    {
+     "id": "593703",
+     "longComment": "out",
+     "shortComment": "out",
+     "status": "Out",
+     "date": "2026-09-25T02:18Z",
+     "athlete": {
+      "firstName": "Seamus",
+      "lastName": "Casey",
+      "displayName": "Seamus Casey",
+      "shortName": "S. Casey",
+      "links": [
+       {
+        "language": "en-US",
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/_/id/5080212",
+        "text": "Player Card",
+        "shortText": "Player Card",
+        "isExternal": false,
+        "isPremium": false
+       },
+       {
+        "language": "en-US",
+        "rel": [
+         "stats",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/stats/_/id/5080212/seamus-casey",
+        "text": "Stats",
+        "shortText": "Stats",
+        "isExternal": false,
+        "isPremium": false
+       }
+      ],
+      "position": {
+       "id": "4",
+       "name": "Defense",
+       "displayName": "Defense",
+       "abbreviation": "D",
+       "leaf": true
+      },
+      "team": {
+       "id": "11",
+       "abbreviation": "NJ",
+       "displayName": "New Jersey Devils",
+       "slug": "new-jersey-devils"
+      },
+      "notes": {
+       "items": [
+        {
+         "id": "593703",
+         "type": "news",
+         "date": "2026-09-25T02:18Z",
+         "headline": "out",
+         "text": "out",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080212/injuries/593703?lang=en&region=us"
+         }
+        }
+       ]
+      },
+      "status": {
+       "id": "1",
+       "name": "Active",
+       "type": "active",
+       "abbreviation": "Active"
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "4",
+      "name": "INJURY_STATUS_OUT",
+      "description": "out",
+      "abbreviation": "O"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OUT",
+       "abbreviation": "OUT"
+      },
+      "type": "Knee",
+      "returnDate": "2026-10-01"
+     }
+    }
+   ]
+  },
+  {
+   "id": "129764",
+   "displayName": "Utah Mammoth",
+   "injuries": [
+    {
+     "id": "594121",
+     "longComment": "ir",
+     "shortComment": "ir",
+     "status": "Injured Reserve",
+     "date": "2026-09-28T21:02Z",
+     "athlete": {
+      "firstName": "Maveric",
+      "lastName": "Lamoureux",
+      "displayName": "Maveric Lamoureux",
+      "shortName": "M. Lamoureux",
+      "links": [
+       {
+        "language": "en-US",
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/_/id/5080177",
+        "text": "Player Card",
+        "shortText": "Player Card",
+        "isExternal": false,
+        "isPremium": false
+       },
+       {
+        "language": "en-US",
+        "rel": [
+         "stats",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/stats/_/id/5080177/maveric-lamoureux",
+        "text": "Stats",
+        "shortText": "Stats",
+        "isExternal": false,
+        "isPremium": false
+       }
+      ],
+      "position": {
+       "id": "4",
+       "name": "Defense",
+       "displayName": "Defense",
+       "abbreviation": "D",
+       "leaf": true
+      },
+      "team": {
+       "id": "129764",
+       "abbreviation": "UTA",
+       "displayName": "Utah Mammoth",
+       "slug": "utah-mammoth"
+      },
+      "notes": {
+       "items": [
+        {
+         "id": "594121",
+         "type": "news",
+         "date": "2026-09-28T21:02Z",
+         "headline": "ir",
+         "text": "ir",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080177/injuries/594121?lang=en&region=us"
+         }
+        },
+        {
+         "id": "594119",
+         "type": "news",
+         "date": "2026-09-28T20:57Z",
+         "headline": "Lamoureaux will miss 4-6 months following surgery to repair a dislocated shoulder, the team announced Monday.",
+         "text": "Lamoureux should be considered a lock for injured reserve given his recovery timeline, though the move hasn't been officially made yet. Even if healthy, the 22-year-old blueliner faced an uphill battle to secure a spot on the Opening Night roster. Once given the all-clear, Lamoureux should be expected to head down to the minors before being on the shortlist of potential call-ups.",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080177/injuries/594119?lang=en&region=us"
+         }
+        },
+        {
+         "id": "593605",
+         "type": "news",
+         "date": "2026-09-23T21:52Z",
+         "headline": "out",
+         "text": "out",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080177/injuries/593605?lang=en&region=us"
+         }
+        },
+        {
+         "id": "593604",
+         "type": "news",
+         "date": "2026-09-23T21:51Z",
+         "headline": "Lamoureux is expected to miss some time due to his upper-body injury, per Brogan Houston of the Deseret News on Wednesday.",
+         "text": "Lamoureux sustained the injury during Tuesday's preseason game against Los Angeles. He had five goals, 20 points and 75 PIM in 65 regular-season appearances with AHL Tucson in 2025-26. Lamoureux might be sent to the minors once he's healthy.",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080177/injuries/593604?lang=en&region=us"
+         }
+        },
+        {
+         "id": "593514",
+         "type": "news",
+         "date": "2026-09-23T05:49Z",
+         "headline": "day-to-day",
+         "text": "day-to-day",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080177/injuries/593514?lang=en&region=us"
+         }
+        }
+       ]
+      },
+      "status": {
+       "id": "1",
+       "name": "Active",
+       "type": "active",
+       "abbreviation": "Active"
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "5",
+      "name": "INJURY_STATUS_IR",
+      "description": "Injured Reserve",
+      "abbreviation": "IR"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "IR",
+       "abbreviation": "IR"
+      },
+      "type": "Shoulder",
+      "returnDate": "2027-02-12"
+     }
+    }
+   ]
+  },
+  {
+   "id": "28",
+   "displayName": "Winnipeg Jets",
+   "injuries": [
+    {
+     "id": "593776",
+     "longComment": "Salomonsson was initially targeting a return to game action around late October, but he could be in the mix to suit up a few weeks earlier than expected. The 22-year-old was skating in a regular sweater early in training camp, and he's expected to join the main group for practice in a non-contact sweater Sunday, per Ken Wiebe of The Winnipeg Free Press.",
+     "shortComment": "Head coach Scott Arniel said Friday that Salomonsson (shoulder) is ahead of schedule in his recovery and could be ready to play by mid-October, Mike McIntyre of the Winnipeg Free Press reports.",
+     "status": "Out",
+     "date": "2026-09-25T16:47Z",
+     "athlete": {
+      "firstName": "Elias",
+      "lastName": "Salomonsson",
+      "displayName": "Elias Salomonsson",
+      "shortName": "E. Salomonsson",
+      "links": [
+       {
+        "language": "en-US",
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/_/id/5080223",
+        "text": "Player Card",
+        "shortText": "Player Card",
+        "isExternal": false,
+        "isPremium": false
+       },
+       {
+        "language": "en-US",
+        "rel": [
+         "stats",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/stats/_/id/5080223/elias-salomonsson",
+        "text": "Stats",
+        "shortText": "Stats",
+        "isExternal": false,
+        "isPremium": false
+       }
+      ],
+      "position": {
+       "id": "4",
+       "name": "Defense",
+       "displayName": "Defense",
+       "abbreviation": "D",
+       "leaf": true
+      },
+      "team": {
+       "id": "28",
+       "abbreviation": "WPG",
+       "displayName": "Winnipeg Jets",
+       "slug": "winnipeg-jets"
+      },
+      "notes": {
+       "items": [
+        {
+         "id": "593776",
+         "type": "news",
+         "date": "2026-09-25T16:47Z",
+         "headline": "Head coach Scott Arniel said Friday that Salomonsson (shoulder) is ahead of schedule in his recovery and could be ready to play by mid-October, Mike McIntyre of the Winnipeg Free Press reports.",
+         "text": "Salomonsson was initially targeting a return to game action around late October, but he could be in the mix to suit up a few weeks earlier than expected. The 22-year-old was skating in a regular sweater early in training camp, and he's expected to join the main group for practice in a non-contact sweater Sunday, per Ken Wiebe of The Winnipeg Free Press.",
+         "source": "RotoWire",
+         "injury": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/hockey/leagues/nhl/seasons/2027/athletes/5080223/injuries/593776?lang=en&region=us"
+         }
+        }
+       ]
+      },
+      "status": {
+       "id": "4",
+       "name": "Minors",
+       "type": "minors",
+       "abbreviation": "Minors"
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "4",
+      "name": "INJURY_STATUS_OUT",
+      "description": "out",
+      "abbreviation": "O"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OUT",
+       "abbreviation": "OUT"
+      },
+      "type": "Shoulder",
+      "detail": "Surgery",
+      "side": "Not Specified",
+      "returnDate": "2026-10-15"
+     }
+    },
+    {
+     "id": "593235",
+     "longComment": "suspension",
+     "shortComment": "suspension",
+     "status": "Suspension",
+     "date": "2026-09-17T01:27Z",
+     "athlete": {
+      "firstName": "Connor",
+      "lastName": "Hellebuyck",
+      "displayName": "Connor Hellebuyck",
+      "shortName": "C. Hellebuyck",
+      "links": [
+       {
+        "language": "en-US",
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/_/id/3020225",
+        "text": "Player Card",
+        "shortText": "Player Card",
+        "isExternal": false,
+        "isPremium": false
+       },
+       {
+        "language": "en-US",
+        "rel": [
+         "stats",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/nhl/player/stats/_/id/3020225/connor-hellebuyck",
+        "text": "Stats",
+        "shortText": "Stats",
+        "isExternal": false,
+        "isPremium": false
+       }
+      ],
+      "position": {
+       "id": "5",
+       "name": "Goaltender",
+       "displayName": "Goaltender",
+       "abbreviation": "G",
+       "leaf": false
+      },
+      "team": {
+       "id": "28",
+       "abbreviation": "WPG",
+       "displayName": "Winnipeg Jets",
+       "slug": "winnipeg-jets"
+      },
+      "notes": {
+       "items": []
+      },
+      "status": {
+       "id": "1",
+       "name": "Active",
+       "type": "active",
+       "abbreviation": "Active"
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "17",
+      "name": "INJURY_STATUS_SUSPENSION",
+      "description": "Suspension",
+      "abbreviation": "SUSP"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OUT",
+       "abbreviation": "OUT"
+      },
+      "type": "Suspension",
+      "returnDate": "2026-10-17"
+     }
+    }
+   ]
+  }
+ ]
+}

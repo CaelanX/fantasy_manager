@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{ title }}{% if res %} - {{ res.ctx.name }}{% endif %} | Fantasy Manager</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body hx-boost="true">
+<a class="skip" href="#main">Skip to content</a>
+<header class="wrap">
+  <div class="mast">
+    <a class="brand" href="/?league={{ league }}">Fantasy Manager <span>/ hockey</span></a>
+    <nav class="tabs" aria-label="Sections">
+      {% set sections = [("/", "Overview"), ("/roster", "Roster"), ("/recommendations", "Moves"), ("/news", "News")] %}
+      {% for href, label in sections %}
+      <a href="{{ href }}?league={{ league }}"{% if path == href %} aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <nav class="leagues" aria-label="League">
+      {% for lg in LEAGUES %}
+      <a href="{{ switch_path }}?league={{ lg }}"{% if lg == league %} aria-current="page"{% endif %}>{{ lg|upper }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap" tabindex="-1">
+  <div class="head">
+    <div class="head-text">{% block heading %}<h1>{{ title }}</h1>{% endblock %}</div>
+    {% if show_mode %}
+    <div class="mode">
+      <span id="mode-label" class="sc">Dynasty mode</span>
+      <div class="seg" role="group" aria-labelledby="mode-label">
+        {% for m in MODES %}
+        <form method="post" action="/mode" class="mode-form">
+          <input type="hidden" name="mode" value="{{ m }}">
+          <input type="hidden" name="league" value="{{ league }}">
+          <input type="hidden" name="next" value="{{ here }}">
+          <button type="submit" class="mode-btn" aria-pressed="{{ 'true' if m == cur_mode else 'false' }}"
+                  title="Recalculate dynasty values and moves in {{ m }} mode">{{ m|capitalize }}</button>
+          <span class="mode-busy" role="status">Recalculating with {{ m }} mode&hellip;</span>
+        </form>
+        {% endfor %}
+      </div>
+      <p class="mode-note">How dynasty value weighs this season against future seasons.</p>
+    </div>
+    {% endif %}
+  </div>
+  {% if flash %}<p class="flash" role="status">{{ flash }}</p>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="wrap foot">
+  <div class="foot-in">
+    <div class="foot-text">
+      {% if res %}
+      <p>
+        <strong>{{ res.ctx.name }}</strong> &middot; {{ res.ctx.provider }} league {{ res.ctx.league_id }}
+        &middot; data as of {{ res.ctx.as_of }} &middot; loaded
+        <time datetime="{{ res.loaded_at.isoformat(timespec='seconds') }}">{{ res.loaded_at.strftime('%H:%M') }}</time>
+        ({{ res.loaded_at|ago(now) }}; cached for 10 min)
+      </p>
+      {% endif %}
+      {% if show_mode %}
+      <p class="mode-foot">Dynasty mode: <strong>{{ data_mode }}</strong> (from {{ mode_source_label(data_mode_source) }}){% if res and res.compute_seconds is not none %} &middot; computed in {{ '%.1f'|format(res.compute_seconds) }}s{% if res.recalc_only %} (mode recalculation only){% endif %}{% endif %}</p>
+      {% endif %}
+      {% if res %}
+      {% if res.ctx.source_notes %}
+      <details><summary>Data sources ({{ res.ctx.source_notes|length }})</summary>
+        <ul>{% for n in res.ctx.source_notes %}<li>{{ n }}</li>{% endfor %}</ul>
+      </details>
+      {% endif %}
+      {% if res.warnings %}
+      <details><summary>Warnings ({{ res.warnings|length }})</summary>
+        <ul class="warn-box">{% for w in res.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+      </details>
+      {% endif %}
+      {% endif %}
+    </div>
+    <form method="post" action="/refresh?league={{ league }}&amp;next={{ here|urlencode }}">
+      <button type="submit" class="linkbtn">Refresh data</button>
+    </form>
+  </div>
+</footer>
+</body>
+</html>

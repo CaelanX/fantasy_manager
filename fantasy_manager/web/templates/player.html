@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% from "_macros.html" import move_list, pill, news_item, reasons_table, prospect_mark with context %}
+{% block heading %}
+<p class="sc dateline">{% if team %}{{ team.name }} &middot; slot {{ slot }}{% else %}Free agent{% endif %}{% if p.pct_owned is not none %} &middot; {{ p.pct_owned|n1 }}% rostered{% endif %}</p>
+<h1>{{ p.name }}{{ prospect_mark(row.prospect) }}</h1>
+<p class="sub">{{ pill(p.status) }} &middot; {{ p|pos }} &middot; {{ p.team or 'no NHL team' }}{% if row.age is not none %} &middot; age {{ row.age|n1 }}{% endif %}{% if p.career_gp is not none %} &middot; {{ p.career_gp }} NHL games{% endif %}{% if p.draft_year %} &middot; drafted {{ p.draft_year }}{% if p.draft_overall %} #{{ p.draft_overall }} overall{% elif p.draft_round %} round {{ p.draft_round }}{% endif %}{% endif %}{% if row.prospect %} &middot; prospect{% endif %}</p>
+{% if p.status_note %}<p class="note">{{ p.status_note }}</p>{% endif %}
+{% endblock %}
+{% block content %}
+<section aria-labelledby="h-values">
+  <h2 id="h-values">Value</h2>
+  {% if pv %}
+  <dl class="tiles">
+    <div><dt>FPG healthy</dt><dd>{{ pv.fpg|n1 }} <small>FPG</small></dd></div>
+    <div><dt>FPG season</dt><dd>{{ pv.fpg_season|n1 }} <small>FPG</small></dd></div>
+    <div><dt>FPG week</dt><dd>{{ pv.fpg_week|n1 }} <small>FPG</small></dd></div>
+    {% if pv.proj_week is defined and pv.proj_week is not none %}<div><dt>Projected week</dt><dd>{{ pv.proj_week|n1 }} <small>pts/wk</small></dd></div>{% endif %}
+    {% if pv.games_next7 is defined and pv.games_next7 is not none %}<div><dt>Games next 7d</dt><dd>{{ pv.games_next7 }}{% if pv.offnight_next7 %} <small>{{ pv.offnight_next7 }} off-night</small>{% endif %}</dd></div>{% endif %}
+    <div><dt>VORP season</dt><dd class="{{ 'pos' if pv.vorp > 0 else ('neg' if pv.vorp < 0 else '') }}">{{ pv.vorp|n1(True) }} <small>FPG</small></dd></div>
+    {% if pv.vorp_week is defined and pv.vorp_week is not none %}<div><dt>VORP week</dt><dd class="{{ 'pos' if pv.vorp_week > 0 else ('neg' if pv.vorp_week < 0 else '') }}">{{ pv.vorp_week|n1(True) }} <small>FPG</small></dd></div>{% endif %}
+    {% if pv.start_share is defined and pv.start_share is not none %}<div><dt>Start share</dt><dd>{{ (pv.start_share * 100)|n1 }}<small>%</small></dd></div>{% endif %}
+    {% if dyn %}<div><dt>Dynasty{% if dyn.horizon_years is defined %} ({{ dyn.horizon_years }}y){% endif %}</dt><dd>{{ dyn.value|n1 }}</dd></div>{% endif %}
+  </dl>
+  {% set cols_r = GOALIE_RATES if p.is_goalie else SKATER_RATES %}
+  <h3 class="sub-h">Model per game</h3>
+  <div class="tbl"><table class="r rates-t">
+    <caption class="sr-only">Blended per-game rates used by the model</caption>
+    <thead><tr>{% for k in cols_r %}<th scope="col" class="n">{{ RATE_LABEL.get(k, k) }}{% if k not in ('GAA', 'SVPCT') %}/GP{% endif %}</th>{% endfor %}</tr></thead>
+    <tbody><tr>{% for k in cols_r %}<td class="n">{{ row.rates.get(k)|rate(k) }}</td>{% endfor %}</tr></tbody>
+  </table></div>
+  {% set vreasons = pv.reasons if pv.reasons is defined else [] %}
+  {% if vreasons %}
+  <h3 class="sub-h">Valuation reasons</h3>
+  {{ reasons_table(vreasons, 'Valuation reasons with their numbers') }}
+  {% endif %}
+  {% else %}
+  <p class="empty">No valuation for this player.</p>
+  {% endif %}
+</section>
+
+{% if breakdown %}
+<section aria-labelledby="h-dyn">
+  <h2 id="h-dyn">Dynasty breakdown <span class="aside">{{ breakdown.mode }} mode &middot; {{ breakdown.horizon }}-year horizon</span></h2>
+  <dl class="tiles">
+    <div><dt>Dynasty value</dt><dd>{{ breakdown.value|n1 }}</dd></div>
+    {% if breakdown.age is not none %}<div><dt>Age</dt><dd>{{ breakdown.age|n1 }}</dd></div>{% endif %}
+    {% if breakdown.age_mult is not none %}<div><dt>Age curve</dt><dd>{{ (breakdown.age_mult * 100)|n1 }}<small>% of peak</small></dd></div>{% endif %}
+    {% if breakdown.upside is not none %}<div><dt>Upside vs flat</dt><dd class="{{ 'pos' if breakdown.upside > 0 else ('neg' if breakdown.upside < 0 else '') }}">{{ breakdown.upside|n1(True) }}</dd></div>{% endif %}
+    {% if breakdown.pedigree is not none %}<div><dt>Pedigree</dt><dd>&times;{{ '%.2f'|format(breakdown.pedigree) }}</dd></div>{% endif %}
+    {% if breakdown.model is not none %}<div><dt>Model value</dt><dd>{{ breakdown.model|n1 }}</dd></div>{% endif %}
+    <div><dt>Market prior</dt><dd>{{ breakdown.market|n1 if breakdown.market is not none else 'n/a' }}</dd></div>
+    {% if breakdown.weights %}<div><dt>Mode weights</dt><dd class="small-dd">{{ breakdown.weights|map('string')|join(' / ') }}{% if breakdown.terminal is not none %} <small>+ terminal &times;{{ breakdown.terminal }}</small>{% endif %}</dd></div>{% endif %}
+  </dl>
+  {% if dyn.reasons %}
+  <h3 class="sub-h">Dynasty reasons</h3>
+  {{ reasons_table(dyn.reasons, 'Dynasty reasons with their numbers') }}
+  {% endif %}
+  <p class="foot-note">Value = this season's FPG &times; the first mode weight, plus later seasons from the age curve and pedigree, plus a terminal term; blended 65/35 with a market prior from league-wide % rostered when available.</p>
+</section>
+{% endif %}
+
+<section aria-labelledby="h-sched">
+  <h2 id="h-sched">Next 14 days <span class="aside">{% if p.team %}{{ p.team }} &middot; {{ schedule|length }} games{% if preseason %} from opening night{% endif %}{% endif %}</span></h2>
+  {% if schedule %}
+  <div class="tbl"><table class="r stack sched">
+    <caption class="sr-only">NHL schedule for the next 14 days</caption>
+    <thead><tr><th scope="col">Date</th><th scope="col">Opponent</th><th scope="col" class="n">NHL games that day</th><th scope="col">Off-night</th></tr></thead>
+    <tbody>
+      {% for g in schedule %}
+      <tr{% if g.off %} class="chg"{% endif %}>
+        <th scope="row" data-label="Date">{{ g.date.strftime('%a %b %d').replace(' 0', ' ') }}</th>
+        <td data-label="Opponent">{% if g.opp %}{{ 'at ' ~ g.opp[1:] if g.opp.startswith('@') else 'vs ' ~ g.opp }}{% else %}-{% endif %}</td>
+        <td data-label="NHL games" class="n">{{ g.league_games }}</td>
+        <td data-label="Off-night">{% if g.off %}<span class="chg-in">yes</span>{% else %}<span class="muted">no</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="empty">{% if p.team %}No games in the next 14 days (or no schedule loaded).{% else %}No NHL team, so no schedule.{% endif %}</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="h-stats">
+  <h2 id="h-stats">Stat splits <span class="aside">per game{% if weights %}, FPG from your league's point values{% endif %}</span></h2>
+  {% if rows %}
+  {% set show_fpg = rows|selectattr('fpg', 'ne', none)|list|length > 0 %}
+  <div class="tbl"><table class="r stack stats">
+    <caption class="sr-only">Per-game stat splits for {{ p.name }}</caption>
+    <thead><tr><th scope="col">Split</th><th scope="col" class="n">GP</th>{% if show_fpg %}<th scope="col" class="n">FPG</th>{% endif %}
+      {% for c in cols %}<th scope="col" class="n">{{ RATE_LABEL.get(c, c) }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <th scope="row" data-label="Split">{{ r.label }}</th>
+        <td data-label="GP" class="n">{{ r.gp }}</td>
+        {% if show_fpg %}<td data-label="FPG" class="n">{{ r.fpg|n1 }}</td>{% endif %}
+        {% for c in cols %}<td data-label="{{ RATE_LABEL.get(c, c) }}/GP" class="n">{{ r.pg[c]|rate(c) if r.pg[c] is not none else '-' }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+      {% if rates %}
+      <tr class="model-row">
+        <th scope="row" data-label="Split">Model per game</th>
+        <td data-label="GP" class="n">-</td>
+        {% if show_fpg %}<td data-label="FPG" class="n">{{ pv.fpg|n1 }}</td>{% endif %}
+        {% for c in cols %}<td data-label="{{ RATE_LABEL.get(c, c) }}/GP" class="n">{{ rates.get(c)|rate(c) }}</td>{% endfor %}
+      </tr>
+      {% endif %}
+    </tbody>
+  </table></div>
+  <details class="totals"><summary>Totals by split</summary>
+    <div class="tbl"><table class="r stack stats">
+      <caption class="sr-only">Stat totals for {{ p.name }}</caption>
+      <thead><tr><th scope="col">Split</th><th scope="col" class="n">GP</th>{% for c in cols %}<th scope="col" class="n">{{ RATE_LABEL.get(c, c) }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr><th scope="row" data-label="Split">{{ r.label }}</th><td data-label="GP" class="n">{{ r.gp }}</td>
+          {% for c in cols %}<td data-label="{{ RATE_LABEL.get(c, c) }}" class="n">{{ r.tot[c]|num(3 if c == 'SVPCT' else (2 if c == 'GAA' else 0)) }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </details>
+  {% else %}
+  <p class="empty">No stats loaded for this player.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="h-inj">
+  <h2 id="h-inj">Injury status and history</h2>
+  <p>{{ pill(p.status) }}{% if p.status_note %} <span class="note">{{ p.status_note }}</span>{% endif %}</p>
+  {% if history %}
+  <div class="tbl"><table class="r stack hist">
+    <caption class="sr-only">Recorded status changes, newest first</caption>
+    <thead><tr><th scope="col">Recorded</th><th scope="col">Status</th><th scope="col">Note</th></tr></thead>
+    <tbody>
+      {% for h in history %}
+      <tr><th scope="row" data-label="Recorded">{{ h.when.strftime('%b %d, %Y %H:%M') if h.when else '-' }}</th><td data-label="Status">{{ pill(h.status) }}</td><td data-label="Note" class="wrap">{{ h.note or '-' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="empty">No status changes recorded yet (run <code>fm injuries</code> to start the log).</p>
+  {% endif %}
+</section>
+
+{% if recs %}
+<section aria-labelledby="h-recs">
+  <h2 id="h-recs">Moves involving {{ p.name }} <span class="aside">{{ recs|length }}</span></h2>
+  {{ move_list(recs) }}
+</section>
+{% endif %}
+
+<section aria-labelledby="h-news">
+  <h2 id="h-news">News <span class="aside">{{ news|length }}</span></h2>
+  {% for n in news %}{{ news_item(n, league) }}{% else %}<p class="empty">No recent news.</p>{% endfor %}
+</section>
+{% endblock %}

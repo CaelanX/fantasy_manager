@@ -1,0 +1,236 @@
+{
+ "displayedStatusOrTeam": "ALL_AVAILABLE",
+ "paginatedResultSet": {
+  "totalNumPages": 1,
+  "pageNumber": 1,
+  "maxResultsPerPage": 200,
+  "totalNumResults": 4
+ },
+ "tableHeader": {
+  "cells": [
+   {
+    "shortName": "Rk",
+    "key": "rankOv"
+   },
+   {
+    "shortName": "Sta",
+    "sortType": "STATUS",
+    "key": "status"
+   },
+   {
+    "shortName": "Age",
+    "sortType": "AGE",
+    "key": "age"
+   },
+   {
+    "shortName": "Opp",
+    "key": "opponent"
+   },
+   {
+    "shortName": "FPts",
+    "sortType": "SCORE",
+    "key": "fpts"
+   },
+   {
+    "shortName": "FP/G",
+    "sortType": "FPTS_PER_GAME",
+    "key": "fptsPerGame"
+   },
+   {
+    "shortName": "Ros",
+    "sortType": "OVERVIEW_PERCENT_OWNED_2"
+   },
+   {
+    "shortName": "+/-",
+    "sortType": "OVERVIEW_PLUS_MINUS_PERCENT_OWNED_2"
+   }
+  ]
+ },
+ "statsTable": [
+  {
+   "scorer": {
+    "scorerId": "f1",
+    "name": "Free Agent One",
+    "shortName": "F. One",
+    "teamName": "CAR (full)",
+    "teamShortName": "CAR",
+    "posShortNames": "C,LW",
+    "posIds": [],
+    "posIdsNoFlex": [],
+    "rookie": false,
+    "minorsEligible": false
+   },
+   "cells": [
+    {
+     "content": "40"
+    },
+    {
+     "content": "FA",
+     "toolTip": "Free Agent"
+    },
+    {
+     "content": "23"
+    },
+    {
+     "content": "@BOS<br/>Thu 7:00PM"
+    },
+    {
+     "content": "30.0"
+    },
+    {
+     "content": "3.0"
+    },
+    {
+     "content": "12%"
+    },
+    {
+     "content": "+2%"
+    }
+   ],
+   "actions": [
+    {
+     "typeId": "1"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "scorerId": "f2",
+    "name": "Waiver Goalie",
+    "shortName": "W. Goalie",
+    "teamName": "NYR (full)",
+    "teamShortName": "NYR",
+    "posShortNames": "G",
+    "posIds": [],
+    "posIdsNoFlex": [],
+    "rookie": false,
+    "minorsEligible": false
+   },
+   "cells": [
+    {
+     "content": "90"
+    },
+    {
+     "content": "W",
+     "toolTip": "Waivers"
+    },
+    {
+     "content": "26"
+    },
+    {
+     "content": ""
+    },
+    {
+     "content": "12.0"
+    },
+    {
+     "content": "2.4"
+    },
+    {
+     "content": "5%"
+    },
+    {
+     "content": "0%"
+    }
+   ],
+   "actions": [
+    {
+     "typeId": "1"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "scorerId": "r1",
+    "name": "Rival Center",
+    "shortName": "R. Center",
+    "teamName": "EDM (full)",
+    "teamShortName": "EDM",
+    "posShortNames": "C",
+    "posIds": [],
+    "posIdsNoFlex": [],
+    "rookie": false,
+    "minorsEligible": false
+   },
+   "cells": [
+    {
+     "content": "5"
+    },
+    {
+     "content": "RT",
+     "toolTip": "Rival Team",
+     "teamId": "t2"
+    },
+    {
+     "content": "24"
+    },
+    {
+     "content": ""
+    },
+    {
+     "content": "50.0"
+    },
+    {
+     "content": "5.0"
+    },
+    {
+     "content": "99%"
+    },
+    {
+     "content": "0%"
+    }
+   ],
+   "actions": [
+    {
+     "typeId": "1"
+    }
+   ]
+  },
+  {
+   "scorer": {
+    "scorerId": "p4",
+    "name": "Bench Guy",
+    "shortName": "B. Guy",
+    "teamName": "WAS (full)",
+    "teamShortName": "WAS",
+    "posShortNames": "RW",
+    "posIds": [],
+    "posIdsNoFlex": [],
+    "rookie": false,
+    "minorsEligible": false
+   },
+   "cells": [
+    {
+     "content": "300"
+    },
+    {
+     "content": "FA",
+     "toolTip": "Free Agent"
+    },
+    {
+     "content": "25"
+    },
+    {
+     "content": ""
+    },
+    {
+     "content": "11.2"
+    },
+    {
+     "content": "1.4"
+    },
+    {
+     "content": "1%"
+    },
+    {
+     "content": "0%"
+    }
+   ],
+   "actions": [
+    {
+     "typeId": "1"
+    }
+   ]
+  }
+ ]
+}
