@@ -5,7 +5,7 @@ import html
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from ..models import LeagueContext, Player, Recommendation
 from ..providers.news import NewsItem
@@ -116,7 +116,7 @@ def _model_line(model: str | None) -> str | None:
 
 
 def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
-              generated_at: datetime, model: str | None = None) -> str:
+              generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None) -> str:
     md = [f"# Fantasy digest - {ctx.name}", "",
           f"*{ctx.provider} league {ctx.league_id} - team {ctx.my_team.name} - "
           f"generated {generated_at:%Y-%m-%d %H:%M}*", ""]
@@ -148,6 +148,8 @@ def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts
         if urls:
             md += [f"  - source: <{urls[0]}>"]
         md += [""]
+    if health:
+        md += ["## Model health", ""] + [f"- {line}" for line in health] + [""]
     return "\n".join(md).rstrip() + "\n"
 
 
@@ -198,7 +200,7 @@ def _html_rec(r: Recommendation, cls: str = "card") -> str:
 
 
 def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
-          generated_at: datetime, model: str | None = None) -> str:
+          generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None) -> str:
     b: list[str] = [
         f"<h1>Fantasy digest - {_e(ctx.name)}</h1>",
         f'<div class="meta">{_e(ctx.provider)} league {_e(ctx.league_id)} - team {_e(ctx.my_team.name)}'
@@ -235,6 +237,9 @@ def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, ne
         b.append(f'<div class="card"><h3>{_e(p.name)}</h3><ul>' +
                  "".join(f"<li>{_e(line)}</li>" for line in player_news_summary(items, limit=3)) +
                  "</ul></div>")
+    if health:
+        b.append("<h2>Model health</h2>")
+        b.append('<ul class="model-health">' + "".join(f"<li>{_e(line)}</li>" for line in health) + "</ul>")
     title = f"Fantasy digest - {ctx.name} - {generated_at:%Y-%m-%d}"
     return ("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
@@ -246,7 +251,7 @@ def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, ne
 # --------------------------------------------------------------------------- summary
 
 def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
-             generated_at: datetime, model: str | None = None) -> str:
+             generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None) -> str:
     lines = [f"Fantasy digest: {ctx.name} ({generated_at:%Y-%m-%d})"]
     if _model_line(model):
         lines.append(_model_line(model))
@@ -275,16 +280,20 @@ def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts,
 
 def build_digest(ctx: LeagueContext, values: Mapping[str, Any], recs: list[Recommendation],
                  news_by_cid: Mapping[str, list[NewsItem]] | None,
-                 generated_at: datetime | None = None, model_headline: str | None = None) -> Digest:
+                 generated_at: datetime | None = None, model_headline: str | None = None,
+                 model_health: Sequence[str] | None = None) -> Digest:
     """Render the daily digest. ``values`` maps cid -> PlayerValue (only ``fpg`` is read).
-    ``model_headline`` is the harness line (``harness.metrics.headline``); None hides it."""
+    ``model_headline`` is the harness line (``harness.metrics.headline``); None hides it.
+    ``model_health`` is the 3-line "Model health" block (``harness.health.health_block``) for the
+    markdown / HTML digest (not the webhook summary); None hides it."""
     generated_at = generated_at or datetime.now()
     values = values or {}
     news_by_cid = news_by_cid or {}
     ranked = _ranked(list(recs or []))
     inj_recs, alerts = _injury_alerts(ctx, values, ranked)
     news_rows = _news_for_me(ctx, news_by_cid)
-    args = (ctx, ranked, inj_recs, alerts, news_rows, generated_at, model_headline)
+    health = list(model_health) if model_health else None
+    args = (ctx, ranked, inj_recs, alerts, news_rows, generated_at, model_headline, health)
     return Digest(markdown=_markdown(*args), html=_html(*args), summary=_summary(*args),
                   generated_at=generated_at)
 
@@ -304,6 +313,21 @@ def model_headline(data_dir: str | Path, league: str) -> str | None:
         return None
 
 
+def model_health(data_dir: str | Path, league: str) -> list[str] | None:
+    """The 3-line "Model health" block for ``league`` (MAE trend, hit rate, params version), or
+    None while nothing is trustworthy / there is no ledger / reading fails."""
+    try:
+        from ..harness.health import health_block
+        from ..harness.ledger import DB_NAME, Ledger
+
+        if not (Path(data_dir) / DB_NAME).exists():
+            return None
+        with Ledger(data_dir) as led:
+            return health_block(led, league)
+    except Exception:
+        return None
+
+
 def write_digest(digest: Digest, out_dir: str | Path) -> tuple[Path, Path]:
     """Write ``digest-YYYY-MM-DD.md`` and ``.html`` into ``out_dir`` (created if needed)."""
     out = Path(out_dir)
@@ -315,4 +339,4 @@ def write_digest(digest: Digest, out_dir: str | Path) -> tuple[Path, Path]:
     return md_path, html_path
 
 
-__all__ = ["Digest", "build_digest", "model_headline", "write_digest", "SUMMARY_MAX"]
+__all__ = ["Digest", "build_digest", "model_headline", "model_health", "write_digest", "SUMMARY_MAX"]

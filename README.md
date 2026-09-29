@@ -59,8 +59,9 @@ Every command takes `--league espn|fantrax` (default `espn`) and `--json`, eithe
 | `notify` | Send a test message to the configured webhooks | `fm notify "hello from fm"` |
 | `sync` | Refresh data (`--refresh` clears the cache) and review/confirm player matches (`--review`, `--confirm espn:123=8478402`) | `fm sync --review` |
 | `mode` | Show or set the dynasty mode (`contend`, `balanced`, `rebuild`) used by every command and the dashboard; saved in `$FM_DATA_DIR/prefs.json`, `--clear` falls back to `FANTRAX_MODE`. `roster`, `waivers`, `trades`, `advise` and `report` also take `--mode` for a single run (not saved) | `fm mode rebuild` |
-| `web` | Local, phone-friendly dashboard (needs `pip install -e .[web]`). Dynasty leagues get a **Mode: Contend / Balanced / Rebuild** toggle in the header that saves the mode and recalculates | `fm web --host 0.0.0.0 --port 8765` |
+| `web` | Local, phone-friendly dashboard (needs `pip install -e .[web]`). Dynasty leagues get a **Mode: Contend / Balanced / Rebuild** toggle in the header that saves the mode and recalculates. The **Health** tab (`/health`, JSON at `/api/health.json`) shows how the model is doing: accuracy and hit-rate charts with trust labels, a followed/ignored scorecard, the params changelog with **Rollback**, a refit dry run and data-capture warnings. Every page's footer shows the valuation params in use (packaged fit, plus the harness version when one is active) | `fm web --host 0.0.0.0 --port 8765` |
 | `backtest` | `data`, `run`, `fit`, `archive`, `grade`, `report`: score the projection model on NHL history, fit its constants, and archive the ESPN/Fantrax projections daily (`fm backtest archive`) so they can be graded at season end. See [docs/backtesting.md](docs/backtesting.md) | `fm backtest archive` |
+| `harness` | The evaluation harness: `daily` (capture your moves and NHL results, grade on Mondays, refit on refit days), `status`, `grade`, `ledger`, `params`, `refit`, `rollback`, `auto-apply on/off`, `rebuild`. Grades every recommendation and projection against what happened and corrects a few valuation parameters within strict limits. See [docs/harness.md](docs/harness.md) | `fm harness status` |
 
 Environment variables each command needs (all live in `.env`, see `.env.example`):
 
@@ -74,7 +75,9 @@ Environment variables each command needs (all live in `.env`, see `.env.example`
 
 Without `OPENROUTER_API_KEY`, `advise --explain` and `report --explain` still work and print a one-line hint; `ask` exits with an error. `notify` and `report --notify` exit with code 1 when no webhook is configured or a post fails, so scheduled runs show up as failed.
 
-To run the report every morning with Windows Task Scheduler, see [docs/scheduling.md](docs/scheduling.md). Add `fm backtest archive` to the same daily task: it snapshots both leagues' projections and recommendations to `data/archive/` (one file per league per day), which `fm backtest grade` scores after the season.
+To run the report every morning with Windows Task Scheduler, see [docs/scheduling.md](docs/scheduling.md). The daily task runs `fm auth fantrax --ping`, `fm backtest archive`, `fm harness daily` and `fm report --notify`, in that order: the archive snapshots both leagues' projections and recommendations to `data/archive/`, and the harness grades them (see [docs/harness.md](docs/harness.md)).
+
+**Params provenance.** Valuation constants ship in `valuation/fitted_params.json`; the harness may layer a fitted version on top (`<FM_DATA_DIR>/harness/params/`). `fm settings`, `fm harness params` and the dashboard footer show which is in use (e.g. `fit 2026-09-28 (espn) + harness v0003 (2026-11-17)`); `fm harness rollback` or the Health tab undoes a version, and `FM_PARAMS_OVERRIDE=0` ignores harness versions.
 
 ## Development
 

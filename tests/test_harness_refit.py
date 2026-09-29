@@ -507,3 +507,29 @@ def test_rollback_restores_the_exact_hash(ks, pws):
             assert store.active_name() == PACKAGED
         finally:
             _restore_env(old)
+
+
+
+def test_cli_auto_apply_pref(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from rich.console import Console
+    from typer.testing import CliRunner
+
+    from fantasy_manager import cli_harness
+    from fantasy_manager.prefs import get_pref, harness_auto_apply
+
+    monkeypatch.setattr(cli_harness, "_settings", lambda: SimpleNamespace(fm_data_dir=tmp_path, fm_offline=True))
+    monkeypatch.setattr(cli_harness, "console", Console(width=200))
+    runner = CliRunner()
+    res = runner.invoke(cli_harness.harness_app, ["auto-apply"])
+    assert res.exit_code == 0 and "Auto-apply is on" in res.output and "2026-11-16" in res.output
+    assert not (tmp_path / "prefs.json").exists()                          # showing never writes
+    res = runner.invoke(cli_harness.harness_app, ["auto-apply", "off"])
+    assert res.exit_code == 0 and "Auto-apply is off" in res.output
+    assert get_pref("harness_auto_apply", data_dir=tmp_path) is False and harness_auto_apply(tmp_path) is False
+    assert R.daily_refit_mode(D(2026, 11, 16), harness_auto_apply(tmp_path)) == "propose"
+    res = runner.invoke(cli_harness.harness_app, ["auto-apply", "ON", "--json"])
+    assert res.exit_code == 0 and json.loads(res.output) == {"auto_apply": True, "from": "2026-11-16"}
+    res = runner.invoke(cli_harness.harness_app, ["auto-apply", "maybe"])
+    assert res.exit_code == 2 and harness_auto_apply(tmp_path) is True

@@ -1,73 +1,270 @@
 {% extends "base.html" %}
-{% macro pct(v) %}{% if v is none %}-{% else %}{{ '%.0f'|format(v * 100) }}%{% endif %}{% endmacro %}
+{% macro pct(v) %}{{ hv.pct(v) }}{% endmacro %}
 {% macro trust(t) %}<span class="pill {{ 'pill-ok' if t == 'reliable' else ('pill-dtd' if t == 'provisional' else 'pill-unk') }}">{{ t }}</span>{% endmacro %}
+{% macro ci(lo, hi) %}{% if lo is not none and hi is not none %}{{ pct(lo) }} to {{ pct(hi) }}{% else %}-{% endif %}{% endmacro %}
+{% macro chart_figure(c) %}
+<figure class="chart" aria-labelledby="{{ c.id }}-cap">
+  <figcaption id="{{ c.id }}-cap"><span>{{ c.label }}</span> {{ trust(c.trust) }} <small class="muted">n={{ c.n }}</small></figcaption>
+  {{ c.svg }}
+  {{ c.legend }}
+  <details class="ch-data"><summary>Data table</summary>
+    <div class="tbl"><table class="r ch-table">
+      <caption class="sr-only">{{ c.title }}</caption>
+      <thead><tr>{% for h in c.table.head %}<th scope="col"{% if not loop.first %} class="n"{% endif %}>{{ h }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in c.table.rows %}<tr>{% for v in row %}{% if loop.first %}<th scope="row">{{ v }}</th>{% else %}<td class="n">{{ v }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody>
+    </table></div>
+  </details>
+</figure>
+{% endmacro %}
+{% macro chart_group(items, noun) %}
+{% set shown = items|selectattr('visible')|list %}
+{% set waiting = items|rejectattr('visible')|list %}
+{% if shown %}<div class="charts">{% for c in shown %}{{ chart_figure(c) }}{% endfor %}</div>{% endif %}
+{% if waiting %}<p class="muted small wait">Not judgeable yet:
+  {% for c in waiting %}{{ c.label }} (n={{ c.n }}{% if c.need %}, needs {{ c.need }} more {{ noun }}{% endif %}){% if not loop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
+{% endmacro %}
 {% block heading %}
-<p class="sc dateline">Evaluation harness &middot; how the model is doing against realized results</p>
+<p class="sc dateline">Evaluation harness &middot; {{ league|upper }} &middot; how the model is doing against realized results</p>
 <h1>Model health</h1>
 {% endblock %}
 {% block content %}
-{% if not report.leagues %}
-<p class="empty">{{ report.note or 'Nothing graded yet.' }}</p>
+{% set cal = report.calendar or {} %}
+{% set P = report.params or {} %}
+{% set CL = report.changelog or {} %}
+
+{# ---------------------------------------------------------------- (a) headline card #}
+<section class="hcard" aria-labelledby="h-headline">
+  <h2 id="h-headline" class="sr-only">Headline</h2>
+  <div class="hcard-main">
+    {% if L and L.headline %}
+    <p class="hl">{{ L.headline }}</p>
+    {% else %}
+    <p class="hl">Not yet judgeable.</p>
+    <p class="muted small">{% if not L %}No harness data yet: run <code>fm harness daily</code> every day (see docs/harness.md).{% elif not L.graded %}Nothing graded yet for {{ league|upper }} (graded on Mondays by <code>fm harness daily</code>).{% else %}Bar as of week {{ L.week }}: every metric is still below its sample threshold.{% endif %}</p>
+    {% if L and L.not_judgeable %}
+    <details class="need"><summary>What is still needed ({{ L.not_judgeable|length }})</summary>
+      <ul>{% for x in L.not_judgeable %}<li>{{ hv.METRIC_LABEL.get(x.metric, x.metric) }} &middot; {{ x.pool }}: n={{ x.n }}{% if x.need is not none %}, needs {{ x.need }} more{% endif %}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+    {% endif %}
+  </div>
+  <dl class="hcard-facts">
+    <div><dt>Active params</dt><dd><strong>{{ P.version or 'packaged' }}</strong> <small>{{ P.source or '' }}</small>{% if P.hash %} <small>hash <code>{{ P.hash[:10] }}</code></small>{% endif %}</dd></div>
+    <div><dt>Next refit</dt><dd>{{ cal.next_refit or '-' }}{% if cal.locked %} <small>locked until {{ cal.refit_start }} (preseason)</small>{% elif cal.is_refit_day %} <small>today</small>{% endif %}</dd></div>
+    <div><dt>Auto-apply</dt><dd>{% if cal.auto_apply_pref %}on{% else %}off{% endif %}
+      <small>{% if cal.auto_apply_active %}Tier A applied automatically when the gate passes{% elif cal.auto_apply_pref %}Tier A from {{ cal.auto_apply_start }}; until then proposals only{% else %}proposals only (<code>fm harness auto-apply on</code>){% endif %}</small></dd></div>
+    {% if L and L.graded %}<div><dt>Bar as of</dt><dd>week {{ L.week }}</dd></div>{% endif %}
+  </dl>
+</section>
+
+{% if L %}
+{# ---------------------------------------------------------------- (b) charts #}
+<section aria-labelledby="h-proj">
+  <h2 id="h-proj">Projection accuracy <span class="aside">28-day FPG, one point per weekly snapshot</span></h2>
+  <h3 class="sub-h">MAE (lower is better)</h3>
+  {{ chart_group(charts.mae, 'player-windows') }}
+  <h3 class="sub-h">Skill vs season-to-date (above 0 beats it)</h3>
+  {{ chart_group(charts.skill, 'player-windows') }}
+</section>
+
+<section aria-labelledby="h-hits">
+  <h2 id="h-hits">Recommendation hit rate <span class="aside">the model's recs by kind, per graded week</span></h2>
+  {% if charts.hit %}{{ chart_group(charts.hit, 'graded recs') }}{% else %}<p class="empty">No graded recommendations yet.</p>{% endif %}
+</section>
+
+{# ---------------------------------------------------------------- (d) scorecard + (e) counterfactual #}
+<section aria-labelledby="h-score">
+  <h2 id="h-score">Scorecard <span class="aside">did following the model pay off?</span></h2>
+  <div class="tbl"><table class="r stack score">
+    <caption class="sr-only">Hit rate by how you acted on the recommendation</caption>
+    <thead><tr><th scope="col">Recommendations</th><th scope="col" class="n">Graded</th><th scope="col" class="n">Hits</th>
+      <th scope="col" class="n">Hit rate</th><th scope="col" class="n">95% CI</th><th scope="col">Trust</th></tr></thead>
+    <tbody>
+    {% for s in L.scorecard or [] %}
+    <tr><th scope="row" data-label="Recommendations">{{ hv.ORIGIN_LABEL.get(s.origin, s.origin) }}</th>
+      <td class="n" data-label="Graded">{{ s.n }}</td><td class="n" data-label="Hits">{{ s.hits }}</td>
+      <td class="n" data-label="Hit rate">{% if s.trust == 'hidden' %}<span class="muted">hidden</span>{% else %}{{ pct(s.rate) }}{% endif %}</td>
+      <td class="n" data-label="95% CI">{% if s.trust == 'hidden' %}{% if s.need %}needs {{ s.need }} more{% else %}-{% endif %}{% else %}{{ ci(s.ci_lo, s.ci_hi) }}{% endif %}</td>
+      <td data-label="Trust">{{ trust(s.trust) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% set cf = L.counterfactual %}
+  <p class="cf"><strong>Your moves vs the model's:</strong>
+  {% if cf and cf.n and cf.trust != 'hidden' %}
+    your own waiver moves averaged {{ hv.num(cf.detail.my_mean) }} pts against {{ hv.num(cf.detail.model_mean) }} pts for the model's pick of the same day
+    ({{ cf.n }} paired moves; the model's pick did better {{ pct(cf.detail.model_better) }} of the time) {{ trust(cf.trust) }}
+  {% elif cf and cf.n %}
+    {{ cf.n }} paired move(s) so far, needs {{ cf.detail.need }} more before it is shown {{ trust(cf.trust) }}
+  {% else %}
+    no graded moves of your own yet.
+  {% endif %}</p>
+</section>
+
+{# ---------------------------------------------------------------- (c) calibration #}
+<section aria-labelledby="h-cal">
+  <h2 id="h-cal">Calibration <span class="aside">predicted vs realized gain, by bin of predicted</span></h2>
+  {% set cal_row = L.calibration %}
+  {% if cal_row and cal_row.trust != 'hidden' and cal_row.detail.bins %}
+  <div class="tbl"><table class="r stack">
+    <caption class="sr-only">Calibration of predicted gains ({{ cal_row.detail.binning }} bins)</caption>
+    <thead><tr><th scope="col">Bin</th><th scope="col" class="n">N</th><th scope="col" class="n">Predicted range</th>
+      <th scope="col" class="n">Mean predicted</th><th scope="col" class="n">Mean realized</th><th scope="col" class="n">Hit rate</th></tr></thead>
+    <tbody>{% for b in cal_row.detail.bins %}
+    <tr><th scope="row" data-label="Bin">{{ b.bin }}</th><td class="n" data-label="N">{{ b.n }}</td>
+      <td class="n" data-label="Predicted range">{{ hv.num(b.pred_lo) }} to {{ hv.num(b.pred_hi) }}</td>
+      <td class="n" data-label="Mean predicted">{{ hv.num(b.mean_pred) }}</td><td class="n" data-label="Mean realized">{{ hv.num(b.mean_real) }}</td>
+      <td class="n" data-label="Hit rate">{{ pct(b.hit_rate) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <p class="foot-note">Realized / predicted overall {{ hv.num(cal_row.value) }} (1.00 = perfectly calibrated), n={{ cal_row.n }} {{ trust(cal_row.trust) }}.</p>
+  {% else %}
+  <p class="empty">Not available yet: {{ (cal_row.n if cal_row else 0) }} graded recs with a predicted gain; calibration needs {{ report.thresholds.calibration.min if report.thresholds else 100 }}.</p>
+  {% endif %}
+</section>
 {% endif %}
-{% for lg, L in report.leagues.items() %}
-<section aria-labelledby="h-{{ lg }}">
-  <h2 id="h-{{ lg }}">{{ lg|upper }} <span class="aside">{% if L.graded %}bar as of week {{ L.week }}{% else %}not graded yet (run <code>fm harness grade</code>){% endif %}</span></h2>
-  <p>{% if L.headline %}{{ L.headline }}{% else %}<span class="empty">Digest line hidden: nothing trustworthy yet.</span>{% endif %}</p>
-  {% if L.projection %}
-  <div class="tbl"><table class="r health-proj">
-    <caption class="sr-only">{{ lg }} projection accuracy by pool</caption>
+
+{# ---------------------------------------------------------------- (f) params changelog #}
+<section aria-labelledby="h-params">
+  <h2 id="h-params">Valuation parameters <span class="aside">versions fitted by the harness</span></h2>
+  {% if CL.rows %}
+  <div class="tbl"><table class="r stack changelog">
+    <caption class="sr-only">Params versions, newest first</caption>
+    <thead><tr><th scope="col">Version</th><th scope="col">Created</th><th scope="col">Changed</th>
+      <th scope="col" class="n">Holdout MAE</th><th scope="col" class="n">Historical MAE</th><th scope="col">Status</th></tr></thead>
+    <tbody>{% for v in CL.rows %}
+    <tr{% if v.status == 'active' %} class="chg"{% endif %}><th scope="row" data-label="Version">{{ v.version }}</th>
+      <td data-label="Created">{{ (v.created or '')[:10] }}</td>
+      <td class="wrap" data-label="Changed">{{ v.changed_keys|join(', ') or '-' }}</td>
+      <td class="n" data-label="Holdout MAE">{{ hv.num(v.holdout_before, 4) }} &rarr; {{ hv.num(v.holdout_after, 4) }}</td>
+      <td class="n" data-label="Historical MAE">{{ hv.num(v.hist_before, 4) }} &rarr; {{ hv.num(v.hist_after, 4) }}</td>
+      <td data-label="Status">{{ v.status }}{% if v.last_event %} <small class="muted">({{ v.last_event.event }} by {{ v.last_event.by }})</small>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="empty">No harness versions yet: the packaged fit is in use. Refits start {{ cal.refit_start or '2026-11-02' }}.</p>
+  {% endif %}
+  {% if CL.error %}<p class="warn-box">Could not read the versions: {{ CL.error }}</p>{% endif %}
+
+  <div class="actions">
+    {% if CL.targets %}
+    <form method="post" action="/params/rollback" class="act-form">
+      <input type="hidden" name="league" value="{{ league }}">
+      <input type="hidden" name="next" value="/health?league={{ league }}">
+      <label for="rb-version">Roll back {{ CL.active }} to</label>
+      <select id="rb-version" name="version">
+        {% for t in CL.targets %}<option value="{{ t }}"{% if t == CL.default_target %} selected{% endif %}>{{ t }}{% if t == CL.default_target %} (parent){% endif %}</option>{% endfor %}
+      </select>
+      <label class="check"><input type="checkbox" name="confirm" value="1" required> I understand every value recalculates</label>
+      <button type="submit" class="ghost-btn">Rollback</button>
+    </form>
+    {% endif %}
+    <form method="get" action="/health" class="act-form">
+      <input type="hidden" name="league" value="{{ league }}">
+      <input type="hidden" name="refit" value="dry-run">
+      {% if cal.locked %}<label class="check"><input type="checkbox" name="force" value="1"{% if forced %} checked{% endif %}> Ignore the calendar lock (dry run only)</label>{% endif %}
+      <button type="submit" class="ghost-btn">Propose refit (dry run)</button>
+      <span class="muted small">Fits and gates on the ledger, writes nothing; can take several seconds.</span>
+    </form>
+  </div>
+
+  {% if proposal %}
+  <div class="proposal" id="proposal" role="status">
+    <h3 class="sub-h">Dry-run proposal</h3>
+    {% if proposal.error %}
+    <p class="warn-box">{{ proposal.error }}</p>
+    {% elif proposal.locked %}
+    <p>Refit {{ proposal.lock_reason }}.</p>
+    {% else %}
+    <p class="small">As of {{ proposal.as_of }}: {{ proposal.n_live }} matured 28-day observations ({{ proposal.n_goalie }} goalies) over {{ proposal.weeks }} weekly snapshot(s), {{ proposal.n_week }} matured 7-day observations; active params {{ proposal.active_version }}.</p>
+    {% for n in proposal.notes or [] %}<p class="muted small">{{ n }}</p>{% endfor %}
+    {% if proposal_rows %}
+    <div class="tbl"><table class="r stack">
+      <caption class="sr-only">Refit candidate by parameter</caption>
+      <thead><tr><th scope="col">Param</th><th scope="col">Tier</th><th scope="col" class="n">Current</th><th scope="col" class="n">Candidate</th>
+        <th scope="col">Bound</th><th scope="col" class="n">Holdout MAE</th><th scope="col" class="n">Historical MAE</th></tr></thead>
+      <tbody>{% for r in proposal_rows %}
+      <tr{% if r.changed %} class="chg"{% endif %}><th scope="row" data-label="Param">{{ r.param }}</th><td data-label="Tier">{{ r.tier }}</td>
+        <td class="n" data-label="Current">{{ r.current_s }}</td><td class="n" data-label="Candidate">{{ r.candidate_s }}</td>
+        <td data-label="Bound">{{ r.bound }}</td><td class="n" data-label="Holdout MAE">{{ r.holdout }}</td><td class="n" data-label="Historical MAE">{{ r.hist }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+    {% if proposal.gate %}
+    <p><strong>Gate: {% if proposal.gate.passed %}passed{% else %}failed{% endif %}</strong></p>
+    {% if proposal.gate.reasons %}<ul class="small">{% for r in proposal.gate.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+    {% endif %}
+    <p class="muted small">Dry run: nothing was written. <code>fm harness refit</code> stores a passing candidate as a proposal; <code>--apply</code> activates it.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+{# ---------------------------------------------------------------- (g) data capture #}
+{% if L and L.capture %}
+{% set C = L.capture %}
+<section aria-labelledby="h-capture">
+  <h2 id="h-capture">Data capture <span class="aside">{{ league|upper }} ledger</span></h2>
+  <dl class="kpis">
+    <div><dt>Episodes</dt><dd>{{ C.episodes.total }}</dd></div>
+    <div><dt>Transactions</dt><dd>{{ C.transactions.n }} <small>{{ C.transactions.mine }} yours</small></dd></div>
+    <div><dt>Your decisions</dt><dd>{{ C.decisions.values()|sum }}</dd></div>
+    <div><dt>Realized days</dt><dd>{{ C.realized.pulled }} <small>{{ C.realized.with_games }} with games</small></dd></div>
+    <div><dt>Snapshots</dt><dd>{{ C.projections.days }} <small>days archived</small></dd></div>
+    <div><dt>Unmatched ids</dt><dd>{{ C.unmatched.projections }} <small>of {{ C.unmatched.projections_total }} players</small></dd></div>
+  </dl>
+  <p class="small">Last daily run: {% if C.last_daily %}<time datetime="{{ C.last_daily.started_at }}">{{ C.last_daily.started_at|replace('T', ' ') }}</time> ({{ C.last_daily.status }}){% else %}never{% endif %}.
+    Lineup days {{ C.lineup_days }}; transactions without an NHL id {{ C.unmatched.transactions }}; recommendation players without an NHL id {{ C.unmatched.rec_players }} of {{ C.unmatched.rec_players_total }}.
+    {% if C.decisions %}Decisions: {% for k, v in C.decisions|dictsort %}{{ k }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}</p>
+  {% if C.episodes.kinds %}
+  <div class="tbl"><table class="r stack eps">
+    <caption class="sr-only">Recommendation episodes by kind and status</caption>
+    <thead><tr><th scope="col">Kind</th>{% for s in C.episodes.statuses %}<th scope="col" class="n">{{ s }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for kind, by in C.episodes.kinds|dictsort %}
+    <tr><th scope="row" data-label="Kind">{{ kind }}</th>{% for s in C.episodes.statuses %}<td class="n" data-label="{{ s }}">{{ by.get(s, 0) }}</td>{% endfor %}</tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  {% if C.warnings %}
+  <div class="warn-box"><p><strong>Warnings ({{ C.warnings|length }})</strong></p>
+    <ul>{% for w in C.warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>
+  {% endif %}
+</section>
+
+<section aria-labelledby="h-all">
+  <h2 id="h-all">All metrics <span class="aside">latest bar{% if L.graded %}, week {{ L.week }}{% endif %}</span></h2>
+  {% if L.projection or L.hit_rates %}
+  <details><summary>Every metric with its trust label ({{ (L.projection|length) + (L.hit_rates|length) }})</summary>
+  <div class="tbl"><table class="r stack health-all">
+    <caption class="sr-only">{{ league }} metrics</caption>
     <thead><tr><th scope="col">Metric</th><th scope="col">Pool</th><th scope="col" class="n">Value</th>
       <th scope="col" class="n">95% CI</th><th scope="col" class="n">N</th><th scope="col">Trust</th></tr></thead>
     <tbody>
     {% for r in L.projection %}
-    <tr><th scope="row">{{ {'proj_fpg_mae': 'FPG MAE (28d)', 'proj_fpg_skill': 'Skill vs to-date', 'proj_week_mae': 'Week pts MAE'}.get(r.metric, r.metric) }}</th>
-      <td>{{ r.pool }}</td>
-      <td class="n">{% if r.metric == 'proj_fpg_skill' %}{{ pct(r.value) }}{% else %}{{ r.value|num }}{% endif %}</td>
-      <td class="n">{% if r.ci_lo is not none %}{{ pct(r.ci_lo) }} to {{ pct(r.ci_hi) }}{% else %}-{% endif %}</td>
-      <td class="n">{{ r.n }}</td><td>{{ trust(r.trust) }}</td></tr>
+    <tr><th scope="row" data-label="Metric">{{ hv.METRIC_LABEL.get(r.metric, r.metric) }}</th><td data-label="Pool">{{ r.pool }}</td>
+      <td class="n" data-label="Value">{% if r.metric == 'proj_fpg_skill' %}{{ pct(r.value) }}{% else %}{{ hv.num(r.value) }}{% endif %}</td>
+      <td class="n" data-label="95% CI">{{ ci(r.ci_lo, r.ci_hi) }}</td><td class="n" data-label="N">{{ r.n }}</td><td data-label="Trust">{{ trust(r.trust) }}</td></tr>
     {% endfor %}
-    </tbody>
-  </table></div>
-  {% endif %}
-  {% if L.hit_rates %}
-  <div class="tbl"><table class="r health-hits">
-    <caption class="sr-only">{{ lg }} recommendation hit rates</caption>
-    <thead><tr><th scope="col">Kind : origin</th><th scope="col" class="n">Hit rate</th><th scope="col" class="n">95% CI</th>
-      <th scope="col" class="n">Mean realized</th><th scope="col" class="n">N</th><th scope="col">Trust</th></tr></thead>
-    <tbody>
     {% for r in L.hit_rates %}
-    <tr><th scope="row">{{ r.pool }}</th><td class="n">{{ pct(r.value) }}</td>
-      <td class="n">{% if r.ci_lo is not none %}{{ pct(r.ci_lo) }} to {{ pct(r.ci_hi) }}{% else %}-{% endif %}</td>
-      <td class="n">{{ r.detail.mean_gain|num }} {{ r.detail.units }}</td><td class="n">{{ r.n }}</td><td>{{ trust(r.trust) }}</td></tr>
+    <tr><th scope="row" data-label="Metric">Hit rate</th><td data-label="Pool">{{ r.pool }}</td><td class="n" data-label="Value">{{ pct(r.value) }}</td>
+      <td class="n" data-label="95% CI">{{ ci(r.ci_lo, r.ci_hi) }}</td><td class="n" data-label="N">{{ r.n }}</td><td data-label="Trust">{{ trust(r.trust) }}</td></tr>
     {% endfor %}
     </tbody>
   </table></div>
-  {% endif %}
-  {% if L.calibration %}
-  <p>Calibration: {{ L.calibration.n }} graded rec(s) with a predicted gain, {{ L.calibration.detail.binning }} bins
-    {{ trust(L.calibration.trust) }}{% if L.calibration.value is not none %}; realized / predicted {{ L.calibration.value|num }}{% endif %}.</p>
-  {% endif %}
-  {% if L.counterfactual %}
-  <p>Your moves vs the model's: {% if L.counterfactual.n %}you {{ L.counterfactual.detail.my_mean|num }} pts vs the model's pick
-    {{ L.counterfactual.detail.model_mean|num }} pts on {{ L.counterfactual.n }} paired move(s){% else %}{{ L.counterfactual.detail.moves or 0 }} graded move(s), none paired yet{% endif %}
-    {{ trust(L.counterfactual.trust) }}.</p>
-  {% endif %}
-  <p>Trades (case list, never aggregated): {{ L.trades|length }}.
+  </details>
+  {% else %}<p class="empty">No data yet.</p>{% endif %}
+  <p class="small">Trades (a case list, never aggregated): {{ L.trades|length }}.
     Outcomes: {{ L.outcomes.n }} rows, {{ L.outcomes.complete }} complete, {{ L.outcomes.unmatched }} with unmatched players.</p>
-  {% if L.not_judgeable %}
-  <details><summary>Not judgeable yet ({{ L.not_judgeable|length }})</summary>
-    <ul>{% for x in L.not_judgeable %}<li>{{ x.metric }} {{ x.pool }}: n={{ x.n }}{% if x.need is not none %}, needs {{ x.need }} more{% endif %}</li>{% endfor %}</ul>
+  {% if L.trades %}
+  <details><summary>Trade cases ({{ L.trades|length }})</summary>
+    <ul>{% for t in L.trades %}<li>{{ t.day or '' }} {{ t.title or 'trade' }} &middot; {{ t.origin }} &middot; {{ t.window }}: {{ hv.num(t.realized_gain) }} ({{ t.label }})</li>{% endfor %}</ul>
   </details>
   {% endif %}
 </section>
-{% endfor %}
-{% if report.params %}
-<p class="foot-note">Parameters: <strong>{{ report.params.version }}</strong>
-  (hash <code>{{ (report.params.hash or '-')[:10] }}</code>, {{ report.params.source }};
-  {{ report.params.versions }} fitted version(s)).
-  Trust: projections provisional at {{ report.thresholds.projection.provisional }} player-windows per pool,
+{% endif %}
+
+<p class="foot-note">{% if report.thresholds %}Trust labels: projections provisional at {{ report.thresholds.projection.provisional }} player-windows per pool,
   reliable at {{ report.thresholds.projection.reliable }} over {{ report.thresholds.projection.reliable_weeks }} weeks
   (goalies provisional at most before January); hit rates provisional at {{ report.thresholds.hit_rate.provisional }},
-  reliable at {{ report.thresholds.hit_rate.reliable }}; calibration needs {{ report.thresholds.calibration.min }}.</p>
-{% endif %}
+  reliable at {{ report.thresholds.hit_rate.reliable }}; calibration needs {{ report.thresholds.calibration.min }}.
+  {% endif %}JSON: <a href="/api/health.json">/api/health.json</a>. How to read this page: docs/harness.md.</p>
 {% endblock %}

@@ -703,6 +703,284 @@ def test_health_reports_the_graded_bar(isolated):
     assert all(r["trust"] == "hidden" for r in L["projection"] + L["hit_rates"])
     assert {"metric": "hit_rate", "pool": "waiver:followed", "n": 0, "need": 20} in L["not_judgeable"]
     assert j["params"]["version"] == "packaged"
-    h = c.get("/health?league=fantrax").text
-    assert "ESPN" in h and "bar as of week 2026-10-12" in h and "Digest line hidden" in h
+    h = c.get("/health?league=espn").text                                    # one league per page
+    assert "ESPN" in h and "Bar as of week 2026-10-12" in h and "Not yet judgeable" in h
     assert 'action="/mode"' not in h and loader.calls == []                  # never loads a league
+    fx = c.get("/health?league=fantrax").text                               # unknown to the ledger: no data yet
+    assert "Nothing graded yet for FANTRAX" in fx and loader.calls == []
+
+
+# -- model health: full page (M4) ---------------------------------------------------------
+
+import json as _json  # noqa: E402
+
+
+def _snap_row(week, league, metric, pool, value, n, trust, detail, lo=None, hi=None):
+    return {"snapshot_id": f"{week}|{league}|{metric}|{pool}", "week": week, "league": league, "metric": metric,
+            "pool": pool, "value": value, "n": n, "ci_lo": lo, "ci_hi": hi, "trust": trust,
+            "detail_json": _json.dumps(detail), "created_at": "2026-11-09T08:00:00"}
+
+
+def seed_health_ledger(led, league="espn"):
+    """Three graded weeks: provisional forward / defense projections, hidden goalies, waiver hit
+    rates crossing into provisional, calibration and counterfactual rows, a trade case."""
+    from fantasy_manager.harness.metrics import wilson
+
+    snaps = ["2026-10-05", "2026-10-12", "2026-10-19"]
+    rows = []
+    for gi, week in enumerate(["2026-10-26", "2026-11-02", "2026-11-09"]):
+        weeks = snaps[:gi + 1]
+        for pool, base_n in (("F", 160), ("D", 150), ("G", 20)):
+            n = base_n + 40 * gi
+            trust = "hidden" if pool == "G" else "provisional"
+            per_week = [{"week": w, "n": 60, "mae": round(0.60 - 0.04 * i, 4)} for i, w in enumerate(weeks)]
+            per_base = [{"week": w, "n_to_date": 60,
+                         "base_mae": {"to_date": 0.70, "preseason": 0.66, "provider": round(0.64 + 0.01 * i, 4),
+                                      "last_season": 0.72},
+                         "skill": {"fm": round(1 - (0.60 - 0.04 * i) / 0.70, 4), "preseason": 0.057,
+                                   "provider": round(1 - (0.64 + 0.01 * i) / 0.70, 4), "last_season": -0.03}}
+                        for i, w in enumerate(weeks)]
+            rows.append(_snap_row(week, league, "proj_fpg_mae", pool, per_week[-1]["mae"], n, trust,
+                                  {"per_week": per_week, "per_week_base": per_base, "weeks": len(weeks),
+                                   "need": max(0, 150 - n), "baselines": {}}))
+            rows.append(_snap_row(week, league, "proj_fpg_skill", pool, per_base[-1]["skill"]["fm"], n, trust,
+                                  {"need": max(0, 150 - n)}, 0.05, 0.2))
+        for origin, n, k in (("followed", 12 + 5 * gi, 7 + 3 * gi), ("ignored", 6 + 2 * gi, 3 + gi),
+                             ("partial", 2, 1), ("user_only", 10 + 6 * gi, 5 + 3 * gi)):
+            trust = "hidden" if n < 20 else "provisional"
+            rows.append(_snap_row(week, league, "hit_rate", f"waiver:{origin}", k / n, n, trust,
+                                  {"hits": k, "mean_gain": 1.2, "units": "pts", "need": max(0, 20 - n)},
+                                  *wilson(k, n)))
+        rows.append(_snap_row(week, league, "hit_rate", "lineup:followed", 0.5, 4, "hidden",
+                              {"hits": 2, "need": 16}))
+        rows.append(_snap_row(week, league, "calibration", "all", 0.85, 120, "reliable",
+                              {"bins": [{"bin": 1, "n": 40, "pred_lo": 0.1, "pred_hi": 1.0, "mean_pred": 0.5,
+                                         "mean_real": 0.3, "hit_rate": 0.55},
+                                        {"bin": 2, "n": 40, "pred_lo": 1.0, "pred_hi": 2.0, "mean_pred": 1.5,
+                                         "mean_real": 1.4, "hit_rate": 0.6},
+                                        {"bin": 3, "n": 40, "pred_lo": 2.0, "pred_hi": 5.0, "mean_pred": 3.1,
+                                         "mean_real": 2.6, "hit_rate": 0.7}], "binning": "decile"}))
+        rows.append(_snap_row(week, league, "counterfactual", "user_only", -0.8, 22, "provisional",
+                              {"moves": 25, "my_mean": 1.1, "model_mean": 1.9, "model_better": 0.64, "need": 0}))
+        rows.append(_snap_row(week, league, "trade_cases", "trade", None, 1, "cases",
+                              {"cases": [{"title": "Trade A for B", "origin": "followed", "day": "2026-10-10",
+                                          "window": "28d", "realized_gain": 3.5, "label": "complete"}]}))
+    led.upsert("metric_snapshots", rows, ("snapshot_id",))
+    led.upsert("rec_episodes", [{"episode_id": f"e{i}", "league": league, "rec_key": f"k{i}", "kind": kind,
+                                 "first_seen": "2026-10-05", "last_seen": "2026-10-06", "n_days": 2, "status": st}
+                                for i, (kind, st) in enumerate([("waiver", "followed"), ("waiver", "expired"),
+                                                                ("lineup", "open"), ("trade", "open")])],
+               ("episode_id",))
+    led.upsert("transactions", [{"league": league, "tx_id": "t1", "action": "add", "cid": "c1", "team_id": "1",
+                                 "ts": "2026-10-06T10:00", "day": "2026-10-06", "is_me": 1, "nhl_id": None}],
+               ("league", "tx_id", "action", "cid", "team_id"))
+
+
+def seed_params_versions(led):
+    """v0001 applied then replaced by v0002 (active, parent v0001; v0001 is its shadow)."""
+    from fantasy_manager.harness.params_store import ParamsStore
+
+    st = ParamsStore(ledger=led)
+    v1 = st.propose({"inseason": {"k_skater": 24.0}}, ["k_inseason.skater"],
+                    {"holdout_before": 0.61, "holdout_after": 0.6, "hist_before": 0.5, "hist_after": 0.5012,
+                     "n_live": 420})
+    st.apply(v1["version"])
+    v2 = st.propose({"inseason": {"k_skater": 22.0}}, ["k_inseason.skater"],
+                    {"holdout_before": 0.6, "holdout_after": 0.59, "hist_before": 0.5012, "hist_after": 0.502,
+                     "n_live": 520})
+    st.apply(v2["version"])
+    return st
+
+
+@pytest.fixture
+def seeded(isolated):
+    from fantasy_manager.harness.ledger import Ledger
+
+    with Ledger(isolated) as led:
+        seed_health_ledger(led)
+        seed_params_versions(led)
+    return isolated
+
+
+def test_health_page_charts_scorecard_changelog(seeded):
+    loader = CountingLoader()
+    c = TestClient(create_app(loader))
+    h = c.get("/health?league=espn").text
+    assert loader.calls == []                                               # never loads a league
+    assert h.count('<svg class="spark"') == 5                               # MAE F/D, skill F/D, waiver hits
+    assert '<title id="espn-mae-f-t">Forwards: projection MAE, next 28 days</title>' in h
+    assert 'id="espn-hit-waiver"' in h and 'class="ch-band"' in h and "95% CI (Wilson)" in h
+    assert "Goalies (n=100, needs 50 more player-windows)" in h            # hidden pool: listed, not drawn
+    assert "Lineup (n=4, needs 16 more graded recs)" in h
+    assert h.count("<summary>Data table</summary>") == 5
+    # scorecard: followed = waiver 22/13 + lineup 4/2 (provisional); ignored 10 (hidden)
+    assert '<th scope="row" data-label="Recommendations">Followed</th>' in h
+    assert re.search(r'data-label="Graded">26</td>\s*<td class="n" data-label="Hits">15</td>', h)
+    assert "needs 10 more" in h
+    assert "your own waiver moves averaged 1.10 pts against 1.90 pts" in h
+    assert "Mean realized" in h and "2.60" in h                            # calibration table
+    # changelog: newest first, active highlighted, rollback form with confirm checkbox
+    assert h.index('data-label="Version">v0002') < h.index('data-label="Version">v0001')
+    assert "0.6000 &rarr; 0.5900" in h and "k_inseason.skater" in h
+    assert 'action="/params/rollback"' in h and 'name="confirm" value="1" required' in h
+    assert '<option value="v0001" selected>v0001 (parent)</option>' in h and '<option value="packaged">' in h
+    assert "Active params" in h and "<strong>v0002</strong>" in h
+    assert "Next refit" in h
+    # data capture panel
+    assert "Data capture" in h and "No daily capture has run yet" in h
+    j = c.get("/api/health.json").json()
+    L = j["leagues"]["espn"]
+    assert {"projection", "hit_rates", "headline", "not_judgeable"} <= set(L)                  # M2 keys kept
+    assert L["series"]["mae"]["F"]["x"] == ["2026-10-05", "2026-10-12", "2026-10-19"]
+    assert L["series"]["mae"]["F"]["lines"]["provider"] == [0.64, 0.65, 0.66]
+    assert L["series"]["hit"]["waiver"]["n_by_week"] == [20, 27, 34]
+    assert [r["version"] for r in j["changelog"]["rows"]] == ["v0002", "v0001"]
+    assert j["changelog"]["targets"][0] == "v0001" and j["calendar"]["refit_start"] == "2026-11-02"
+
+
+def test_health_page_mobile_safe_markup(seeded):
+    h = TestClient(create_app(CountingLoader())).get("/health?league=espn").text
+    tag = h.split('<svg class="spark"')[1].split(">")[0]
+    assert 'viewBox="0 0 360 132"' in tag and "width=" not in tag            # scales to its container
+    assert 'class="r stack changelog"' in h                                 # stacked cards on phones
+
+
+def test_rollback_requires_confirmation(seeded):
+    from fantasy_manager.harness.params_store import ParamsStore
+
+    c = TestClient(create_app(CountingLoader()))
+    r = c.post("/params/rollback", data={"version": "v0001", "league": "espn", "next": "/health?league=espn"},
+               follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/health?league=espn&msg=rollback-unconfirmed"
+    assert ParamsStore(data_dir=seeded).active_name() == "v0002"            # nothing changed
+    page = c.get(r.headers["location"]).text
+    assert 'class="flash flash-warn"' in page and "tick the confirmation box" in page
+
+
+def test_rollback_post_rolls_back_and_redirects_same_site(seeded):
+    from fantasy_manager.harness.params_store import ParamsStore
+
+    loader = CountingLoader()
+    c = TestClient(create_app(loader))
+    c.get("/?league=espn")
+    assert loader.calls == ["espn"]
+    r = c.post("/params/rollback", data={"version": "v0001", "confirm": "1", "league": "espn",
+                                         "next": "//evil.example/x"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/?league=espn&msg=rollback-ok-v0002-v0001"
+    st = ParamsStore(data_dir=seeded)
+    assert st.active_name() == "v0001" and st.get("v0002")["status"] == "rolled_back"
+    assert st.get("v0001")["changelog"][-1]["by"] == "dashboard"
+    c.get("/?league=espn")
+    assert loader.calls == ["espn", "espn"]                                 # cached result dropped
+    page = c.get("/health?league=espn&msg=rollback-ok-v0002-v0001").text
+    assert "Rolled back the valuation parameters from v0002 to v0001" in page
+    for bad in ("v9999", "../x"):                                           # unknown / malformed: no change
+        r = c.post("/params/rollback", data={"version": bad, "confirm": "on", "league": "espn",
+                                             "next": "/health?league=espn"}, follow_redirects=False)
+        assert r.headers["location"].endswith("msg=rollback-unknown")
+    assert ParamsStore(data_dir=seeded).active_name() == "v0001"
+    r = c.post("/params/rollback", data={"version": "packaged", "confirm": "1", "league": "yahoo"},
+               follow_redirects=False)
+    assert r.status_code == 422
+
+
+def test_rollback_when_packaged_is_active(isolated):
+    c = TestClient(create_app(CountingLoader()))
+    r = c.post("/params/rollback", data={"confirm": "1", "league": "fantrax", "next": "/health"},
+               follow_redirects=False)
+    assert r.headers["location"] == "/health?league=fantrax&msg=rollback-none"
+    assert "Nothing to roll back" in c.get(r.headers["location"]).text
+
+
+def test_refit_dry_run_shows_the_calendar_lock_and_proposal(seeded, monkeypatch):
+    from fantasy_manager.harness import refit as R
+    from fantasy_manager.harness.params_store import ParamsStore
+    from fantasy_manager.web import app as web_app
+
+    c = TestClient(create_app(CountingLoader()))
+    h = c.get("/health?league=espn").text
+    assert "Propose refit (dry run)" in h and 'name="refit" value="dry-run"' in h and "Dry-run proposal" not in h
+
+    def run_at(day):
+        def fake(force=False):
+            from fantasy_manager.harness.ledger import Ledger
+
+            with Ledger(seeded) as led:
+                return R.run_refit(led, day, mode="dry-run", force=force).to_dict()
+        return fake
+
+    monkeypatch.setattr(web_app, "refit_dry_run", run_at(date(2026, 9, 29)))
+    h = c.get("/health?league=espn&refit=dry-run").text
+    assert "Dry-run proposal" in h and "locked until 2026-11-02" in h
+    h = c.get("/health?league=espn&refit=dry-run&force=1").text            # lock bypassed: the gate reports
+    assert "Gate: failed" in h and "insufficient live obs" in h and "nothing was written" in h
+    assert ParamsStore(data_dir=seeded).versions()[-1]["version"] == "v0002"   # dry run wrote nothing
+
+    fake = R.RefitResult(as_of="2026-11-16", mode="dry-run", n_live=640, n_goalie=160, weeks=6, n_week=700,
+                         rows=[{"param": "k_inseason.skater", "group": "k_inseason", "tier": "A", "current": 25.0,
+                                "candidate": 22.5, "bound": "+-20%", "changed": True, "holdout_before": 0.61,
+                                "holdout_after": 0.6, "hist_before": 0.5, "hist_after": 0.501}],
+                         gate=R.GateResult(True, [], {}), action="dry-run")
+    monkeypatch.setattr(web_app, "refit_dry_run", lambda force=False: fake.to_dict())
+    h = c.get("/health?league=espn&refit=dry-run").text
+    assert "640 matured 28-day observations" in h
+    assert '<td class="n" data-label="Candidate">22.5</td>' in h and "0.6100 → 0.6000" in h
+    assert "Gate: passed" in h
+
+
+def test_health_page_and_json_without_ledger_degrade(isolated):
+    c = TestClient(create_app(CountingLoader()))
+    j = c.get("/api/health.json").json()
+    assert j["leagues"] == {} and j["params"]["version"] == "packaged" and j["changelog"]["rows"] == []
+    assert j["calendar"]["refit_start"] == "2026-11-02"
+    h = c.get("/health?league=espn").text
+    assert "Not yet judgeable." in h and "No harness versions yet" in h and '<svg class="spark"' not in h
+    assert 'action="/params/rollback"' not in h                             # nothing to roll back
+    h = c.get("/health?league=espn&refit=dry-run").text
+    assert "no harness ledger yet" in h
+    assert not (isolated / "harness.db").exists()
+
+
+# -- web/charts.py ------------------------------------------------------------------------
+
+from fantasy_manager.web import charts  # noqa: E402
+
+
+def test_sparkline_path_for_known_points():
+    pts = charts.scale_points([0.0, 1.0, 0.5], 0.0, 1.0, width=110, height=60, pad=(10, 0, 10, 0))
+    assert pts == [(10.0, 60.0), (60.0, 10.0), (110.0, 35.0)]
+    assert charts.sparkline_path(pts) == "M10,60 L60,10 L110,35"
+    gap = charts.scale_points([0.0, None, 1.0, 1.0], 0.0, 1.0, width=40, height=10, pad=(10, 0, 0, 0))
+    assert charts.sparkline_path(gap) == "M10,10 M30,0 L40,0"                # a gap lifts the pen
+    assert charts.x_positions(1, 100, 0, 0) == [50.0]
+
+
+def test_empty_series_and_domain():
+    assert charts.sparkline_path([]) == "" and charts.band_path([], []) == ""
+    assert charts.domain([]) == (0.0, 1.0) and charts.domain([None, float("nan")]) == (0.0, 1.0)
+    lo, hi = charts.domain([2.0, 2.0])
+    assert lo < 2.0 < hi
+    assert charts.domain([0.5, 1.0], include_zero=True)[0] < 0
+    svg = charts.line_chart("empty", [], [charts.Line("fm", "fm", [], "main")], title="T", desc="D")
+    assert '<title id="empty-t">T</title>' in svg and "<path" not in svg
+
+
+def test_ci_band_and_chart_markup():
+    lo = charts.scale_points([0.2, 0.3, None], 0.0, 1.0, width=30, height=10, pad=(10, 0, 0, 0))
+    hi = charts.scale_points([0.6, 0.7, 0.8], 0.0, 1.0, width=30, height=10, pad=(10, 0, 0, 0))
+    assert charts.band_path(lo, hi) == "M10,4 L20,3 L20,7 L10,8 Z"
+    one = charts.band_path([(5.0, 8.0)], [(5.0, 2.0)])                      # single point: thin bar
+    assert one == "M2,2 L8,2 L8,8 L2,8 Z"
+    svg = charts.line_chart("w <x>", ["2026-10-05", "2026-10-12"],
+                            [charts.Line("rate", "Hit rate", [0.5, 0.6], "main"),
+                             charts.Line("b", "Base <b>", [0.4, None], "base", "5 3")],
+                            title="Hit <rate>", desc="d", band=([0.3, 0.4], [0.7, 0.8]),
+                            y_fmt=lambda v: f"{v:.0%}", y_domain=(0.0, 1.0))
+    assert svg.startswith('<svg class="spark" id="w-x"') and 'aria-labelledby="w-x-t w-x-d"' in svg
+    assert "Hit &lt;rate&gt;" in svg and "<b>" not in svg
+    assert svg.index('class="ch-band"') < svg.index('class="ch-base"') < svg.index('class="ch-main"')
+    assert 'stroke-dasharray="5 3"' in svg and ">Oct 5<" in svg and ">Oct 12<" in svg
+    assert "<title>2026-10-12: Hit rate 60% (95% CI 40% to 80%)</title>" in svg
+    assert ">100%<" in svg and ">0%<" in svg
+    leg = charts.legend([charts.Line("b", "Base", [], "base", "5 3"), charts.Line("m", "Main", [], "main")], "CI")
+    assert leg.index("Main") < leg.index("Base") < leg.index("CI")

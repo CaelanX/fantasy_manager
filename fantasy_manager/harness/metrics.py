@@ -313,6 +313,27 @@ def _nan(v: float | None) -> float | None:
     return None if v is None or (isinstance(v, float) and math.isnan(v)) else v
 
 
+def week_baselines(wk: date, ws: Sequence[ProjObs]) -> dict[str, Any]:
+    """One snapshot week's baseline MAEs (each on the players it covers) and the skill of fm and
+    of every baseline relative to season-to-date (1 - MAE_x / MAE_to_date, paired on the players
+    having both), for the /health sparklines."""
+    rnd = (lambda v: None if v is None else round(float(v), 4))
+    base_mae: dict[str, float | None] = {}
+    for b in BASELINES:
+        sub = [o for o in ws if b in o.baselines]
+        base_mae[b] = rnd(sum(abs(o.baselines[b] - o.real) for o in sub) / len(sub)) if sub else None
+    td = [o for o in ws if "to_date" in o.baselines]
+    skill: dict[str, float | None] = {
+        "fm": rnd(skill_score([abs(o.pred - o.real) for o in td], [abs(o.baselines["to_date"] - o.real) for o in td]))}
+    for b in BASELINES:
+        if b == "to_date":
+            continue
+        sub = [o for o in td if b in o.baselines]
+        skill[b] = rnd(skill_score([abs(o.baselines[b] - o.real) for o in sub],
+                                   [abs(o.baselines["to_date"] - o.real) for o in sub])) if sub else None
+    return {"week": wk.isoformat(), "n_to_date": len(td), "base_mae": base_mae, "skill": skill}
+
+
 def projection_rows(fpg_obs: Sequence[ProjObs], wk_obs: Sequence[WeekObs], week: date, league: str
                     ) -> list[dict[str, Any]]:
     rows = []
@@ -332,14 +353,15 @@ def projection_rows(fpg_obs: Sequence[ProjObs], wk_obs: Sequence[WeekObs], week:
             base[b] = {"n": len(sub), "mae": _nan(mb.mae), "spearman": _nan(mb.spearman), "fm_mae": _nan(mf.mae),
                        "skill": skill_score([abs(o.pred - o.real) for o in sub],
                                             [abs(o.baselines[b] - o.real) for o in sub])}
-        per_week = []
+        per_week, per_week_base = [], []
         for wk in sorted({o.week for o in obs}):
             ws = [o for o in obs if o.week == wk]
             per_week.append({"week": wk.isoformat(), "n": len(ws),
                              "mae": round(sum(abs(o.pred - o.real) for o in ws) / len(ws), 4)})
+            per_week_base.append(week_baselines(wk, ws))
         rows.append(_snap(week, league, "proj_fpg_mae", pool, _nan(m.mae), len(obs), trust=trust, detail={
             "bias": _nan(m.bias), "rmse": _nan(m.rmse), "spearman": _nan(m.spearman), "weeks": weeks,
-            "per_week": per_week, "baselines": base, "min_gp": MIN_GP_28, "need": need_for("proj_fpg_mae", len(obs))}))
+            "per_week": per_week, "per_week_base": per_week_base, "baselines": base, "min_gp": MIN_GP_28, "need": need_for("proj_fpg_mae", len(obs))}))
         paired = [(o.player, abs(o.pred - o.real), abs(o.baselines["to_date"] - o.real))
                   for o in obs if "to_date" in o.baselines]
         sk = skill_score([p[1] for p in paired], [p[2] for p in paired])

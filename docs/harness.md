@@ -1,267 +1,186 @@
-# Evaluation harness
+# The evaluation harness
 
-The harness keeps a running record of what the model recommended, what you actually did and what
-then happened in the NHL, so recommendations and projections can be graded and a small set of
-valuation parameters corrected over time. The plan of record is `docs/harness-plan.md`; this page
-describes what exists now (milestone 1, "capture", milestone 2, "grading and the bar", and
-milestone 3, "auto-correction").
+The harness keeps score. Every day it records what the model recommended, what you actually did
+and what then happened in the NHL. From that it grades recommendations and projections (the
+"bar"), and every two weeks it may nudge a handful of valuation parameters, within tight limits.
+The plan of record is `docs/harness-plan.md`.
 
 ## Daily use
 
+One scheduled command does the capture (see `docs/scheduling.md`):
+
 ```
 fm harness daily            # both leagues; --league espn|fantrax for one
-fm harness status           # the bar (accuracy, hit rates, trust labels) and what the ledger holds
-fm harness grade            # grade matured outcomes + this week's bar (--week YYYY-MM-DD, --league)
-fm harness ledger           # recent recommendation episodes and their match status
-fm harness rebuild          # rebuild the archive-derived tables from data/archive
-fm harness params           # active valuation params and versions (refit / rollback: M3)
 ```
 
-`fm harness daily` runs, per league:
+Other commands:
 
-1. **Archive** today's projections and recommendations (`fm backtest archive`) unless today's
-   files already exist (`--force-archive` re-archives, `--no-archive` skips).
-2. **Ingest** new or changed archive files into the ledger and roll recommendations into episodes.
-3. **Pull transactions** since 7 days ago (`--since`): adds, drops, trades and (Fantrax) pending
-   trade proposals, for every team.
-4. **Pull lineups**: ESPN box scores for yesterday (every team's slots and ESPN points); Fantrax
-   a snapshot of today's rosters (Fantrax lineups are weekly, locked on Monday).
-5. **Match** episodes to your moves (below).
-
-It also stores each league's ScoringConfig in the ledger (`meta`, used to score realized
-stats at grade time). Then it pulls yesterday's NHL results once for the whole league (`--realized-day` to choose the
-date). The whole run is idempotent: a second run the same day changes nothing. A day without NHL
-regular-season games (preseason, All-Star break) is a clean no-op that reports 0 players.
-On Mondays (or with `--grade`) it finishes with `fm harness grade`. On refit days (every 14 days from 2026-11-02) it
-also runs the params refit once (see "Auto-correction (M3)").
-Provider problems become warnings in the output, never a failed run for the other league.
-
-It is scheduled right after `fm backtest archive` (see `docs/scheduling.md`). Run it every day:
-the ESPN activity feed pages back 25 moves at a time (the harness reads up to 10 pages) and
-Fantrax only returns the last 50 transactions, so moves fall off the end if you skip days.
-
-## What is captured
-
-Everything lives in `<FM_DATA_DIR>/harness.db` (sqlite). The JSON archive under
-`<FM_DATA_DIR>/archive/` stays the source of truth for projections and recommendations; the db
-can be rebuilt from it. Pulled data (transactions, lineups, NHL results) exists only in the db,
-so `fm harness rebuild` keeps it unless you pass `--all`.
-
-**Archive v2** (`backtest/archive.py`, `ARCHIVE_VERSION = 2`). Each file header carries
-`params_hash` (sha1 of the loaded valuation params) and `code_hash` (sha1 over
-`valuation/*.py` and `recommend/*.py`). Each projection record adds an `inputs` block with what
-the valuation read that day: season-to-date and last-30/15/7 lines (zero stats kept from
-2026-09-29, `"zeros": true`; earlier files omitted them), the
-multi-season history baseline rates and its GP, the provider projection, status and note,
-games and off-night games in the next 7 days, goalie start share, birth date and age, pct
-owned and positions, and for goalies the start-share parts (`share`). The header also carries
-`position_means` (the means a league projection is shrunk toward). The `fm` block adds `fpg_season`, `fpg_week`, `proj_week` and `vorp`.
-Projection files are written without indentation to keep them small. Version 1 files (before
-2026-09-28 evening) are still read everywhere.
-
-**Recommendations** now carry an explicit predicted gain:
-
-| kind | `predicted_gain` | `gain_units` | `horizon_days` |
-|---|---|---|---|
-| waiver | add FPG minus the drop's (or the benched player's) | `season_fpg` | none (rest of season) |
-| waiver, week horizon | projected week points difference | `week_pts` | 7 |
-| lineup | lineup gain from the solver | `week_pts` (or `season_fpg` without a schedule) | 7 |
-| trade | ΔMe, my optimal lineup's FPG change (dynasty Δ stays a reason) | `lineup_fpg` | none |
-| injury (IR move + add) | the waiver add's gain | as the waiver | as the waiver |
-| injury (activation) | his season FPG minus the drop's | `season_fpg` | none |
-| sell_high / buy_low | expected FPG change from L15 form back to the shrunk baseline (negative for sell-high) | `season_fpg` | 28 |
-
-`subjects` lists players a rec acts on without adding or dropping them (the IR target of an IR
-move, the player of a status alert). `strength` is an absolute 0-10 score from the predicted
-gain on fixed per-kind scales (`recommend/strength.py`), and `rank_in_kind` / `kind_total`
-give "1 of 4 waivers"; `score` keeps its engine meaning (advise rescales it by rank).
-
-**Ledger tables.** `recs` / `rec_players` (every archived rec per day, keyed by
-`rec_key = sha1(league|kind|sorted adds|sorted drops|counterparty)`, plus the sorted subjects
-when there are any), `rec_episodes`, `transactions`, `lineup_days`, `projections` (fm numbers +
-inputs), `realized_daily` (raw NHL stats per player per game date; scored later with each
-league's own scoring), `decisions`, and `runs`. Grading fills `outcomes` and
-`metric_snapshots`; `param_versions` mirrors the params versions (M3). Bookkeeping:
-`archive_files` (sha1 of each ingested file, so unchanged files are skipped) and
-`realized_pulls` (which game dates were pulled, including empty ones).
-
-## Episodes and matching
-
-The same rec seen on consecutive days (a gap of up to 2 days is tolerated, for a missed run) is
-one **episode** with `first_seen`, `last_seen` and `n_days`. Episodes are graded from
-`first_seen`; the acted-on date is kept for a secondary grade.
-
-Only your own moves count. Windows run from `first_seen`:
-
-| kind | window | followed | partial |
-|---|---|---|---|
-| waiver | to `last_seen` + 3 days | you added the player and the drops in that transaction equal the rec's | you added him with a different (or no) drop |
-| trade | to `last_seen` + 7 days | a trade with exactly the rec's give and get | a trade sharing at least one give and one get (e.g. a 2-for-1 you made 1-for-1) |
-| lineup | first lockable day | every `add` starts and every `drop` sits | only one side changed |
-| injury | to `last_seen` + 2 days | the player is in IR (IR move or IR slot) and the add was made | one of the two |
-| sell_high / buy_low | to `last_seen` + 14 days | you traded the player away / for him | |
-
-The first lockable day is the rec's own day on ESPN (daily locks; graded on that day's box
-score, pulled the next morning, with the next day as a fallback) and the next Monday on Fantrax
-(the same day if issued on a Monday). Fantrax is graded on the first roster snapshot taken after
-that Monday (Tuesday to Sunday), because the Monday-morning run predates the lock. A trade you only proposed (Fantrax pending
-trades) marks the episode `proposed`, which can still become `followed`.
-
-Statuses: `open` (window still running), `followed`, `partial`, `proposed`, `expired` (the window
-passed without a match, or the lineup at the lock did not change; graded as "ignored" later).
-Every matched episode becomes a `decisions` row with that origin; your transactions that no
-episode explains become `decisions(origin=user_only)` (the "your moves vs the model's"
-comparison in M2). Other teams' moves stay in `transactions` as league-wide samples.
-
-Matching is recomputed from scratch on every run, so it never depends on the order data
-arrived in.
-
-## Grading (M2)
-
-`fm harness grade` (and `daily` on Mondays) first grades **outcomes**, then computes the week's
-**bar** (`metric_snapshots`). Every command takes `--json`; `/api/health.json` and the
-dashboard's Health tab show the same report.
-
-**Outcomes** (`harness/outcomes.py`, one row per episode or move, basis and window). Realized
-stats from `realized_daily` are scored with the league's own ScoringConfig (`meta`, else the
-newest archive header, else the preset). Windows are the 7 and 28 days after the basis day and
-rest of season so far; the basis is the rec's `first_seen` (plus a secondary grade from the day
-you acted) or the day of your own move. A window is `complete` only when it is fully in the
-past and every day of it was pulled; otherwise the row is stored with `complete=0` and regraded
-next time.
-
-| kind | realized gain |
+| Command | What it does |
 |---|---|
-| waiver, injury, your own adds | points of the added player(s) minus the dropped |
-| trade | get minus give, minus (n get - n give) x the realized points of replacement-level players (vorp ~ 0 that day) |
-| lineup | 7 days: ESPN from the rec's day, only days both sides played; Fantrax the locked week (Monday to Sunday) |
-| sell_high / buy_low | 28 days: realized FPG minus the L15 FPG at flag time; sell-high hits below 0, buy-low above |
+| `fm harness status` | The bar (accuracy, hit rates, trust labels) and what the ledger holds |
+| `fm harness grade [--week YYYY-MM-DD]` | Grade matured outcomes and compute a week's bar (`daily` does this on Mondays) |
+| `fm harness ledger` | Recent recommendation episodes and whether you acted on them |
+| `fm harness params [--history]` | Active valuation params, refittable values and the version history |
+| `fm harness refit --dry-run` | Fit and gate a candidate, write nothing (`--force` ignores the calendar lock only) |
+| `fm harness refit [--apply]` | Store a passing candidate as a proposal (`--apply`: also activate it) |
+| `fm harness rollback [--to vNNNN\|packaged]` | Undo the active params version (to its parent by default) |
+| `fm harness auto-apply [on\|off]` | Show or set whether refit days may apply a passing candidate by themselves |
+| `fm harness rebuild` | Rebuild the ledger's archive-derived tables from `data/archive` |
 
-Predicted gains are converted to points over the window (`predicted_pts`: `week_pts` x days/7,
-per-game units x expected games). Your user-only moves also record the model's view of the
-move that day (fpg in - fpg out) and the model's own pick that day, realized over the same
-window (the counterfactual).
+Every command takes `--json`. The dashboard's **Health** tab (`/health`) and `/api/health.json`
+show the same information.
 
-**The bar** (`harness/metrics.py`, as of a Monday; only windows that ended before it count):
+## What gets captured
 
-- Projection accuracy per pool (F / D / G), from one projection snapshot per ISO week: MAE,
-  Spearman and bias of `fpg` vs realized FPG over the next 28 days (players with >= 8 GP), the
-  baselines (season-to-date, frozen preseason, provider projection, last season) and the skill
-  score 1 - MAE_fm / MAE_to_date with a 95% player-clustered bootstrap CI; `proj_week` vs the
-  next 7 days' points, split into rate error and availability error.
-- Hit rates per kind and origin (followed / partial / ignored / user_only) with Wilson 95% CIs
-  and the mean realized gain; calibration of predicted vs realized points by decile (terciles
-  under 100); your moves vs the model's; trades as a case list, never aggregated.
-- Trust labels: projections hidden under 150 player-windows per pool, provisional from 150,
-  reliable from 400 over at least 4 weekly snapshots (goalies at most provisional before
-  January); hit rates hidden under 20, provisional 20-49, reliable from 50; calibration needs
-  100. `status` lists what is not judgeable yet and how many more observations each needs.
-- The digest (`fm report`) gets one "Model: ..." line from the trustworthy metrics; it stays
-  hidden while everything is hidden.
+Everything lives in `<FM_DATA_DIR>/harness.db` (sqlite). `fm harness daily` runs, per league:
 
-M4 adds the full `/health` page (sparklines, scorecard, params changelog).
+1. **Archive** today's projections and recommendations (skipped if `fm backtest archive`
+   already wrote today's files). Archive files store the inputs of every projection
+   (season-to-date and recent lines, history baseline, provider projection, status, games next
+   week, goalie start share) plus the params and code hashes, so a projection can be replayed
+   later with different parameters.
+2. **Ingest** the archive into the ledger. The same recommendation on consecutive days becomes
+   one **episode**.
+3. **Pull transactions** from the last 7 days (adds, drops, trades, pending Fantrax trades) for
+   every team, and **lineups** (ESPN box scores for yesterday, a Fantrax roster snapshot).
+4. **Pull yesterday's NHL results** for every player.
+5. **Match** episodes to your moves: *followed* (you did exactly what it said), *partial* (part
+   of it), *proposed* (a trade you offered), *expired* (you didn't; graded as *ignored*). Your
+   moves that no recommendation explains are *your own moves* (`user_only`).
 
-## Auto-correction (M3)
+On Mondays it also grades; on refit days it runs the refit. A second run the same day changes
+nothing. Provider problems become warnings, never a failed run for the other league.
 
-```
-fm harness params [--history]          # active params (packaged fit + harness version), refittable values
-fm harness refit --dry-run             # fit + gate, write nothing
-fm harness refit [--only g1,g2]        # store a passing candidate as a proposed version
-fm harness refit --apply               # ... and activate it
-fm harness refit --force               # bypass the calendar lock only (never the gate)
-fm harness rollback [--to vNNNN|packaged]
-```
+Run it every day: the ESPN activity feed pages back 25 moves at a time and Fantrax keeps only the
+last 50 transactions, so skipped days can lose moves for good.
 
-All take `--json`; `refit` also takes `--league` (restrict the replay table) and `--as-of`.
+## What the bar means
 
-**Params layering** (`valuation/params.py`). `load_params()` is the packaged
-`valuation/fitted_params.json` deep-merged with the active harness version:
-`<FM_DATA_DIR>/harness/params/active.json` (`{"version": "v0003"}`) points at `v0003.json`,
-whose `params` holds only the overridden keys in the same nested shape. `FM_PARAMS_OVERRIDE=0`
-disables the layer (the test suite does this in `tests/conftest.py`); a missing, unreadable or
-malformed pointer or version file is ignored, and an invalid value falls back per accessor.
-The merged result is cached until `params.reload()`, which the dashboard's **Refresh data**
-calls (every CLI run is a fresh process). `params_hash()` hashes the merged result, so archive
-headers identify the version a snapshot was made with. `source()` reports the provenance
-("fit 2026-09-28 (espn) + harness v0003 (2026-11-17)"); `fm settings` and the dashboard
-footer show it. Live code reads every tunable through accessors at call time:
-`k_inseason(group)`, `recency_weights()`, `projection_weight()`, `k_projection(group)`,
-`availability(status, horizon)`, `start_share_prior()`, `start_share_k()`,
-`offnight_bonus()` (each with a hard-coded fallback). The old module constants
-(`blend.K_INSEASON`, `RECENCY_WEIGHTS`, `PROJECTION_WEIGHT`, `K_PROJECTION`,
-`adjust.AVAILABILITY`, `schedule.OFFNIGHT_BONUS` / `START_SHARE_*`) remain as import-time
-snapshots for the backtest and report only.
+Graded weekly (as of Monday; only windows that have fully ended count):
 
-**Versions** (`harness/params_store.py`). Each `vNNNN.json` holds `version`, `parent`
-(`packaged` for the first), `created`, `params` (cumulative: the parent's overrides plus this
-cycle's changes), `hash`, `changed_keys`, `metrics` (`holdout_before/after`,
-`hist_before/after`, `n_live`, per-objective detail), `status`, `applied_by`, `applied_at`,
-`changelog` and `shadow`. Statuses: `proposed`, `active`, `shadow` (the version an active one
-replaced), `rolled_back`, and `retired` (an older shadow after a newer promotion). Every
-write is mirrored into the ledger's `param_versions` table (`rebuild` and `params` re-sync it
-from the files, which are the source of truth). `rollback` goes to the parent by default and
-restores the exact previous params hash.
+- **Projection accuracy**, per pool (forwards, defense, goalies). Each Monday's projection is
+  compared with the player's actual fantasy points per game over the next 28 days (players
+  with 8+ games). Reported as MAE (mean absolute error, lower is better) next to four
+  baselines: season-to-date FPG, the frozen preseason projection, the provider's projection
+  and last season. The headline number is the **skill score**, 1 − MAE_fm / MAE_season-to-date:
+  +10% means the model's errors are 10% smaller than just trusting season-to-date. It comes
+  with a 95% confidence interval (bootstrap, resampling whole players).
+- **Hit rate** per recommendation kind and per how you acted on it: a waiver or injury rec
+  "hits" when the added player outscored the dropped one over the window (28 days; 7 for
+  lineup and week-horizon recs). Shown with a 95% Wilson interval. Followed, ignored and
+  your-own moves are reported separately, because what you chose to follow is not a random
+  sample.
+- **Calibration**: predicted gain vs realized gain by bin. A realized/predicted ratio near
+  1.00 means the gains are sized right.
+- **Your moves vs the model's**: for your own waiver moves, what they gained against the
+  model's top pick of that day over the same window.
+- **Trades** are too few to average; they are listed case by case.
 
-**What can change.** Tier A (auto-apply allowed): `k_inseason` {skater, goalie},
-`recency_weights`, `projection_weight`, `k_projection` {skater, goalie}. Tier B (proposals only
-until 2026-12-01, never auto-applied): availability week multipliers (dtd, out, ir, ltir,
-suspended), start-share prior / k, off-night bonus. Not eligible: age curves, `age_yoy`,
-`k_baseline`, dynasty weights, recommender thresholds (they are not knobs, so a candidate
-cannot carry them).
+## Trust labels
 
-**Replay** (`harness/refit.py`). Every matured weekly projection snapshot in the ledger (one
-per ISO week, v2 inputs) becomes one row per player: the archived inputs rebuilt into a
-`Player`, the history baseline, that day's positional means and the realized targets (FPG over
-the next 28 days for players with >= 8 GP; points over the next 7 days).
-`inseason_projection(obs, params)` calls `valuation.valuate.player_rates` (the live
-`_rates_for` without reasons) with candidate params, so replay and valuation cannot drift;
-`week_projection` adds availability, games, off-nights and the start share. With the
-active params the replay reproduces the archived `fpg` (the refit prints the check). For this
-the archive now also stores the header `position_means`, keeps zero-valued stats in the input
-lines (`"zeros": true`) and a goalie `share` block (source, starts, team games); rows written
-before 2026-09-29 are replayed approximately and counted as such.
+Every number carries one. Hidden numbers are never shown as results.
 
-**Objective and search.** Tier A groups minimise `(1 - w) * MAE_hist + w * MAE_live` with
-`w = n_live / (n_live + 3000)`: MAE_hist over the ~10k historical in-season checkpoints
-(`data/backtest`, rest-of-season FPG, loaded lazily and cached per scoring), MAE_live over the
-28-day FPG of the replay table. Tier B groups minimise the live 7-day points MAE (no
-historical analogue). Coordinate descent over a 9-point grid inside the step bounds, one group
-at a time from the current values; the two groups with the largest training gain are combined.
-The search never sees the two most recent matured weeks: they are the holdout.
+| Metric | hidden | provisional | reliable |
+|---|---|---|---|
+| Projection MAE / skill (per pool) | < 150 player-windows | 150+ | 400+ over 4+ weekly snapshots |
+| Goalies | as above | at most provisional before January 1 | from January |
+| Hit rate (per kind and origin) | < 20 graded | 20-49 | 50+ |
+| Calibration | < 100 graded | | 100+ |
+| Trades | always a case list | | |
 
-**The gate** (`refit.gate`), all required:
+The digest's one-line "Model: ..." headline and its 3-line **Model health** block (MAE trend
+arrow, hit rate, params version) appear only once something is provisional or better.
 
-- >= 400 matured 28-day live observations over >= 4 weekly snapshots (goalie knobs also >= 150
-  goalie observations; Tier B also >= 400 7-day observations);
-- per-cycle step bounds: k +-20%, recency +-0.05 each (and summing to 1), projection weight
-  +-0.10, availability +-0.10, start-share prior +-0.05, start-share k +-20%, off-night bonus
-  +-0.02;
-- at most 2 parameter groups changed;
-- holdout MAE at least 1% better and the player-clustered paired-bootstrap 90% CI of the
-  improvement above 0 (per objective involved);
-- historical MAE no more than 0.5% worse.
+## How auto-correction works, and its limits
 
-**Calendar.** No refit before 2026-11-02 (`--force` bypasses only this lock). Refit days are
-every 14 days from 2026-11-02; `fm harness daily` runs the refit once on those days: from
-2026-11-16, with `harness_auto_apply` on in `prefs.json` (default on), it applies a passing
-Tier A candidate; otherwise it only stores a proposal. A manual `--apply` can change Tier A
-from 2026-11-02 and Tier B from 2026-12-01.
+Only a few in-season knobs can change: **Tier A** (may be applied automatically) are the
+in-season shrinkage `k` (skaters, goalies), the recency weights, the projection weight and its
+`k`. **Tier B** (proposals only until December 1, never automatic) are the availability
+multipliers, the goalie start-share prior and `k`, and the off-night bonus. Age curves,
+historical baselines, dynasty weights and recommender thresholds are never refit.
 
-**Champion / challenger.** After a promotion, `grade_week` shadow-scores the replaced version
-every week on the snapshot whose 28-day window matured that week (snapshots from the promotion
-on), recording both MAEs in the active version's `shadow.weeks`. If the shadow wins two weeks
-running, the active version is rolled back to it automatically (changelog `auto-rollback`, a
-`runs` row).
+A refit replays every matured weekly snapshot with candidate values, searches within per-cycle
+step bounds (k ±20%, recency ±0.05, projection weight ±0.10, availability ±0.10), and keeps at
+most two parameter groups. The loss blends this season's error with ~10,000 historical
+checkpoints, so a hot month cannot drag the model far. A candidate is promoted only if it
+passes **the gate**:
 
-Before 2026-11-02 `fm harness refit --dry-run` prints "locked until 2026-11-02"; with
-`--force` it reports how many matured observations are still missing.
+- at least 400 matured observations over 4+ weekly snapshots (goalie knobs: 150 goalie observations);
+- the two most recent weeks, held out from the search, improve by at least 1% with a 90%
+  confidence interval above zero;
+- historical error no more than 0.5% worse.
+
+After a promotion the replaced version keeps being scored every week (champion/challenger). If
+it wins two weeks running, the harness rolls back to it automatically.
+
+Limits: nothing can be judged before week 2; skater projections become provisional around week
+4 and reliable around week 8; goalies and trades can't really be judged this season; dynasty
+value can't be judged at all. Refits correct small calibration drift, not a broken model.
+
+## The calendar
+
+| Date | What happens |
+|---|---|
+| until 2026-11-02 | Capture and grading only; refits are locked (preseason) |
+| 2026-11-02, then every 14 days | Refit day: `fm harness daily` stores a passing candidate as a proposal |
+| from 2026-11-16 | On refit days a passing Tier A candidate is applied automatically (if auto-apply is on) |
+| from 2026-12-01 | Tier B candidates can be applied by hand (`fm harness refit --apply`) |
+
+## Reading /health
+
+The page shows one league (switch with ESPN / FANTRAX in the header).
+
+1. **Headline card**: the model headline, or "Not yet judgeable" with what each metric still
+   needs; the active params version, where it came from and its hash; the next refit day and
+   whether auto-apply is on.
+2. **Projection accuracy**: small charts per pool, one point per weekly snapshot. The bold line
+   is the model, thin lines are the baselines (legend under each chart). The skill chart's
+   zero line is season-to-date: above it, the model is better. Pools still hidden are listed
+   under the charts with how many observations they need. Each chart has a **Data table**.
+3. **Recommendation hit rate** per kind, per graded week, with the shaded 95% band. A wide band
+   means few graded recs.
+4. **Scorecard**: hit rates for followed, partly followed, ignored and your own moves, then your
+   moves vs the model's.
+5. **Calibration** table, once 100 recs are graded.
+6. **Valuation parameters**: every version (newest first) with changed keys, holdout and
+   historical MAE before → after, and status (`active`, `proposed`, `shadow`, `rolled_back`,
+   `retired`). **Propose refit (dry run)** runs the refit without writing anything and shows the
+   proposal inline (it can take several seconds; before November 2 tick "Ignore the calendar
+   lock" to see how far the data is from the gate).
+7. **Data capture**: episodes by kind and status, transactions, realized NHL days, unmatched
+   player identities, the last daily run and any warnings.
+
+## Rolling back
+
+On `/health`, under Valuation parameters: pick the version (the active version's parent is
+preselected, `packaged` is the original fit), tick the confirmation box and press **Rollback**.
+From a terminal: `fm harness rollback` (to the parent) or `fm harness rollback --to v0002`. The
+dashboard recalculates with the restored params on the next page load; a CLI rollback needs the
+dashboard's **Refresh data**. Every version is kept, so a rollback can itself be undone.
+
+## FAQ
+
+**Why is everything hidden?** Because there isn't enough graded data yet. A 28-day window
+needs 28 days to finish, and a hit rate over 5 recommendations says nothing. The headline card
+lists how many more observations each metric needs.
+
+**Why did the params change?** A refit day found a candidate that passed the gate, and auto-apply
+was on. `/health` (or `fm harness params --history`) shows which keys changed, the before/after
+errors and who applied it (`auto`, `manual`, `dashboard`, `auto-rollback`). The footer of every
+dashboard page shows the active version.
+
+**How do I turn auto-apply off?** `fm harness auto-apply off`. Refit days then only store
+proposals; apply one with `fm harness refit --apply`. `fm harness auto-apply on` turns it back on.
+To ignore harness versions entirely for one run, set `FM_PARAMS_OVERRIDE=0`.
+
+**A move of mine shows as "your own move" but the model suggested it.** Matching is strict: a
+waiver rec must be acted on within its window (last seen + 3 days; trades + 7). Moves made much
+later count as your own.
 
 ## Known limits
 
 - ESPN's activity feed has no IR or lineup messages; IR moves are detected from lineup slots.
-- Fantrax trade rows are read as "the player moved to this row's team"; the giving team is
-  inferred when exactly two teams are in the trade.
-- Fantrax lineups can only be captured as the current roster at run time, so a week's lineup
-  is known once `fm harness daily` has run on a day after the Monday lock.
-- v1 recommendations (2026-09-28) have no predicted gain or subjects; IR targets are recovered
-  from the title and that day's projections.
+- Fantrax lineups are known only from roster snapshots, so a week's lineup is captured once
+  `fm harness daily` runs after the Monday lock.
+- Recommendations archived on 2026-09-28 (archive v1) have no predicted gain.
+- Players without an NHL id (see "unmatched ids" on `/health`) can't be graded; `fm sync --review` fixes most.

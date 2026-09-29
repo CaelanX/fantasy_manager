@@ -1137,7 +1137,7 @@ def report(ctx: typer.Context,
            mode: Optional[ModeName] = _mode_opt(),
            json_out: bool = typer.Option(False, "--json")) -> None:
     """Write the daily digest (markdown + HTML) and optionally post a summary to webhooks."""
-    from .report.digest import build_digest, model_headline, write_digest
+    from .report.digest import build_digest, model_headline, model_health, write_digest
     from .report.notify import any_failed, notify_all
 
     league_name, as_json = _opts(ctx, league, json_out)
@@ -1157,7 +1157,8 @@ def report(ctx: typer.Context,
         _explain(recs, d, errors, news=items, notes=notes)
     by_cid = _match_news(items, lc.all_players(), errors)
     digest = build_digest(lc, d.values, recs, by_cid,
-                          model_headline=model_headline(settings_.fm_data_dir, lc.provider))
+                          model_headline=model_headline(settings_.fm_data_dir, lc.provider),
+                          model_health=model_health(settings_.fm_data_dir, lc.provider))
     out_dir = out or (Path(settings_.fm_data_dir) / "reports")
     try:
         md_path, html_path = write_digest(digest, out_dir)

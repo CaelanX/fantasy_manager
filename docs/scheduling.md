@@ -1,10 +1,17 @@
 # Daily report with Windows Task Scheduler
 
-Run `fm report --notify` once a day. It writes `digest-YYYY-MM-DD.md` and `.html` and posts a
-short summary to the Discord and/or Slack webhooks set in `.env`. The recipes below also run
-`fm backtest archive`, which snapshots the day's ESPN and Fantrax projections so they can be
-graded against ours at season end (see the Projection archive note at the bottom), and then
-`fm harness daily`, which records what you did and what happened (see `docs/harness.md`).
+The daily task runs four commands, in this order:
+
+| Step | Command | What it does | Idempotent? |
+|---|---|---|---|
+| 1 | `fm auth fantrax --ping` | Keeps the Fantrax session alive (re-logs in when needed) | yes (one cheap request) |
+| 2 | `fm backtest archive` | Snapshots today's projections and recommendations to `data\archive\` | yes (one file per league per day) |
+| 3 | `fm harness daily` | Ingests the archive, pulls transactions, lineups and NHL results, matches your moves, grades on Mondays, refits on refit days | yes (a second run the same day changes nothing) |
+| 4 | `fm report --notify` | Writes the digest and posts the summary to your webhooks | no: every run posts again |
+
+The ping goes first so the other steps find a live Fantrax session; the report goes last so its
+"Model" line and "Model health" block use today's grading. Only step 4 has a visible side effect
+when repeated, so it is safe to rerun the task by hand after a failure; expect a second post.
 
 ## Before you start
 
@@ -29,31 +36,30 @@ Run this in a normal (non-admin) PowerShell. It runs daily at 8:00 AM. If the PC
 off at that time, it runs as soon as it can.
 
 ```powershell
-$repo   = "C:\code\fantasy_manager"
-$action = New-ScheduledTaskAction `
-    -Execute "$env:ComSpec" `
-    -Argument "/c `"`"$repo\.venv\Scripts\fm.exe`" report --notify >> `"$repo\data\report.log`" 2>&1`"" `
-    -WorkingDirectory $repo
-$archive = New-ScheduledTaskAction `
-    -Execute "$env:ComSpec" `
-    -Argument "/c `"`"$repo\.venv\Scripts\fm.exe`" backtest archive >> `"$repo\data\archive.log`" 2>&1`"" `
-    -WorkingDirectory $repo
-$harness = New-ScheduledTaskAction `
-    -Execute "$env:ComSpec" `
-    -Argument "/c `"`"$repo\.venv\Scripts\fm.exe`" harness daily >> `"$repo\data\harness.log`" 2>&1`"" `
-    -WorkingDirectory $repo
-$ping = New-ScheduledTaskAction `
-    -Execute "$env:ComSpec" `
-    -Argument "/c `"`"$repo\.venv\Scripts\fm.exe`" auth fantrax --ping >> `"$repo\data\auth.log`" 2>&1`"" `
-    -WorkingDirectory $repo
+$repo = "C:\code\fantasy_manager"
+function FmStep($fmArgs, $log) {
+    New-ScheduledTaskAction -Execute "$env:ComSpec" `
+        -Argument "/c `"`"$repo\.venv\Scripts\fm.exe`" $fmArgs >> `"$repo\data\$log`" 2>&1`"" `
+        -WorkingDirectory $repo
+}
+$actions = @(
+    (FmStep "auth fantrax --ping" "auth.log"),
+    (FmStep "backtest archive"    "archive.log"),
+    (FmStep "harness daily"       "harness.log"),
+    (FmStep "report --notify"     "report.log")
+)
 $trigger  = New-ScheduledTaskTrigger -Daily -At 8:00AM
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 15) `
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 20) `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RunOnlyIfNetworkAvailable
-Register-ScheduledTask -TaskName "FantasyManagerDailyReport" -Action $action, $archive, $harness, $ping -Trigger $trigger `
-    -Settings $settings -Description "fm report --notify (fantasy hockey digest)"
+Register-ScheduledTask -TaskName "FantasyManagerDailyReport" -Action $actions -Trigger $trigger `
+    -Settings $settings -Description "fm daily: fantrax ping, archive, harness, report"
 ```
 
-`cmd /c` is only there so stdout and stderr go to `data\report.log`. Create the `data` folder
+Task Scheduler runs the actions in order, each after the previous one exits (a failed step does
+not stop the next one). To change an existing task, `Unregister-ScheduledTask` it first (see
+below) and register it again.
+
+`cmd /c` is only there so stdout and stderr go to the log files in `data\`. Create the `data` folder
 first if it doesn't exist (`New-Item -ItemType Directory -Force C:\code\fantasy_manager\data`).
 
 The task runs as you, and only while you're logged in. To also run it while you're logged out,
@@ -70,10 +76,10 @@ logged on or not*.
 @echo off
 cd /d C:\code\fantasy_manager
 if not exist data mkdir data
-".venv\Scripts\fm.exe" report --notify >> data\report.log 2>&1
+".venv\Scripts\fm.exe" auth fantrax --ping >> data\auth.log 2>&1
 ".venv\Scripts\fm.exe" backtest archive >> data\archive.log 2>&1
 ".venv\Scripts\fm.exe" harness daily >> data\harness.log 2>&1
-".venv\Scripts\fm.exe" auth fantrax --ping >> data\auth.log 2>&1
+".venv\Scripts\fm.exe" report --notify >> data\report.log 2>&1
 ```
 
 Then register it:
@@ -100,7 +106,7 @@ and `schtasks /Delete /TN ... /F`.
   shows an auth error and no digest is sent. Refresh the cookies in `.env`. For Fantrax, set
   `FANTRAX_USERNAME` / `FANTRAX_PASSWORD` (see "Fantrax setup" in the README) and fm logs in again
   by itself when the session expires; otherwise refresh `FANTRAX_COOKIE` the same way.
-- **Fantrax keepalive.** Both recipes end with `fm auth fantrax --ping`, logging to
+- **Fantrax keepalive.** Both recipes start with `fm auth fantrax --ping`, logging to
   `data\auth.log`. It makes one uncached, authenticated request (`getFantasyLeagueInfo`), which
   keeps the session in regular use, re-logs in if Fantrax says the session is gone (when
   credentials are set), and records the result for `fm auth fantrax --status`. A failed ping exits
@@ -115,7 +121,7 @@ and `schtasks /Delete /TN ... /F`.
   `$trigger = @((New-ScheduledTaskTrigger -Daily -At 8:00AM), (New-ScheduledTaskTrigger -Daily -At 4:00PM))`.
 - **Both leagues.** Register a second task, or put two lines in the wrapper script, with
   `--league espn` and `--league fantrax`.
-- **Projection archive.** Both recipes run `fm backtest archive` after the report, logging to
+- **Projection archive.** Both recipes run `fm backtest archive` after the ping, logging to
   `data\archive.log`. It saves the day's
   ESPN and Fantrax projections and recommendations to `data\archive\`, one file per league per
   day, so running it more than once a day is harmless. Cold it takes about 40s; with a warm cache
@@ -126,4 +132,5 @@ and `schtasks /Delete /TN ... /F`.
   lineups and yesterday's NHL results, and matches recommendations to your moves. It is
   idempotent (a second run the same day changes nothing) and skips the archive step when today's
   files already exist. Run it every day: the ESPN and Fantrax activity feeds only keep the most
-  recent moves. See `docs/harness.md`.
+  recent moves. The dashboard's Health tab shows the last daily run and any capture warnings.
+  See `docs/harness.md`.

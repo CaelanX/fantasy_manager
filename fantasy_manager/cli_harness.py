@@ -1,6 +1,6 @@
 """`fm harness ...`: capture and match recommendations against what happened (M1), grade them
 and keep the bar (M2: ``grade``, ``status``), and correct a bounded set of valuation parameters
-(M3: ``refit``, ``rollback``, ``params``).
+(M3: ``refit``, ``rollback``, ``params``; M4: ``auto-apply``).
 
 Mounted into the main app with ``app.add_typer(harness_app, name="harness")``. See
 docs/harness.md.
@@ -757,3 +757,30 @@ def params_cmd(history: bool = typer.Option(False, "--history", help="List every
     else:
         console.print(f"{len(versions)} version(s): " + ", ".join(f"{v['version']} ({v.get('status')})"
                                                               for v in versions) + " (--history for details)")
+
+
+@harness_app.command("auto-apply")
+def auto_apply_cmd(state: Optional[str] = typer.Argument(None, help="on | off (omit to show the current setting)"),
+                   json_out: bool = typer.Option(False, "--json")) -> None:
+    """Show or set whether `fm harness daily` may apply a passing Tier A refit by itself on a refit day
+    (from 2026-11-16; saved as harness_auto_apply in prefs.json, default on). Off: proposals only."""
+    from .harness.refit import AUTO_APPLY_START
+    from .prefs import HARNESS_AUTO_APPLY_KEY, harness_auto_apply, set_pref
+
+    settings = _settings()
+    if state is not None:
+        v = state.strip().lower()
+        if v not in ("on", "off"):
+            console.print(f"[red]Expected on or off, got {escape(state)!r}.[/]")
+            raise typer.Exit(2)
+        set_pref(HARNESS_AUTO_APPLY_KEY, v == "on", data_dir=settings.fm_data_dir)
+    on = harness_auto_apply(settings.fm_data_dir)
+    if json_out:
+        typer.echo(json.dumps({"auto_apply": on, "from": AUTO_APPLY_START.isoformat()}))
+        return
+    if on:
+        console.print(f"Auto-apply is [bold]on[/]: from {AUTO_APPLY_START.isoformat()}, `fm harness daily` applies a "
+                      "Tier A refit that passes the gate on a refit day (undo with `fm harness rollback`).")
+    else:
+        console.print("Auto-apply is [bold]off[/]: refit days only store proposals; apply one with "
+                      "`fm harness refit --apply`.")

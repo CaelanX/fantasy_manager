@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -601,18 +602,103 @@ def _mode_flash(msg: str | None, res: LoadResult | None) -> str | None:
 
 # --------------------------------------------------------------------------- app factory
 
-def health_report() -> dict[str, Any]:
-    """The harness bar (``harness.metrics.status_report``) from ``<FM_DATA_DIR>/harness.db``;
-    an empty report when there is no ledger yet (it is never created from here)."""
+def _data_dir() -> Path:
     from ..config import get_settings
-    from ..harness.ledger import DB_NAME, Ledger
-    from ..harness.metrics import empty_report, status_report
 
-    data_dir = Path(get_settings().fm_data_dir)
+    return Path(get_settings().fm_data_dir)
+
+
+def _params_without_ledger(data_dir: Path) -> dict[str, Any]:
+    try:
+        from ..harness.params_store import ParamsStore
+        from ..valuation.params import params_hash, source
+
+        st = ParamsStore(data_dir=data_dir)
+        return {"version": st.active_name(), "hash": params_hash(), "source": source(), "versions": len(st.versions())}
+    except Exception as e:  # noqa: BLE001
+        return {"version": "packaged", "hash": None, "source": f"unavailable ({type(e).__name__})", "versions": 0}
+
+
+def health_report(league: str | None = None) -> dict[str, Any]:
+    """The harness bar (``harness.metrics.status_report``) from ``<FM_DATA_DIR>/harness.db`` plus
+    the M4 surfaces (``harness.health.full_report``: chart series, scorecard, data capture,
+    params changelog, refit calendar). Without a ledger (it is never created from here) the
+    leagues are empty and only the params / calendar are filled in. ``league``: also build that
+    league's report when the ledger does not know it yet (the page always shows one league)."""
+    from ..harness.health import calendar, changelog, extend_league, full_report
+    from ..harness.ledger import DB_NAME, Ledger
+    from ..harness.metrics import empty_report, league_report
+    from ..harness.params_store import ParamsStore
+
+    data_dir = _data_dir()
     if not (data_dir / DB_NAME).exists():
-        return empty_report()
+        rep = empty_report()
+        rep["params"] = _params_without_ledger(data_dir)
+        rep["changelog"] = changelog(ParamsStore(data_dir=data_dir))
+        rep["calendar"] = calendar(data_dir=data_dir)
+        return rep
     with Ledger(data_dir) as led:
-        return status_report(led)
+        rep = full_report(led, data_dir=data_dir)
+        if league and league not in rep["leagues"]:
+            rep["leagues"][league] = extend_league(led, league, league_report(led, league))
+        return rep
+
+
+def refit_dry_run(force: bool = False) -> dict[str, Any]:
+    """``fm harness refit --dry-run`` for the /health page (writes nothing; ``force`` bypasses the
+    calendar lock only). ``{"error": ...}`` when there is no ledger yet."""
+    from datetime import date
+
+    from ..harness.ledger import DB_NAME, Ledger
+    from ..harness.refit import run_refit
+
+    data_dir = _data_dir()
+    if not (data_dir / DB_NAME).exists():
+        return {"error": "no harness ledger yet: run `fm harness daily` first"}
+    with Ledger(data_dir) as led:
+        return run_refit(led, date.today(), mode="dry-run", force=force).to_dict()
+
+
+def params_rollback(version: str | None) -> dict[str, Any]:
+    """Roll the active params version back (``fm harness rollback --to``); raises ValueError."""
+    from datetime import date
+
+    from ..harness.ledger import DB_NAME, Ledger
+    from ..harness.params_store import ParamsStore
+
+    data_dir = _data_dir()
+    if not (data_dir / DB_NAME).exists():
+        return ParamsStore(data_dir=data_dir).rollback(to=version, by="dashboard")
+    with Ledger(data_dir) as led:
+        out = ParamsStore(ledger=led).rollback(to=version, by="dashboard")
+        try:
+            from ..harness.ingest import record_run
+
+            record_run(led, "rollback", None, date.today(), {**out, "via": "dashboard"})
+        except Exception:  # noqa: BLE001 - the rollback itself already happened
+            log.exception("recording the rollback run failed")
+        return out
+
+
+VERSION_RE = re.compile(r"^(v\d{4,}|packaged)$")
+ROLLBACK_MSG = re.compile(r"^rollback-ok-(v\d{4,}|packaged)-(v\d{4,}|packaged)$")
+ROLLBACK_FLASH = {
+    "rollback-unconfirmed": "Nothing changed: tick the confirmation box to roll the parameters back.",
+    "rollback-none": "Nothing to roll back: the packaged parameters are active.",
+    "rollback-unknown": "Rollback failed: unknown or already active version. Nothing changed.",
+}
+
+
+def _rollback_flash(msg: str | None) -> tuple[str | None, bool]:
+    """(text, is_warning) for ``?msg=rollback-...`` (set by POST /params/rollback)."""
+    if not msg or not msg.startswith("rollback-"):
+        return None, False
+    m = ROLLBACK_MSG.match(msg)
+    if m:
+        return (f"Rolled back the valuation parameters from {m.group(1)} to {m.group(2)}. "
+                "Every page recalculates with them on its next load."), False
+    text = ROLLBACK_FLASH.get(msg)
+    return (text, True) if text else (None, False)
 
 
 def default_llm() -> Any:
@@ -686,6 +772,8 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         base["data_mode"] = (res.mode if res is not None and res.mode else cur_mode)
         base["data_mode_source"] = (res.mode_source if res is not None and res.mode else cur_source)
         base["flash"] = _mode_flash(request.query_params.get("msg"), res)
+        if base["flash"] is None:
+            base["flash"], base["flash_warn"] = _rollback_flash(request.query_params.get("msg"))
         if "llm_ok" not in base:
             base["llm_ok"] = llm_available() if name in ("overview.html", "recommendations.html",
                                                          "player.html") else False
@@ -999,14 +1087,66 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
             return JSONResponse({"error": f"{type(e).__name__}: {e}"}, status_code=500)
 
     @app.get("/health", response_class=HTMLResponse)
-    def health(request: Request, league: str = LeagueQ):
+    def health(request: Request, league: str = LeagueQ, refit: str | None = None, force: str | None = None):
+        from . import health_view
+
+        forced = (force or "").lower() in ("1", "on", "true", "yes")
         try:
-            report = health_report()
+            report = health_report(league)
         except Exception as e:
             log.exception("health report failed")
             return render(request, "error.html", league, status_code=500, error=f"{type(e).__name__}: {e}",
                           title="Something went wrong")
-        return render(request, "health.html", league, report=report, no_mode=True, title="Model health")
+        proposal = None
+        if refit == "dry-run":
+            try:
+                proposal = refit_dry_run(force=forced)
+            except Exception as e:  # noqa: BLE001 - show the failure inline, keep the page
+                log.exception("refit dry run failed")
+                proposal = {"error": f"{type(e).__name__}: {e}"}
+        L = (report.get("leagues") or {}).get(league)
+        return render(request, "health.html", league, report=report, L=L, no_mode=True, title="Model health",
+                      charts=health_view.health_charts((L or {}).get("series"), league), hv=health_view,
+                      proposal=proposal, proposal_rows=health_view.refit_rows(proposal), forced=forced)
+
+    @app.post("/params/rollback")
+    async def rollback_params(request: Request):
+        """Roll the params back (form fields: version, confirm, league, next) and redirect back
+        (same-site only, like POST /mode). The ``confirm`` checkbox is required."""
+        fields = dict(request.query_params)
+        body = await request.body()
+        if body:
+            fields.update(parse_qsl(body.decode("utf-8", "replace"), keep_blank_values=True))
+        league = fields.get("league") or default_league
+        if league not in LEAGUES:
+            return JSONResponse({"detail": f"league must be one of {', '.join(LEAGUES)}"}, status_code=422)
+        nxt = fields.get("next") or f"/health?league={league}"
+        if (fields.get("confirm") or "").strip().lower() not in ("1", "on", "yes", "true"):
+            return RedirectResponse(safe_next(nxt, league, msg="rollback-unconfirmed"), status_code=303)
+        version = (fields.get("version") or "").strip() or None
+        if version is not None and not VERSION_RE.match(version):
+            return RedirectResponse(safe_next(nxt, league, msg="rollback-unknown"), status_code=303)
+        try:
+            out = params_rollback(version)
+        except ValueError as e:
+            code = "rollback-none" if "nothing to roll back" in str(e) else "rollback-unknown"
+            return RedirectResponse(safe_next(nxt, league, msg=code), status_code=303)
+        except OSError as e:
+            log.exception("params rollback failed")
+            return JSONResponse({"detail": f"could not roll back: {e}"}, status_code=500)
+        log.info("params rolled back %s -> %s from the dashboard", out["from"], out["to"])
+        try:
+            from ..valuation import params as vparams
+
+            vparams.reload()
+        except Exception:
+            pass
+        cache.clear()                                   # every league's values depend on the params
+        invalidate = getattr(loader, "invalidate", None)
+        if callable(invalidate):
+            invalidate()
+        return RedirectResponse(safe_next(nxt, league, msg=f"rollback-ok-{out['from']}-{out['to']}"),
+                                status_code=303)
 
     @app.get("/api/mode.json")
     def api_mode():

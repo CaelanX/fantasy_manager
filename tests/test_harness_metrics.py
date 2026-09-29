@@ -322,3 +322,21 @@ def test_cli_grade_and_status_report_insufficient_data(tmp_path, monkeypatch):
     res = runner.invoke(cli_harness.harness_app, ["status", "--json"])
     bar = json.loads(res.output)["bar"]
     assert bar["leagues"]["espn"]["graded"] and bar["leagues"]["espn"]["headline"] is None
+
+
+
+def test_per_week_baselines_for_the_sparklines(led):
+    _projection_ledger(led)
+    rows, _ = compute_week(led, "espn", WEEK)
+    f = next(r for r in rows if (r["metric"], r["pool"]) == ("proj_fpg_mae", "F"))
+    (pw,) = json.loads(f["detail_json"])["per_week_base"]
+    assert pw["week"] == "2026-10-05" and pw["n_to_date"] == 2
+    assert pw["base_mae"]["to_date"] == pytest.approx(0.0) and pw["base_mae"]["provider"] == pytest.approx(1.5)
+    assert pw["skill"]["fm"] is None                                        # MAE_to_date = 0: undefined
+    from fantasy_manager.harness.health import series
+
+    grade_week(led, "espn", WEEK)
+    s = series(led, "espn")
+    assert s["mae"]["F"]["x"] == ["2026-10-05"] and s["mae"]["F"]["lines"]["fm"] == [0.5]
+    assert s["mae"]["F"]["lines"]["provider"] == [1.5] and s["mae"]["F"]["trust"] == "hidden"
+    assert s["skill"]["F"]["lines"]["to_date"] == [0.0] and s["hit"] == {}

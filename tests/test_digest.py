@@ -140,3 +140,40 @@ def test_model_headline_line_hidden_until_given(tmp_path):
     assert f"*{line}*" in d.markdown and 'class="meta model">Model: forwards' in d.html
     assert model_headline(tmp_path, "espn") is None          # no ledger: hidden, and none is created
     assert not (tmp_path / "harness.db").exists()
+
+
+
+def test_model_health_block_hidden_until_trustworthy(tmp_path):
+    from fantasy_manager.harness.ledger import Ledger
+    from fantasy_manager.report.digest import model_health
+
+    ctx, values = make_league()
+    plain = build_digest(ctx, values, make_recs(ctx), NEWS, GEN)
+    assert "Model health" not in plain.markdown and "Model health" not in plain.html
+    assert model_health(tmp_path, "espn") is None and not (tmp_path / "harness.db").exists()
+    with Ledger(tmp_path) as led:                                   # graded, but nothing trustworthy
+        led.upsert("metric_snapshots", [{"snapshot_id": "a", "week": "2026-11-02", "league": "espn",
+                                         "metric": "proj_fpg_mae", "pool": "F", "value": 0.5, "n": 20,
+                                         "trust": "hidden", "detail_json": "{}"}], ("snapshot_id",))
+    assert model_health(tmp_path, "espn") is None
+    with Ledger(tmp_path) as led:
+        rows = []
+        for week, mae, n in (("2026-11-02", 0.60, 160), ("2026-11-09", 0.55, 200)):
+            rows += [{"snapshot_id": f"m{week}", "week": week, "league": "espn", "metric": "proj_fpg_mae",
+                      "pool": "F", "value": mae, "n": n, "trust": "provisional", "detail_json": "{}"},
+                     {"snapshot_id": f"s{week}", "week": week, "league": "espn", "metric": "proj_fpg_skill",
+                      "pool": "F", "value": 0.1, "n": n, "ci_lo": 0.02, "ci_hi": 0.18, "trust": "provisional",
+                      "detail_json": "{}"},
+                     {"snapshot_id": f"h{week}", "week": week, "league": "espn", "metric": "hit_rate",
+                      "pool": "waiver:followed", "value": 0.6, "n": 25, "ci_lo": 0.4, "ci_hi": 0.77,
+                      "trust": "provisional", "detail_json": '{"hits": 15}'}]
+        led.upsert("metric_snapshots", rows, ("snapshot_id",))
+    block = model_health(tmp_path, "espn")
+    assert len(block) == 3
+    assert block[0] == "Projection MAE (FPG, next 28 days): forwards 0.55 \u2193 (was 0.60)"
+    assert block[1] == "Hit rate of the model's recs: waiver 60% (n=25, provisional)"
+    assert block[2].startswith("Params: packaged (hash ")
+    d = build_digest(ctx, values, make_recs(ctx), NEWS, GEN, model_headline="Model: x", model_health=block)
+    assert "## Model health\n\n- Projection MAE" in d.markdown and "- Params: packaged" in d.markdown
+    assert '<h2>Model health</h2>\n<ul class="model-health"><li>Projection MAE' in d.html
+    assert "Model health" not in d.summary                          # webhook summary stays short

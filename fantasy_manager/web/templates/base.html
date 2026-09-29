@@ -48,7 +48,7 @@
     </div>
     {% endif %}
   </div>
-  {% if flash %}<p class="flash" role="status">{{ flash }}</p>{% endif %}
+  {% if flash %}<p class="flash{% if flash_warn %} flash-warn{% endif %}" role="status">{{ flash }}</p>{% endif %}
   {% block content %}{% endblock %}
 </main>
 <footer class="wrap foot">
