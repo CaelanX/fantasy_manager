@@ -354,6 +354,7 @@ class Subject:
     horizon_days: int | None = None
     title: str | None = None
     strength: float | None = None
+    last_seen: date | None = None
 
 
 def outcome_id(s: Subject, window: str) -> str:
@@ -485,7 +486,8 @@ def load_subjects(ledger: Ledger, league: str) -> list[Subject]:
         origin = ORIGIN_OF_STATUS.get(r["status"], r["status"])
         common = dict(league=league, kind=r["kind"], origin=origin, episode_id=r["episode_id"],
                       predicted_gain=r["predicted_gain"], gain_units=r["gain_units"],
-                      horizon_days=r["horizon_days"], title=r["title"], strength=r["strength"])
+                      horizon_days=r["horizon_days"], title=r["title"], strength=r["strength"],
+                      last_seen=e.last_seen)
         out.append(Subject(basis="first_seen", day=e.first_seen, adds=sorted(e.adds), drops=sorted(e.drops),
                            **common))
         dec = decisions.get(r["episode_id"])
@@ -506,6 +508,45 @@ def load_subjects(ledger: Ledger, league: str) -> list[Subject]:
                            day=date.fromisoformat(d["day"]), adds=_json_list(d["adds_json"]),
                            drops=_json_list(d["drops_json"]), decision_id=d["decision_id"]))
     return out
+
+
+def model_alternative(s: Subject, subjects: Iterable[Subject]) -> Subject | None:
+    """The model's own pick of the same kind that day: the rec episode (first_seen basis) live on
+    my move's day with the highest predicted gain (then strength)."""
+    best = None
+    for e in subjects:
+        if e.basis != "first_seen" or e.kind != s.kind or e.episode_id is None or not e.adds:
+            continue
+        last = e.last_seen or e.day
+        if not (e.day <= s.day <= last):
+            continue
+        key = (e.predicted_gain if e.predicted_gain is not None else float("-inf"),
+               e.strength if e.strength is not None else float("-inf"))
+        if best is None or key > best[0]:
+            best = (key, e)
+    return best[1] if best else None
+
+
+def _attach_alternative(s: Subject, rows: list[dict[str, Any]], subjects: list[Subject], players: Players,
+                        realized: Realized, repl_cache: dict) -> None:
+    """Counterfactual: the model's pick that day, realized over the same windows as my move."""
+    alt = model_alternative(s, subjects)
+    for r in rows:
+        detail = json.loads(r["detail_json"])
+        if alt is None:
+            detail["alt"] = None
+        else:
+            start = date.fromisoformat(r["window_start"])
+            days = days_between(start, date.fromisoformat(detail["graded_through"]))
+            p_in, _, m_in = _pts(players, realized, alt.adds, days)
+            p_out, _, m_out = _pts(players, realized, alt.drops, days)
+            gain = None if (m_in or m_out) else p_in - p_out
+            if gain is not None and s.kind == "trade" and len(alt.adds) != len(alt.drops):
+                repl = replacement_pts(players, realized, s.day, days, repl_cache)
+                gain = gain - (len(alt.adds) - len(alt.drops)) * repl if repl is not None else gain
+            detail["alt"] = {"episode_id": alt.episode_id, "title": alt.title,
+                             "gain": None if gain is None else round(gain, 4)}
+        r["detail_json"] = json.dumps(detail, sort_keys=True, default=str)
 
 
 @dataclass
@@ -549,7 +590,10 @@ def grade_outcomes(ledger: Ledger, league: str, as_of: date | None = None) -> Gr
     repl_cache: dict = {}
     rows: list[dict[str, Any]] = []
     for s in subjects:
-        rows.extend(grade_subject(s, players, realized, as_of, sc, league, repl_cache))
+        graded = grade_subject(s, players, realized, as_of, sc, league, repl_cache)
+        if s.origin == "user_only" and graded:
+            _attach_alternative(s, graded, subjects, players, realized, repl_cache)
+        rows.extend(graded)
     keep = {r["outcome_id"] for r in rows}
     for r in ledger.query("SELECT outcome_id FROM outcomes WHERE league=?", (league,)):
         if r["outcome_id"] not in keep:
