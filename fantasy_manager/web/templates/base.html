@@ -14,7 +14,7 @@
   <div class="mast">
     <a class="brand" href="/?league={{ league }}">Fantasy Manager <span>/ hockey</span></a>
     <nav class="tabs" aria-label="Sections">
-      {% set sections = [("/", "Overview"), ("/roster", "Roster"), ("/recommendations", "Moves"), ("/news", "News")] %}
+      {% set sections = [("/", "Overview"), ("/roster", "Roster"), ("/recommendations", "Moves"), ("/news", "News"), ("/health", "Health")] %}
       {% for href, label in sections %}
       <a href="{{ href }}?league={{ league }}"{% if path == href %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}

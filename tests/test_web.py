@@ -642,3 +642,57 @@ def test_explain_failure_shows_inline_note():
     bad = c.post("/explain", data={"league": "espn", "rec_key": "nope", "next": "//evil.example"},
                  follow_redirects=False)
     assert bad.status_code == 303 and bad.headers["location"] == "/?league=espn"
+
+
+def test_lineup_chain_note_empty_slot_and_moved_subjects():
+    from fantasy_manager.web.app import action_note
+
+    res = make_result()
+    p = {x.cid: x for x in res.ctx.all_players()}
+    r = Recommendation(kind="lineup", score=1, title="Start Free Agent One at C (empty slot)", add=[p["f1"]])
+    assert action_line(r) == "Start One" and action_note(r) == "Fills an empty starting slot."
+    chain = Recommendation(kind="lineup", score=1,
+                           title="Start Free Agent One at UTIL for Tim Stützle; move Tim Stützle to C over "
+                                 "Brady Tkachuk (out)",
+                           add=[p["f1"]], drop=[p["b"]], subjects=[p["a"]],
+                           reasons=[Reason(code="LINEUP_MOVE",
+                                           text="Tim Stützle moves to C (replacing Brady Tkachuk)")])
+    assert action_line(chain) == "Start One over Tkachuk"
+    assert action_note(chain) == "Then move Tim Stützle to C over Brady Tkachuk (out)."
+    cmp = views.compare(res, chain)
+    assert [(c["side"], c["verb"], c["row"]["cid"]) for c in cmp["cols"]][-1] == ("subj", "Moves", "a")
+
+
+# -- model health (harness bar) ------------------------------------------------------------
+
+def test_health_without_ledger_is_empty_and_creates_nothing(isolated):
+    c = TestClient(create_app(CountingLoader()))
+    r = c.get("/api/health.json")
+    assert r.status_code == 200 and r.json()["leagues"] == {}
+    h = c.get("/health")
+    assert h.status_code == 200 and "Model health" in h.text and "fm harness daily" in h.text
+    assert 'href="/health?league=espn" aria-current="page"' in h.text          # nav link
+    assert not (isolated / "harness.db").exists()
+
+
+def test_health_reports_the_graded_bar(isolated):
+    from fantasy_manager.harness.ledger import Ledger
+    from fantasy_manager.harness.metrics import grade_week
+
+    with Ledger(isolated) as led:
+        led.upsert("rec_episodes", [{"episode_id": "e1", "league": "espn", "rec_key": "k", "kind": "waiver",
+                                     "first_seen": "2026-10-05", "last_seen": "2026-10-05", "n_days": 1}],
+                   ("episode_id",))
+        grade_week(led, "espn", date(2026, 10, 12))
+    loader = CountingLoader()
+    c = TestClient(create_app(loader))
+    j = c.get("/api/health.json").json()
+    L = j["leagues"]["espn"]
+    assert L["graded"] and L["week"] == "2026-10-12" and L["headline"] is None
+    assert {r["pool"] for r in L["projection"] if r["metric"] == "proj_fpg_mae"} == {"F", "D", "G"}
+    assert all(r["trust"] == "hidden" for r in L["projection"] + L["hit_rates"])
+    assert {"metric": "hit_rate", "pool": "waiver:followed", "n": 0, "need": 20} in L["not_judgeable"]
+    assert j["params"]["version"] == "packaged"
+    h = c.get("/health?league=fantrax").text
+    assert "ESPN" in h and "bar as of week 2026-10-12" in h and "Digest line hidden" in h
+    assert 'action="/mode"' not in h and loader.calls == []                  # never loads a league

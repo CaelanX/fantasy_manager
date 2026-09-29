@@ -126,3 +126,17 @@ def test_write_digest(tmp_path):
     assert md_path.name == "digest-2026-10-07.md" and html_path.name == "digest-2026-10-07.html"
     assert md_path.read_text(encoding="utf-8") == d.markdown
     assert html_path.read_text(encoding="utf-8").startswith("<!doctype html>")
+
+
+def test_model_headline_line_hidden_until_given(tmp_path):
+    from fantasy_manager.report.digest import model_headline
+
+    ctx, values = make_league()
+    plain = build_digest(ctx, values, make_recs(ctx), NEWS, GEN)
+    assert "Model:" not in plain.summary and "Model:" not in plain.markdown and "Model:" not in plain.html
+    line = "Model: forwards projections beat season-to-date by 12% (provisional, n=180)"
+    d = build_digest(ctx, values, make_recs(ctx), NEWS, GEN, model_headline=line)
+    assert d.summary.splitlines()[1] == line
+    assert f"*{line}*" in d.markdown and 'class="meta model">Model: forwards' in d.html
+    assert model_headline(tmp_path, "espn") is None          # no ledger: hidden, and none is created
+    assert not (tmp_path / "harness.db").exists()

@@ -458,8 +458,12 @@ def action_note(r: Recommendation) -> str | None:
     title = r.title.strip()
     if r.kind == "lineup" and title.endswith("(locks Monday)"):
         return "For this week's lineup: Fantrax locks it on Monday."
-    if r.kind == "lineup" and "(open starting slot)" in title:
-        return "Fills an open starting slot."
+    if r.kind == "lineup" and "; move " in title:
+        # chain: "Start A at UTIL for B; move B to C over D (out)" - the line shows A over D only
+        rest = title.split("; ", 1)[1].strip()
+        return f"Then {rest}" + ("" if rest.endswith(".") else ".")
+    if r.kind == "lineup" and ("(empty slot)" in title or "(open starting slot)" in title):
+        return "Fills an empty starting slot."
     if r.kind == "lineup" and title.startswith("Bench ") and ":" in title:
         return title.split(":", 1)[1].strip().capitalize() + "."
     if r.kind == "waiver" and "(open roster spot)" in title:
@@ -597,6 +601,20 @@ def _mode_flash(msg: str | None, res: LoadResult | None) -> str | None:
 
 # --------------------------------------------------------------------------- app factory
 
+def health_report() -> dict[str, Any]:
+    """The harness bar (``harness.metrics.status_report``) from ``<FM_DATA_DIR>/harness.db``;
+    an empty report when there is no ledger yet (it is never created from here)."""
+    from ..config import get_settings
+    from ..harness.ledger import DB_NAME, Ledger
+    from ..harness.metrics import empty_report, status_report
+
+    data_dir = Path(get_settings().fm_data_dir)
+    if not (data_dir / DB_NAME).exists():
+        return empty_report()
+    with Ledger(data_dir) as led:
+        return status_report(led)
+
+
 def default_llm() -> Any:
     """The OpenRouter client used by POST /explain (``available`` is False without a key)."""
     from ..config import get_settings
@@ -646,7 +664,7 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
 
     def render(request: Request, name: str, league: str, status_code: int = 200, **ctx: Any) -> HTMLResponse:
         path = request.url.path
-        switch_path = path if path in ("/", "/roster", "/recommendations", "/news") else "/"
+        switch_path = path if path in ("/", "/roster", "/recommendations", "/news", "/health") else "/"
         query = [(k, v) for k, v in request.query_params.multi_items() if k != "msg"]
         here = path + (f"?{urlencode(query)}" if query else "")
         cur_mode, cur_source = current_mode()
@@ -655,7 +673,8 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                 "cur_mode": cur_mode, "cur_mode_source": cur_source}
         base.update(ctx)
         res = base.get("res")
-        base["show_mode"] = league == "fantrax" or bool(res is not None and res.ctx.dynasty)
+        base["show_mode"] = (league == "fantrax" or bool(res is not None and res.ctx.dynasty)) \
+            and not ctx.get("no_mode")
         base["data_mode"] = (res.mode if res is not None and res.mode else cur_mode)
         base["data_mode_source"] = (res.mode_source if res is not None and res.mode else cur_source)
         base["flash"] = _mode_flash(request.query_params.get("msg"), res)
@@ -956,6 +975,24 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         cache.clear(league)  # the mode-independent base stays cached in the loader: cheap recompute
         log.info("dynasty mode set to %s from the dashboard", mode)
         return RedirectResponse(safe_next(fields.get("next"), league, msg=f"mode-{mode}"), status_code=303)
+
+    @app.get("/api/health.json")
+    def api_health():
+        try:
+            return health_report()
+        except Exception as e:
+            log.exception("health report failed")
+            return JSONResponse({"error": f"{type(e).__name__}: {e}"}, status_code=500)
+
+    @app.get("/health", response_class=HTMLResponse)
+    def health(request: Request, league: str = LeagueQ):
+        try:
+            report = health_report()
+        except Exception as e:
+            log.exception("health report failed")
+            return render(request, "error.html", league, status_code=500, error=f"{type(e).__name__}: {e}",
+                          title="Something went wrong")
+        return render(request, "health.html", league, report=report, no_mode=True, title="Model health")
 
     @app.get("/api/mode.json")
     def api_mode():

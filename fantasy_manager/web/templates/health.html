@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% macro pct(v) %}{% if v is none %}-{% else %}{{ '%.0f'|format(v * 100) }}%{% endif %}{% endmacro %}
+{% macro trust(t) %}<span class="pill {{ 'pill-ok' if t == 'reliable' else ('pill-dtd' if t == 'provisional' else 'pill-unk') }}">{{ t }}</span>{% endmacro %}
+{% block heading %}
+<p class="sc dateline">Evaluation harness &middot; how the model is doing against realized results</p>
+<h1>Model health</h1>
+{% endblock %}
+{% block content %}
+{% if not report.leagues %}
+<p class="empty">{{ report.note or 'Nothing graded yet.' }}</p>
+{% endif %}
+{% for lg, L in report.leagues.items() %}
+<section aria-labelledby="h-{{ lg }}">
+  <h2 id="h-{{ lg }}">{{ lg|upper }} <span class="aside">{% if L.graded %}bar as of week {{ L.week }}{% else %}not graded yet (run <code>fm harness grade</code>){% endif %}</span></h2>
+  <p>{% if L.headline %}{{ L.headline }}{% else %}<span class="empty">Digest line hidden: nothing trustworthy yet.</span>{% endif %}</p>
+  {% if L.projection %}
+  <div class="tbl"><table class="r health-proj">
+    <caption class="sr-only">{{ lg }} projection accuracy by pool</caption>
+    <thead><tr><th scope="col">Metric</th><th scope="col">Pool</th><th scope="col" class="n">Value</th>
+      <th scope="col" class="n">95% CI</th><th scope="col" class="n">N</th><th scope="col">Trust</th></tr></thead>
+    <tbody>
+    {% for r in L.projection %}
+    <tr><th scope="row">{{ {'proj_fpg_mae': 'FPG MAE (28d)', 'proj_fpg_skill': 'Skill vs to-date', 'proj_week_mae': 'Week pts MAE'}.get(r.metric, r.metric) }}</th>
+      <td>{{ r.pool }}</td>
+      <td class="n">{% if r.metric == 'proj_fpg_skill' %}{{ pct(r.value) }}{% else %}{{ r.value|num }}{% endif %}</td>
+      <td class="n">{% if r.ci_lo is not none %}{{ pct(r.ci_lo) }} to {{ pct(r.ci_hi) }}{% else %}-{% endif %}</td>
+      <td class="n">{{ r.n }}</td><td>{{ trust(r.trust) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+  {% if L.hit_rates %}
+  <div class="tbl"><table class="r health-hits">
+    <caption class="sr-only">{{ lg }} recommendation hit rates</caption>
+    <thead><tr><th scope="col">Kind : origin</th><th scope="col" class="n">Hit rate</th><th scope="col" class="n">95% CI</th>
+      <th scope="col" class="n">Mean realized</th><th scope="col" class="n">N</th><th scope="col">Trust</th></tr></thead>
+    <tbody>
+    {% for r in L.hit_rates %}
+    <tr><th scope="row">{{ r.pool }}</th><td class="n">{{ pct(r.value) }}</td>
+      <td class="n">{% if r.ci_lo is not none %}{{ pct(r.ci_lo) }} to {{ pct(r.ci_hi) }}{% else %}-{% endif %}</td>
+      <td class="n">{{ r.detail.mean_gain|num }} {{ r.detail.units }}</td><td class="n">{{ r.n }}</td><td>{{ trust(r.trust) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+  {% if L.calibration %}
+  <p>Calibration: {{ L.calibration.n }} graded rec(s) with a predicted gain, {{ L.calibration.detail.binning }} bins
+    {{ trust(L.calibration.trust) }}{% if L.calibration.value is not none %}; realized / predicted {{ L.calibration.value|num }}{% endif %}.</p>
+  {% endif %}
+  {% if L.counterfactual %}
+  <p>Your moves vs the model's: {% if L.counterfactual.n %}you {{ L.counterfactual.detail.my_mean|num }} pts vs the model's pick
+    {{ L.counterfactual.detail.model_mean|num }} pts on {{ L.counterfactual.n }} paired move(s){% else %}{{ L.counterfactual.detail.moves or 0 }} graded move(s), none paired yet{% endif %}
+    {{ trust(L.counterfactual.trust) }}.</p>
+  {% endif %}
+  <p>Trades (case list, never aggregated): {{ L.trades|length }}.
+    Outcomes: {{ L.outcomes.n }} rows, {{ L.outcomes.complete }} complete, {{ L.outcomes.unmatched }} with unmatched players.</p>
+  {% if L.not_judgeable %}
+  <details><summary>Not judgeable yet ({{ L.not_judgeable|length }})</summary>
+    <ul>{% for x in L.not_judgeable %}<li>{{ x.metric }} {{ x.pool }}: n={{ x.n }}{% if x.need is not none %}, needs {{ x.need }} more{% endif %}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+</section>
+{% endfor %}
+{% if report.params %}
+<p class="foot-note">Parameters: <strong>{{ report.params.version }}</strong>
+  (hash <code>{{ (report.params.hash or '-')[:10] }}</code>, {{ report.params.source }};
+  {{ report.params.versions }} fitted version(s)).
+  Trust: projections provisional at {{ report.thresholds.projection.provisional }} player-windows per pool,
+  reliable at {{ report.thresholds.projection.reliable }} over {{ report.thresholds.projection.reliable_weeks }} weeks
+  (goalies provisional at most before January); hit rates provisional at {{ report.thresholds.hit_rate.provisional }},
+  reliable at {{ report.thresholds.hit_rate.reliable }}; calibration needs {{ report.thresholds.calibration.min }}.</p>
+{% endif %}
+{% endblock %}

@@ -107,11 +107,21 @@ def _md_headline(r: Recommendation, i: int) -> str:
     return f"{i}. **{r.title}** ({KIND_LABEL.get(r.kind, r.kind)}, score {r.score:.2f})" + (f" - {why}" if why else "")
 
 
+def _model_line(model: str | None) -> str | None:
+    """The harness headline ("Model: ..."), or None while nothing is trustworthy."""
+    if not model:
+        return None
+    model = model.strip()
+    return model if model.startswith("Model:") else f"Model: {model}"
+
+
 def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
-              generated_at: datetime) -> str:
+              generated_at: datetime, model: str | None = None) -> str:
     md = [f"# Fantasy digest - {ctx.name}", "",
           f"*{ctx.provider} league {ctx.league_id} - team {ctx.my_team.name} - "
           f"generated {generated_at:%Y-%m-%d %H:%M}*", ""]
+    if _model_line(model):
+        md += [f"*{_model_line(model)}*", ""]
     md += ["## Headline", ""]
     md += [_md_headline(r, i) for i, r in enumerate(ranked[:3], 1)] or ["No moves recommended today."]
     md += ["", "## Injury alerts", ""]
@@ -188,13 +198,15 @@ def _html_rec(r: Recommendation, cls: str = "card") -> str:
 
 
 def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
-          generated_at: datetime) -> str:
+          generated_at: datetime, model: str | None = None) -> str:
     b: list[str] = [
         f"<h1>Fantasy digest - {_e(ctx.name)}</h1>",
         f'<div class="meta">{_e(ctx.provider)} league {_e(ctx.league_id)} - team {_e(ctx.my_team.name)}'
         f" - generated {generated_at:%Y-%m-%d %H:%M}</div>",
-        "<h2>Headline</h2>",
     ]
+    if _model_line(model):
+        b.append(f'<div class="meta model">{_e(_model_line(model))}</div>')
+    b.append("<h2>Headline</h2>")
     if ranked:
         b.append('<ol class="head">')
         for r in ranked[:3]:
@@ -234,8 +246,10 @@ def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, ne
 # --------------------------------------------------------------------------- summary
 
 def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
-             generated_at: datetime) -> str:
+             generated_at: datetime, model: str | None = None) -> str:
     lines = [f"Fantasy digest: {ctx.name} ({generated_at:%Y-%m-%d})"]
+    if _model_line(model):
+        lines.append(_model_line(model))
     if ranked:
         lines.append("Top moves:")
         for i, r in enumerate(ranked[:3], 1):
@@ -261,17 +275,33 @@ def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts,
 
 def build_digest(ctx: LeagueContext, values: Mapping[str, Any], recs: list[Recommendation],
                  news_by_cid: Mapping[str, list[NewsItem]] | None,
-                 generated_at: datetime | None = None) -> Digest:
-    """Render the daily digest. ``values`` maps cid -> PlayerValue (only ``fpg`` is read)."""
+                 generated_at: datetime | None = None, model_headline: str | None = None) -> Digest:
+    """Render the daily digest. ``values`` maps cid -> PlayerValue (only ``fpg`` is read).
+    ``model_headline`` is the harness line (``harness.metrics.headline``); None hides it."""
     generated_at = generated_at or datetime.now()
     values = values or {}
     news_by_cid = news_by_cid or {}
     ranked = _ranked(list(recs or []))
     inj_recs, alerts = _injury_alerts(ctx, values, ranked)
     news_rows = _news_for_me(ctx, news_by_cid)
-    args = (ctx, ranked, inj_recs, alerts, news_rows, generated_at)
+    args = (ctx, ranked, inj_recs, alerts, news_rows, generated_at, model_headline)
     return Digest(markdown=_markdown(*args), html=_html(*args), summary=_summary(*args),
                   generated_at=generated_at)
+
+
+def model_headline(data_dir: str | Path, league: str) -> str | None:
+    """The harness headline for ``league`` from ``<data_dir>/harness.db`` (None when there is no
+    ledger yet, nothing is trustworthy, or reading fails: the digest never breaks on it)."""
+    try:
+        from ..harness.ledger import DB_NAME, Ledger
+        from ..harness.metrics import headline
+
+        if not (Path(data_dir) / DB_NAME).exists():
+            return None
+        with Ledger(data_dir) as led:
+            return headline(led, league)
+    except Exception:
+        return None
 
 
 def write_digest(digest: Digest, out_dir: str | Path) -> tuple[Path, Path]:
@@ -285,4 +315,4 @@ def write_digest(digest: Digest, out_dir: str | Path) -> tuple[Path, Path]:
     return md_path, html_path
 
 
-__all__ = ["Digest", "build_digest", "write_digest", "SUMMARY_MAX"]
+__all__ = ["Digest", "build_digest", "model_headline", "write_digest", "SUMMARY_MAX"]

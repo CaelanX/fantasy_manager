@@ -170,7 +170,12 @@ def compare(res: Any, r: Recommendation) -> dict[str, Any]:
     cols = [{"side": "in", "verb": lab[0], "row": player_row(res, p)} for p in r.add]
     cols += [{"side": "out", "verb": lab[1], "row": player_row(res, p)} for p in r.drop]
     shown = {c["row"]["cid"] for c in cols}
-    subj_verb = "To IR" if r.kind in ("injury", "waiver") and "to IR" in r.title else "Player"
+    if r.kind in ("injury", "waiver") and "to IR" in r.title:
+        subj_verb = "To IR"
+    elif r.kind == "lineup":
+        subj_verb = "Moves"          # starters shifting slots in a lineup chain (LINEUP_MOVE reasons)
+    else:
+        subj_verb = "Player"
     cols += [{"side": "subj", "verb": subj_verb, "row": player_row(res, p)}
              for p in getattr(r, "subjects", None) or [] if p.cid not in shown]
     rows = [c["row"] for c in cols]

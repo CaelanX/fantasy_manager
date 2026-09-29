@@ -15,7 +15,9 @@ Windows (``window_start`` .. ``window_end`` inclusive):
 
 A row is ``complete`` only when the whole window is before ``as_of`` and every day of it was
 pulled (``realized_pulls``, days without games included); otherwise it is stored with
-``complete=0`` (``partial=1``) and regraded on the next run. Rows are idempotent upserts keyed by
+``complete=0`` (``partial=1``, graded over the pulled days so far) and regraded on the next run.
+A window none of whose days has been pulled yet is not stored. When nobody involved played a
+game in the window (preseason, a break) the realized gain is None: not judgeable, not a miss. Rows are idempotent upserts keyed by
 ``outcome_id``; rows whose episode / decision no longer exists are removed.
 
 Realized gain (fantasy points over the window unless noted):
@@ -24,7 +26,8 @@ Realized gain (fantasy points over the window unless noted):
 * trade   pts(get) - pts(give) - (n_get - n_give) * replacement, where the replacement is the
           realized points of the ~replacement-level players that day (the ``REPLACEMENT_N``
           players with |vorp| closest to 0): a 2-for-1 frees (or costs) a roster spot.
-* lineup  pts(in) - pts(out) on the days described above.
+* lineup  pts(in) - pts(out) on the days described above (pts(in) when the rec fills an
+          empty slot; a "bench X" rec without an ``in`` player has no gain).
 * sell_high / buy_low  directional, ``28d`` only: realized FPG over the window minus the
           player's L15 FPG at flag time (from the archived inputs). Sell-high hits when it is
           negative, buy-low when it is positive (players with >= 1 GP in the window).
@@ -185,7 +188,7 @@ class Window:
     name: str
     start: date
     end: date                   # planned last day
-    graded: list[date]          # days graded so far (start .. min(end, as_of - 1))
+    graded: list[date]          # pulled days graded so far (start .. min(end, as_of - 1))
     complete: bool
 
     @property
@@ -194,11 +197,14 @@ class Window:
 
 
 def make_window(name: str, start: date, end: date, as_of: date, realized: Realized) -> Window | None:
-    """The window if it has started before ``as_of`` (None otherwise)."""
+    """The window if it has started before ``as_of`` and at least one of its days was pulled
+    (None otherwise); only pulled days are graded."""
     last = min(end, as_of - timedelta(days=1))
     if last < start:
         return None
-    graded = days_between(start, last)
+    graded = [d for d in days_between(start, last) if d in realized.pulled]
+    if not graded:
+        return None
     complete = end < as_of and realized.covered(days_between(start, end))
     return Window(name, start, end, graded, complete)
 
@@ -269,13 +275,15 @@ def _pts(players: Players, realized: Realized, cids: Iterable[str], days: list[d
 
 
 def replacement_pts(players: Players, realized: Realized, basis: date, days: list[date],
-                    cache: dict | None = None) -> float | None:
+                    cache: dict | None = None, exclude: Iterable[str] = ()) -> float | None:
     """Mean realized points over ``days`` of the ``REPLACEMENT_N`` players with |vorp| closest
-    to 0 in the basis day's projections (None without v2 vorp)."""
-    key = (basis, tuple(days))
+    to 0 in the basis day's projections, other than the traded ones (None without v2 vorp)."""
+    skip = frozenset(exclude)
+    key = (basis, tuple(days), skip)
     if cache is not None and key in cache:
         return cache[key]
-    rows = [r for r in players.proj_on(basis).values() if r.get("vorp") is not None and r.get("nhl_id")]
+    rows = [r for r in players.proj_on(basis).values()
+            if r.get("vorp") is not None and r.get("nhl_id") and r["cid"] not in skip]
     rows.sort(key=lambda r: (abs(float(r["vorp"])), r["cid"]))
     pick = rows[:REPLACEMENT_N]
     val = (sum(realized.window(int(r["nhl_id"]), days)[1] for r in pick) / len(pick)) if pick else None
@@ -395,10 +403,15 @@ def grade_subject(s: Subject, players: Players, realized: Realized, as_of: date,
         if w is None:
             return out
         unmatched = [c for c in s.adds + s.drops if players.nhl_id(c) is None]
-        if unmatched or not s.adds or not s.drops:
+        if unmatched or not s.adds:        # "Bench X (out)": nothing realized to compare
             gain, shared = None, 0
+        elif not s.drops:                  # an empty starting slot filled: his points vs nothing
+            shared = sum(1 for d in w.graded if any(realized.day(players.nhl[c], d)[0] for c in s.adds))
+            gain = _pts(players, realized, s.adds, w.graded)[0] if shared else None
         elif provider == "fantrax":        # weekly lock: the whole locked week counts
-            gain = _pts(players, realized, s.adds, w.graded)[0] - _pts(players, realized, s.drops, w.graded)[0]
+            p_in, g_in, _ = _pts(players, realized, s.adds, w.graded)
+            p_out, g_out, _ = _pts(players, realized, s.drops, w.graded)
+            gain = p_in - p_out if g_in + g_out else None
             shared = len(w.graded)
         else:                              # ESPN daily: only days both sides played
             gain, shared = 0.0, 0
@@ -442,11 +455,12 @@ def grade_subject(s: Subject, players: Players, realized: Realized, as_of: date,
         unmatched = m_in + m_out
         detail = {"pts_in": round(p_in, 3), "pts_out": round(p_out, 3), "gp_in": g_in, "gp_out": g_out,
                   "unmatched": unmatched}
-        gain: float | None = None if unmatched else p_in - p_out
+        # nobody on either side played (preseason, a break): nothing to judge, not a miss
+        gain: float | None = None if unmatched or g_in + g_out == 0 else p_in - p_out
         if s.kind == "trade" and gain is not None:
             n_diff = len(s.adds) - len(s.drops)
             if n_diff:
-                repl = replacement_pts(players, realized, s.day, w.graded, repl_cache)
+                repl = replacement_pts(players, realized, s.day, w.graded, repl_cache, s.adds + s.drops)
                 detail["replacement_pts"] = None if repl is None else round(repl, 3)
                 if repl is not None:
                     gain -= n_diff * repl
@@ -540,9 +554,11 @@ def _attach_alternative(s: Subject, rows: list[dict[str, Any]], subjects: list[S
             days = days_between(start, date.fromisoformat(detail["graded_through"]))
             p_in, _, m_in = _pts(players, realized, alt.adds, days)
             p_out, _, m_out = _pts(players, realized, alt.drops, days)
-            gain = None if (m_in or m_out) else p_in - p_out
+            _, g_in, _ = _pts(players, realized, alt.adds, days)
+            _, g_out, _ = _pts(players, realized, alt.drops, days)
+            gain = None if (m_in or m_out or not g_in + g_out) else p_in - p_out
             if gain is not None and s.kind == "trade" and len(alt.adds) != len(alt.drops):
-                repl = replacement_pts(players, realized, s.day, days, repl_cache)
+                repl = replacement_pts(players, realized, s.day, days, repl_cache, alt.adds + alt.drops)
                 gain = gain - (len(alt.adds) - len(alt.drops)) * repl if repl is not None else gain
             detail["alt"] = {"episode_id": alt.episode_id, "title": alt.title,
                              "gain": None if gain is None else round(gain, 4)}

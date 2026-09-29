@@ -3,13 +3,14 @@
 The harness keeps a running record of what the model recommended, what you actually did and what
 then happened in the NHL, so recommendations and projections can be graded and a small set of
 valuation parameters corrected over time. The plan of record is `docs/harness-plan.md`; this page
-describes what exists now (milestone 1, "capture").
+describes what exists now (milestone 1, "capture", and milestone 2, "grading and the bar").
 
 ## Daily use
 
 ```
 fm harness daily            # both leagues; --league espn|fantrax for one
-fm harness status           # what the ledger holds
+fm harness status           # the bar (accuracy, hit rates, trust labels) and what the ledger holds
+fm harness grade            # grade matured outcomes + this week's bar (--week YYYY-MM-DD, --league)
 fm harness ledger           # recent recommendation episodes and their match status
 fm harness rebuild          # rebuild the archive-derived tables from data/archive
 ```
@@ -25,9 +26,11 @@ fm harness rebuild          # rebuild the archive-derived tables from data/archi
    a snapshot of today's rosters (Fantrax lineups are weekly, locked on Monday).
 5. **Match** episodes to your moves (below).
 
-Then it pulls yesterday's NHL results once for the whole league (`--realized-day` to choose the
+It also stores each league's ScoringConfig in the ledger (`meta`, used to score realized
+stats at grade time). Then it pulls yesterday's NHL results once for the whole league (`--realized-day` to choose the
 date). The whole run is idempotent: a second run the same day changes nothing. A day without NHL
 regular-season games (preseason, All-Star break) is a clean no-op that reports 0 players.
+On Mondays (or with `--grade`) it finishes with `fm harness grade`.
 Provider problems become warnings in the output, never a failed run for the other league.
 
 It is scheduled right after `fm backtest archive` (see `docs/scheduling.md`). Run it every day:
@@ -72,8 +75,8 @@ give "1 of 4 waivers"; `score` keeps its engine meaning (advise rescales it by r
 `rec_key = sha1(league|kind|sorted adds|sorted drops|counterparty)`, plus the sorted subjects
 when there are any), `rec_episodes`, `transactions`, `lineup_days`, `projections` (fm numbers +
 inputs), `realized_daily` (raw NHL stats per player per game date; scored later with each
-league's own scoring), `decisions`, and `runs`. `outcomes`, `metric_snapshots` and
-`param_versions` exist but stay empty until grading (M2) and refitting (M3). Bookkeeping:
+league's own scoring), `decisions`, and `runs`. Grading fills `outcomes` and
+`metric_snapshots`; `param_versions` stays empty until refitting (M3). Bookkeeping:
 `archive_files` (sha1 of each ingested file, so unchanged files are skipped) and
 `realized_pulls` (which game dates were pulled, including empty ones).
 
@@ -108,18 +111,51 @@ comparison in M2). Other teams' moves stay in `transactions` as league-wide samp
 Matching is recomputed from scratch on every run, so it never depends on the order data
 arrived in.
 
-## What `status` shows now and later
+## Grading (M2)
 
-Now (M1): counts only. Episodes by league, kind and status; projection rows and days (and how
-many carry v2 inputs); transaction rows (yours vs other teams); decisions by origin; lineup rows
-and days; NHL result days pulled and how many had games; the last run.
+`fm harness grade` (and `daily` on Mondays) first grades **outcomes**, then computes the week's
+**bar** (`metric_snapshots`). Every command takes `--json`; `/api/health.json` and the
+dashboard's Health tab show the same report.
 
-Later: M2 adds grading (`fm harness grade`), projection accuracy against realized FPG with
-skill scores and confidence intervals, recommendation hit rates for followed / ignored /
-user-only moves, calibration and trust labels (nothing is shown as reliable before enough
-weeks have matured: skater projections roughly week 4-8, goalies and trades not this season).
+**Outcomes** (`harness/outcomes.py`, one row per episode or move, basis and window). Realized
+stats from `realized_daily` are scored with the league's own ScoringConfig (`meta`, else the
+newest archive header, else the preset). Windows are the 7 and 28 days after the basis day and
+rest of season so far; the basis is the rec's `first_seen` (plus a secondary grade from the day
+you acted) or the day of your own move. A window is `complete` only when it is fully in the
+past and every day of it was pulled; otherwise the row is stored with `complete=0` and regraded
+next time.
+
+| kind | realized gain |
+|---|---|
+| waiver, injury, your own adds | points of the added player(s) minus the dropped |
+| trade | get minus give, minus (n get - n give) x the realized points of replacement-level players (vorp ~ 0 that day) |
+| lineup | 7 days: ESPN from the rec's day, only days both sides played; Fantrax the locked week (Monday to Sunday) |
+| sell_high / buy_low | 28 days: realized FPG minus the L15 FPG at flag time; sell-high hits below 0, buy-low above |
+
+Predicted gains are converted to points over the window (`predicted_pts`: `week_pts` x days/7,
+per-game units x expected games). Your user-only moves also record the model's view of the
+move that day (fpg in - fpg out) and the model's own pick that day, realized over the same
+window (the counterfactual).
+
+**The bar** (`harness/metrics.py`, as of a Monday; only windows that ended before it count):
+
+- Projection accuracy per pool (F / D / G), from one projection snapshot per ISO week: MAE,
+  Spearman and bias of `fpg` vs realized FPG over the next 28 days (players with >= 8 GP), the
+  baselines (season-to-date, frozen preseason, provider projection, last season) and the skill
+  score 1 - MAE_fm / MAE_to_date with a 95% player-clustered bootstrap CI; `proj_week` vs the
+  next 7 days' points, split into rate error and availability error.
+- Hit rates per kind and origin (followed / partial / ignored / user_only) with Wilson 95% CIs
+  and the mean realized gain; calibration of predicted vs realized points by decile (terciles
+  under 100); your moves vs the model's; trades as a case list, never aggregated.
+- Trust labels: projections hidden under 150 player-windows per pool, provisional from 150,
+  reliable from 400 over at least 4 weekly snapshots (goalies at most provisional before
+  January); hit rates hidden under 20, provisional 20-49, reliable from 50; calibration needs
+  100. `status` lists what is not judgeable yet and how many more observations each needs.
+- The digest (`fm report`) gets one "Model: ..." line from the trustworthy metrics; it stays
+  hidden while everything is hidden.
+
 M3 adds the bounded auto-correction of parameters (`refit`, `rollback`, `params`), and M4 the
-`/health` dashboard page.
+full `/health` page (sparklines, scorecard, params changelog).
 
 ## Known limits
 
