@@ -268,10 +268,13 @@ def test_trades_command(monkeypatch, tmp_path):
     assert res.exit_code == 0, res.output
     assert "Trade proposals" in res.output and "my_c2" in res.output and "opp_lw" in res.output
     assert "expected value" in res.output and "Accept" in res.output
+    assert "/wk" in res.output and "/season" in res.output          # gain in pts/week and rest of season
     res = runner.invoke(cli.app, ["--json", "trades", "--limit", "5", "--per-team", "1"])
     assert res.exit_code == 0, res.output
     data = json.loads(res.output)
     assert data["errors"] == [] and len(data["trades"]) == 1 and "sweet_spot" in data
+    assert isinstance(data["exploits"], list)                         # nobody is under roster pressure
+    assert {"GAIN_WEEK", "GAIN_SEASON"} <= {x["code"] for x in data["trades"][0]["reasons"]}
     t = data["trades"][0]
     # my surplus C for their LW (a no-cost throw-in may ride along: it raises their acceptance)
     assert t["counterparty"] == "them" and "my_c2" in [p["cid"] for p in t["drop"]]

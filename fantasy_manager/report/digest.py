@@ -9,6 +9,7 @@ from typing import Any, Mapping, Sequence
 
 from ..models import LeagueContext, Player, Recommendation
 from ..providers.news import NewsItem
+from .health import DataHealth, data_health, should_alert
 from .news_match import player_news_summary
 
 SUMMARY_MAX = 1500
@@ -38,6 +39,11 @@ class Digest:
     html: str
     summary: str
     generated_at: datetime | None = None
+    # data health of this run (report.health) and whether it warrants an alert (a failed source,
+    # or a stale source that feeds valuation); callers may notify on ``alert``
+    health: DataHealth | None = None
+    alert: bool = False
+    league: str | None = None  # provider name, used in the output filename
 
     @property
     def day(self) -> date:
@@ -153,11 +159,26 @@ def _model_line(model: str | None) -> str | None:
     return model if model.startswith("Model:") else f"Model: {model}"
 
 
+def _problems(data: DataHealth | None) -> bool:
+    return data is not None and data.overall != "ok"
+
+
+def _md_data_health(data: DataHealth) -> list[str]:
+    md = ["## \u26a0 Data health", "", f"**{data.headline}**", ""]
+    md += [f"- {line}" for line in data.problem_lines] + [""]
+    if data.footer:
+        md += [f"*{data.footer}*", ""]
+    return md
+
+
 def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
-              generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None) -> str:
+              generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None,
+              data: DataHealth | None = None) -> str:
     md = [f"# Fantasy digest - {ctx.name}", "",
           f"*{ctx.provider} league {ctx.league_id} - team {ctx.my_team.name} - "
           f"generated {generated_at:%Y-%m-%d %H:%M}*", ""]
+    if data is not None and _problems(data):
+        md += _md_data_health(data)
     if _model_line(model):
         md += [f"*{_model_line(model)}*", ""]
     md += ["## Headline", ""]
@@ -191,6 +212,8 @@ def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts
         md += [""]
     if health:
         md += ["## Model health", ""] + [f"- {line}" for line in health] + [""]
+    if data is not None and not _problems(data) and data.footer:
+        md += [f"*{data.footer}*", ""]
     cr = credits(ctx)
     if cr:
         md += [f"*Data: {'; '.join(cr)}*", ""]
@@ -201,9 +224,9 @@ def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts
 
 _CSS = """
 :root{--bg:#f7f7f8;--card:#fff;--fg:#1b1d21;--muted:#5f6670;--accent:#1a5fb4;--border:#dcdfe4;
---warn:#b54708;--warn-bg:#fff4e5}
+--warn:#b54708;--warn-bg:#fff4e5;--bad:#b42318;--bad-bg:#fdeceb}
 @media (prefers-color-scheme: dark){:root{--bg:#121417;--card:#1c1f24;--fg:#e8eaed;--muted:#9aa1ab;
---accent:#78aeed;--border:#2e333a;--warn:#f5a454;--warn-bg:#2a2016}}
+--accent:#78aeed;--border:#2e333a;--warn:#f5a454;--warn-bg:#2a2016;--bad:#ff8a7e;--bad-bg:#331714}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);
 font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -221,6 +244,9 @@ color:var(--muted);margin-right:6px}
 .alert{background:var(--warn-bg);border-color:var(--warn)}
 .alert strong{color:var(--warn)}
 ol.head{padding-left:1.4em}
+.data-health{background:var(--bad-bg);border:2px solid var(--bad)}
+.data-health h2{color:var(--bad);border:0;margin:0 0 6px;padding:0}
+.data-health .dh-lead{font-weight:600;margin:0 0 4px}
 ol.head li{margin:6px 0}
 """
 
@@ -243,13 +269,26 @@ def _html_rec(r: Recommendation, cls: str = "card") -> str:
     return "".join(parts)
 
 
+def _html_data_health(data: DataHealth) -> str:
+    lead = (data.headline or "").replace("\u26a0 Data problems: ", "", 1)
+    parts = ['<section class="card data-health" role="alert">', "<h2>\u26a0 Data problems</h2>",
+             f'<p class="dh-lead">{_e(lead)}</p>',
+             "<ul>" + "".join(f"<li>{_e(line)}</li>" for line in data.problem_lines) + "</ul>"]
+    if data.footer:
+        parts.append(f'<p class="meta">{_e(data.footer)}</p>')
+    return "".join(parts) + "</section>"
+
+
 def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
-          generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None) -> str:
+          generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None,
+          data: DataHealth | None = None) -> str:
     b: list[str] = [
         f"<h1>Fantasy digest - {_e(ctx.name)}</h1>",
         f'<div class="meta">{_e(ctx.provider)} league {_e(ctx.league_id)} - team {_e(ctx.my_team.name)}'
         f" - generated {generated_at:%Y-%m-%d %H:%M}</div>",
     ]
+    if data is not None and _problems(data):
+        b.append(_html_data_health(data))
     if _model_line(model):
         b.append(f'<div class="meta model">{_e(_model_line(model))}</div>')
     b.append("<h2>Headline</h2>")
@@ -289,6 +328,8 @@ def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, ne
     if health:
         b.append("<h2>Model health</h2>")
         b.append('<ul class="model-health">' + "".join(f"<li>{_e(line)}</li>" for line in health) + "</ul>")
+    if data is not None and not _problems(data) and data.footer:
+        b.append(f'<p class="meta data-fresh">{_e(data.footer)}</p>')
     cr = credits(ctx)
     if cr:
         b.append(f'<p class="meta credits">Data: {_e("; ".join(cr))}</p>')
@@ -302,9 +343,20 @@ def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, ne
 
 # --------------------------------------------------------------------------- summary
 
+SUMMARY_PROBLEM_LINES = 4
+
+
 def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
-             generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None) -> str:
-    lines = [f"Fantasy digest: {ctx.name} ({generated_at:%Y-%m-%d})"]
+             generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None,
+             data: DataHealth | None = None) -> str:
+    lines: list[str] = []
+    if data is not None and _problems(data):  # lead with the failures: phones preview the first lines
+        lines.append(data.headline or "")
+        shown = data.problem_lines[:SUMMARY_PROBLEM_LINES]
+        lines += [f"- {line}" for line in shown]
+        if len(data.problem_lines) > len(shown):
+            lines.append(f"- ... and {len(data.problem_lines) - len(shown)} more (see the digest)")
+    lines.append(f"Fantasy digest: {ctx.name} ({generated_at:%Y-%m-%d})")
     if _model_line(model):
         lines.append(_model_line(model))
     if ranked:
@@ -325,6 +377,8 @@ def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts,
     lines.append("Counts: " + " | ".join(counts))
     if news_rows:
         lines.append("News: " + ", ".join(p.name for p, _ in news_rows))
+    if data is not None and not _problems(data) and data.footer:
+        lines.append(f"Data: {data.footer[0].lower()}{data.footer[1:]}")
     text = "\n".join(lines)
     if len(text) > SUMMARY_MAX:
         text = text[: SUMMARY_MAX - 1].rstrip() + "…"
@@ -340,7 +394,12 @@ def build_digest(ctx: LeagueContext, values: Mapping[str, Any], recs: list[Recom
     """Render the daily digest. ``values`` maps cid -> PlayerValue (only ``fpg`` is read).
     ``model_headline`` is the harness line (``harness.metrics.headline``); None hides it.
     ``model_health`` is the 3-line "Model health" block (``harness.health.health_block``) for the
-    markdown / HTML digest (not the webhook summary); None hides it."""
+    markdown / HTML digest (not the webhook summary); None hides it.
+
+    Data health (``report.health.data_health`` over ``ctx.sources``): when a source failed or went
+    stale, a red "Data problems" block opens the markdown / HTML and the summary leads with it;
+    otherwise a one-line freshness footer ("All 11 sources fresh (oldest: NHL rosters, 19h)").
+    ``Digest.alert`` is ``report.health.should_alert``."""
     generated_at = generated_at or datetime.now()
     values = values or {}
     news_by_cid = news_by_cid or {}
@@ -348,9 +407,14 @@ def build_digest(ctx: LeagueContext, values: Mapping[str, Any], recs: list[Recom
     inj_recs, alerts = _injury_alerts(ctx, values, ranked)
     news_rows = _news_for_me(ctx, news_by_cid)
     health = list(model_health) if model_health else None
+    try:
+        data: DataHealth | None = data_health(ctx)
+    except Exception:  # the digest never breaks on its health block
+        data = None
     args = (ctx, ranked, inj_recs, alerts, news_rows, generated_at, model_headline, health)
-    return Digest(markdown=_markdown(*args), html=_html(*args), summary=_summary(*args),
-                  generated_at=generated_at)
+    return Digest(markdown=_markdown(*args, data=data), html=_html(*args, data=data),
+                  summary=_summary(*args, data=data), generated_at=generated_at, health=data,
+                  alert=bool(data is not None and should_alert(data)), league=getattr(ctx, 'provider', None))
 
 
 def model_headline(data_dir: str | Path, league: str) -> str | None:
@@ -384,10 +448,12 @@ def model_health(data_dir: str | Path, league: str) -> list[str] | None:
 
 
 def write_digest(digest: Digest, out_dir: str | Path) -> tuple[Path, Path]:
-    """Write ``digest-YYYY-MM-DD.md`` and ``.html`` into ``out_dir`` (created if needed)."""
+    """Write ``digest-<league>-YYYY-MM-DD.md`` and ``.html`` into ``out_dir`` (created if needed).
+
+    The league is part of the name so ESPN and Fantrax digests on the same day don't overwrite each other."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    stem = f"digest-{digest.day:%Y-%m-%d}"
+    stem = f"digest-{digest.league}-{digest.day:%Y-%m-%d}" if digest.league else f"digest-{digest.day:%Y-%m-%d}"
     md_path, html_path = out / f"{stem}.md", out / f"{stem}.html"
     md_path.write_text(digest.markdown, encoding="utf-8")
     html_path.write_text(digest.html, encoding="utf-8")

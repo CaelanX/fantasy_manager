@@ -45,5 +45,18 @@
   </ul>
 </section>
 {% endif %}
+{% set ex = exploits(res) if exploits is defined else [] %}
+{% if ex %}
+<section id="exploits" aria-labelledby="h-exploits">
+  <h2 id="h-exploits">Exploit trades <span class="aside">{{ ex|length }}</span></h2>
+  <p class="sub">Teams under roster pressure (a full position with an injured player, more injured players than IR slots, too few healthy goalies with games this week, a very weak starting slot) have a reason to deal. Each deal relieves that pressure, which counts +8 market points toward their acceptance.</p>
+  <ul class="why">
+    {% for e in ex %}{% set r = e.rec %}{% set t = e.trade %}
+    <li><b>{{ e.text }}</b><br>{{ r|action }}{% if r.counterparty %} <span class="muted">with {{ r.counterparty.strip() }}</span>{% endif %}{% if t %}:
+      you gain {{ t.gain_text or '' }} &middot; acceptance {{ t.p_text }}{% if t.ev is not none %} &middot; expected value {{ t.ev|num(2, True) }}{% endif %}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 {% endif %}
 {% endblock %}

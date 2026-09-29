@@ -338,10 +338,43 @@ def trade_info(r: Recommendation) -> dict[str, Any] | None:
     edge = _reason(r, "MY_EDGE")
     edge_v = _num(edge.value) if edge is not None else _num(getattr(r, "predicted_gain", None))
     mv = _reason(r, "MARKET_VIEW")
+    wk, ssn = _reason(r, "GAIN_WEEK"), _reason(r, "GAIN_SEASON")
+    week = _num(wk.value) if wk is not None else None
+    season = _num(ssn.value) if ssn is not None else None
+    units = " · ".join(t for t in (f"{week:+.1f} pts/week" if week is not None else None,
+                                     f"{season:+.0f} pts rest of season" if season is not None else None) if t)
+    dm = _reason(r, "DELTA_ME")
+    per_game = _num(dm.value) if dm is not None else None
+    gain_text = " · ".join(t for t in (f"{per_game:+.2f} pts/game" if per_game is not None else None,
+                                         units or None) if t)
+    exploit = _reason(r, "EXPLOIT")
     return {"p": p, "p_text": f"~{5 * round(p * 20):.0f}%", "ev": edge_v * p if edge_v is not None else None,
             "edge": edge_v, "market": _num(mv.value) if mv is not None else None,
             "market_text": mv.text if mv is not None else None,
-            "sweet": _reason(r, "SWEET_SPOT") is not None}
+            "sweet": _reason(r, "SWEET_SPOT") is not None,
+            "week": week, "season": season, "units_text": units or None, "gain_text": gain_text or None,
+            "exploit": exploit.text if exploit is not None else None}
+
+
+def exploits(res: Any, limit: int = 8) -> list[dict[str, Any]]:
+    """The Moves page's "Exploit" section: ``recommend.trades.exploit_opportunities`` on the
+    loaded result (memoised per result), one dict per deal: {"rec", "text" (the EXPLOIT reason:
+    "Exploit: Team X has ..."), "trade" (``trade_info``)}. Empty when it fails (a warning is
+    added to ``res.warnings`` once)."""
+    def build() -> list[dict[str, Any]]:
+        from ..recommend.trades import exploit_opportunities, exploit_text
+
+        try:
+            recs = exploit_opportunities(res.ctx, res.values, dynasty_values=getattr(res, "dynasty", None),
+                                         limit=limit)
+        except Exception as e:  # display-only: never break the page
+            warnings = getattr(res, "warnings", None)
+            if isinstance(warnings, list):
+                warnings.append(f"Exploit trades unavailable: {type(e).__name__}: {e}")
+            return []
+        return [{"rec": r, "text": exploit_text(r), "trade": trade_info(r)} for r in recs]
+
+    return _memo(res, f"exploits:{limit}", build)
 
 
 def strength_info(r: Recommendation, recs: Iterable[Recommendation] = ()) -> dict[str, Any]:

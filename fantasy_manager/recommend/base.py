@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, NamedTuple
 
 from ..models import FantasyTeam, LeagueContext, Player, Reason
 from ..valuation.blend import shrink_k
@@ -415,3 +415,76 @@ def recent_adds_from(items: Iterable[Any], team_id: str, as_of: date,
         if cid and since <= d <= as_of and (cid not in out or d > out[cid]):
             out[cid] = d
     return out
+
+
+# -- schedule-based gain units (trades: lineup FPG -> pts/week, pts rest of season) -----------
+
+DEFAULT_GAMES_PER_WEEK = 3.4     # an NHL team's typical games per fantasy week (no schedule loaded)
+SEASON_GAMES = 82
+DEFAULT_SEASON_START = (10, 7)   # used only when neither the schedule nor ctx.season_start is known
+DEFAULT_SEASON_END = (4, 16)
+LINEUP_EXEMPT_SLOTS = ("BN", "IR", "IR+", "NA", "MIN")
+
+
+class GameRate(NamedTuple):
+    """My starters' average NHL games per week and games left in the regular season; source
+    "schedule" (ctx.schedule), "default" or "season over"."""
+    per_week: float
+    remaining: float
+    source: str
+
+
+def season_bounds(ctx: LeagueContext) -> tuple[date, date]:
+    """(first, last) regular-season day: the loaded schedule's first and last game dates, else
+    ``ctx.season_start`` (or Oct 7) through Apr 16 of the following year."""
+    dates = [d for ds in (ctx.schedule or {}).values() for d in ds]
+    if dates:
+        return min(dates), max(dates)
+    y = ctx.as_of.year if ctx.as_of.month >= 7 else ctx.as_of.year - 1
+    start = ctx.season_start or date(y, *DEFAULT_SEASON_START)
+    return start, date(start.year + 1, *DEFAULT_SEASON_END)
+
+
+def lineup_players(team: FantasyTeam) -> list[Player]:
+    """`team`'s current starters (starting slots), else every player outside IR / minors."""
+    starters = [s.player for s in team.slots
+                if s.player is not None and s.starting and s.slot not in LINEUP_EXEMPT_SLOTS]
+    return starters or [s.player for s in team.slots if s.player is not None and s.slot not in SIZE_EXEMPT_SLOTS]
+
+
+def game_rate(ctx: LeagueContext, players: Iterable[Player] | None = None) -> GameRate:
+    """My starters' average NHL games per week and games remaining (``GameRate``).
+
+    From ``ctx.schedule``: each starter's team games from max(as_of, first game) to the last
+    regular-season game, averaged over the starters whose team is on the schedule; per week =
+    that / max(1, weeks left). Without a schedule: DEFAULT_GAMES_PER_WEEK (3.4) and
+    SEASON_GAMES (82) x the fraction of the season (``season_bounds``) still to play."""
+    first, last = season_bounds(ctx)
+    start = max(ctx.as_of, first)
+    days = (last - start).days + 1
+    if days <= 0:
+        return GameRate(0.0, 0.0, "season over")
+    weeks = days / 7.0
+    ps = list(players) if players is not None else lineup_players(ctx.my_team)
+    sched = ctx.schedule or {}
+    counts = [sum(1 for d in sched[p.team] if start <= d <= last) for p in ps if p.team and p.team in sched]
+    if counts:
+        remaining = sum(counts) / len(counts)
+        return GameRate(remaining / max(1.0, weeks), remaining, "schedule")
+    frac = min(1.0, max(0.0, days / max(1, (last - first).days + 1)))
+    return GameRate(DEFAULT_GAMES_PER_WEEK, SEASON_GAMES * frac, "default")
+
+
+def gain_week(fpg: float, rate: GameRate) -> float:
+    """Lineup FPG -> fantasy points per week."""
+    return fpg * rate.per_week
+
+
+def gain_season(fpg: float, rate: GameRate) -> float:
+    """Lineup FPG -> fantasy points over the rest of the regular season."""
+    return fpg * rate.remaining
+
+
+def gain_units_text(fpg: float, rate: GameRate) -> str:
+    """"+0.66/g · +2.3/wk · +55/season"."""
+    return f"{fpg:+.2f}/g · {gain_week(fpg, rate):+.1f}/wk · {gain_season(fpg, rate):+.0f}/season"

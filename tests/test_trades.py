@@ -746,3 +746,405 @@ def test_dynasty_delta_charges_each_extra_roster_spot():
     assert ev.delta_dyn == pytest.approx(V["a_d2"] + V["a_d3"] - V["m_c2"] - repl)
     one = evaluate_trade(ctx, values, give=["m_lw"], get=["a_d3"], dynasty_values=dyn, lineup_fn=False)
     assert one.delta_dyn == pytest.approx(V["a_d3"] - V["m_lw"])                  # 1-for-1: no spot cost
+
+
+# -- gain units (GAIN_WEEK / GAIN_SEASON) and exploit trades -----------------------------------
+
+from datetime import timedelta  # noqa: E402
+
+from fantasy_manager.recommend.base import (DEFAULT_GAMES_PER_WEEK, SEASON_GAMES, GameRate,  # noqa: E402
+                                            game_rate, gain_units_text, lineup_players, season_bounds)
+from fantasy_manager.recommend.trades import (PRESSURE_PTS, exploit_opportunities, relieves,  # noqa: E402
+                                              team_pressures)
+
+
+def test_game_rate_from_my_starters_schedule():
+    ctx, values = build()
+    as_of = ctx.as_of                                     # Thu Oct 1 2026
+    # EDM (every starter's team) plays every other day for 10 weeks from Oct 1; MTL daily (not mine)
+    ctx.schedule = {"EDM": [as_of + timedelta(days=2 * i) for i in range(35)],
+                    "MTL": [as_of + timedelta(days=i) for i in range(70)]}
+    first, last = season_bounds(ctx)
+    assert first == as_of and last == as_of + timedelta(days=69)
+    starters = lineup_players(ctx.my_team)
+    assert {p.cid for p in starters} == {"m_c1", "m_lw", "m_d1", "m_d2", "m_g"}   # bench / IR excluded
+    rate = game_rate(ctx)
+    assert rate.source == "schedule" and rate.remaining == pytest.approx(35.0)
+    assert rate.per_week == pytest.approx(35.0 / 10.0)                            # 70 days = 10 weeks
+    # half the season played: only the remaining games count
+    ctx.as_of = as_of + timedelta(days=35)
+    assert game_rate(ctx).remaining == pytest.approx(17.0)
+    # a starter whose NHL team is not on the schedule is ignored; nobody on it -> the defaults
+    for p in starters:
+        p.team = "XXX"
+    assert game_rate(ctx).source == "default"
+
+
+def test_game_rate_defaults_without_a_schedule():
+    ctx, values = build()
+    ctx.as_of = date(2026, 9, 29)                         # preseason: the whole season is left
+    rate = game_rate(ctx)
+    assert rate == GameRate(DEFAULT_GAMES_PER_WEEK, float(SEASON_GAMES), "default")
+    ctx.season_start = date(2026, 10, 7)
+    ctx.as_of = date(2027, 1, 11)                         # 96 of 192 days played (Oct 7 .. Apr 16)
+    rate = game_rate(ctx)
+    assert rate.per_week == DEFAULT_GAMES_PER_WEEK
+    assert rate.remaining == pytest.approx(82 * 96 / 192)
+    ctx.as_of = date(2027, 5, 1)                          # regular season over
+    assert game_rate(ctx) == GameRate(0.0, 0.0, "season over")
+
+
+def test_gain_units_text_and_reasons():
+    rate = GameRate(3.5, 83.0, "schedule")
+    assert gain_units_text(0.66, rate) == "+0.66/g · +2.3/wk · +55/season"
+    ctx, values = build()
+    ctx.as_of = date(2026, 9, 29)
+    r = recommend_trades(ctx, values, lineup_fn=False)[0]
+    reasons = {x.code: x for x in r.reasons}
+    d = reasons["DELTA_ME"].value
+    assert reasons["GAIN_WEEK"].value == pytest.approx(d * DEFAULT_GAMES_PER_WEEK)
+    assert reasons["GAIN_SEASON"].value == pytest.approx(d * 82)
+    assert reasons["GAIN_WEEK"].text.startswith(f"{d * 3.4:+.1f} pts/week")
+    assert reasons["GAIN_SEASON"].text.startswith(f"{d * 82:+.0f} pts rest of season")
+    assert f"({d * 3.4:+.1f} pts/week, {d * 82:+.0f} rest of season)" in reasons["MY_EDGE"].text
+    codes = [x.code for x in r.reasons]
+    assert codes[:2] == ["MY_EDGE", "MARKET_VIEW"]         # reader-facing order unchanged
+
+
+def test_cli_trade_gain_text():
+    from fantasy_manager.cli import trade_gain_text
+
+    r = Recommendation(kind="trade", score=1.0, title="t", reasons=[
+        Reason(code="DELTA_ME", text="", value=0.66), Reason(code="GAIN_WEEK", text="", value=2.31),
+        Reason(code="GAIN_SEASON", text="", value=54.8)])
+    assert trade_gain_text(r) == "+0.66/g · +2.3/wk · +55/season"
+    assert trade_gain_text(Recommendation(kind="trade", score=1.0, title="t", reasons=[
+        Reason(code="DELTA_ME", text="", value=-0.4)])) == "-0.40/g"
+
+
+def exploit_ctx():
+    """Me: surplus C on the bench, a weak goalie. X: 3 goalies at the G limit 3, one of them on IR,
+    and a weak C. Y: a small, healthy roster (no pressure)."""
+    shape = {"C": 1, "LW": 1, "D": 2, "G": 1, "BN": 2, "IR": 1}
+    spec = {"me": [("C", "m_c1", ["C"], 3.0), ("BN", "m_c2", ["C"], 2.8), ("LW", "m_lw", ["LW"], 2.0),
+                   ("D", "m_d1", ["D"], 1.5), ("D", "m_d2", ["D"], 1.4), ("G", "m_g", ["G"], 1.0),
+                   ("BN", "m_lw2", ["LW"], 0.3)],
+            "X": [("C", "x_c", ["C"], 1.2), ("LW", "x_lw", ["LW"], 1.9), ("D", "x_d1", ["D"], 2.0),
+                  ("D", "x_d2", ["D"], 1.8), ("G", "x_g1", ["G"], 2.6), ("BN", "x_g2", ["G"], 2.4),
+                  ("IR", "x_g3", ["G"], 2.5)],
+            "Y": [("C", "y_c", ["C"], 2.0), ("LW", "y_lw", ["LW"], 2.0), ("D", "y_d1", ["D"], 2.0),
+                  ("D", "y_d2", ["D"], 2.0), ("G", "y_g", ["G"], 2.0), ("BN", "y_g2", ["G"], 1.5)]}
+    values, teams = {}, []
+    for tid, rows in spec.items():
+        entries = []
+        for slot, cid, pos, f in rows:
+            p = pl(cid, pos, status="ir" if cid == "x_g3" else "healthy")
+            values[cid] = pv(p, f)
+            entries.append((slot, p))
+        teams.append(team(tid, f"Team {tid}", tid == "me", entries))
+    ctx = LeagueContext(provider="test", league_id="1", season=2027, name="X",
+                        scoring=ScoringConfig(kind="points", weights={"G": 1.0}), roster_shape=shape,
+                        teams=teams, free_agents=[], matchup_period=1, as_of=date(2026, 10, 1),
+                        position_limits={"G": 3})
+    return ctx, values
+
+
+def _team(ctx, tid):
+    return next(t for t in ctx.teams if t.team_id == tid)
+
+
+def test_pressure_position_cap_with_an_injured_player():
+    ctx, values = exploit_ctx()
+    X, Y = _team(ctx, "X"), _team(ctx, "Y")
+    prs = team_pressures(ctx, values, X)
+    cap = [p for p in prs if p.kind == "cap"]
+    assert len(cap) == 1 and cap[0].position == "G"
+    assert cap[0].text.startswith("3 goalies at the G limit 3 with x_g3 injured")
+    assert {p.cid for p in cap[0].pool} == {"x_g1", "x_g2", "x_g3"}
+    by = {p.cid: p for t in ctx.teams for p in t.players}
+    assert relieves(cap[0], [by["m_c2"]], [by["x_g2"]], ctx, values)          # a goalie leaves X
+    assert not relieves(cap[0], [by["m_g"]], [by["x_g2"]], ctx, values)       # goalie for goalie: still full
+    assert not relieves(cap[0], [by["m_c2"]], [by["x_c"]], ctx, values)
+    assert team_pressures(ctx, values, Y) == []                               # 2 goalies, nobody hurt
+    by["x_g3"].status = "healthy"                                             # full but healthy: no need
+    assert not [p for p in team_pressures(ctx, values, X) if p.kind == "cap"]
+    ctx.position_limits = {"G": 2}                                            # over the limit
+    assert [p.text for p in team_pressures(ctx, values, X) if p.kind == "cap"] == ["3 goalies, over the G limit 2"]
+
+
+def test_pressure_ir_logjam():
+    ctx, values = exploit_ctx()
+    ctx.position_limits = {}
+    X = _team(ctx, "X")
+    by = {p.cid: p for p in X.players}
+    assert not [p for p in team_pressures(ctx, values, X) if p.kind == "ir"]  # 1 injured, 1 IR slot
+    by["x_d2"].status = "out"
+    ir = [p for p in team_pressures(ctx, values, X) if p.kind == "ir"]
+    assert len(ir) == 1 and ir[0].text == "2 injured players (x_d2 + x_g3) for 1 IR slot"
+    mine = {p.cid: p for p in ctx.my_team.players}
+    assert relieves(ir[0], [mine["m_lw2"]], [by["x_d2"]], ctx, values)
+    assert not relieves(ir[0], [mine["m_lw2"]], [by["x_d1"]], ctx, values)
+
+
+def test_pressure_goalie_shortage_needs_games_this_week():
+    ctx, values = exploit_ctx()
+    ctx.position_limits = {}
+    Y = _team(ctx, "Y")
+    by = {p.cid: p for p in Y.players}
+    by["y_g2"].status = "ir"                                                  # one healthy goalie left
+    assert not [p for p in team_pressures(ctx, values, Y) if p.kind == "goalies"]   # no schedule: unknown
+    ctx.schedule = {"EDM": [ctx.as_of + timedelta(days=30)]}                  # no games this week
+    assert not [p for p in team_pressures(ctx, values, Y) if p.kind == "goalies"]
+    ctx.schedule = {"EDM": [ctx.as_of + timedelta(days=2)]}
+    g = [p for p in team_pressures(ctx, values, Y) if p.kind == "goalies"]
+    assert len(g) == 1 and g[0].text == "only 1 healthy goalie with games this week"
+    mine = {p.cid: p for p in ctx.my_team.players}
+    assert relieves(g[0], [mine["m_g"]], [by["y_c"]], ctx, values)
+    assert not relieves(g[0], [mine["m_g"]], [by["y_g"]], ctx, values)       # swaps their only healthy one
+    values["m_g"].games_next7 = 0                                            # my goalie does not play
+    assert not relieves(g[0], [mine["m_g"]], [by["y_c"]], ctx, values)
+
+
+def test_pressure_weak_slot_below_minus_one():
+    ctx, values = exploit_ctx()
+    ctx.position_limits = {}
+    Y = _team(ctx, "Y")
+    w = [p for p in team_pressures(ctx, values, Y, weakest=("D", -1.4), median_weak={"D": 0.3})
+         if p.kind == "weak"]
+    assert len(w) == 1 and w[0].text == "a weak D slot (starter VORP -1.40, league median +0.30)"
+    assert not [p for p in team_pressures(ctx, values, Y, weakest=("D", -0.9)) if p.kind == "weak"]
+    empty = [p for p in team_pressures(ctx, values, Y, weakest=("D", -math.inf)) if p.kind == "weak"]
+    assert empty[0].text == "an empty D slot"
+    mine = {p.cid: p for p in ctx.my_team.players}
+    assert relieves(w[0], [mine["m_d2"]], [], ctx, values)                   # D, VORP +0.4 > -1.4
+    assert not relieves(w[0], [mine["m_c2"]], [], ctx, values)               # not a D
+
+
+def test_exploit_takes_the_surplus_goalie_and_respects_legality(monkeypatch):
+    patch_market(monkeypatch, {"m_c2": 60.0, "x_g2": 64.0, "x_g1": 70.0, "x_g3": 64.0})
+    ctx, values = exploit_ctx()
+    recs = exploit_opportunities(ctx, values, lineup_fn=False)
+    assert recs and all(r.kind == "trade" for r in recs)
+    assert {r.counterparty for r in recs} == {"Team X"}                      # Y is under no pressure
+    top = recs[0]
+    codes = [x.code for x in top.reasons]
+    assert codes[:3] == ["MY_EDGE", "MARKET_VIEW", "EXPLOIT"] and {"GAIN_WEEK", "GAIN_SEASON"} <= set(codes)
+    ex = next(x for x in top.reasons if x.code == "EXPLOIT")
+    assert ex.text.startswith("Exploit: Team X has 3 goalies at the G limit 3") and ex.value == PRESSURE_PTS
+    assert any(p.is_goalie for p in top.add) and not any(p.is_goalie for p in top.drop)
+    p_acc = next(x for x in top.reasons if x.code == "P_ACCEPT")
+    assert "+8 relieves their roster pressure" in p_acc.text and p_acc.value >= 0.25
+    # the same deal without the pressure bonus: exactly PRESSURE_PTS less in their view
+    plain = evaluate_trade(ctx, values, give=[p.cid for p in top.drop], get=[p.cid for p in top.add],
+                           lineup_fn=False)
+    mv = next(x for x in top.reasons if x.code == "MARKET_VIEW").value
+    assert mv == pytest.approx(plain.perceived + PRESSURE_PTS)
+    for r in recs:                                                           # both rosters stay legal
+        mine = [p for p in ctx.my_team.players if p.cid not in {x.cid for x in r.drop}] + list(r.add)
+        assert sum(p.is_goalie for p in mine) <= 3
+        assert next(x for x in r.reasons if x.code == "MY_EDGE").value > 0.3
+    # limit caps the list; at my own G limit, taking a goalie forces me to drop mine (still legal)
+    assert len(exploit_opportunities(ctx, values, lineup_fn=False, limit=1)) == 1
+    ctx.position_limits = {"G": 1}                                           # I hold 1 G: at my limit
+    capped = exploit_opportunities(ctx, values, lineup_fn=False, limit=20)
+    assert capped
+    for r in capped:
+        if any(p.is_goalie for p in r.add) and not any(p.is_goalie for p in r.drop):
+            texts = {x.code: x.text for x in r.reasons}
+            assert "you drop m_g" in texts["ROSTER_CONSEQUENCE"] and "POSITION_CAP" in texts
+
+
+def test_exploit_skips_fa_pickups_without_moves_left(monkeypatch):
+    patch_market(monkeypatch, {})
+    ctx, values = exploit_ctx()
+    fa = pl("fa_lw", ["LW"])
+    values["fa_lw"] = pv(fa, 1.9)
+    ctx.free_agents = [fa]
+
+    def fills(recs):
+        return [r for r in recs if any(x.code == "FA_FILL" for x in r.reasons)]
+
+    assert fills(exploit_opportunities(ctx, values, lineup_fn=False))        # 2-for-1 + my FA pickup
+    ctx.moves_limit_per_period, ctx.moves_used_this_period = 2, 1
+    r = fills(exploit_opportunities(ctx, values, lineup_fn=False))[0]
+    budget = next(x for x in r.reasons if x.code == "MOVE_BUDGET")
+    assert budget.text == "The free-agent pickup uses a move (1 of 2 moves left this week)" and budget.value == 1
+    ctx.moves_used_this_period = 2                                           # 0 moves left
+    none_left = exploit_opportunities(ctx, values, lineup_fn=False)
+    assert none_left and not fills(none_left)                                 # a straight deal instead
+
+
+def test_web_trade_info_gain_units_and_exploit():
+    from fantasy_manager.web import views
+
+    r = Recommendation(kind="trade", score=1.0, title="t", reasons=[
+        Reason(code="MY_EDGE", text="", value=0.66), Reason(code="P_ACCEPT", text="", value=0.5),
+        Reason(code="DELTA_ME", text="", value=0.66), Reason(code="GAIN_WEEK", text="", value=2.31),
+        Reason(code="GAIN_SEASON", text="", value=54.8),
+        Reason(code="EXPLOIT", text="Exploit: Team X has 3 goalies", value=8.0)])
+    info = views.trade_info(r)
+    assert info["units_text"] == "+2.3 pts/week · +55 pts rest of season"
+    assert info["gain_text"] == "+0.66 pts/game · +2.3 pts/week · +55 pts rest of season"
+    assert info["exploit"] == "Exploit: Team X has 3 goalies"
+
+
+# -- regression: ΔMe / ΔThem = optimal(after) - optimal(before), season FPG ---------------------
+# Live Fantrax dynasty deal (balanced): "Trade Nylander + Misa to Dee for Vejmelka" showed ΔMe
+# +2.35 (an FA pickup that would start anyway was credited to the trade) and ΔThem -4.31 (Dee
+# cut Hofer, the backup goalie it has to start after giving up Vejmelka, leaving a G slot empty).
+
+import random  # noqa: E402
+
+FX_SHAPE = {"F": 5, "D": 3, "G": 2, "BN": 6, "IR": 2}
+
+
+def gv(p, season, share):
+    """Goalie: ``fpg_season`` is already start-share adjusted (fpg x share)."""
+    fpg = season / share
+    return PlayerValue(player=p, fpg=fpg, fpg_season=season, fpg_week=season, vorp=season - REPL,
+                       vorp_week=season - REPL, start_share=share,
+                       horizon_values={"season": season, "week": season})
+
+
+def fx_ctx(fas=(("kantserov", ["F"], 4.75), ("fa_d", ["D"], 3.0), ("fa_g", ["G"], 2.5))):
+    me = [("F", "nylander", ["F"], 5.15), ("F", "panarin", ["F"], 4.89), ("F", "tippett", ["F"], 4.37),
+          ("F", "eichel", ["F"], 5.41), ("F", "holloway", ["F"], 4.69), ("D", "hughes", ["D"], 4.62),
+          ("D", "jones", ["D"], 3.43), ("D", "sanderson", ["D"], 4.18), ("G", "blackwood", ["G"], (3.40, 0.51)),
+          ("G", "saros", ["G"], (4.41, 0.62)), ("BN", "byfield", ["F"], 3.86), ("BN", "stenberg", ["F"], 3.44),
+          ("BN", "frondell", ["F"], 4.26), ("BN", "lafreniere", ["F"], 3.78), ("BN", "misa", ["F"], 3.40),
+          ("BN", "snuggerud", ["F"], 4.08), ("IR", "jarvis", ["F"], 4.5)]
+    dee = [("F", "johnston", ["F"], 5.10), ("F", "martone", ["F"], 4.89), ("F", "pastrnak", ["F"], 6.06),
+           ("F", "scheifele", ["F"], 5.01), ("F", "keller", ["F"], 4.81), ("D", "fox", ["D"], 4.39),
+           ("D", "lacombe", ["D"], 3.58), ("D", "werenski", ["D"], 5.12), ("G", "greaves", ["G"], (4.06, 0.55)),
+           ("G", "vejmelka", ["G"], (4.64, 0.76)), ("BN", "rakell", ["F"], 4.45), ("BN", "eklund", ["F"], 3.76),
+           ("BN", "miller", ["F"], 4.70), ("BN", "raymond", ["F"], 4.39), ("BN", "thomas", ["F"], 4.39),
+           ("BN", "hofer", ["G"], (3.77, 0.54))]
+    values, teams = {}, []
+    for tid, rows in (("me", me), ("dee", dee)):
+        entries = []
+        for slot, cid, pos, f in rows:
+            p = pl(cid, pos, "ir" if slot == "IR" else "healthy")
+            values[cid] = gv(p, *f) if isinstance(f, tuple) else pv(p, f)
+            entries.append((slot, p))
+        teams.append(team(tid, "Dee_snuts69" if tid == "dee" else "Me", tid == "me", entries))
+    fa_players = []
+    for cid, pos, f in fas:
+        p = pl(cid, pos)
+        values[cid] = pv(p, f)
+        fa_players.append(p)
+    ctx = LeagueContext(provider="test", league_id="1", season=2027, name="FX",
+                        scoring=ScoringConfig(kind="points", weights={"G": 1.0}), roster_shape=FX_SHAPE,
+                        teams=teams, free_agents=fa_players, matchup_period=1, as_of=date(2026, 10, 1))
+    ctx.dynasty, ctx.dynasty_mode = True, "balanced"
+    # dynasty value: Hofer is Dee's least valuable asset (the old drop rule cut him), Misa a prospect
+    dyn = {cid: values[cid].fpg_season for cid in values}
+    dyn.update({"hofer": 0.5, "eklund": 1.0, "misa": 8.0, "stenberg": 6.0})
+    return ctx, values, dyn
+
+
+@pytest.mark.parametrize("lineup_fn", [None, False])      # optimal_lineup / built-in greedy
+def test_fantrax_nylander_misa_for_vejmelka_is_a_small_gain(lineup_fn):
+    ctx, values, dyn = fx_ctx()
+    ev = evaluate_trade(ctx, values, give=["nylander", "misa"], get=["vejmelka"], dynasty_values=dyn,
+                        lineup_fn=lineup_fn)
+    # G: Vejmelka 4.64 for Blackwood 3.40 (+1.24); F: Nylander 5.15 out, Tippett 4.37 keeps his F
+    # slot because Kantserov (4.75) is a pickup I can make without the trade too (-0.78)
+    assert 0.1 <= ev.delta_me <= 0.7
+    assert ev.delta_me == pytest.approx(1.24 - 0.78)
+    assert ev.my_fill is not None and ev.my_fill.cid == "kantserov"
+    # Dee: Vejmelka 4.64 -> Hofer 3.77 in goal (-0.87), Nylander 5.15 over Keller 4.81 (+0.34);
+    # Dee cuts a bench skater, never Hofer (the goalie it must now start)
+    assert -1.5 <= ev.delta_them <= -0.3
+    assert ev.delta_them == pytest.approx(-0.87 + 0.34)
+    assert [p.cid for p in ev.their_drops] == ["eklund"]
+    dm = next(x for x in _to_rec(ev, dyn, "dynasty", "greedy").reasons if x.code == "DELTA_ME")
+    assert dm.value == pytest.approx(ev.delta_me) and "same pickup of kantserov" in dm.text
+
+
+@pytest.mark.parametrize("lineup_fn", [None, False])
+def test_an_fa_who_would_start_anyway_is_not_a_trade_gain(lineup_fn):
+    # an FA valued far above my starters (Imama: 6.27 from one game) is the pickup, but the
+    # trade is credited only with what it adds on top of making that pickup without it
+    ctx, values, dyn = fx_ctx(fas=(("imama", ["F"], 6.27), ("kantserov", ["F"], 4.75), ("fa_g", ["G"], 2.5)))
+    ev = evaluate_trade(ctx, values, give=["nylander", "misa"], get=["vejmelka"], dynasty_values=dyn,
+                        lineup_fn=lineup_fn)
+    assert ev.my_fill.cid == "imama"
+    assert 0.1 <= ev.delta_me <= 0.7 and ev.delta_me == pytest.approx(1.24 - 0.78)
+
+
+def test_fa_fill_takes_an_open_starting_slot_and_counts_when_he_starts():
+    # I give both my goalies for a skater: the fill is the best FA goalie (an open G slot the
+    # roster cannot fill), not the best FA by FPG, and his starts count (nobody else can start)
+    ctx, values, dyn = fx_ctx()
+    ev = evaluate_trade(ctx, values, give=["blackwood", "saros"], get=["pastrnak"], dynasty_values=dyn,
+                        lineup_fn=False)
+    assert ev.my_fill.cid == "fa_g"
+    # G: 3.40 + 4.41 -> 2.50 + empty; F: Pastrnak 6.06 over Tippett 4.37
+    assert ev.delta_me == pytest.approx(2.50 - 3.40 - 4.41 + 6.06 - 4.37)
+    # a 2-for-1 with no starting need picks up depth at the outgoing players' position
+    ctx, values, dyn = fx_ctx(fas=(("fa_d", ["D"], 3.0), ("fa_f", ["F"], 1.0), ("fa_g", ["G"], 1.0)))
+    ev = evaluate_trade(ctx, values, give=["byfield", "stenberg"], get=["eklund"], dynasty_values=dyn,
+                        lineup_fn=False)
+    assert ev.my_fill.cid == "fa_f" and ev.delta_me == pytest.approx(0.0)
+
+
+def test_trading_equal_players_changes_nothing():
+    ctx, values, dyn = fx_ctx()
+    for mine, theirs in (("eichel", "scheifele"), ("saros", "greaves"), ("frondell", "raymond")):
+        values[theirs] = values[theirs].model_copy(update={
+            "fpg": values[mine].fpg, "fpg_season": values[mine].fpg_season, "fpg_week": values[mine].fpg_week,
+            "start_share": values[mine].start_share})
+        for fn in (None, False):
+            ev = evaluate_trade(ctx, values, give=[mine], get=[theirs], dynasty_values=dyn, lineup_fn=fn)
+            assert ev.delta_me == pytest.approx(0.0, abs=1e-9)
+            assert ev.delta_them == pytest.approx(0.0, abs=1e-9)
+
+
+def _random_league(rng, bench):
+    shape = {"F": 3, "D": 2, "G": 1, "BN": bench}
+    kinds = ["F"] * 3 + ["D"] * 2 + ["G"]
+
+    def roster(tag):
+        pos = kinds + [rng.choice("FFDG") for _ in range(bench)]
+        return [(("BN" if i >= len(kinds) else pos[i]), pl(f"{tag}{i}", [pos[i]])) for i in range(len(pos))]
+
+    values = {}
+    rosters = {"me": roster("m"), "o": roster("o")}
+    for entries in rosters.values():
+        for _, p in entries:
+            values[p.cid] = pv(p, round(rng.uniform(1.0, 6.0), 2))
+    fas = [pl(f"fa{i}", [rng.choice("FDG")]) for i in range(5)]
+    for p in fas:
+        values[p.cid] = pv(p, round(rng.uniform(0.5, 5.0), 2))
+    ctx = LeagueContext(provider="test", league_id="1", season=2027, name="R",
+                        scoring=ScoringConfig(kind="points", weights={"G": 1.0}), roster_shape=shape,
+                        teams=[team("me", "Me", True, rosters["me"]), team("o", "O", False, rosters["o"])],
+                        free_agents=fas, matchup_period=1, as_of=date(2026, 10, 1))
+    return ctx, values
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_delta_me_never_exceeds_what_the_trade_brings(seed):
+    """ΔMe <= Σ incoming FPG - Σ outgoing FPG + best FA FPG when every rostered player starts;
+    with bench depth, Σ outgoing FPG becomes the lineup value the outgoing players carry
+    (optimal(before) - optimal(before without them)), as a bench player can replace them."""
+    rng = random.Random(seed)
+    for bench in (0, 3):
+        ctx, values = _random_league(rng, bench)
+        me, them = ctx.my_team, next(t for t in ctx.teams if not t.owner_is_me)
+        best_fa = max(values[p.cid].fpg_season for p in ctx.free_agents)
+        mine, theirs = [p.cid for p in me.players], [p.cid for p in them.players]
+        shape = ctx.roster_shape
+        for _ in range(12):
+            n_give, n_get = rng.choice([(1, 1), (2, 1), (1, 2)])
+            give, get = rng.sample(mine, n_give), rng.sample(theirs, n_get)
+            s_in = sum(values[c].fpg_season for c in get)
+            s_out = sum(values[c].fpg_season for c in give)
+            before = _greedy_lineup_value(me.players, values, shape)
+            carried = before - _greedy_lineup_value([p for p in me.players if p.cid not in give], values, shape)
+            assert carried <= s_out + 1e-9
+            for fn in (None, False):
+                ev = evaluate_trade(ctx, values, give=give, get=get, team_id="o", lineup_fn=fn)
+                assert ev.delta_me <= s_in - carried + best_fa + 1e-9
+                if bench == 0:
+                    assert ev.delta_me <= s_in - s_out + best_fa + 1e-9

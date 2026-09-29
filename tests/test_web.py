@@ -1014,3 +1014,29 @@ def test_trade_acceptance_and_sweet_spot_on_moves_page():
     assert "acceptance ~70%" in h and "expected value +0.42" in h
     assert "Sweet spot trades" in h and "Looks even to them by market value" in h
     assert "Sweet spot trades" not in client.get("/recommendations?kind=waiver").text
+
+
+def test_trade_gain_units_and_exploit_section_on_moves_page(monkeypatch):
+    import fantasy_manager.recommend.trades as tr
+
+    res = make_result()
+    t = res.recs[1]
+    reasons = [Reason(code="MY_EDGE", text="You gain +0.66 pts/game this season", value=0.66),
+               Reason(code="MARKET_VIEW", text="Looks even to them by market value (ADP); acceptance ~50%", value=0.0),
+               Reason(code="P_ACCEPT", text="Acceptance 50%", value=0.5),
+               Reason(code="GAIN_WEEK", text="+2.3 pts/week", value=2.31),
+               Reason(code="GAIN_SEASON", text="+55 pts rest of season", value=54.8),
+               Reason(code="DELTA_ME", text="My lineup +0.66 FPG", value=0.66)]
+    res.recs[1] = t.model_copy(update={"predicted_gain": 0.66, "gain_units": "lineup_fpg", "reasons": reasons})
+    ex = t.model_copy(update={"reasons": reasons[:2] + [Reason(code="EXPLOIT", text="Exploit: Team X has "
+                                                               "3 goalies at the G limit 3", value=8.0)] + reasons[2:]})
+    calls = []
+    monkeypatch.setattr(tr, "exploit_opportunities", lambda *a, **k: calls.append(1) or [ex])
+    client = TestClient(create_app(lambda league: res))
+    h = client.get("/recommendations?kind=trade").text
+    assert "you gain +2.3 pts/week · +55 pts rest of season" in h
+    assert "Exploit trades" in h and "Exploit: Team X has 3 goalies at the G limit 3" in h
+    assert "you gain +0.66 pts/game · +2.3 pts/week · +55 pts rest of season" in h
+    client.get("/recommendations?kind=trade")
+    assert len(calls) == 1                                           # memoised per loaded result
+    assert "Exploit trades" not in client.get("/recommendations?kind=waiver").text

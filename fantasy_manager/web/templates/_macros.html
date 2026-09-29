@@ -24,7 +24,7 @@
 {% set d = dyn_value(res.dynasty, p.cid) %}
 {% if fpg is not none or v is not none or d is not none %}
 <span class="sp">
-  {% if fpg is not none %}<span class="sp-i"><small>FPG</small>{{ fpg|n1 }}</span>{% endif %}
+  {% if fpg is not none %}<span class="sp-i"><small title="{{ vlabel_title }}">{{ vlabel }}</small>{{ fpg|n1 }}</span>{% endif %}
   {% if v is not none %}<span class="sp-i{% if v > 0 %} pos{% elif v < 0 %} neg{% endif %}"><small>VORP</small>{{ v|n1(True) }}</span>{% endif %}
   {% if d is not none %}<span class="sp-i"><small>Dyn</small>{{ d|n1 }}</span>{% endif %}
 </span>
@@ -87,8 +87,8 @@
     <tr><th scope="row">Age</th>{% for c in cmp.cols %}<td class="n">{{ c.row.age|int if c.row.age is not none else '-' }}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
     <tr><th scope="row">Status</th>{% for c in cmp.cols %}<td class="n st-cell">{{ pill(c.row.status) }}{% if c.row.note %}<small class="note-s" title="{{ c.row.note }}">{{ c.row.note|truncate(70) }}</small>{% endif %}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
     <tr><th scope="row">GP season</th>{% for c in cmp.cols %}<td class="n">{{ c.row.gp }}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
-    <tr><th scope="row">FPG season</th>{% for c in cmp.cols %}<td class="n">{{ c.row.fpg_season|n1 }}</td>{% endfor %}{{ netcell(net, 'fpg_season') }}</tr>
-    <tr><th scope="row">FPG healthy</th>{% for c in cmp.cols %}<td class="n">{{ c.row.fpg|n1 }}</td>{% endfor %}{{ netcell(net, 'fpg') }}</tr>
+    <tr><th scope="row"><span title="{{ vlabel_title }}">{{ vlabel }} season</span></th>{% for c in cmp.cols %}<td class="n">{{ c.row.fpg_season|n1 }}</td>{% endfor %}{{ netcell(net, 'fpg_season') }}</tr>
+    <tr><th scope="row"><span title="{{ vlabel_title }}">{{ vlabel }} healthy</span></th>{% for c in cmp.cols %}<td class="n">{{ c.row.fpg|n1 }}</td>{% endfor %}{{ netcell(net, 'fpg') }}</tr>
     {% if cmp.has_proj %}<tr><th scope="row">Proj pts/wk</th>{% for c in cmp.cols %}<td class="n">{{ c.row.proj_week|n1 }}</td>{% endfor %}{{ netcell(net, 'proj_week') }}</tr>{% endif %}
     <tr><th scope="row">Games next 7</th>{% for c in cmp.cols %}<td class="n">{{ games_cell(c.row) }}</td>{% endfor %}{{ netcell(net, 'games_n') }}</tr>
     {% if cmp.has_xg %}<tr><th scope="row"><abbr title="Goals minus individual expected goals per game (MoneyPuck.com); positive = finishing above expected">Goals &minus; ixG /GP</abbr></th>{% for c in cmp.cols %}<td class="n">{% if c.row.xg %}{{ '%+.2f'|format(c.row.xg.per_gp) }}{% if c.row.xg.prior %} <small>(last szn)</small>{% endif %}{% else %}-{% endif %}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>{% endif %}
@@ -113,6 +113,7 @@
     <b class="gain-v">{{ g.value|n1(True) }}</b> <span class="gain-u">{{ g.unit }}</span>
     <span class="gain-h">{{ [g.horizon, g.confidence_label]|select|join(' · ') }}{% if g.dynasty is not none %}{{ ' · ' if g.horizon or g.confidence_label }}dynasty {{ g.dynasty|n1(True) }}{% endif %}</span>
     {% if g.trade %}<span class="gain-h trade-acc">acceptance {{ g.trade.p_text }}{% if g.trade.ev is not none %} &middot; expected value {{ g.trade.ev|num(2, True) }}{% endif %}{% if g.trade.sweet %} &middot; sweet spot{% endif %}</span>{% endif %}
+    {% if g.trade and g.trade.units_text %}<span class="gain-h trade-units">you gain {{ g.trade.units_text }}</span>{% endif %}
     {% else %}
     <span class="gain-h">No numeric gain for this kind of move</span>
     {% endif %}
@@ -135,7 +136,7 @@
   <thead><tr>
     <th scope="col">Player</th>{% if owner %}<th scope="col">Fantasy team</th>{% endif %}{% if slot %}<th scope="col">Slot</th>{% endif %}
     <th scope="col">Status</th><th scope="col" class="n">Age</th><th scope="col" class="n">GP</th>
-    <th scope="col" class="n">FPG szn</th><th scope="col" class="n">FPG healthy</th><th scope="col">Games next 7</th>
+    <th scope="col" class="n"><span title="{{ vlabel_title }}">{{ vlabel }} szn</span></th><th scope="col" class="n"><span title="{{ vlabel_title }}">{{ vlabel }} healthy</span></th><th scope="col">Games next 7</th>
     <th scope="col" class="n">Proj pts/wk</th><th scope="col" class="n">VORP</th>
     {% if has_dyn %}<th scope="col" class="n">Dynasty</th>{% endif %}{% if has_pct %}<th scope="col" class="n">% ros</th>{% endif %}
   </tr></thead>
@@ -148,7 +149,7 @@
       <td data-label="Status" class="wrap">{{ pill(x.status) }}{% if note and x.note %}<small class="note-s">{{ x.note|truncate(110) }}</small>{% endif %}</td>
       <td data-label="Age" class="n">{{ x.age|int if x.age is not none else '-' }}</td>
       <td data-label="GP" class="n">{{ x.gp }}</td>
-      <td data-label="FPG szn" class="n">{{ x.fpg_season|n1 }}</td>
+      <td data-label="{{ vlabel }} szn" class="n">{{ x.fpg_season|n1 }}</td>
       <td data-label="FPG healthy" class="n">{{ x.fpg|n1 }}</td>
       <td data-label="Games next 7">{{ games_cell(x) }}</td>
       <td data-label="Proj pts/wk" class="n">{{ x.proj_week|n1 }}</td>

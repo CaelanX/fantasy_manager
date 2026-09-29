@@ -11,13 +11,13 @@
   <h2 id="h-values">Value</h2>
   {% if pv %}
   <dl class="tiles">
-    <div><dt>FPG healthy</dt><dd>{{ pv.fpg|n1 }} <small>FPG</small></dd></div>
-    <div><dt>FPG season</dt><dd>{{ pv.fpg_season|n1 }} <small>FPG</small></dd></div>
-    <div><dt>FPG week</dt><dd>{{ pv.fpg_week|n1 }} <small>FPG</small></dd></div>
+    <div><dt><span title="{{ vlabel_title }}">{{ vlabel }} healthy</span></dt><dd>{{ pv.fpg|n1 }} <small title="{{ vlabel_title }}">{{ vlabel }}</small></dd></div>
+    <div><dt><span title="{{ vlabel_title }}">{{ vlabel }} season</span></dt><dd>{{ pv.fpg_season|n1 }} <small title="{{ vlabel_title }}">{{ vlabel }}</small></dd></div>
+    <div><dt><span title="{{ vlabel_title }}">{{ vlabel }} week</span></dt><dd>{{ pv.fpg_week|n1 }} <small title="{{ vlabel_title }}">{{ vlabel }}</small></dd></div>
     {% if pv.proj_week is defined and pv.proj_week is not none %}<div><dt>Projected week</dt><dd>{{ pv.proj_week|n1 }} <small>pts/wk</small></dd></div>{% endif %}
     {% if pv.games_next7 is defined and pv.games_next7 is not none %}<div><dt>Games next 7d</dt><dd>{{ pv.games_next7 }}{% if pv.offnight_next7 %} <small>{{ pv.offnight_next7 }} off-night</small>{% endif %}</dd></div>{% endif %}
-    <div><dt>VORP season</dt><dd class="{{ 'pos' if pv.vorp > 0 else ('neg' if pv.vorp < 0 else '') }}">{{ pv.vorp|n1(True) }} <small>FPG</small></dd></div>
-    {% if pv.vorp_week is defined and pv.vorp_week is not none %}<div><dt>VORP week</dt><dd class="{{ 'pos' if pv.vorp_week > 0 else ('neg' if pv.vorp_week < 0 else '') }}">{{ pv.vorp_week|n1(True) }} <small>FPG</small></dd></div>{% endif %}
+    <div><dt>VORP season</dt><dd class="{{ 'pos' if pv.vorp > 0 else ('neg' if pv.vorp < 0 else '') }}">{{ pv.vorp|n1(True) }} <small title="{{ vlabel_title }}">{{ vlabel }}</small></dd></div>
+    {% if pv.vorp_week is defined and pv.vorp_week is not none %}<div><dt>VORP week</dt><dd class="{{ 'pos' if pv.vorp_week > 0 else ('neg' if pv.vorp_week < 0 else '') }}">{{ pv.vorp_week|n1(True) }} <small title="{{ vlabel_title }}">{{ vlabel }}</small></dd></div>{% endif %}
     {% if pv.start_share is defined and pv.start_share is not none %}<div><dt>Start share</dt><dd>{{ (pv.start_share * 100)|n1 }}<small>%</small></dd></div>{% endif %}
     {% if dyn %}<div><dt>Dynasty{% if dyn.horizon_years is defined %} ({{ dyn.horizon_years }}y){% endif %}</dt><dd>{{ dyn.value|n1 }}</dd></div>{% endif %}
   </dl>
@@ -144,7 +144,7 @@
   {% set show_fpg = rows|selectattr('fpg', 'ne', none)|list|length > 0 %}
   <div class="tbl"><table class="r stack stats">
     <caption class="sr-only">Per-game stat splits for {{ p.name }}</caption>
-    <thead><tr><th scope="col">Split</th><th scope="col" class="n">GP</th>{% if show_fpg %}<th scope="col" class="n">FPG</th>{% endif %}
+    <thead><tr><th scope="col">Split</th><th scope="col" class="n">GP</th>{% if show_fpg %}<th scope="col" class="n" title="{{ vlabel_title }}">{{ vlabel }}</th>{% endif %}
       {% for c in cols %}<th scope="col" class="n">{{ RATE_LABEL.get(c, c) }}</th>{% endfor %}</tr></thead>
     <tbody>
       {% for r in rows %}

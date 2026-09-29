@@ -1,0 +1,15 @@
+# Runs fantasy-pregame.service every day at 17:00 in the server's time zone (FM_PREGAME_HOUR in
+# .env documents the hour; change OnCalendar to move it). 17:00 ET is about 2 h before a 7 PM
+# puck drop, after most goalie confirmations. Servers in another zone: adjust the hour (e.g.
+# 14:00 on Pacific time for 7 PM ET games). Check: systemctl list-timers 'fantasy-*'
+[Unit]
+Description=Fantasy Manager pre-game check at 17:00
+
+[Timer]
+OnCalendar=*-*-* 17:00:00
+# No catch-up run at boot: a pre-game check after the games is useless.
+Persistent=false
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

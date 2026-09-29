@@ -6,7 +6,8 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-UNITS=(fantasy-web.service fantasy-daily.service fantasy-daily.timer fantasy-backup.service fantasy-backup.timer)
+UNITS=(fantasy-web.service fantasy-daily.service fantasy-daily.timer fantasy-pregame.service fantasy-pregame.timer
+       fantasy-backup.service fantasy-backup.timer)
 [[ $EUID -eq 0 ]] || { echo "run as root: sudo bash $0" >&2; exit 1; }
 cd "$APP_DIR"
 
@@ -40,7 +41,8 @@ for unit in "${UNITS[@]}"; do
   rm -f "$tmp"
 done
 (( changed )) && systemctl daemon-reload
-systemctl enable fantasy-web.service fantasy-daily.timer fantasy-backup.timer >/dev/null
+systemctl enable fantasy-web.service fantasy-daily.timer fantasy-pregame.timer fantasy-backup.timer >/dev/null
+systemctl start fantasy-pregame.timer      # added with the pre-game check; a no-op once it runs
 
 echo "==> restarting fantasy-web"
 systemctl restart fantasy-web.service

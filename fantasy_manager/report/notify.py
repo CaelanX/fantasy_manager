@@ -124,3 +124,39 @@ def any_failed(results: list[str]) -> bool:
 
 
 __all__ = ["send_discord", "send_slack", "notify_all", "chunk_text", "any_failed"]
+
+
+# --------------------------------------------------------------------------- short change alerts
+
+CHANGES_CHUNK = 1500   # phone-sized messages (the pre-game run, fantasy_manager.pregame)
+BULLET = "•"   # a bullet point
+
+
+def format_changes(title: str, lines: list[str], style: str = "discord") -> str:
+    """``title`` in bold (Discord ``**``, Slack ``*``) then one bullet per line; blank lines dropped."""
+    bold = "**" if style == "discord" else "*"
+    head = f"{bold}{title.strip()}{bold}" if title and title.strip() else ""
+    body = [f"{BULLET} {' '.join(str(ln).split())}" for ln in lines or [] if str(ln).strip()]
+    return "\n".join([head, *body] if head else body)
+
+
+def notify_changes(settings: Any, title: str, lines: list[str], client: httpx.Client | None = None) -> list[str]:
+    """Post a short bulleted alert (title + one bullet per line) to every configured webhook, in
+    messages of at most 1500 chars (split on bullet boundaries). Same result strings as
+    :func:`notify_all`; never raises."""
+    results: list[str] = []
+    discord = getattr(settings, "discord_webhook_url", None)
+    slack = getattr(settings, "slack_webhook_url", None)
+    if discord:
+        results.append(_send_chunks("discord", discord, chunk_text(format_changes(title, lines, "discord"),
+                                                                   CHANGES_CHUNK),
+                                    lambda c: {"content": c, "allowed_mentions": {"parse": []}}, client))
+    if slack:
+        results.append(_send_chunks("slack", slack, chunk_text(format_changes(title, lines, "slack"), CHANGES_CHUNK),
+                                    lambda c: {"text": c}, client))
+    if not results:
+        results.append("no webhooks configured (set DISCORD_WEBHOOK_URL and/or SLACK_WEBHOOK_URL)")
+    return results
+
+
+__all__ += ["notify_changes", "format_changes"]

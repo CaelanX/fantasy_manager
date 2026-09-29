@@ -197,6 +197,41 @@ The page shows one league (switch with ESPN / FANTRAX in the header).
 7. **Data capture**: episodes by kind and status, transactions, realized NHL days, unmatched
    player identities, the last daily run and any warnings.
 
+## Data health in the digest
+
+Every enrichment run records one structured status per data source (`LeagueContext.sources`,
+built by `providers.enrich.collect_sources`; the free-text `source_notes` / `warnings` are
+unchanged). `report.health.data_health` sorts them into:
+
+| Class | Meaning |
+|---|---|
+| failed | the source did not deliver this run: every request failed, the step raised, or the league login / a core league fetch failed (Fantrax or ESPN warnings) |
+| stale | older than 3x its cache TTL, or 36 h for sources without a TTL (odds archive). The deployment ledger is judged by game days before yesterday that were never pulled, not by age, so an old ledger in the off-season is still fine |
+| partial | some requests failed (a few teams, one MoneyPuck season file), or a parse problem / harness extra failed. Shown in the block, but no alert on its own |
+
+Sources listed: the league provider (Fantrax / ESPN), NHL stats (current + prior, and past
+seasons), NHL schedules, NHL rosters, NHL player pages, NHL game logs (`--deep`), injuries, news
+feeds, Daily Faceoff lines and starting goalies, MoneyPuck, the deployment ledger, NHL preseason
+box scores (while they run), and the odds archive (only when `ODDS_API_KEY` is set).
+
+What you see:
+
+- **Everything fresh**: one footer line, e.g. "All 13 sources fresh (oldest: NHL player pages,
+  19h)". It is also the last line of the webhook summary.
+- **Anything failed, stale or partial**: a red "Data problems" block opens the digest (above the
+  model line and the headline), and the webhook summary starts with it, e.g.
+  "⚠ Data problems: Fantrax login expired; Daily Faceoff goalies unavailable", followed by up
+  to four plain-English lines ("Fantrax: login expired — refresh FANTRAX_COOKIE (or run `fm auth
+  fantrax --login`)", "MoneyPuck: unavailable (HttpError ...); last good data yesterday").
+- `Digest.alert` (`report.health.should_alert`) is true for any failed source, or a stale source
+  that feeds valuation (league provider, NHL stats / schedules / rosters, injuries, Daily
+  Faceoff, MoneyPuck, deployment ledger).
+- The web footer shows the same thing compactly ("Data: 12 fresh · 1 failed — worst: Fantrax
+  (login expired ...)"); the free-text source notes stay under "Data sources".
+
+A Fantrax or ESPN login failure that stops the league from loading at all still ends
+`fm report` with an error before any digest exists; the block covers failures the run survives.
+
 ## Rolling back
 
 On `/health`, under Valuation parameters: pick the version (the active version's parent is

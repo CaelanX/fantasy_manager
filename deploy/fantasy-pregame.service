@@ -1,0 +1,33 @@
+# One pre-game check: force-refreshed starting goalies / injuries / lines, recomputed lineups and
+# alerts, and a webhook post only when something changed since the morning run.
+# Started by fantasy-pregame.timer. Logs: journalctl -u fantasy-pregame and /opt/fantasy_manager/data/logs/pregame.log
+[Unit]
+Description=Fantasy Manager pre-game check (goalies, scratches, lineup changes)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=fantasy
+Group=fantasy
+WorkingDirectory=/opt/fantasy_manager
+EnvironmentFile=/opt/fantasy_manager/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bin/bash /opt/fantasy_manager/deploy/daily.sh pregame
+TimeoutStartSec=20min
+Nice=5
+
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/fantasy_manager/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=

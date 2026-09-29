@@ -31,6 +31,11 @@ rest still runs, so offline / partial runs degrade gracefully):
    ``<fm_data_dir>/lines``)
 10. ``xg=True``: MoneyPuck expected goals (``providers.xg_enrich``; 2 season CSVs, 12 h / 30 d)
 
+Every run also sets ``ctx.sources`` (``collect_sources``): one structured ``SourceStatus`` per
+source (league provider from its warnings, tracked HTTP sources, failed steps, Daily Faceoff,
+MoneyPuck, deployment ledger, preseason, odds archive) for ``report.health``; the free-text
+``source_notes`` / ``warnings`` are unchanged.
+
 Steps 9 and 10 need an HTTP cache (skipped when ``cache`` is None unless a client is injected),
 so tests and offline runs never reach those sites by accident.
 """
@@ -38,14 +43,14 @@ from __future__ import annotations
 
 import re
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Iterable
 
 from ..cache import cache_key
 from ..matching.crosswalk import Crosswalk, nhl_candidates
 from ..matching.matcher import Candidate, PlayerIndex
 from ..matching.normalize import normalize_team
-from ..models import CANONICAL_STATS, LeagueContext, Player, StatLine
+from ..models import CANONICAL_STATS, LeagueContext, Player, SourceStatus, StatLine
 from .injuries import INJURIES_URL, InjuryReport, fetch_injuries
 from .nhl import CachedNhlFetch
 from .nhl import (NHL_TEAMS, WEB_BASE, NhlClient, NhlGameLogEntry, NhlGoalieSeason, NhlRosterPlayer, NhlSkaterSeason,
@@ -105,6 +110,18 @@ def ttl_for(url: str, params: dict | None = None, today: date | None = None) -> 
     return "NHL", TTL_NHL_STATS
 
 
+# Display names of the tracked sources (SourceStatus.name) and the sources valuation reads.
+SOURCE_NAMES = {"NHL stats": "NHL stats", "NHL stats (history)": "NHL stats (past seasons)",
+                "NHL schedule": "NHL schedules", "NHL rosters": "NHL rosters", "NHL player pages": "NHL player pages",
+                "NHL game logs": "NHL game logs", "injuries": "Injuries", "news": "News feeds", "NHL": "NHL (other)"}
+VALUATION_SOURCES = frozenset({"NHL stats", "NHL schedules", "NHL rosters", "Injuries", "Daily Faceoff lines",
+                               "Daily Faceoff goalies", "MoneyPuck", "Deployment ledger", "Fantrax", "ESPN"})
+
+
+def _utc(epoch: float | None) -> datetime | None:
+    return None if epoch is None else datetime.fromtimestamp(float(epoch), tz=timezone.utc)
+
+
 def _age(seconds: float) -> str:
     if seconds < 90:
         return "just now"
@@ -120,33 +137,83 @@ class SourceTracker:
 
     def __init__(self, cache: Any):
         self.cache = cache
+        # label -> {"requests": successful fetches, "oldest": epoch of the oldest data served,
+        # "ttl", "failed": failed fetches, "error": last failure, "last_good": newest cached copy
+        # of a failed request (epoch; the cache keeps expired rows)}
         self.sources: dict[str, dict[str, Any]] = {}
 
-    def _record(self, url: str, params: dict | None, label: str) -> None:
-        s = self.sources.setdefault(label, {"requests": 0, "oldest": None})
-        s["requests"] += 1
+    def _entry(self, label: str, ttl: float | None = None) -> dict[str, Any]:
+        s = self.sources.setdefault(label, {"requests": 0, "oldest": None, "ttl": ttl, "failed": 0,
+                                            "error": None, "last_good": None})
+        if ttl is not None:
+            s["ttl"] = ttl
+        return s
+
+    def _fetched_at(self, url: str, params: dict | None) -> float | None:
         lookup = getattr(self.cache, "_lookup", None)
         if lookup is None:
-            return
+            return None
         try:
             row = lookup(cache_key("GET", url, params, None))
         except Exception:
-            return
-        if row:
-            fetched = row[3]
+            return None
+        return float(row[3]) if row else None
+
+    def _record(self, url: str, params: dict | None, label: str, ttl: float | None = None) -> None:
+        s = self._entry(label, ttl)
+        s["requests"] += 1
+        fetched = self._fetched_at(url, params)
+        if fetched is not None:
             s["oldest"] = fetched if s["oldest"] is None else min(s["oldest"], fetched)
+
+    def _record_failure(self, url: str, params: dict | None, label: str, ttl: float, e: Exception) -> None:
+        s = self._entry(label, ttl)
+        s["failed"] += 1
+        s["error"] = _short(e)
+        fetched = self._fetched_at(url, params)
+        if fetched is not None:
+            s["last_good"] = fetched if s["last_good"] is None else max(s["last_good"], fetched)
 
     def fetch_json(self, url: str, params: dict | None = None) -> Any:
         label, ttl = ttl_for(url, params)
-        data = self.cache.get_json(url, params=params, ttl=ttl)
-        self._record(url, params, label)
+        try:
+            data = self.cache.get_json(url, params=params, ttl=ttl)
+        except Exception as e:
+            self._record_failure(url, params, label, ttl, e)
+            raise
+        self._record(url, params, label, ttl)
         return data
 
     def fetch_text(self, url: str, params: dict | None = None) -> str:
         label, ttl = ttl_for(url, params)
-        text = self.cache.get_text(url, params=params, ttl=ttl)
-        self._record(url, params, label)
+        try:
+            text = self.cache.get_text(url, params=params, ttl=ttl)
+        except Exception as e:
+            self._record_failure(url, params, label, ttl, e)
+            raise
+        self._record(url, params, label, ttl)
         return text
+
+    def statuses(self, now: float | None = None) -> list[SourceStatus]:
+        """One SourceStatus per tracked source: fail when every request failed, warn when some
+        did; ``fetched_at`` is the oldest data served (or the newest cached copy of a failure)."""
+        now = now or time.time()
+        out = []
+        for label, s in sorted(self.sources.items()):
+            name = SOURCE_NAMES.get(label, label)
+            good, bad = int(s["requests"]), int(s.get("failed") or 0)
+            t = s["oldest"] if good else s.get("last_good")
+            if not bad:
+                severity, detail = "ok", None
+            elif good:
+                severity, detail = "warn", f"{bad} of {good + bad} requests failed ({s['error']})"
+            else:
+                severity, detail = "fail", f"unavailable ({s['error']})"
+            out.append(SourceStatus(name=name, ok=severity != "fail", severity=severity,  # type: ignore[arg-type]
+                                    fetched_at=_utc(t), age_seconds=None if t is None else max(0.0, now - t),
+                                    ttl_seconds=s.get("ttl"), detail=detail, requests=good + bad,
+                                    feeds_valuation=name in VALUATION_SOURCES))
+        return out
 
     def notes(self, now: float | None = None) -> list[str]:
         now = now or time.time()
@@ -316,12 +383,20 @@ def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = F
     teams = list(teams)
     own_xw = crosswalk is None
     players = ctx.all_players()
+    # structured state for ctx.sources: source name -> {"attempts", "failed", "detail"} per
+    # best-effort step, and the results of steps 7b-10
+    failures: dict[str, dict[str, Any]] = {}
+    results: dict[str, Any] = {}
 
     def step(name: str, fn: Callable[[], Any]) -> Any:
+        f = failures.setdefault(step_source(name, season, prior), {"attempts": 0, "failed": 0, "detail": None})
+        f["attempts"] += 1
         try:
             return fn()
         except Exception as e:  # one failing source must not sink the command
             ctx.warnings.append(f"{name} unavailable ({_short(e)})")
+            f["failed"] += 1
+            f["detail"] = f["detail"] or f"unavailable ({_short(e)})"
             return None
 
     # 1. schedule ---------------------------------------------------------------
@@ -361,6 +436,8 @@ def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = F
             last_err = e
     if roster_errors:
         ctx.warnings.append(f"NHL rosters: {roster_errors}/{len(teams)} teams unavailable ({_short(last_err)})")
+        failures["NHL rosters"] = {"attempts": len(teams), "failed": roster_errors,
+                                   "detail": f"{roster_errors} of {len(teams)} teams unavailable ({_short(last_err)})"}
     goalies: dict[str, dict[int, str]] = {}
     for r in roster:
         if r.position == "G":
@@ -426,7 +503,8 @@ def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = F
     # 7b. preseason lines of unproven skaters (box scores; needs career GP from 6b) ---------------
     if preseason and cache is not None:
         from .preseason_enrich import enrich_preseason
-        step("NHL preseason box scores", lambda: enrich_preseason(ctx, cache, None, season, teams=teams))
+        results["preseason"] = step("NHL preseason box scores",
+                                    lambda: enrich_preseason(ctx, cache, None, season, teams=teams))
 
     if tracker:
         ctx.source_notes.extend(tracker.notes())
@@ -436,17 +514,24 @@ def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = F
         dep_nhl = nhl if nhl is not None else (
             NhlClient(fetch_json=CachedNhlFetch(cache, today=ctx.as_of, ttl_for=ttl_for), season=season)
             if cache is not None else None)
-        step("Deployment", lambda: _deployment_step(ctx, settings, dep_nhl, ledger))
+        n_warn = len(ctx.warnings)
+        results["deployment"] = step("Deployment", lambda: _deployment_step(ctx, settings, dep_nhl, ledger))
+        results["deployment_warnings"] = [w for w in ctx.warnings[n_warn:] if w.startswith("Deployment (")]
     if lines:
         if cache is None and lines_client is None:
             ctx.source_notes.append("Daily Faceoff lines skipped (no HTTP cache)")
         else:
-            step("Daily Faceoff lines", lambda: _lines_step(ctx, settings, cache, crosswalk, lines_client))
+            results["lines"] = step("Daily Faceoff lines",
+                                    lambda: _lines_step(ctx, settings, cache, crosswalk, lines_client))
     if xg:
         if cache is None and xg_client is None:
             ctx.source_notes.append("MoneyPuck expected goals skipped (no HTTP cache)")
         else:
-            step("MoneyPuck expected goals", lambda: _xg_step(ctx, cache, xg_client))
+            results["xg"] = step("MoneyPuck expected goals", lambda: _xg_step(ctx, cache, xg_client))
+    try:  # additive and best effort: never let the health summary sink enrichment
+        ctx.sources = collect_sources(ctx, settings, cache, tracker, failures, results)
+    except Exception as e:
+        ctx.warnings.append(f"Data health summary unavailable ({_short(e)})")
     return ctx
 
 
@@ -479,7 +564,7 @@ def _open_ledger(settings: Any) -> Any:
 MIN_LEDGER_TEAM_GAMES = 5
 
 
-def _deployment_step(ctx: LeagueContext, settings: Any, nhl: Any, ledger: Any = None) -> None:
+def _deployment_step(ctx: LeagueContext, settings: Any, nhl: Any, ledger: Any = None) -> dict[str, Any]:
     """Step 8: TOI / PP deployment per skater, and (ledger with >= 5 team games) goalie starts
     and back-to-back second-night rates for valuation."""
     from ..harness.deployment import b2b_second_night_rate, team_goalie_counts
@@ -487,6 +572,7 @@ def _deployment_step(ctx: LeagueContext, settings: Any, nhl: Any, ledger: Any = 
 
     own = ledger is None
     led = _open_ledger(settings) if own else ledger
+    info: dict[str, Any] = {"ledger": led is not None, "last_game": None, "pulled_at": None}
     try:
         res = enrich_deployment(ctx, led, as_of=ctx.as_of, nhl=nhl)
         ctx.deployment_details = dict(res.get("details") or {})
@@ -505,19 +591,22 @@ def _deployment_step(ctx: LeagueContext, settings: Any, nhl: Any, ledger: Any = 
             last = led.query("SELECT MAX(game_date) d, MAX(pulled_at) t FROM deployment_pulls")
             if last and last[0]["d"]:
                 fresh = f"; ledger through {last[0]['d']}"
+                info.update(last_game=last[0]["d"], pulled_at=last[0]["t"])
         src = "ledger" if led is not None else "no harness ledger"
         ctx.source_notes.append(
             f"Deployment (NHL TOI / PP reports, {src}): {res['skaters']} skaters - {res['ledger']} from the ledger, "
             f"{res['season_report']} from the season report, {res['prior_season']} from last season, "
             f"{res['missing']} missing; {res['trends']} with trends; {len(ready)} teams with >= "
             f"{MIN_LEDGER_TEAM_GAMES} ledger games (goalie starts / back-to-backs){fresh}")
+        info["result"] = res
     finally:
         if own and led is not None:
             led.close()
+    return info
 
 
 def _lines_step(ctx: LeagueContext, settings: Any, cache: Any, crosswalk: Crosswalk | None,
-                client: Any = None) -> None:
+                client: Any = None) -> Any:
     """Step 9: Daily Faceoff lines / units / starting goalies (and the daily snapshot)."""
     from .dailyfaceoff import USER_AGENT, goalies_url
     from .lines_enrich import enrich_lines
@@ -531,8 +620,8 @@ def _lines_step(ctx: LeagueContext, settings: Any, cache: Any, crosswalk: Crossw
             except Exception as e:  # match without persisting
                 ctx.warnings.append(f"Daily Faceoff crosswalk unavailable ({_short(e)})")
                 xw = None
-        enrich_lines(ctx, cache, xw, as_of=ctx.as_of, snapshot_store=getattr(settings, "fm_data_dir", None),
-                     client=client)
+        res = enrich_lines(ctx, cache, xw, as_of=ctx.as_of, snapshot_store=getattr(settings, "fm_data_dir", None),
+                           client=client)
     finally:
         if own and xw is not None:
             xw.close()
@@ -541,9 +630,10 @@ def _lines_step(ctx: LeagueContext, settings: Any, cache: Any, crosswalk: Crossw
         if t is not None:
             ctx.source_notes.append(f"Daily Faceoff (dailyfaceoff.com; lines cached 12h, starting goalies 3h): "
                                     f"starting goalies fetched {_age(time.time() - t)}")
+    return res
 
 
-def _xg_step(ctx: LeagueContext, cache: Any, client: Any = None) -> None:
+def _xg_step(ctx: LeagueContext, cache: Any, client: Any = None) -> Any:
     """Step 10: MoneyPuck expected goals (credit line added by ``enrich_xg``)."""
     from .moneypuck import current_start_year, season_url
     from .xg_enrich import enrich_xg
@@ -554,6 +644,7 @@ def _xg_step(ctx: LeagueContext, cache: Any, client: Any = None) -> None:
         if t is not None:
             ctx.source_notes.append(f"MoneyPuck: {res.count} skaters with xG; current-season file fetched "
                                     f"{_age(time.time() - t)}")
+    return res
 
 
 def _rookie_llm(settings: Any) -> Any:
@@ -678,3 +769,260 @@ def _deep_game_logs(ctx: LeagueContext, client: NhlClient, season: int, players:
             built += 1
     ctx.source_notes.append(f"Game logs: {len(todo)} players checked, {built} with recent games"
                             + (f", {errors} failed" if errors else ""))
+
+
+# --------------------------------------------------------------------------- data health (ctx.sources)
+
+STEP_SOURCES = {"Injury feed": "Injuries", "NHL player pages": "NHL player pages", "Rookie evidence": "Rookie evidence",
+                "NHL preseason box scores": "NHL preseason", "Deployment": "Deployment ledger",
+                "Daily Faceoff lines": "Daily Faceoff lines", "MoneyPuck expected goals": "MoneyPuck"}
+_STATS_STEP_RE = re.compile(r"NHL (?:skater|goalie) stats (\d{8})$")
+_RANK = {"ok": 0, "warn": 1, "fail": 2}
+
+
+def step_source(name: str, season: int | None = None, prior: int | None = None) -> str:
+    """SourceStatus name of an ``enrich_context`` step ("NHL skater stats 20252026" -> "NHL stats")."""
+    if name.startswith(("NHL week schedule", "NHL team schedules")):
+        return "NHL schedules"
+    m = _STATS_STEP_RE.match(name)
+    if m:
+        return "NHL stats" if int(m.group(1)) in (season, prior) else "NHL stats (past seasons)"
+    return STEP_SOURCES.get(name, name)
+
+
+def _status(name: str, severity: str = "ok", *, fetched: float | None = None, now: float | None = None,
+            ttl: float | None = None, detail: str | None = None, requests: int | None = None,
+            stale: bool | None = None) -> SourceStatus:
+    now = now or time.time()
+    return SourceStatus(name=name, ok=severity != "fail", severity=severity,  # type: ignore[arg-type]
+                        fetched_at=_utc(fetched), age_seconds=None if fetched is None else max(0.0, now - fetched),
+                        ttl_seconds=ttl, detail=detail, requests=requests, feeds_valuation=name in VALUATION_SOURCES,
+                        stale=stale)
+
+
+# Provider warnings (FantraxProvider / EspnProvider ``warnings``, copied onto ctx.warnings by the
+# CLI and the web loader before enrichment). Login trouble and core fetch failures are "fail";
+# harness extras (activity feeds, box scores, trending) and parse problems are "warn"; the rest
+# (config notes such as FANTRAX_POINTS) is not a data failure.
+_LOGIN_RE = re.compile(r"not logged in|log ?in\b|cookie|espn_s2|swid|\b401\b|\b403\b|unauthori[sz]ed|forbidden|"
+                       r"session (?:expired|invalid)", re.I)
+_FAILED_RE = re.compile(r"unavailable|failed|could not reach|not reachable|timed? ?out", re.I)
+_PARSE_RE = re.compile(r"could not be parsed", re.I)
+_EXTRA_RE = re.compile(r"activity|box scores|trending|lineup snapshot|pro schedule|claim limits|move limits|"
+                       r"% rostered|ownership", re.I)
+_FANTRAX_LABELS = ("Fantrax", "Standings", "League rules", "Trade blocks", "Pending trades", "Transactions",
+                   "Some Fantrax", "Free-agent pool")
+LOGIN_ADVICE = {"fantrax": "login expired — refresh FANTRAX_COOKIE (or run `fm auth fantrax --login`)",
+                "espn": "login expired — refresh ESPN_S2 / ESPN_SWID"}
+
+
+def provider_label(provider: str) -> str:
+    return {"fantrax": "Fantrax", "espn": "ESPN"}.get((provider or "").lower(), (provider or "League").title())
+
+
+def _provider_warning(provider: str, w: str) -> bool:
+    if provider == "fantrax":
+        return w.startswith(_FANTRAX_LABELS)
+    if provider == "espn":
+        return w.startswith("ESPN ")
+    return False
+
+
+def _clip(text: str, n: int = 120) -> str:
+    text = " ".join(str(text).split())
+    return text if len(text) <= n else text[: n - 3].rstrip() + "..."
+
+
+def classify_provider_warning(provider: str, w: str) -> tuple[str, str] | None:
+    """(severity, detail) for one provider warning, or None when it is not a data failure."""
+    provider = (provider or "").lower()
+    if not _provider_warning(provider, w):
+        return None
+    if "session refreshed by login" in w:
+        return "ok", "session refreshed by login"
+    if _LOGIN_RE.search(w) and (_FAILED_RE.search(w) or "not logged in" in w.lower()):
+        return "fail", LOGIN_ADVICE.get(provider, "login expired")
+    if _PARSE_RE.search(w):
+        return "warn", _clip(w)
+    if _FAILED_RE.search(w):
+        return ("warn" if _EXTRA_RE.search(w) else "fail"), _clip(w)
+    return None
+
+
+def provider_status(provider: str, warnings: Iterable[str]) -> SourceStatus:
+    """The league provider's SourceStatus from its warnings (the load itself succeeded, or there
+    would be no context). The worst warning wins and its detail is kept."""
+    severity, detail = "ok", None
+    for w in warnings:
+        c = classify_provider_warning(provider, str(w))
+        if c is None:
+            continue
+        if _RANK[c[0]] > _RANK[severity] or (detail is None and c[0] == severity):
+            severity, detail = c
+    return _status(provider_label(provider), severity, detail=detail or "league data loaded")
+
+
+def _cached_min(cache: Any, urls: Iterable[str]) -> float | None:
+    times = [t for t in (_cached_at(cache, u) for u in urls) if t is not None]
+    return min(times) if times else None
+
+
+def _lines_sources(ctx: LeagueContext, cache: Any, res: Any, now: float) -> list[SourceStatus]:
+    from .dailyfaceoff import TEAM_SLUGS, TTL_GOALIES, TTL_LINES, goalies_url, team_url
+
+    warns = [str(w) for w in getattr(res, "warnings", None) or []]
+    t_lines = _cached_min(cache, (team_url(t) for t in TEAM_SLUGS)) if cache is not None else None
+    t_goalies = _cached_at(cache, goalies_url(ctx.as_of)) if cache is not None else None
+    full = [w for w in warns if w.startswith("Daily Faceoff lines unavailable (")]
+    part = [w for w in warns if w.startswith("Daily Faceoff lines unavailable for")]
+    teams = int(getattr(res, "teams", 0) or 0)
+    if not teams:
+        sev, detail = "fail", (full[0].replace("Daily Faceoff lines ", "", 1) if full else "no line combinations found")
+    elif part:
+        sev, detail = "warn", _clip(part[0].replace("Daily Faceoff lines ", "", 1))
+    else:
+        sev, detail = "ok", f"{teams} teams"
+    out = [_status("Daily Faceoff lines", sev, fetched=t_lines, now=now, ttl=TTL_LINES, detail=detail)]
+    g_fail = [w for w in warns if w.startswith("Daily Faceoff starting goalies unavailable")]
+    if g_fail:
+        out.append(_status("Daily Faceoff goalies", "fail", fetched=t_goalies, now=now, ttl=TTL_GOALIES,
+                           detail=g_fail[0].replace("Daily Faceoff starting goalies ", "", 1)))
+    else:
+        named = sum(1 for s in getattr(res, "starts", None) or [] if getattr(s, "is_start", False))
+        out.append(_status("Daily Faceoff goalies", fetched=t_goalies, now=now, ttl=TTL_GOALIES,
+                           detail=f"{named} starters named for {ctx.as_of}"))
+    return out
+
+
+def _season_label(y: int) -> str:
+    return f"{y}-{str(y + 1)[-2:]}"
+
+
+def _xg_source(ctx: LeagueContext, cache: Any, res: Any, now: float) -> SourceStatus:
+    from .moneypuck import TTL_CURRENT, season_url
+
+    cur_y, prior_y = res.seasons
+    t = _cached_at(cache, season_url(cur_y)) if cache is not None else None
+    missing = [y for y in (cur_y, prior_y) if y not in res.rows]
+    err = res.errors[0].split(": ", 1)[-1] if res.errors else "no rows"
+    if len(missing) == 2:
+        sev, detail = "fail", f"unavailable ({_clip(err, 100)})"
+    elif cur_y in missing:
+        sev, detail = "warn", f"{_season_label(cur_y)} file unavailable ({_clip(err, 80)}); using {_season_label(prior_y)} only"
+    elif missing:
+        sev, detail = "warn", f"{_season_label(prior_y)} file unavailable ({_clip(err, 80)})"
+    else:
+        sev, detail = "ok", f"{res.count} skaters with xG"
+    return _status("MoneyPuck", sev, fetched=t, now=now, ttl=TTL_CURRENT, detail=detail)
+
+
+def _parse_local(ts: Any) -> float | None:
+    """Epoch seconds of an ISO timestamp (naive = local time, as the harness ledger writes it)."""
+    if not ts:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return (dt if dt.tzinfo else dt.astimezone()).timestamp()
+
+
+def _deployment_source(ctx: LeagueContext, info: dict[str, Any], report_warnings: list[str],
+                       now: float) -> SourceStatus:
+    """The harness ledger, judged by missed game days (games before yesterday not pulled yet)
+    rather than by age: in the off-season an old ledger is still up to date."""
+    sev = "warn" if report_warnings else "ok"
+    extra = f"; {_clip(report_warnings[0], 100)}" if report_warnings else ""
+    if not info.get("ledger"):
+        return _status("Deployment ledger", sev, now=now, detail=f"no harness ledger; NHL season reports only{extra}",
+                       stale=False)
+    last_s = info.get("last_game")
+    try:
+        last = date.fromisoformat(str(last_s)) if last_s else None
+    except ValueError:
+        last = None
+    cutoff = ctx.as_of - timedelta(days=1)
+    missed = sorted(d for d in ctx.games_per_day if (last is None or d > last) and d < cutoff)
+    detail = f"through {last}" if last else "no games pulled yet"
+    if missed:
+        detail += f"; {len(missed)} game day(s) not pulled since (run `fm harness daily`)"
+    return _status("Deployment ledger", sev, fetched=_parse_local(info.get("pulled_at")), now=now,
+                   detail=detail + extra, stale=bool(missed))
+
+
+def _preseason_source(res: dict[str, Any], now: float) -> SourceStatus | None:
+    games, failed = int(res.get("games") or 0), int(res.get("failed") or 0)
+    if not games and not failed:
+        return None                       # skipped (out of window / no unproven skaters / no games yet)
+    if failed and not games:
+        return _status("NHL preseason", "fail", now=now, detail=f"all {failed} box scores failed")
+    return _status("NHL preseason", "warn" if failed else "ok", now=now,
+                   detail=f"{games}/{games + failed} box scores read")
+
+
+def _odds_source(settings: Any, as_of: date, now: float) -> SourceStatus | None:
+    """The newest betting-odds archive, listed only when an odds API key is configured."""
+    import json
+    from pathlib import Path
+
+    if getattr(settings, "odds_api_key", None) is None or not getattr(settings, "fm_data_dir", None):
+        return None
+    arch = Path(settings.fm_data_dir) / "archive"
+    files = sorted(p for p in arch.glob("odds-*.json") if p.stem[5:] <= as_of.isoformat()) if arch.is_dir() else []
+    if not files:
+        return _status("Odds archive", "warn", now=now, detail="no odds archived yet (`fm harness daily`)")
+    path = files[-1]
+    try:
+        fetched = _parse_local(json.loads(path.read_text(encoding="utf-8")).get("fetched_at"))
+    except (OSError, ValueError, AttributeError):
+        fetched = None
+    if fetched is None:
+        try:
+            fetched = path.stat().st_mtime
+        except OSError:
+            fetched = None
+    return _status("Odds archive", fetched=fetched, now=now, detail=f"latest {path.stem[5:]}")
+
+
+def collect_sources(ctx: LeagueContext, settings: Any, cache: Any, tracker: SourceTracker | None,
+                    failures: dict[str, dict[str, Any]], results: dict[str, Any],
+                    now: float | None = None) -> list[SourceStatus]:
+    """``ctx.sources`` for this run: the league provider (from its warnings), every source the
+    tracker saw, failed steps, and the Daily Faceoff / MoneyPuck / deployment / preseason / odds
+    steps. The provider comes first, the rest by name."""
+    now = now or time.time()
+    out: dict[str, SourceStatus] = {}
+    prov = provider_status(ctx.provider, ctx.warnings)
+    if tracker is not None:
+        for st in tracker.statuses(now):
+            out[st.name] = st
+    for name, f in failures.items():
+        if not f.get("failed"):
+            continue
+        sev = "fail" if f["failed"] >= f["attempts"] else "warn"
+        cur = out.get(name)
+        if cur is None:
+            out[name] = _status(name, sev, now=now, detail=f.get("detail"))
+        elif _RANK[sev] >= _RANK[cur.severity]:
+            out[name] = cur.model_copy(update={"severity": sev, "ok": sev != "fail",
+                                               "detail": f.get("detail") or cur.detail})
+    if results.get("lines") is not None:
+        for st in _lines_sources(ctx, cache, results["lines"], now):
+            out[st.name] = st
+    elif (failures.get("Daily Faceoff lines") or {}).get("failed"):   # the step raised: no goalies either
+        out.setdefault("Daily Faceoff goalies", _status("Daily Faceoff goalies", "fail", now=now,
+                                                        detail="unavailable (Daily Faceoff step failed)"))
+    if results.get("xg") is not None:
+        out["MoneyPuck"] = _xg_source(ctx, cache, results["xg"], now)
+    if results.get("deployment") is not None:
+        out["Deployment ledger"] = _deployment_source(ctx, results["deployment"],
+                                                      results.get("deployment_warnings") or [], now)
+    if isinstance(results.get("preseason"), dict):
+        st = _preseason_source(results["preseason"], now)
+        if st is not None:
+            out[st.name] = st
+    odds = _odds_source(settings, ctx.as_of, now)
+    if odds is not None:
+        out[odds.name] = odds
+    out.pop(prov.name, None)
+    return [prov, *sorted(out.values(), key=lambda s: s.name.lower())]

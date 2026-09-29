@@ -123,7 +123,7 @@ def test_write_digest(tmp_path):
     ctx, values = make_league()
     d = build_digest(ctx, values, make_recs(ctx), NEWS, GEN)
     md_path, html_path = write_digest(d, tmp_path / "reports")
-    assert md_path.name == "digest-2026-10-07.md" and html_path.name == "digest-2026-10-07.html"
+    assert md_path.name == f"digest-{d.league}-2026-10-07.md" and html_path.name == f"digest-{d.league}-2026-10-07.html"
     assert md_path.read_text(encoding="utf-8") == d.markdown
     assert html_path.read_text(encoding="utf-8").startswith("<!doctype html>")
 
@@ -177,3 +177,62 @@ def test_model_health_block_hidden_until_trustworthy(tmp_path):
     assert "## Model health\n\n- Projection MAE" in d.markdown and "- Params: packaged" in d.markdown
     assert '<h2>Model health</h2>\n<ul class="model-health"><li>Projection MAE' in d.html
     assert "Model health" not in d.summary                          # webhook summary stays short
+
+
+# --------------------------------------------------------------------------- data health
+
+def _sources(problems: bool):
+    from fantasy_manager.models import SourceStatus
+
+    out = [SourceStatus(name="NHL rosters", age_seconds=19 * 3600, ttl_seconds=30 * 86400, feeds_valuation=True),
+           SourceStatus(name="Daily Faceoff goalies", age_seconds=14 * 60, ttl_seconds=3 * 3600, feeds_valuation=True)]
+    if problems:
+        out += [SourceStatus(name="Fantrax", ok=False, severity="fail", feeds_valuation=True,
+                             detail="login expired — refresh FANTRAX_COOKIE"),
+                SourceStatus(name="Daily Faceoff lines", ok=False, severity="fail", feeds_valuation=True,
+                             detail="unavailable (site changed)")]
+    return out
+
+
+def test_data_health_block_leads_when_sources_fail():
+    ctx, values = make_league()
+    ctx.sources = _sources(problems=True)
+    d = build_digest(ctx, values, make_recs(ctx), NEWS, GEN, model_headline="Model: x")
+    assert d.alert and d.health.overall == "failed"
+    md = d.markdown
+    assert md.index("## ⚠ Data health") < md.index("*Model: x*") < md.index("## Headline")
+    block = md.split("## ⚠ Data health")[1].split("## Headline")[0]
+    assert "**⚠ Data problems: Fantrax login expired; Daily Faceoff lines unavailable**" in block
+    assert "- Fantrax: login expired — refresh FANTRAX_COOKIE" in block
+    assert "*2 other sources fresh (oldest: NHL rosters, 19h)*" in block
+    assert "All 2 sources fresh" not in md
+    h = d.html
+    assert h.index('class="card data-health"') < h.index("<h2>Headline</h2>")
+    assert "<h2>⚠ Data problems</h2>" in h and "--bad:#b42318" in h
+    lines = d.summary.splitlines()
+    assert lines[0] == "⚠ Data problems: Fantrax login expired; Daily Faceoff lines unavailable"
+    assert lines[1] == "- Fantrax: login expired — refresh FANTRAX_COOKIE"
+    assert lines[3].startswith("Fantasy digest: Test League") and lines[4] == "Model: x"
+
+
+def test_summary_keeps_failures_when_truncated():
+    ctx, values = make_league()
+    ctx.sources = _sources(problems=True)
+    recs = make_recs(ctx) * 50
+    for r in recs:
+        r.narrative = "x " * 400
+    s = build_digest(ctx, values, recs, NEWS, GEN).summary
+    assert len(s) <= SUMMARY_MAX and s.startswith("⚠ Data problems: Fantrax login expired")
+
+
+def test_fresh_sources_get_a_footer_line_only():
+    ctx, values = make_league()
+    ctx.sources = _sources(problems=False)
+    d = build_digest(ctx, values, make_recs(ctx), NEWS, GEN)
+    assert not d.alert and d.health.overall == "ok"
+    assert "Data health" not in d.markdown and 'class="card data-health"' not in d.html
+    tail = d.markdown.split("## News for my players")[1]
+    assert "*All 2 sources fresh (oldest: NHL rosters, 19h)*" in tail
+    assert '<p class="meta data-fresh">All 2 sources fresh (oldest: NHL rosters, 19h)</p>' in d.html
+    assert d.summary.startswith("Fantasy digest: Test League")
+    assert d.summary.splitlines()[-1] == "Data: all 2 sources fresh (oldest: NHL rosters, 19h)"

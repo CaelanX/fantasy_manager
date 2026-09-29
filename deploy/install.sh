@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Install (or re-install) Fantasy Manager on Ubuntu 24.04: dashboard behind Caddy with HTTPS, the
-# daily job at 07:30 and a nightly data backup. Safe to run again: every step checks first.
+# daily job at 07:30, the pre-game check at 17:00 and a nightly data backup. Safe to run again:
+# every step checks first.
 #
 #   sudo DOMAIN=fantasy.example.com REPO_URL=https://github.com/you/fantasy_manager.git bash install.sh
 #   sudo DOMAIN=fantasy.example.com bash /opt/fantasy_manager/deploy/install.sh    # code already copied
@@ -10,7 +11,7 @@
 #   REPO_URL   git URL to clone when APP_DIR doesn't exist yet (else this script's own checkout is copied)
 #   BRANCH     branch to check out on first clone (default: the repo's default branch)
 #   APP_DIR    install location (default /opt/fantasy_manager)
-#   TIMEZONE   e.g. America/Toronto; sets the server clock zone used by the 07:30 timer
+#   TIMEZONE   e.g. America/Toronto; sets the server clock zone used by the 07:30 and 17:00 timers
 #   ENABLE_UFW=1  open 22/80/443 in ufw and turn the firewall on (off by default: see docs/hosting.md)
 #
 # Layout: code + venv owned by root (the services can't modify them), data/ owned by the
@@ -23,7 +24,8 @@ APP_HOME="/var/lib/fantasy"
 BACKUP_DIR="/var/backups/fantasy_manager"
 PYTHON="python3.12"
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UNITS=(fantasy-web.service fantasy-daily.service fantasy-daily.timer fantasy-backup.service fantasy-backup.timer)
+UNITS=(fantasy-web.service fantasy-daily.service fantasy-daily.timer fantasy-pregame.service fantasy-pregame.timer
+       fantasy-backup.service fantasy-backup.timer)
 
 say()  { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33mWARNING: %s\033[0m\n' "$*" >&2; }
@@ -175,9 +177,9 @@ fi
 
 # --------------------------------------------------------------------------- services
 say "Enabling services and timers"
-systemctl enable fantasy-web.service fantasy-daily.timer fantasy-backup.timer >/dev/null
+systemctl enable fantasy-web.service fantasy-daily.timer fantasy-pregame.timer fantasy-backup.timer >/dev/null
 systemctl restart fantasy-web.service
-systemctl start fantasy-daily.timer fantasy-backup.timer
+systemctl start fantasy-daily.timer fantasy-pregame.timer fantasy-backup.timer
 sleep 2
 if curl -fsS --max-time 5 http://127.0.0.1:8765/healthz >/dev/null; then
   echo "dashboard is up on 127.0.0.1:8765"

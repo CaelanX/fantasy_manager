@@ -70,6 +70,8 @@
       {% if params_source %}<p class="params-foot">Valuation params: {{ params_source }}</p>{% endif %}
       {% if res %}{% for c in credits(res.ctx) %}<p class="credit-foot">{{ c }}</p>{% endfor %}{% endif %}
       {% if res %}
+      {% set src = sources_text(res.ctx) %}
+      {% if src %}<p class="sources-foot sources-{{ src.level }}"{% if src.level != 'ok' %} role="status" style="color: var(--{{ 'bad' if src.level == 'fail' else 'warn' }}); font-weight: 600"{% endif %}>Data: {{ src.text }}</p>{% endif %}
       {% if res.ctx.source_notes %}
       <details><summary>Data sources ({{ res.ctx.source_notes|length }})</summary>
         <ul>{% for n in res.ctx.source_notes %}<li>{{ n }}</li>{% endfor %}</ul>

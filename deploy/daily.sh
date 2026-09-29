@@ -4,6 +4,11 @@
 #   2. fm backtest archive      snapshot today's projections and recommendations
 #   3. fm harness daily         ingest, match your moves, grade (Mondays), refit (refit days)
 #   4. fm report --notify       write the digest and post it to your webhooks
+#
+# `daily.sh pregame` runs only the afternoon pre-game check (fantasy-pregame.timer, 17:00):
+#      fm harness pregame --league both --notify --quiet-if-unchanged
+#   (goalie confirmations, late scratches / injuries, line changes since the morning run; posts
+#   only when something changed)
 # Every step is best-effort: a failure is logged and the next step still runs. The script exits 1
 # if any step failed, so `systemctl status fantasy-daily` / `systemctl --failed` show it.
 # Output goes to data/logs/<step>.log (rotated at 5 MB) and a one-line summary per step to stdout
@@ -55,6 +60,11 @@ step() {  # step <log-name> <fm args...>
     printf '===== exit %s\n' "$rc" >> "$log"
   fi
 }
+
+if [[ "${1:-}" == "pregame" ]]; then
+  step pregame harness pregame --league both --notify --quiet-if-unchanged
+  exit "$failed"
+fi
 
 step auth    auth fantrax --ping
 step archive backtest archive

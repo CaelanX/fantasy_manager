@@ -243,6 +243,12 @@ def _params_source() -> str:
         return f"unavailable ({type(e).__name__})"
 
 
+def _vlabel(lc: Any) -> str:
+    """Column label for per-game value: FPG in points leagues, Val/G (z-score sum) in categories/roto."""
+    kind = getattr(getattr(lc, "scoring", None), "kind", "points")
+    return "FPG" if kind == "points" else "Val/G"
+
+
 def _fmt(v: float | None, signed: bool = False) -> str:
     if v is None:
         return "-"
@@ -493,7 +499,7 @@ def roster(ctx: typer.Context,
     for team in teams:
         tbl = Table(title=f"{team.name}" + (" (me)" if team.owner_is_me else ""))
         cols = [("Slot", "left"), ("Player", "left"), ("Pos", "left"), ("Age", "right"), ("NHL", "left"),
-                ("Status", "left"), ("GP", "right"), ("FPG szn", "right"), ("FPG wk", "right"), ("G/7d", "right"),
+                ("Status", "left"), ("GP", "right"), (f"{_vlabel(lc)} szn", "right"), (f"{_vlabel(lc)} wk", "right"), ("G/7d", "right"),
                 ("Proj wk", "right"), ("VORP", "right")]
         if dyn is not None:
             cols.append(("Dynasty", "right"))
@@ -964,39 +970,49 @@ def trades(ctx: typer.Context,
            deep: bool = typer.Option(False, "--deep", help="Also fetch NHL game logs for recent form."),
            league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
            mode: Optional[ModeName] = _mode_opt(),
+           exploit_limit: int = typer.Option(8, "--exploits", help="Max exploit trades (teams under roster "
+                                                                     "pressure); 0 = skip."),
            json_out: bool = typer.Option(False, "--json")) -> None:
     """Trade proposals ranked by expected value: your lineup gain x the chance they accept
     (judged by market value: ADP / % rostered). Plus the sweet spot: deals the market calls fair
-    that our model says you win."""
-    from .recommend.trades import recommend_trades
+    that our model says you win, and exploits: deals that relieve another team's roster pressure."""
+    from .recommend.trades import exploit_opportunities, recommend_trades
 
     league_name, as_json = _opts(ctx, league, json_out)
     d = _load_all(league_name, deep, mode=_mode_val(mode))
     lc, errors = d.lc, d.errors
     wants = _trade_wants(lc, d.provider)
+    offered = _trade_offered(d.provider)
     future: list[Recommendation] = []
     sweet: list[Recommendation] = []
     recs = _safe(errors, "trades", recommend_trades, lc, d.values, dynasty_values=d.dyn,
-                 max_per_team=per_team, limit=limit, wants=wants, offered=_trade_offered(d.provider),
+                 max_per_team=per_team, limit=limit, wants=wants, offered=offered,
                  default=[], sweet_spot=sweet,
                  future_only=future if d.dyn and lc.dynasty_mode == "contend" else None)
+    exploits = (_safe(errors, "exploit trades", exploit_opportunities, lc, d.values, dynasty_values=d.dyn,
+                      limit=exploit_limit, wants=wants, offered=offered, default=[]) or []) if exploit_limit > 0 else []
     if as_json:
         _json_out({"trades": _recs_json(recs), "sweet_spot": _recs_json(sweet), "future_only": _recs_json(future[:5]),
+                   "exploits": _recs_json(exploits),
                    "trade_block_wants": {k: sorted(v) for k, v in (wants or {}).items()}},
                   lc, errors)
         return
     if not recs:
         console.print("No trade gains you more than +0.3 with at least a 25% chance of being accepted.")
+        _print_exploits(exploits)
         _print_future(future)
         _footer(lc, errors)
         return
     console.print(_trade_table("Trade proposals, ranked by expected value (EV = your gain x acceptance chance)",
                                recs))
-    console.print("[dim]Market = how the deal looks to them by market value (ADP / % rostered worth points, + = in "
-                  "their favour); acceptance is a prior until the harness has logged 20 proposals (docs/trades.md).[/]")
+    console.print("[dim]You gain = your lineup's points per game (/g), per week (/wk, x your starters' games per "
+                  "week) and over the rest of the season. Market = how the deal looks to them by market value "
+                  "(ADP / % rostered worth points, + = in their favour); acceptance is a prior until the harness "
+                  "has logged 20 proposals (docs/trades.md).[/]")
     if sweet:
         console.print(_trade_table("Sweet spot: the market calls it fair, our model says you win", sweet,
                                    sweet=True))
+    _print_exploits(exploits)
     if wants:
         console.print("[dim]Trade-block wants: " + "; ".join(
             f"{next((t.name for t in lc.teams if t.team_id == k), k)}: {', '.join(sorted(v))}"
@@ -1016,6 +1032,33 @@ def _trade_offered(provider: Any) -> dict[str, set[str]] | None:
     return out or None
 
 
+def _print_exploits(exploits: list[Recommendation]) -> None:
+    """The "Exploit" section: one "Exploit: <team> has <pressure>" heading per deal, then the table."""
+    if not exploits:
+        return
+    console.print("[bold]Exploit[/] (teams under roster pressure; relieving it counts +8 market points toward "
+                  "acceptance)")
+    for i, r in enumerate(exploits, 1):
+        text = next((x.text for x in r.reasons if x.code == "EXPLOIT"), "")
+        console.print(f"  {i}. {text}")
+    console.print(_trade_table("Exploit trades, ranked by expected value", exploits, sweet=True))
+    console.print("[dim]Not checked: other teams' moves left this week (providers only report your own "
+                  "transaction counter).[/]")
+
+
+def trade_gain_text(r: Recommendation) -> str:
+    """"+0.66/g · +2.3/wk · +55/season" (lineup FPG, pts/week, pts rest of season) for a trade
+    rec; only the per-game part when the week / season reasons are missing."""
+    fpg = _reason_val(r, "DELTA_ME")
+    wk, ssn = _reason_val(r, "GAIN_WEEK"), _reason_val(r, "GAIN_SEASON")
+    parts = [f"{_fmt(fpg, signed=True)}/g" if fpg is not None else "-"]
+    if wk is not None:
+        parts.append(f"{wk:+.1f}/wk")
+    if ssn is not None:
+        parts.append(f"{ssn:+.0f}/season")
+    return " · ".join(parts)
+
+
 def _trade_table(title: str, recs: list[Recommendation], sweet: bool = False) -> Table:
     """One row per trade: your gain, the market view, acceptance, EV, strength and the why."""
     tbl = Table(title=title, show_lines=True)
@@ -1026,13 +1069,13 @@ def _trade_table(title: str, recs: list[Recommendation], sweet: bool = False) ->
     for i, r in enumerate(recs, 1):
         edge = _reason_val(r, "MY_EDGE")
         dyn = _reason_val(r, "DYNASTY_DELTA")
-        this_season = _reason_val(r, "DELTA_ME")
-        gain = _fmt(this_season, signed=True) + (f"\ndyn {dyn:+.2f}" if dyn is not None else "")
+        gain = trade_gain_text(r) + (f"\ndyn {dyn:+.2f}" if dyn is not None else "")
         perceived, p = _reason_val(r, "MARKET_VIEW"), _reason_val(r, "P_ACCEPT")
         mv = _reason(r, "MARKET_VIEW")
         label = mv.text.split(" by market value")[0].replace("Looks ", "").replace(" to them", "") if mv else ""
         ev = edge * p if edge is not None and p is not None else None
-        codes = ("THEIR_NEED", "TRADE_BLOCK", "ROSTER_CONSEQUENCE", "POSITION_CAP", "WIN_NOW_COST", "ROTO_BALANCE")
+        codes = ("THEIR_NEED", "TRADE_BLOCK", "ROSTER_CONSEQUENCE", "POSITION_CAP", "WIN_NOW_COST",
+                 "ROTO_BALANCE", "MOVE_BUDGET")
         why = [x.text for x in r.reasons if x.code in codes]
         if not sweet and _reason(r, "SWEET_SPOT") is not None:
             why.insert(0, "Sweet spot")

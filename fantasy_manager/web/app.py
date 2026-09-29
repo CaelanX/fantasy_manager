@@ -327,6 +327,16 @@ class ResultCache:
 
 # --------------------------------------------------------------------------- view helpers
 
+def _sources_footer(ctx: LeagueContext | None) -> dict[str, str] | None:
+    """Compact data-freshness line for the footer (report.health.footer_summary); never raises."""
+    try:
+        from ..report.health import footer_summary
+
+        return footer_summary(ctx)
+    except Exception:
+        return None
+
+
 def _moves_footer(ctx: LeagueContext) -> str | None:
     """Footer league line: "moves: 2 per matchup period (1 used, 1 left, resets Mon Oct 5)";
     None when the context carries no budget information."""
@@ -775,8 +785,9 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                        SKATER_RATES=views.SKATER_RATES, GOALIE_RATES=views.GOALIE_RATES,
                        RATE_LABEL=views.RATE_LABEL, POSITION_FILTERS=views.POSITION_FILTERS,
                        EXPLAIN_FAILED=EXPLAIN_FAILED, auth_enabled=False, credits=views.credits,
-                       limits_text=views.limits_text)
+                       limits_text=views.limits_text, exploits=views.exploits)
     env.globals.update(moves_text=_moves_footer)
+    env.globals.update(sources_text=_sources_footer)
     if auth is not None:
         web_auth.install(app, auth, templates)
     make_llm = llm or default_llm
@@ -807,6 +818,11 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                 "now": datetime.now(), "res": None, "cache_age": cache.age(league),
                 "cur_mode": cur_mode, "cur_mode_source": cur_source, "params_source": params_source()}
         base.update(ctx)
+        # points leagues show fantasy points per game; categories/roto show a per-game z-score sum
+        _res = base.get("res")
+        _kind = getattr(getattr(getattr(_res, "ctx", None), "scoring", None), "kind", "points") if _res is not None else "points"
+        base.setdefault("vlabel", "FPG" if _kind == "points" else "Val/G")
+        base.setdefault("vlabel_title", "fantasy points per game" if _kind == "points" else "per-game z-score value summed over your categories (fitted on rostered players), not points")
         res = base.get("res")
         base["show_mode"] = (league == "fantrax" or bool(res is not None and res.ctx.dynasty)) \
             and not ctx.get("no_mode")

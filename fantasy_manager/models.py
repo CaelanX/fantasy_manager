@@ -142,6 +142,27 @@ class ScoringConfig(BaseModel):
     goalie_weights: dict[str, float] = Field(default_factory=dict)
 
 
+SourceSeverity = Literal["ok", "warn", "fail"]
+
+
+class SourceStatus(BaseModel):
+    """Structured freshness / failure state of one data source for this run (filled by
+    ``providers.enrich``; read by ``report.health``). ``fetched_at`` is when the data in use (or,
+    for a failed source, the last good cached copy) was fetched; ``age_seconds`` is measured at
+    enrichment time. ``stale`` overrides the age / TTL rule when the producer knows better (e.g.
+    the deployment ledger is judged by missed game days, not by age); None = decide from age."""
+    name: str
+    ok: bool = True
+    severity: SourceSeverity = "ok"
+    fetched_at: _dt.datetime | None = None
+    age_seconds: float | None = None
+    ttl_seconds: float | None = None
+    detail: str | None = None
+    requests: int | None = None
+    feeds_valuation: bool = False
+    stale: bool | None = None
+
+
 class LeagueContext(BaseModel):
     provider: str
     league_id: str
@@ -209,6 +230,8 @@ class LeagueContext(BaseModel):
     # Human-readable data freshness notes and non-fatal warnings per source.
     source_notes: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    # Structured per-source freshness / failure state (providers.enrich; report.health reads it).
+    sources: list[SourceStatus] = Field(default_factory=list)
 
     @property
     def my_team(self) -> FantasyTeam:

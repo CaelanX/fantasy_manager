@@ -45,10 +45,11 @@ def test_goalie_uses_goalie_k():
     assert shrunk_rates(now, prior, True)["W"] == pytest.approx((6 * 1.0 + K_GOALIE * 0.5) / (6 + K_GOALIE))
 
 
-def test_stat_missing_on_one_side_borrows_other():
+def test_stat_missing_from_prior_shrinks_toward_zero_in_shrunk_rates():
+    """A stat the prior never recorded (HIT here) is shrunk toward 0 by the player's own GP."""
     now = StatLine(split="season", gp=10, stats={"G": 5.0, "HIT": 30.0, "GP": 10})
     r = shrunk_rates(now, PROJ, False)
-    assert r["HIT"] == pytest.approx(3.0)
+    assert r["HIT"] == pytest.approx(3.0 * 10 / (10 + K_SKATER))
 
 
 @pytest.mark.parametrize("gps", [(0, 0, 0), (13, 7, 4), (5, 3, 1), (30, 15, 7), (2, 2, 2)])
@@ -114,3 +115,13 @@ def test_projection_blend_weight_ramps_to_60_40():
     assert projection_blend_weight(300) == pytest.approx(0.6)
     assert projection_blend_weight(20) == pytest.approx(0.8)
     assert blend_rates({"G": 1.0, "HIT": 2.0}, {"G": 0.5}, 0.6) == pytest.approx({"G": 0.8, "HIT": 2.0})
+
+
+def test_stat_missing_from_prior_shrinks_toward_zero():
+    """One fight in one game must not read as 1.0 fights per game when the prior never saw fights."""
+    from fantasy_manager.valuation.blend import shrink_toward
+    out = shrink_toward({"G": 0.5, "FT": 1.0}, gp=1, prior={"G": 0.3}, k=8)
+    assert out["FT"] == pytest.approx(1.0 / 9)          # shrunk toward 0
+    assert out["G"] == pytest.approx((0.5 + 8 * 0.3) / 9)
+    est = shrink_toward({"FT": 0.2}, gp=60, prior={"G": 0.3}, k=8)
+    assert est["FT"] == pytest.approx(0.2 * 60 / 68)    # established players barely move

@@ -4,9 +4,14 @@ Realistic trades are small wins: small enough that the deal makes sense to the p
 it, big enough to be worth sending. So a proposal is scored from both sides (docs/trades.md):
 
 * my edge    ΔMe = my optimal starting lineup's season FPG after - before (recommend.lineup's
-             optimal_lineup when importable, else the built-in exact greedy solver), minus a roto
-             balance term in roto leagues. Dynasty leagues blend in the long-term value change
-             ΔDyn_n (below) by ``ctx.dynasty_mode``.
+             optimal_lineup when importable, else the built-in exact greedy solver; both value a
+             player at ``PlayerValue.fpg_season``, goalies already start-share adjusted), minus a
+             roto balance term in roto leagues. "Before" is the optimal lineup of my roster, not my
+             current lineup; when the trade frees a spot that I fill with a free agent, it is the
+             best of my roster and my roster with that same pickup (``_baselines``): an FA who
+             would start is an improvement I can make today, not a trade gain. ΔThem likewise.
+             Dynasty leagues blend in the long-term value change ΔDyn_n (below) by
+             ``ctx.dynasty_mode``.
 * p_accept   the counterparty's view, from MARKET perception rather than our model: every player
              gets a 0-100 market percentile within the league's rostered pool (ESPN ADP and %
              rostered, Fantrax % rostered and Fantrax's own projected FP/G; our season FPG only when
@@ -61,12 +66,26 @@ are enforced for both sides: when the incoming players would put a side over a m
 drop its lowest-value player(s) at that position (POSITION_CAP reason; a trade is rejected when
 it has no such player to drop), and an FA fill never breaks a maximum. Roster size is enforced:
 the side receiving more players first moves IR/LTIR-status players into free IR slots, then
-drops its lowest-value droppable player(s) (lowest V when V is dynasty value, else lowest season
-FPG; named in the reasons); the side freeing a spot picks up the best fitting FA.
+drops its lowest-value droppable player(s) outside its optimal starting lineup (lowest V when V is
+dynasty value, else lowest season FPG; a starter only when nobody else can go, the one whose loss
+costs the lineup least; named in the reasons); the side freeing a spot picks up the FA who adds
+the most to its starting lineup (an open starting need), else the best FA at an outgoing
+player's position (bench depth) (``_TradeEngine._pick_fill``).
 
 ``Recommendation.predicted_gain`` stays ΔMe in lineup_fpg (what the harness grades). p_accept,
 the market view and the sweet-spot score travel as reasons (P_ACCEPT, MARKET_VIEW, SWEET_SPOT
 with values), and EV is the score.
+
+Gain units: ΔMe is also given as GAIN_WEEK (ΔMe x my starters' average NHL games per week) and
+GAIN_SEASON (ΔMe x their average games left in the regular season), both from ``ctx.schedule``
+(``base.game_rate``; defaults 3.4 games/week and 82 x the share of the season left).
+
+Exploits (``exploit_opportunities``): opponents under roster pressure (at or over a position
+maximum with an injured player at that position, more injured players than IR slots, fewer than
+two healthy goalies with games this week, a starting slot with VORP < -1) are offered the best
+deal for me that relieves it; the pressure adds PRESSURE_PTS (8) to their perceived fairness.
+A counterparty's 0-moves-left pressure is not detected: providers expose only my own
+transaction counter (``ctx.moves_used_this_period``).
 """
 from __future__ import annotations
 
@@ -75,14 +94,17 @@ import itertools
 import json
 import math
 from dataclasses import dataclass, field
+from datetime import timedelta
 from functools import lru_cache
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from .strength import apply_ranks, apply_strength
 from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation, RosterSlot
 from ..valuation.replacement import eligible_slots
-from .base import (PROTECT_OVERRIDE, _position_counts, cap_text, has_data, limit_positions, player_age,
-                   protection_reason, roster_legal_after)
+from .base import (DEFAULT_GAMES_PER_WEEK, IR_SLOT_NAMES, POSITION_PLURAL, PROTECT_OVERRIDE, SEASON_GAMES,
+                   GameRate, _position_counts, cap_text,
+                   gain_season, gain_week, game_rate, has_data, limit_positions, moves_left, moves_note,
+                   player_age, protection_reason, roster_legal_after)
 
 try:  # written concurrently by another module owner; greedy fallback below
     from .lineup import optimal_lineup as _optimal_lineup  # type: ignore
@@ -115,6 +137,7 @@ CONTENDER_FUTURE_MULT = 0.85  # dynasty: a contender whose lineup gets no help t
 REBUILDER_VETERAN_MULT = 0.85  # dynasty: a rebuilder receiving only clearly older players
 REBUILD_AGE_GAP = 3.0        # "clearly older": incoming mean age >= outgoing mean age + 3
 CALIBRATION_MIN_N = 20       # logged proposals needed before calibrate_acceptance refits
+PRESSURE_PTS = 8.0           # exploit: the deal relieves the counterparty's roster pressure
 MARKET_SOURCE_LABEL = {"adp": "ADP", "owned": "rostered %", "proj": "Fantrax projected FP/G",
                        "dyn": "dynasty value", "fpg": "our FPG"}
 
@@ -125,6 +148,7 @@ TOP_N = 12
 MAX_EVALS_PER_TEAM = 900
 REFINE_PER_TEAM = 12         # candidates per counterparty re-solved with the exact lineup solver
 OVERPAY_CAP = 30.0           # skip candidates this far in their favour by market (p is at the ceiling)
+FILL_CANDIDATES = 3          # FAs tried per starting slot type as the pickup for a freed roster spot
 SCREEN_MARGIN = 0.1      # slack for the built-in solver's pre-screen before optimal_lineup runs
 ROTO_PENALTY_WEIGHT = 2.0
 WIN_NOW_TOLERANCE = 0.3
@@ -137,6 +161,13 @@ NON_STARTING = frozenset({"BN", "IR", "IR+", "NA"})
 IR_SLOTS = frozenset({"IR", "IR+"})
 IR_MOVE_STATUSES = ("ltir", "ir")     # most severe first
 _SLOT_RANK = {"G": 0, "D": 0, "C": 0, "LW": 0, "RW": 0, "F": 1, "UTIL": 2}
+
+# -- exploits (roster pressure on the counterparty) -------------------------------------------
+EXPLOIT_N = 8                # exploit_opportunities' default limit
+EXPLOIT_PER_TEAM = 2         # deals per pressured team
+INJURED_STATUSES = ("out", "ir", "ltir")   # IR-slot eligible on ESPN / Fantrax
+PRESSURE_WEAK_VORP = -1.0    # a starting slot this far below replacement is "desperate"
+MIN_HEALTHY_GOALIES = 2      # fewer healthy goalies with games this week = goalie shortage
 
 LineupFn = Callable[..., Any]
 
@@ -534,6 +565,9 @@ def p_accept(deal: "TradeEval", their_team: FantasyTeam, ctx: LeagueContext, mar
     if deal.block_text:
         perceived += BLOCK_PTS
         notes.append(f"+{BLOCK_PTS:g} trade block")
+    if getattr(deal, "pressure_text", None):
+        perceived += PRESSURE_PTS
+        notes.append(f"+{PRESSURE_PTS:g} relieves their roster pressure")
     p_raw = params.p(perceived)
     p = p_raw
     add = list(deal.give) + ([deal.their_fill] if deal.their_fill is not None else [])
@@ -660,9 +694,13 @@ class TradeEval:
     my_illegal: str | None = None         # roster_legal_after failure on my side
     acceptance: Acceptance | None = None
     screened: bool = False                # stopped after my side: my gain cannot pass
+    pressure_text: str | None = None      # exploit: the counterparty roster pressure this relieves
+    rate: GameRate | None = None          # my starters' games per week / left (gain units)
     refined: bool = False                 # lineups re-solved exactly (``_TradeEngine.refine``)
     me_after: list[Player] = field(default_factory=list, repr=False)
     them_after: list[Player] = field(default_factory=list, repr=False)
+    me_base: list[list[Player]] = field(default_factory=list, repr=False)    # "before" rosters (_baselines)
+    them_base: list[list[Player]] = field(default_factory=list, repr=False)
 
     @property
     def need_bonus(self) -> float:
@@ -765,8 +803,11 @@ class _TradeEngine:
         self.market = MarketPool(ctx, values, self.V if self.units == "dynasty" else None)
         self.params = accept_params or DEFAULT_ACCEPT
         self.standing = team_standing(ctx)
+        self.rate = game_rate(ctx)
         fn = _optimal_lineup if lineup_fn is None else (lineup_fn or None)
         self.lineup = _LineupEvaluator(values, ctx.roster_shape, fn)  # type: ignore[arg-type]
+        self._starter_cache: dict[frozenset[str], frozenset[str]] = {}
+        self._base_cache: dict[tuple[str, str], list[list[Player]]] = {}
         cap = sum(int(n) for s, n in ctx.roster_shape.items() if s not in IR_SLOTS)
         self.sides: dict[str, _Side] = {}
         for t in ctx.teams:
@@ -782,6 +823,9 @@ class _TradeEngine:
         self.fas = sorted((p for p in ctx.free_agents if p.cid in values
                            and p.status in ("healthy", "unknown")),
                           key=self._fpg, reverse=True)
+        self.fas_by_slot = {t: [fa for fa in self.fas if _eligible(tuple(fa.positions), t)]
+                            for t in dict.fromkeys(_starting_slots(ctx.roster_shape))}
+        self.n_slots = len(_starting_slots(ctx.roster_shape))
         self.roto = None
         if ctx.scoring.kind == "roto" and ctx.scoring.categories:
             from ..scoring import RotoScoring
@@ -816,6 +860,141 @@ class _TradeEngine:
             return (self.V.get(p.cid, 0.0), self._fpg(p))
         return (self._fpg(p), self.V.get(p.cid, 0.0))
 
+    def _drop_order(self, cands: list[Player]) -> list[Player]:
+        """Candidates in drop order (``_drop_key``); in dynasty mode players with no stats at all
+        (unknown value: prospects) and protected prospects go last (a last resort)."""
+        cands = sorted(cands, key=self._drop_key)
+        if self.units == "dynasty":
+            cands.sort(key=self._drop_tier)
+        return cands
+
+    def _drop_tier(self, p: Player) -> tuple[bool, ...]:
+        if self.units != "dynasty":
+            return ()
+        return (p.cid in self.protected, not has_data(self.values.get(p.cid)))
+
+    def _starters(self, players: list[Player]) -> frozenset[str]:
+        """cids in the optimal season starting lineup of ``players`` (cached by roster)."""
+        key = frozenset(p.cid for p in players)
+        hit = self._starter_cache.get(key)
+        if hit is None:
+            assign = _greedy_assignment(players, self.values, self.ctx.roster_shape, LINEUP_HORIZON)
+            hit = self._starter_cache[key] = frozenset(c for cids in assign.values() for c in cids)
+            # the same assignment's value is the greedy lineup value (_greedy_lineup_value)
+            self.lineup.greedy_cache.setdefault(key, sum(self.values[c].fpg_for(LINEUP_HORIZON)
+                                                         for c in hit if c in self.values))
+        return hit
+
+    def _choose_drops(self, players: list[Player], cands: list[Player], n: int) -> list[Player]:
+        """The ``n`` players a side cuts from ``players`` (only ``cands`` may go), one at a time:
+        within the first drop tier (``_drop_tier``), the first in drop order outside the optimal
+        starting lineup (cutting him costs the lineup nothing), else the starter whose loss costs
+        the lineup least. A manager does not cut the backup goalie he now has to start (leaving
+        a G slot empty) to keep a bench skater."""
+        drops: list[Player] = []
+        cur = list(players)
+        pool = self._drop_order(list(cands))
+        tiers = {p.cid: self._drop_tier(p) for p in pool}
+        for _ in range(max(0, n)):
+            if not pool:
+                break
+            tier = tiers[pool[0].cid]
+            group = [p for p in pool if tiers[p.cid] == tier]
+            starters = self._starters(cur)
+            bench = [p for p in group if p.cid not in starters]
+            if bench:
+                pick = bench[0]
+            else:
+                base = self.lineup.greedy(cur)
+                pick = min(group, key=lambda p: base - self.lineup.greedy([q for q in cur if q.cid != p.cid]))
+            drops.append(pick)
+            pool = [p for p in pool if p.cid != pick.cid]
+            cur = [p for p in cur if p.cid != pick.cid]
+        return drops
+
+    def _pick_fill(self, players: list[Player], outgoing: list[Player], ir: list[Player]) -> Player | None:
+        """The free agent a side picks up with the roster spot a trade frees (never one that breaks
+        a position maximum): the one who adds the most to the optimal starting lineup of
+        ``players`` (an open starting need: a slot the roster can no longer fill, or a starter he
+        beats), among the FILL_CANDIDATES best FAs by season FPG per starting slot type; when none
+        would start, the best FA at an outgoing player's position (bench depth: adds nothing to
+        the lineup). His lineup value is not a trade gain by itself: ``_baselines`` gives the
+        before-trade roster the same pickup."""
+        limits = self.ctx.position_limits or {}
+        counts = _position_counts(players + ir, limits) if limits else {}
+
+        def legal(fa: Player) -> bool:
+            return not (limits and any(counts[k] + 1 > int(limits[k]) for k in limit_positions(fa, limits)))
+
+        cands: dict[str, Player] = {}
+        for fas in self.fas_by_slot.values():
+            n = 0
+            for fa in fas:
+                if n >= FILL_CANDIDATES:
+                    break
+                if legal(fa):
+                    cands.setdefault(fa.cid, fa)
+                    n += 1
+        starters = self._starters(players)
+        base = self.lineup.greedy(players)
+        # adding one player to a full lineup swaps him for one starter: gain <= his FPG - the
+        # weakest starter's (the lineup is a matroid basis), else <= his FPG
+        floor = min((self._fpg(p) for p in players if p.cid in starters), default=0.0) \
+            if len(starters) >= self.n_slots else 0.0
+        best: Player | None = None
+        best_gain = 1e-9
+        for fa in sorted(cands.values(), key=self._fpg, reverse=True):
+            if self._fpg(fa) - floor <= best_gain + 1e-12:
+                break
+            gain = self.lineup.greedy(players + [fa]) - base
+            if gain > best_gain + 1e-12:
+                best, best_gain = fa, gain
+        if best is not None:
+            return best
+        types = [t for t in self.fas_by_slot if t != "UTIL"] or list(self.fas_by_slot)
+        need = {t for o in outgoing for t in types if _eligible(tuple(o.positions), t)}
+        for fa in self.fas:
+            if legal(fa) and any(_eligible(tuple(fa.positions), t) for t in need):
+                return fa
+        return None
+
+    def _baselines(self, side: _Side, fill: Player | None) -> list[list[Player]]:
+        """Rosters whose best optimal lineup is the side's "before": its current roster and, when
+        the trade has it pick up ``fill``, its current roster with that same pickup made without
+        the trade (cutting whom ``_choose_drops`` would cut). A free agent who would start is an
+        improvement the side can make today, so the trade is credited only with what it adds on
+        top of it (unmade lineup improvements are never credited to a trade)."""
+        rosters = [side.active]
+        if fill is None or any(p.cid == fill.cid for p in side.active):
+            return rosters
+        key = (side.team.team_id, fill.cid)
+        hit = self._base_cache.get(key)
+        if hit is None:
+            hit = self._base_cache[key] = self._baselines_uncached(side, fill)
+        return hit
+
+    def _baselines_uncached(self, side: _Side, fill: Player) -> list[list[Player]]:
+        rosters = [side.active]
+        if len(side.active) < side.capacity:
+            alt = side.active + [fill]
+        else:
+            cut = self._choose_drops(side.active, side.active, 1)
+            if not cut:
+                return rosters
+            alt = [p for p in side.active if p.cid != cut[0].cid] + [fill]
+        limits = self.ctx.position_limits or {}
+        if limits:
+            before = _position_counts(side.active + side.ir, limits)
+            after = _position_counts(alt + side.ir, limits)
+            if any(after[k] > max(int(limits[k]), before[k]) for k in limits):
+                return rosters
+        return [side.active, alt]
+
+    def _delta(self, after: list[Player], bases: list[list[Player]], exact: bool) -> float:
+        """optimal(after) - optimal(before) on the season horizon; before = the best of ``bases``."""
+        f = self.lineup if exact else self.lineup.greedy
+        return f(after) - max(f(r) for r in bases)
+
     def _settle_roster(self, side: _Side, players: list[Player], incoming: list[Player],
                        outgoing: list[Player]
                        ) -> tuple[list[Player], list[Player], Player | None, list[Player], str | None, str | None]:
@@ -835,14 +1014,7 @@ class _TradeEngine:
         out_ids = {p.cid for p in outgoing}
         ir_left = [p for p in side.ir if p.cid not in out_ids]
         limits = self.ctx.position_limits or {}
-
-        def drop_order(cands: list[Player]) -> list[Player]:
-            cands = sorted(cands, key=self._drop_key)
-            if self.units == "dynasty":
-                # no stats at all = unknown value (prospects) and protected prospects: drop them
-                # only as a last resort
-                cands.sort(key=lambda p: (p.cid in self.protected, not has_data(self.values.get(p.cid))))
-            return cands
+        drop_order = self._drop_order
 
         if limits and incoming:
             before = _position_counts(side.active + side.ir, limits)
@@ -871,19 +1043,15 @@ class _TradeEngine:
                 to_ir = movable[:min(over, side.free_ir)]
                 over -= len(to_ir)
             moved = {p.cid for p in to_ir}
-            size_drops = drop_order([p for p in players if p.cid not in inc and p.cid not in moved])[:max(0, over)]
+            kept = [p for p in players if p.cid not in moved]
+            size_drops = self._choose_drops(kept, [p for p in kept if p.cid not in inc], max(0, over))
             drops.extend(size_drops)
             gone = moved | {p.cid for p in size_drops}
             players = [p for p in players if p.cid not in gone]
         elif len(players) < side.capacity and len(outgoing) > len(incoming):
-            counts = _position_counts(players + ir_left, limits) if limits else {}
-            for fa in self.fas:
-                if limits and any(counts[k] + 1 > int(limits[k]) for k in limit_positions(fa, limits)):
-                    continue
-                if any(set(eligible_slots(fa.positions)) & set(eligible_slots(o.positions)) for o in outgoing):
-                    fill = fa
-                    players = players + [fa]
-                    break
+            fill = self._pick_fill(players, outgoing, ir_left)
+            if fill is not None:
+                players = players + [fill]
         v_in = sum(self.V.get(p.cid, 0.0) for p in incoming)
         for d in drops:
             why = self.protected.get(d.cid)
@@ -899,7 +1067,7 @@ class _TradeEngine:
         return package_value(market_worth(self.market.value(p)) for p in players)
 
     def evaluate(self, team_id: str, give: list[Player], get: list[Player],
-                 screen: bool = True, exact: bool = True) -> TradeEval:
+                 screen: bool = True, exact: bool = True, pressure: str | None = None) -> TradeEval:
         """Score one proposal. ``screen``: stop after my side when my (greedy) gain cannot pass
         (the result is marked ``screened`` and never accepted). ``exact``: re-solve plausible
         candidates with the exact lineup solver right away (``recommend_trades`` passes False
@@ -920,7 +1088,8 @@ class _TradeEngine:
             + (self.V.get(my_fill.cid, 0.0) if my_fill is not None else 0.0) - self.repl * net_added
         d_dyn_n = d_dyn / self.scale if self.mode is not None else 0.0
         # cheap greedy screen of my side first
-        d_me = self.lineup.greedy(me_after) - self.lineup.greedy(me.active)
+        me_base = self._baselines(me, my_fill)
+        d_me = self._delta(me_after, me_base, exact=False)
         if self.mode is None:
             mine_ok = d_me > MIN_GAIN_ME - SCREEN_MARGIN
         else:
@@ -930,7 +1099,8 @@ class _TradeEngine:
             return TradeEval(team=them.team, give=list(give), get=list(get), v_in=v_in, v_out=v_out, fair=fair,
                              fair_dev=dev, delta_me=d_me, delta_them=0.0, need_text=None, my_drops=my_drops,
                              their_drops=[], my_fill=my_fill, their_fill=None, my_ir=my_ir, mode=self.mode,
-                             delta_dyn=d_dyn, delta_dyn_n=d_dyn_n, blocked=my_block, my_cap=my_cap, screened=True)
+                             delta_dyn=d_dyn, delta_dyn_n=d_dyn_n, blocked=my_block, my_cap=my_cap, screened=True,
+                             pressure_text=pressure, rate=self.rate)
 
         them_after = [p for p in them.active if p.cid not in get_ids] + list(give)
         them_after, their_drops, their_fill, their_ir, their_block, their_cap = self._settle_roster(
@@ -954,14 +1124,17 @@ class _TradeEngine:
             block.append(f"{fits[0].name} matches {them.team.name}'s trade-block wants ({', '.join(sorted(want))})")
         ok, why = roster_legal_after(me.team, self.ctx, add=list(get) + ([my_fill] if my_fill else []),
                                      drop=list(give) + my_drops, to_ir=my_ir)
-        d_them = self.lineup.greedy(them_after) - self.lineup.greedy(them.active)
+        them_base = self._baselines(them, their_fill)
+        d_them = self._delta(them_after, them_base, exact=False)
         ev = TradeEval(team=them.team, give=list(give), get=list(get), v_in=v_in, v_out=v_out,
                        fair=fair, fair_dev=dev, delta_me=d_me, delta_them=d_them, need_text=need_text,
                        my_drops=my_drops, their_drops=their_drops, my_fill=my_fill, their_fill=their_fill,
                        my_ir=my_ir, their_ir=their_ir, mode=self.mode, delta_dyn=d_dyn, delta_dyn_n=d_dyn_n,
                        blocked=blocked, my_cap=my_cap, their_cap=their_cap,
-                       block_text="; ".join(block) or None, my_illegal=None if ok else why)
+                       block_text="; ".join(block) or None, my_illegal=None if ok else why,
+                       pressure_text=pressure, rate=self.rate)
         ev.me_after, ev.them_after = me_after, them_after
+        ev.me_base, ev.them_base = me_base, them_base
         ev.acceptance = self._accept(ev)
         if exact and (not screen or ev.near_plausible):
             self.refine(ev)
@@ -983,10 +1156,8 @@ class _TradeEngine:
         ev.refined = True
         if not self.lineup.exact:
             return ev
-        me = self.sides[self.ctx.my_team.team_id]
-        them = self.sides[ev.team.team_id]
-        ev.delta_me = self.lineup(ev.me_after) - self.lineup(me.active)
-        ev.delta_them = self.lineup(ev.them_after) - self.lineup(them.active)
+        ev.delta_me = self._delta(ev.me_after, ev.me_base, exact=True)
+        ev.delta_them = self._delta(ev.them_after, ev.them_base, exact=True)
         if self.ctx.dynasty:
             ev.acceptance = self._accept(ev)
         return ev
@@ -1052,13 +1223,18 @@ def _roster_text(ev: TradeEval) -> str:
     return "Roster: " + "; ".join(parts)
 
 
+DEFAULT_RATE = GameRate(DEFAULT_GAMES_PER_WEEK, float(SEASON_GAMES), "default")   # a TradeEval without a rate
+
+
 def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str) -> Recommendation:
     def vl(ps: list[Player]) -> str:
         return ", ".join(f"{p.name} ({V.get(p.cid, 0.0):.2f})" for p in ps)
 
     acc = ev.acceptance
     band = FAIR_BAND if len(ev.give) == len(ev.get) else UNEVEN_BAND[1] - 1.0
-    edge_txt = f"You gain {ev.delta_me:+.2f} pts/game this season"
+    rate = ev.rate or DEFAULT_RATE
+    wk, ssn = gain_week(ev.delta_me, rate), gain_season(ev.delta_me, rate)
+    edge_txt = f"You gain {ev.delta_me:+.2f} pts/game this season ({wk:+.1f} pts/week, {ssn:+.0f} rest of season)"
     if ev.mode is not None:
         edge_txt += f" (dynasty {ev.delta_dyn_n:+.2f}; {ev.mode} edge {ev.core:+.2f})"
     if ev.roto_adj:
@@ -1089,8 +1265,18 @@ def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str) -> R
                                    + (f"; {how}" if how else "") + f" -> {acc.perceived:+.1f} pts). "
                                    f"EV = {ev.my_edge:+.2f} x {acc.p:.2f} = {ev.ev:+.2f}",
                               value=acc.p, baseline=acc.p_raw))
+    src_txt = "your starters' NHL schedule" if rate.source == "schedule" else (
+        "season over" if rate.source == "season over" else "no schedule loaded: league-average default")
     reasons += [
-        Reason(code="DELTA_ME", text=f"My lineup {ev.delta_me:+.2f} FPG ({source})",
+        Reason(code="GAIN_WEEK", text=f"{wk:+.1f} pts/week ({ev.delta_me:+.2f}/game x {rate.per_week:.1f} "
+                                      f"games/week, {src_txt})", value=wk, baseline=rate.per_week),
+        Reason(code="GAIN_SEASON", text=f"{ssn:+.0f} pts rest of season ({ev.delta_me:+.2f}/game x "
+                                        f"{rate.remaining:.0f} games left)", value=ssn, baseline=rate.remaining),
+    ]
+    reasons += [
+        Reason(code="DELTA_ME", text=f"My lineup {ev.delta_me:+.2f} FPG ({source}"
+                                     + (f"; before = my roster with the same pickup of {ev.my_fill.name}"
+                                        if ev.my_fill is not None and len(ev.me_base) > 1 else "") + ")",
                value=ev.delta_me, baseline=MIN_GAIN_ME),
         Reason(code="DELTA_THEM", text=f"{ev.team.name} lineup {ev.delta_them:+.2f} FPG (our model)",
                value=ev.delta_them),
@@ -1272,3 +1458,223 @@ def recommend_trades(ctx: LeagueContext, values: Mapping[str, Any],
     if sweet_spot is not None:
         sweet_spot.extend(apply_ranks(apply_strength([_to_rec(e, eng.V, eng.units, source) for e in sweet])))
     return apply_ranks(apply_strength([_to_rec(e, eng.V, eng.units, source) for e in chosen]))
+
+
+# -- exploits: counterparties under roster pressure --------------------------------------------
+
+@dataclass
+class Pressure:
+    """Roster pressure on a counterparty that a trade can relieve (``exploit_opportunities``).
+
+    kind: "cap" (at a position maximum with an injured player there, or over it), "ir" (more
+    injured players than IR slots), "goalies" (fewer than MIN_HEALTHY_GOALIES healthy goalies
+    with games this week), "weak" (a starting slot with starter VORP < PRESSURE_WEAK_VORP).
+    ``pool``: their players a relieving deal can take (cap / ir); ``position`` / ``slot``: what
+    a relieving deal moves; ``floor``: their weakest starter's VORP (weak); ``healthy``: their
+    healthy goalies with games this week (goalies)."""
+    kind: str
+    text: str
+    pool: list[Player] = field(default_factory=list)
+    position: str | None = None
+    slot: str | None = None
+    floor: float = 0.0
+    healthy: frozenset[str] = frozenset()
+
+
+def _injured(p: Player) -> bool:
+    return p.status in INJURED_STATUSES
+
+
+def _games_this_week(ctx: LeagueContext, values: Mapping[str, Any], p: Player) -> int | None:
+    """NHL games in the 7 days from ``ctx.as_of`` (valuation's games_next7, else the schedule)."""
+    g = getattr(values.get(p.cid), "games_next7", None)
+    if isinstance(g, int):
+        return g
+    dates = (ctx.schedule or {}).get(p.team or "")
+    if dates is None:
+        return None
+    end = ctx.as_of + timedelta(days=6)
+    return sum(1 for d in dates if ctx.as_of <= d <= end)
+
+
+def _league_has_games_this_week(ctx: LeagueContext) -> bool:
+    end = ctx.as_of + timedelta(days=6)
+    return any(ctx.as_of <= d <= end for ds in (ctx.schedule or {}).values() for d in ds)
+
+
+def _healthy_goalie(ctx: LeagueContext, values: Mapping[str, Any], p: Player) -> bool:
+    return (p.is_goalie and not _injured(p) and p.status != "suspended"
+            and (_games_this_week(ctx, values, p) or 0) > 0)
+
+
+def team_pressures(ctx: LeagueContext, values: Mapping[str, Any], team: FantasyTeam,
+                   weakest: tuple[str, float] | None = None,
+                   median_weak: Mapping[str, float] | None = None) -> list[Pressure]:
+    """Roster pressures on `team` (``Pressure``); `weakest` = its weakest starting slot and that
+    starter's VORP, `median_weak` = the league median of the same per slot (display only)."""
+    out: list[Pressure] = []
+    players = team.players
+    limits = ctx.position_limits or {}
+    if limits:
+        counts = _position_counts(players, limits)
+        for k in sorted(limits):
+            lim = int(limits[k])
+            at_k = [p for p in players if k in limit_positions(p, limits)]
+            hurt = [p for p in at_k if _injured(p)]
+            plural = POSITION_PLURAL.get(k, k)
+            if counts[k] > lim:
+                out.append(Pressure("cap", f"{counts[k]} {plural}, over the {k} limit {lim}", pool=at_k, position=k))
+            elif counts[k] == lim and hurt:
+                out.append(Pressure("cap", f"{counts[k]} {plural} at the {k} limit {lim} with {_names(hurt)} "
+                                           f"injured (no room to add a healthy one)", pool=at_k, position=k))
+    ir_slots = sum(int(ctx.roster_shape.get(s, 0)) for s in IR_SLOT_NAMES)
+    hurt = [p for p in players if _injured(p)]
+    if hurt and len(hurt) > ir_slots:
+        plural = "slot" if ir_slots == 1 else "slots"
+        out.append(Pressure("ir", f"{len(hurt)} injured players ({_names(hurt)}) for {ir_slots} IR {plural}",
+                            pool=hurt))
+    if ctx.schedule and _league_has_games_this_week(ctx):
+        healthy = [p for p in players if _healthy_goalie(ctx, values, p)]
+        if len(healthy) < MIN_HEALTHY_GOALIES:
+            n = len(healthy)
+            word = "goalie" if n == 1 else "goalies"
+            out.append(Pressure("goalies", f"only {n} healthy {word} with games this week",
+                                healthy=frozenset(p.cid for p in healthy)))
+    if weakest is not None and weakest[1] < PRESSURE_WEAK_VORP:
+        slot, v = weakest
+        if v == -math.inf:
+            text = f"an empty {slot} slot"
+        else:
+            med = (median_weak or {}).get(slot)
+            tail = f", league median {med:+.2f}" if med is not None and math.isfinite(med) else ""
+            text = f"a weak {slot} slot (starter VORP {v:+.2f}{tail})"
+        out.append(Pressure("weak", text, slot=slot, floor=v))
+    return out
+
+
+def relieves(pr: Pressure, give: Sequence[Player], get: Sequence[Player], ctx: LeagueContext,
+             values: Mapping[str, Any]) -> bool:
+    """Does a deal (`give` goes to them, `get` comes from them) relieve `pr`?"""
+    if pr.kind == "cap":
+        limits = ctx.position_limits or {}
+        n_out = sum(1 for p in get if pr.position in limit_positions(p, limits))
+        n_in = sum(1 for p in give if pr.position in limit_positions(p, limits))
+        return n_out > n_in
+    if pr.kind == "ir":
+        return sum(1 for p in get if _injured(p)) > sum(1 for p in give if _injured(p))
+    if pr.kind == "goalies":
+        return (sum(1 for p in give if _healthy_goalie(ctx, values, p))
+                > sum(1 for p in get if p.cid in pr.healthy))
+    if pr.kind == "weak":
+        def vorp(p: Player) -> float:
+            return float(getattr(values.get(p.cid), "vorp", 0.0) or 0.0)
+        return any(_eligible(tuple(p.positions), pr.slot) and vorp(p) > pr.floor for p in give)
+    return False
+
+
+def _median(xs: Iterable[float]) -> float | None:
+    ys = sorted(x for x in xs if math.isfinite(x))
+    if not ys:
+        return None
+    m = len(ys) // 2
+    return ys[m] if len(ys) % 2 else 0.5 * (ys[m - 1] + ys[m])
+
+
+def exploit_opportunities(ctx: LeagueContext, values: Mapping[str, Any],
+                          dynasty_values: Mapping[str, Any] | None = None, limit: int = EXPLOIT_N,
+                          wants: Mapping[str, set[str]] | None = None,
+                          offered: Mapping[str, set[str]] | None = None,
+                          lineup_fn: LineupFn | None | bool = None,
+                          accept_params: AcceptParams | None = None,
+                          per_team: int = EXPLOIT_PER_TEAM) -> list[Recommendation]:
+    """Trades that exploit a counterparty's roster pressure (``team_pressures``): for each
+    pressured opponent, the best deals for me (by EV) that relieve one of its pressures, scored
+    like ``recommend_trades`` with PRESSURE_PTS added to their perceived fairness.
+
+    Candidates: 1-for-1 over my whole active roster (a weaker piece may be enough) x their
+    top-12 plus the pressured players (``Pressure.pool``), 2-for-1 over my top 12, 1-for-2 taking
+    at least one pressured player; a candidate must relieve a pressure (``relieves``). Same
+    filters as ``recommend_trades`` (my edge > MIN_GAIN_ME, p_accept >= MIN_P_ACCEPT, both
+    rosters legal, no protected-prospect drop, the dynasty mode's this-season floor); a deal that
+    needs my free-agent pickup is skipped when I have no moves left (``base.moves_left``).
+    At most one deal per pressure kind and `per_team` per team, MAX_PER_GIVEN per player I give,
+    `limit` overall, ranked by EV. Each rec carries an EXPLOIT reason (third, after MY_EDGE and
+    MARKET_VIEW): "Exploit: Team X has 3 goalies at the G limit 3 with Y injured (...)",
+    value PRESSURE_PTS.
+
+    Not detected: a counterparty with 0 moves left this week; providers only expose my own
+    transaction counter (``ctx.moves_used_this_period``)."""
+    eng = _TradeEngine(ctx, values, dynasty_values, wants, lineup_fn, offered, accept_params)
+    me = eng.sides[ctx.my_team.team_id]
+    no_moves = moves_left(ctx) == 0
+    by_slot: dict[str, list[float]] = {}
+    for side in eng.sides.values():
+        if side.weakest is not None:
+            by_slot.setdefault(side.weakest[0], []).append(side.weakest[1])
+    median_weak = {k: m for k, v in by_slot.items() if (m := _median(v)) is not None}
+    floor = eng.params.perceived_for(MIN_P_ACCEPT) - NEED_PTS - BLOCK_PTS - PRESSURE_PTS
+    mine_all = sorted(me.active, key=lambda p: eng.V.get(p.cid, 0.0), reverse=True)
+    picked: list[tuple[TradeEval, list[Pressure]]] = []
+    for t in ctx.teams:
+        if t.team_id == me.team.team_id:
+            continue
+        side = eng.sides[t.team_id]
+        prs = team_pressures(ctx, values, t, side.weakest, median_weak)
+        if not prs:
+            continue
+        pool = {p.cid: p for pr in prs for p in pr.pool}
+        theirs = list({**{p.cid: p for p in side.top}, **pool}.values())
+        shapes: list[tuple[tuple[Player, ...], tuple[Player, ...]]] = [((a,), (b,)) for a in mine_all for b in theirs]
+        shapes += [(pair, (b,)) for pair in itertools.combinations(me.top, 2) for b in theirs]
+        shapes += [((a,), pair) for a in me.top for pair in itertools.combinations(theirs, 2)
+                   if not pool or any(p.cid in pool for p in pair)]
+        cands = []
+        for give, get in shapes:
+            rel = [pr for pr in prs if relieves(pr, give, get, ctx, values)]
+            if not rel:
+                continue
+            base = eng._pkg(give) - eng._pkg(get)
+            if floor - 1e-9 <= base <= OVERPAY_CAP + 1e-9:
+                cands.append((give, get, rel, base))
+        cands.sort(key=lambda c: (len(c[0]) + len(c[1]), abs(c[3])))
+        near: list[tuple[TradeEval, list[Pressure]]] = []
+        for give, get, rel, _ in cands[:MAX_EVALS_PER_TEAM]:
+            ev = eng.evaluate(t.team_id, list(give), list(get), exact=False,
+                              pressure="; ".join(pr.text for pr in rel))
+            if ev.near_plausible:
+                near.append((ev, rel))
+        near.sort(key=lambda x: x[0].score, reverse=True)
+        for ev, _ in near[:REFINE_PER_TEAM]:
+            eng.refine(ev)
+        ok = [(ev, rel) for ev, rel in near
+              if (ev.refined or not eng.lineup.exact) and ev.accepted
+              and not (no_moves and ev.my_fill is not None)]
+        ok.sort(key=lambda x: x[0].score, reverse=True)
+        seen_kinds: set[str] = set()
+        for ev, rel in ok:
+            kinds = {pr.kind for pr in rel}
+            if kinds <= seen_kinds:
+                continue
+            seen_kinds |= kinds
+            picked.append((ev, rel))
+    picked.sort(key=lambda x: x[0].score, reverse=True)
+    rel_of = {id(ev): rel for ev, rel in picked}
+    chosen = diverse([ev for ev, _ in picked], limit, per_team)
+    budget = moves_note(ctx)
+    out: list[Recommendation] = []
+    for ev in chosen:
+        rel = rel_of[id(ev)]
+        r = _to_rec(ev, eng.V, eng.units, eng.lineup.source)
+        r.reasons.insert(2, Reason(code="EXPLOIT",
+                                   text=f"Exploit: {ev.team.name} has {'; '.join(pr.text for pr in rel)}",
+                                   value=PRESSURE_PTS, baseline=float(len(rel))))
+        if ev.my_fill is not None and budget:
+            r.reasons.append(Reason(code="MOVE_BUDGET", text=f"The free-agent pickup uses a move ({budget})",
+                                    value=float(moves_left(ctx) or 0)))
+        out.append(r)
+    return apply_ranks(apply_strength(out))
+
+
+def exploit_text(r: Recommendation) -> str | None:
+    """The EXPLOIT reason's text ("Exploit: Team X has ...") of an exploit rec, else None."""
+    return next((x.text for x in r.reasons if x.code == "EXPLOIT"), None)

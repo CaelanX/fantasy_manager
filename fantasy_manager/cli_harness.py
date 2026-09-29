@@ -89,6 +89,8 @@ def _daily_league(lg: str, settings: Any, ledger: Any, today: date, since: date,
         out["skipped"] = str(e)
     except Exception as e:  # noqa: BLE001 - one league must never sink the other
         out["skipped"] = f"{type(e).__name__}: {e}"
+    if ctx is not None:
+        out["pregame_snapshot"] = _pregame_baseline(lg, settings, ctx, values)
     try:
         if ctx is not None and need_archive:
             _, pst = archive_projections(ctx, settings.fm_data_dir, values)
@@ -118,6 +120,32 @@ def _daily_league(lg: str, settings: Any, ledger: Any, today: date, since: date,
     if ctx is not None and ctx.schedule:
         out["_schedule"] = ctx.schedule       # for the deployment pull; dropped from the summary
     return out
+
+
+def _pregame_baseline(lg: str, settings: Any, ctx: Any, values: Any) -> str:
+    """Morning baseline for `fm harness pregame` (<fm_data_dir>/pregame/<league>-<date>.json);
+    never raises."""
+    from .pregame import write_daily_snapshot
+
+    try:
+        return f"written ({write_daily_snapshot(lg, settings, ctx, values).name})"
+    except Exception as e:  # noqa: BLE001 - the baseline is a convenience; never fail the capture
+        return f"failed ({type(e).__name__}: {e})"
+
+
+def _notify_failures(settings: Any, failures: list[tuple[str, Any]], command: str = "harness daily"
+                     ) -> list[str] | None:
+    """Post one line per league that did not load (e.g. "Fantrax login expired: refresh
+    FANTRAX_COOKIE") when webhooks are configured; None when not. Never raises."""
+    from .pregame import failure_message, has_webhooks
+    from .report.notify import notify_all
+
+    if not failures or not has_webhooks(settings):
+        return None
+    try:
+        return notify_all(settings, "\n".join(f"fm {command}: {failure_message(lg, err)}" for lg, err in failures))
+    except Exception as e:  # noqa: BLE001
+        return [f"notify: error {type(e).__name__}"]
 
 
 def _deployment_step(ledger: Any, settings: Any, day: date, schedule: Any, client: Any = None) -> dict[str, Any]:
@@ -297,7 +325,9 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
     (when ODDS_API_KEY is set) (-> grade on Mondays or with --grade).
 
     Starting goalies are fetched with the lines (3 h cache); one daily run cannot catch the
-    ~1 h-before-puck-drop confirmations, so run `fm advise` (or load the dashboard) before games."""
+    afternoon confirmations, so schedule `fm harness pregame` (~17:00) as well: each league load
+    here leaves the morning baseline it diffs against (<fm_data_dir>/pregame/). A league that fails
+    to load (e.g. an expired Fantrax cookie) is posted to the webhooks when they are configured."""
     from .backtest.data import CountingFetcher
     from .harness.ingest import record_run
     from .harness.realized import pull_realized
@@ -332,8 +362,10 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
         if grade or today.weekday() == 0:
             graded = _grade_leagues(ledger, _leagues(league), last_monday(today), today)
         refit = _daily_refit(ledger, settings, today)
+        notified = _notify_failures(settings, [(r["league"], r["skipped"]) for r in results if r.get("skipped")])
         summary = {"leagues": results, "realized": realized, "deployment": deployment, "lines": lines,
-                   "odds": odds, "grade": graded, "refit": refit, "seconds": round(time.perf_counter() - t0, 1)}
+                   "odds": odds, "grade": graded, "refit": refit, "failure_notify": notified,
+                   "seconds": round(time.perf_counter() - t0, 1)}
         failed = [r["league"] for r in results if r.get("skipped")]
         record_run(ledger, "daily", league, today, summary, "partial" if failed or "error" in realized else "ok")
     finally:
@@ -368,6 +400,8 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
     console.print(_deployment_line(summary["deployment"]))
     console.print(_lines_line(summary["lines"]))
     console.print(_odds_line(summary["odds"]))
+    for res_line in summary.get("failure_notify") or []:
+        console.print(f"[yellow]league failure notification: {escape(res_line)}[/]")
     for g in summary.get("grade") or []:
         _print_grade(g)
     rf = summary.get("refit")
@@ -378,6 +412,64 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
             console.rule(f"Refit ({rf.get('mode')})")
             _print_refit(rf)
     console.print(f"[dim]{summary['seconds']}s[/]")
+
+
+@harness_app.command("pregame")
+def pregame_cmd(league: str = typer.Option("both", "--league", "-l", help="espn | fantrax | both"),
+                notify: bool = typer.Option(False, "--notify", help="Post the changes to the Discord / Slack webhooks."),
+                json_out: bool = typer.Option(False, "--json"),
+                quiet_if_unchanged: bool = typer.Option(False, "--quiet-if-unchanged",
+                                                        help="With --notify: send nothing when nothing changed.")
+                ) -> None:
+    """Pre-game afternoon run (schedule it ~17:00 local): force-refresh Daily Faceoff starting goalies
+    and injuries (lines older than 6 h), recompute lineups / alerts / injuries and report only what
+    changed since this morning's `fm harness daily` (or the previous pre-game run today): goalie
+    confirmations, my players' status and line changes, start / sit changes, new alerts.
+    See fantasy_manager/pregame.py and docs/scheduling.md."""
+    from .pregame import failure_message, run_pregame
+    from .report.notify import any_failed
+
+    settings = _settings()
+    results: list[Any] = []
+    failures: list[tuple[str, Any]] = []
+    for i, lg in enumerate(_leagues(league)):
+        cache = _cache(settings)
+        try:
+            results.append(run_pregame(lg, settings, cache, notify=notify, force_refresh=i == 0,
+                                       quiet_if_unchanged=quiet_if_unchanged))
+        except Exception as e:  # noqa: BLE001 - one league must never sink the other
+            failures.append((lg, e))
+        finally:
+            cache.close()
+    fail_notify = _notify_failures(settings, failures, "harness pregame") if notify else None
+    sent = [x for r in results for x in (r.notify or [])] + list(fail_notify or [])
+    if json_out:
+        typer.echo(json.dumps({"leagues": [r.to_dict() for r in results],
+                               "failures": [{"league": lg, "error": f"{type(e).__name__}: {e}",
+                                             "message": failure_message(lg, e)} for lg, e in failures],
+                               "failure_notify": fail_notify}, indent=2, default=str))
+    else:
+        for r in results:
+            base = (f"vs {r.baseline} snapshot {str(r.baseline_at or '')[11:16]}" if r.baseline
+                    else "no earlier snapshot today")
+            console.rule(f"{r.league}: pre-game ({base})")
+            console.print(escape(r.summary_text))
+            for c in r.changes:
+                console.print(f"  [dim]{c.kind}{'/' + c.scope if c.scope else ''}:[/] {escape(c.text)}")
+            if r.refresh:
+                console.print("[dim]refresh: " + escape("; ".join(f"{k} {v}" for k, v in r.refresh.items())) + "[/]")
+            for w in r.warnings[:8]:
+                console.print(f"  [dim]{escape(str(w))}[/]")
+            if r.notify is not None:
+                console.print("notify: " + escape("; ".join(r.notify)))
+            elif notify:
+                console.print("[dim]notify: nothing changed, nothing sent (--quiet-if-unchanged)[/]")
+        for lg, e in failures:
+            console.print(f"[yellow]{lg}: {escape(failure_message(lg, e))}[/]")
+        for x in fail_notify or []:
+            console.print(f"[yellow]league failure notification: {escape(x)}[/]")
+    if failures or any_failed(sent):
+        raise typer.Exit(1)
 
 
 @harness_app.command("odds")

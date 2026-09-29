@@ -63,7 +63,12 @@ def projection_k(is_goalie: bool, params: Params = None) -> float:
 
 def shrink_toward(cur: dict[str, float], gp: float, prior: dict[str, float], k: float
                   ) -> dict[str, float]:
-    """(gp*cur + k*prior)/(gp+k) per stat; a stat missing on one side borrows the other."""
+    """(gp*cur + k*prior)/(gp+k) per stat.
+
+    A stat missing from ``cur`` borrows the prior. A stat missing from the prior shrinks toward 0:
+    the prior has no evidence of a nonzero rate, so a small current sample must not keep its raw
+    rate (one fight in one game read as 1.0 fights per game, worth ~3 FPG in a fights league).
+    Established players are barely affected (60 GP at k=8 keeps 88% of the rate)."""
     if gp <= 0 or not cur:
         return dict(prior)
     if not prior:
@@ -71,7 +76,7 @@ def shrink_toward(cur: dict[str, float], gp: float, prior: dict[str, float], k: 
     out: dict[str, float] = {}
     for key in set(cur) | set(prior):
         c = cur.get(key, prior.get(key, 0.0))
-        p = prior.get(key, c)
+        p = prior.get(key, 0.0)
         out[key] = (gp * c + k * p) / (gp + k)
     return out
 

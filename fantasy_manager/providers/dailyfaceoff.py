@@ -40,6 +40,7 @@ USER_AGENT = "fantasy-manager/0.1 (personal use)"
 HOUR = 3600.0
 TTL_LINES = 12 * HOUR
 TTL_GOALIES = 3 * HOUR
+TTL_LINES_PREGAME = 6 * HOUR    # pre-game run: refetch a team line page older than this
 
 # NHL abbreviation -> Daily Faceoff team slug (verified against the /teams index, 2026-09-29).
 TEAM_SLUGS: dict[str, str] = {
@@ -177,11 +178,27 @@ def default_fetch_text(url: str, params: dict | None = None) -> str:
     return resp.text
 
 
-def make_cached_fetch_text(cache: Any) -> FetchText:
-    """Fetch through ``HttpCache.get_text`` with the Daily Faceoff TTLs and User-Agent."""
+def make_cached_fetch_text(cache: Any, *, goalies_max_age: float | None = None,
+                           lines_max_age: float | None = None) -> FetchText:
+    """Fetch through ``HttpCache.get_text`` with the Daily Faceoff TTLs and User-Agent.
+
+    ``goalies_max_age`` / ``lines_max_age`` (seconds) override the TTL of the starting-goalies page /
+    the team line pages: ``goalies_max_age=0`` bypasses the cache and stores the fresh page, so later
+    fetches with the normal TTL see it (the pre-game run, see fantasy_manager.pregame)."""
     def fetch(url: str, params: dict | None = None) -> str:
-        return cache.get_text(url, params=params, headers={"User-Agent": USER_AGENT}, ttl=ttl_for(url))
+        ttl = ttl_for(url)
+        if "/starting-goalies/" in url:
+            ttl = ttl if goalies_max_age is None else goalies_max_age
+        elif lines_max_age is not None:
+            ttl = lines_max_age
+        return cache.get_text(url, params=params, headers={"User-Agent": USER_AGENT}, ttl=ttl)
     return fetch
+
+
+def make_refresh_fetch_text(cache: Any, lines_max_age: float = TTL_LINES_PREGAME) -> FetchText:
+    """Force-refresh fetcher: the goalie page always from the network, team line pages only when the
+    cached copy is older than ``lines_max_age`` (default 6 h)."""
+    return make_cached_fetch_text(cache, goalies_max_age=0.0, lines_max_age=lines_max_age)
 
 
 # --------------------------------------------------------------------------- parsing helpers
@@ -414,5 +431,6 @@ def _short(e: Exception) -> str:
 
 
 __all__ = ["DailyFaceoffClient", "DfoError", "GoalieStart", "LinePlayer", "TeamLines", "TEAM_SLUGS",
-           "SLUG_TO_TEAM", "TTL_GOALIES", "TTL_LINES", "USER_AGENT", "make_cached_fetch_text",
+           "SLUG_TO_TEAM", "TTL_GOALIES", "TTL_LINES", "TTL_LINES_PREGAME", "USER_AGENT", "make_cached_fetch_text",
+           "make_refresh_fetch_text",
            "parse_starting_goalies", "parse_team_lines", "parse_team_slugs", "extract_next_data"]

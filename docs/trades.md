@@ -24,6 +24,30 @@ lineup solver) after the trade, including any drop I must make, IR moves and a f
 when I free a roster spot. `predicted_gain` stays ΔMe in `lineup_fpg`, which is what the harness
 grades.
 
+### In points: per week and rest of season
+
+"+0.66 per game" is the change in the sum of my starters' per-game values, which is hard to feel.
+Every trade therefore also carries it in points (`recommend.base.game_rate`):
+
+```
+pts/week          = ΔMe x my starters' average NHL games per week      (GAIN_WEEK)
+pts rest of season = ΔMe x my starters' average NHL games left          (GAIN_SEASON)
+```
+
+Both come from the NHL schedule on the context (`ctx.schedule`): for each of my current starters
+(starting slots; every non-IR player when no starters are flagged) whose NHL team is on the
+schedule, the team's games from today (or opening night, preseason) to the last regular-season
+game, averaged; games per week = that / the weeks left (at least 1). Without a schedule: 3.4
+games per week and 82 x the share of the season still to play (season = `ctx.season_start`, else
+Oct 7, through Apr 16). After the last game both are 0.
+
+`fm trades` shows the "You gain" column as `+0.66/g · +2.3/wk · +55/season` (plus `dyn +x.xx` in
+dynasty leagues), the web trade card adds "you gain +2.3 pts/week · +55 pts rest of season", and
+the MY_EDGE text reads "You gain +0.66 pts/game this season (+2.3 pts/week, +55 rest of season)".
+`predicted_gain` is unchanged (ΔMe in lineup FPG).
+
+### Dynasty
+
 Dynasty leagues add the long-term value change ΔDyn (dynasty values in, out, dropped, picked up,
 minus a replacement-level asset for every extra roster spot the trade uses), normalised to
 FPG-like units, weighted by the dynasty mode:
@@ -129,13 +153,18 @@ Every trade carries these reasons (first in this order):
 
 | code | what it says |
 |---|---|
-| MY_EDGE | "You gain +0.62 pts/game this season (dynasty +1.20; balanced edge +1.82)" |
+| MY_EDGE | "You gain +0.62 pts/game this season (+2.1 pts/week, +51 rest of season) (dynasty +1.20; balanced edge +1.82)" |
 | MARKET_VIEW | "Looks even to them by market value (ADP/rostered %); acceptance ~70%". Value: perceived worth points |
 | THEIR_NEED | "X fills Team's weakest slot D (starter VORP -0.40)" |
 | TRADE_BLOCK | "X is on Team's trade block" / "X matches Team's trade-block wants (C, D)" |
 | ROSTER_CONSEQUENCE | "Roster: you drop Y; Team can pick up Z (FA)", or "straight 1-for-1, no other moves needed" |
 | SWEET_SPOT | present on sweet-spot deals. Value: sweet_spot_score |
 | P_ACCEPT | the probability (value), its raw logistic value (baseline) and the arithmetic, e.g. "EV = +0.62 x 0.70 = +0.43" |
+
+Then GAIN_WEEK ("+2.1 pts/week (+0.62/game x 3.4 games/week, your starters' NHL schedule)",
+value: points, baseline: games per week) and GAIN_SEASON ("+51 pts rest of season (+0.62/game x
+83 games left)", value: points, baseline: games left). Exploit deals add EXPLOIT (third, after
+MARKET_VIEW) and, when my free-agent pickup uses a move under a move limit, MOVE_BUDGET.
 
 The detail follows: DELTA_ME, DELTA_THEM (their lineup change by our model), VALUE_IN /
 VALUE_OUT, FAIR_PCT, DYNASTY_DELTA, WIN_NOW_COST, IR_MOVE, POSITION_CAP, ROSTER_DROP, FA_FILL.
@@ -153,12 +182,45 @@ Confidence is the players' games played this season, GP / (GP + k), floored at 0
 season starts every player is at the floor, so strengths read about a quarter of their in-season
 value (a +0.5 FPG deal at 70% shows about 1.7). They rise as games are played.
 
-Where to see it: `fm trades` (proposal table, then the Sweet spot table, then contend mode's
-future-only list), `fm trades --json` (`trades`, `sweet_spot`, `future_only`), the web Moves page
+Where to see it: `fm trades` (proposal table, then the Sweet spot table, the Exploit section, then
+contend mode's future-only list), `fm trades --json` (`trades`, `sweet_spot`, `exploits`, `future_only`), the web Moves page
 (each trade card shows acceptance and expected value; a "Sweet spot trades" section follows the
 list), and the digest (trade lines show only the reader-facing reasons). Without a separate
 sweet-spot list (advise, the web), up to half of the proposal slots are reserved for sweet-spot
 deals.
+
+## Exploits: teams under roster pressure
+
+A manager who has to make a move is easier to deal with. `recommend.trades.exploit_opportunities(ctx,
+values, dynasty_values=None, limit=8)` looks for opponents under roster pressure
+(`team_pressures`):
+
+| pressure | detected when | a deal relieves it when |
+|---|---|---|
+| position cap | a position is over its league maximum, or at it with an injured player there ("3 goalies at the G limit 3 with X injured": they cannot add a healthy one) | more players at that position leave them than arrive |
+| IR logjam | more injured players (out / IR / LTIR) than IR slots | more injured players leave them than arrive |
+| goalie shortage | fewer than 2 healthy goalies with games in the next 7 days (only with a schedule loaded and games that week) | I send more healthy goalies with games this week than I take |
+| weak slot | their weakest starting slot's starter VORP < -1 (or the slot is empty); the text adds the league median of that slot's weakest starter | I send a player eligible there with a higher VORP |
+| 0 moves left | **not detected**: providers only expose my own transaction counter (`ctx.moves_used_this_period`), not other teams' | - |
+
+For each pressured team the candidates are 1-for-1 over my whole active roster (a weaker piece may
+do) x their top 12 plus the pressured players, 2-for-1 over my top 12, and 1-for-2 taking at least
+one pressured player; only deals that relieve a pressure are scored. Scoring is the normal one
+(my edge, market view, p_accept, EV) with **PRESSURE_PTS = 8** worth points added to their
+perceived fairness ("+8 relieves their roster pressure" in P_ACCEPT; on top of the weakest-slot
+and trade-block bonuses). The normal filters apply: my edge > 0.3, p_accept >= 0.25, both rosters
+legal after the trade (position maximums, roster size; the same drops and IR moves), no forced
+protected-prospect drop, the dynasty mode's this-season floor. A deal that needs my free-agent
+pickup is skipped when I have no moves left (`base.moves_left`), and says which move it uses when
+a limit applies (MOVE_BUDGET).
+
+At most one deal per pressure kind and 2 per team, 2 per player I give, `limit` (8) overall, by EV.
+Each carries EXPLOIT: "Exploit: Team X has 3 goalies at the G limit 3 with Y injured (no room to
+add a healthy one)" (value PRESSURE_PTS).
+
+Where: `fm trades` prints an "Exploit" section (one "Exploit: <team> has <pressure>" line per deal,
+then the table; `--exploits N` caps it, 0 skips it; `--json` adds `exploits`), and the web Moves
+page adds an "Exploit trades" section (all / trade filters).
 
 ## Calibration
 
@@ -193,6 +255,10 @@ All in `fantasy_manager/recommend/trades.py`:
 | DEPTH_WEIGHT | 0.5 | a package's 2nd player |
 | ROSTER_SPOT_PENALTY | 3 | per player they must drop |
 | NEED_PTS, BLOCK_PTS | 5, 5 | weakest-slot fit, trade-block match |
+| PRESSURE_PTS | 8 | the deal relieves their roster pressure (exploits) |
+| PRESSURE_WEAK_VORP, MIN_HEALTHY_GOALIES | -1, 2 | weak-slot and goalie-shortage pressure |
+| EXPLOIT_N, EXPLOIT_PER_TEAM | 8, 2 | exploit list size, deals per pressured team |
+| DEFAULT_GAMES_PER_WEEK, SEASON_GAMES (`recommend/base.py`) | 3.4, 82 | gain units without a schedule |
 | CONTENDER_FUTURE_MULT, REBUILDER_VETERAN_MULT | 0.85, 0.85 | dynasty standing modifiers |
 | SWEET_MAX_PERCEIVED, SWEET_MIN_EDGE | 5, 0.4 | sweet-spot definition |
 | MARKET_PTS_TO_FPG | 0.05 | sweet-spot penalty per worth point |
