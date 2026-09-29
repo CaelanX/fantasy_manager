@@ -662,6 +662,14 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
             return False
     app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
 
+    def params_source() -> str:
+        try:
+            from ..valuation.params import source
+
+            return source()
+        except Exception:
+            return "unavailable"
+
     def render(request: Request, name: str, league: str, status_code: int = 200, **ctx: Any) -> HTMLResponse:
         path = request.url.path
         switch_path = path if path in ("/", "/roster", "/recommendations", "/news", "/health") else "/"
@@ -670,7 +678,7 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         cur_mode, cur_source = current_mode()
         base = {"league": league, "path": path, "switch_path": switch_path, "here": here,
                 "now": datetime.now(), "res": None, "cache_age": cache.age(league),
-                "cur_mode": cur_mode, "cur_mode_source": cur_source}
+                "cur_mode": cur_mode, "cur_mode_source": cur_source, "params_source": params_source()}
         base.update(ctx)
         res = base.get("res")
         base["show_mode"] = (league == "fantrax" or bool(res is not None and res.ctx.dynasty)) \
@@ -945,6 +953,12 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
 
     @app.post("/refresh")
     def refresh(league: str = LeagueQ, next: str = "/"):
+        try:  # pick up a promoted / rolled-back harness params version (fm harness refit / rollback)
+            from ..valuation import params as vparams
+
+            vparams.reload()
+        except Exception:
+            pass
         cache.clear(league)
         invalidate = getattr(loader, "invalidate", None)
         if callable(invalidate):

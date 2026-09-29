@@ -6,22 +6,27 @@ share scales goalie season values in valuate.py).
 
 Before the regular season (no NHL games in the window starting at ``as_of`` and
 ``season_start`` in the future) the window is the first 7 days from ``season_start``.
+
+The off-night bonus and the start-share prior / k are read from ``params`` at call time (a
+harness version may override them); the module constants are import-time snapshots.
 """
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 from pydantic import BaseModel
 
 from ..matching.normalize import normalize_team
 from ..models import LeagueContext, Player
+from . import params as _params
 
 WEEK_DAYS = 7
 OFFNIGHT_THRESHOLD = 8
-OFFNIGHT_BONUS = 0.05
-START_SHARE_K = 10
-START_SHARE_PRIOR = 0.5
+# import-time snapshots (read-only aliases; live code uses the params accessors)
+OFFNIGHT_BONUS = _params.offnight_bonus()
+START_SHARE_K = _params.start_share_k()
+START_SHARE_PRIOR = _params.start_share_prior()
 
 
 def _in_window(d: date, start: date, days: int) -> bool:
@@ -40,11 +45,20 @@ def off_night_games(dates: Iterable[date], games_per_day: Mapping[date, int], as
                if _in_window(d, as_of, days) and 0 < games_per_day.get(d, 0) < threshold)
 
 
-def proj_week(fpg: float, avail_week: float, games_next7: int, offnight_games: int) -> float:
-    return fpg * avail_week * games_next7 * (1 + OFFNIGHT_BONUS * offnight_games)
+def proj_week(fpg: float, avail_week: float, games_next7: int, offnight_games: int,
+              params: Mapping[str, Any] | None = None) -> float:
+    return fpg * avail_week * games_next7 * (1 + _params.offnight_bonus(params) * offnight_games)
 
 
-def start_share(player: Player, k: int = START_SHARE_K, prior: float = START_SHARE_PRIOR,
+def shrunk_share(starts: float, team_games: float, k: float | None = None, prior: float | None = None,
+                 params: Mapping[str, Any] | None = None) -> float:
+    """``(GS + k*prior) / (team GP + k)`` with k / prior from ``params`` unless given."""
+    k = _params.start_share_k(params) if k is None else k
+    prior = _params.start_share_prior(params) if prior is None else prior
+    return (starts + k * prior) / (team_games + k)
+
+
+def start_share(player: Player, k: float | None = None, prior: float | None = None,
                 team_games: Mapping[str, float] | None = None) -> float:
     """Shrunk goalie start share (1.0 for skaters): ``(GS + k*prior) / (team GP + k)``.
 
@@ -58,7 +72,7 @@ def start_share(player: Player, k: int = START_SHARE_K, prior: float = START_SHA
     return start_share_parts(player, k, prior, team_games)[0]
 
 
-def start_share_parts(player: Player, k: int = START_SHARE_K, prior: float = START_SHARE_PRIOR,
+def start_share_parts(player: Player, k: float | None = None, prior: float | None = None,
                       team_games: Mapping[str, float] | None = None) -> tuple[float, float, float]:
     """(share, starts, team games) behind :func:`start_share`."""
     def pooled(splits: tuple[str, ...]) -> tuple[float, float]:
@@ -79,7 +93,7 @@ def start_share_parts(player: Player, k: int = START_SHARE_K, prior: float = STA
     gs, tg = pooled(("season", "prior"))
     if tg <= 0:
         gs, tg = pooled(("projected",))
-    return (gs + k * prior) / (tg + k), gs, tg
+    return shrunk_share(gs, tg, k, prior), gs, tg
 
 
 class WeekWindow(BaseModel):
@@ -125,7 +139,7 @@ class ScheduleFactor(BaseModel):
     @property
     def multiplier(self) -> float:
         """Games-weighted multiplier applied to availability-adjusted FPG."""
-        return self.games * (1 + OFFNIGHT_BONUS * self.offnight) * self.start_share
+        return self.games * (1 + _params.offnight_bonus() * self.offnight) * self.start_share
 
 
 def schedule_factor(player: Player, schedule: Mapping[str, list[date]], games_per_day: Mapping[date, int],

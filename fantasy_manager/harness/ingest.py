@@ -82,6 +82,11 @@ def projection_rows(league: str, as_of: str, snap: Mapping[str, Any]) -> list[di
 
 
 def ingest_projections(ledger: Ledger, league: str, as_of: str, snap: Mapping[str, Any]) -> int:
+    means = snap.get("position_means")
+    if isinstance(means, Mapping) and means:
+        # the positional means a league projection is shrunk toward (harness.refit replays them)
+        ledger.execute("INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                       (f"means:{league}:{as_of}", json.dumps(means, sort_keys=True)))
     ledger.execute("DELETE FROM projections WHERE league=? AND as_of=?", (league, as_of))
     return ledger.upsert("projections", projection_rows(league, as_of, snap), ("league", "as_of", "cid"))
 

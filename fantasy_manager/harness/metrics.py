@@ -485,6 +485,14 @@ def grade_week(ledger: Ledger, league: str, week_monday_: date) -> dict[str, Any
     ledger.commit()
     ledger.upsert("metric_snapshots", rows, ("snapshot_id",))
     info["rows"] = len(rows)
+    try:  # champion / challenger: shadow-score the version a promoted params version replaced
+        from .refit import shadow_check
+
+        sh = shadow_check(ledger, week_monday(week_monday_))
+        if sh is not None:
+            info["shadow"] = sh
+    except Exception as e:  # noqa: BLE001 - never fail grading over shadow scoring
+        info["shadow_error"] = f"{type(e).__name__}: {e}"
     info["trust"] = {t: sum(r["trust"] == t for r in rows) for t in ("hidden", "provisional", "reliable", "cases")}
     return info
 
@@ -554,10 +562,15 @@ def params_info(ledger: Ledger) -> dict[str, Any]:
         h, src = params_hash(), source()
     except Exception as e:  # noqa: BLE001
         h, src = None, f"unavailable ({type(e).__name__})"
-    active = ledger.query("SELECT version, params_hash, created_at FROM param_versions WHERE status='active'"
-                          " ORDER BY created_at DESC LIMIT 1")
-    return {"version": active[0]["version"] if active else "packaged", "hash": h, "source": src,
-            "versions": ledger.count("param_versions")}
+    try:
+        from .params_store import ParamsStore
+
+        st = ParamsStore(ledger=ledger)
+        version, n = st.active_name(), len(st.versions())
+    except Exception:  # noqa: BLE001
+        active = ledger.query("SELECT version FROM param_versions WHERE status='active' LIMIT 1")
+        version, n = (active[0]["version"] if active else "packaged"), ledger.count("param_versions")
+    return {"version": version, "hash": h, "source": src, "versions": n}
 
 
 def league_report(ledger: Ledger, league: str) -> dict[str, Any]:

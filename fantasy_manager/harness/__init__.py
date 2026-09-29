@@ -4,6 +4,8 @@ M1 (capture): the sqlite ledger, archive ingest, nightly realized / lineup / tra
 and matching of recommendation episodes to what I actually did.
 M2 (grading): ``outcomes.grade_outcomes`` (realized gain per episode / move and window) and
 ``metrics.grade_week`` / ``status_report`` / ``headline`` (the bar, with trust labels).
+M3 (auto-correction): ``params_store`` (versioned params overrides, apply / rollback) and
+``refit`` (replay table, bounded search, the gate, champion / challenger shadow scoring).
 """
 from .ingest import EPISODE_GAP_DAYS, ingest_archive, record_run, roll_episodes
 from .ledger import DB_NAME, TABLES, Ledger, rec_key

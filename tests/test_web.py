@@ -78,6 +78,7 @@ def test_overview(client):
     assert "Injury feed stale" in h  # freshness footer warnings
     assert 'action="/refresh?league=espn' in h
     assert 'href="/?league=fantrax"' in h  # league switcher
+    assert "Valuation params: fit 2026-09-28 (espn)" in h  # params provenance in the footer
 
 
 def test_roster_page(client):
@@ -177,6 +178,15 @@ def test_cache_and_refresh(client, loader):
     assert loader.calls == ["espn", "fantrax", "espn"]
     evil = client.post("/refresh?next=//evil.example", follow_redirects=False)
     assert evil.headers["location"] == "/?league=espn"
+
+
+def test_refresh_reloads_the_params_layer(client, monkeypatch):
+    from fantasy_manager.valuation import params as VP
+
+    calls = []
+    monkeypatch.setattr(VP, "reload", lambda: calls.append(1) or {})
+    client.post("/refresh?league=espn", follow_redirects=False)
+    assert calls == [1]
 
 
 def test_cache_ttl_expires():

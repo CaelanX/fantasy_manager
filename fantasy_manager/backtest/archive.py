@@ -15,6 +15,10 @@ Version 2 (``ARCHIVE_VERSION``) adds what is needed to refit the model later:
   the multi-season history baseline rates and GP, the provider projection, status, schedule
   counts, start share, birth date / age, pct_owned, positions) and ``fm`` adds fpg_season,
   fpg_week, proj_week and vorp; projection files are written compact (no indent);
+* (added for the harness refit, M3) the projections header carries ``position_means`` (the
+  positional mean rates a league projection is shrunk toward) and goalie inputs a ``share``
+  block (``source`` projection / history and, for history, ``starts`` / ``team_games``), so
+  ``harness.refit`` can replay the valuation with candidate parameters;
 * recommendation records add ``predicted_gain`` / ``gain_units`` / ``horizon_days``,
   ``strength`` and ``subjects``.
 
@@ -133,7 +137,10 @@ INPUT_SPLITS = ("season", "last30", "last15", "last7")
 def player_inputs(p: Player, pv: Any, as_of: date, means: Mapping[str, Mapping[str, float]] | None
                   ) -> dict[str, Any]:
     """The v2 ``inputs`` block: everything the valuation read for this player on ``as_of``.
-    Stat lines drop zero-valued stats (a missing key means 0)."""
+
+    Stat lines keep zero-valued stats (``zeros: true``): the valuation treats a stat missing
+    from one side of a shrink as "borrow the other side", so a dropped zero would change the
+    replayed rate. Files written before 2026-09-29 dropped zeros (no ``zeros`` key)."""
     from ..valuation.valuate import history_baseline, season_age
 
     age = season_age(p, as_of)
@@ -141,7 +148,7 @@ def player_inputs(p: Player, pv: Any, as_of: date, means: Mapping[str, Mapping[s
     for split in INPUT_SPLITS:
         ln = p.lines.get(split)
         if ln is not None:
-            inp[split] = {"gp": ln.gp, "stats": {k: v for k, v in ln.stats.items() if v}}
+            inp[split] = {"gp": ln.gp, "stats": dict(ln.stats), "zeros": True}
     hist = None
     if means is not None:
         try:
@@ -157,19 +164,28 @@ def player_inputs(p: Player, pv: Any, as_of: date, means: Mapping[str, Mapping[s
         "status": p.status, "status_note": p.status_note,
         "games_next7": getattr(pv, "games_next7", None), "offnight_next7": getattr(pv, "offnight_next7", None),
         "start_share": _num(getattr(pv, "start_share", None)),
+        "share": ({"source": getattr(pv, "share_source", None), "starts": _num(getattr(pv, "share_starts", None)),
+                   "team_games": _num(getattr(pv, "share_team_games", None))}
+                  if getattr(pv, "share_source", None) else None),
         "birth_date": p.birth_date.isoformat() if p.birth_date else None, "age": age,
         "pct_owned": p.pct_owned, "positions": list(p.positions),
     })
     return inp
 
 
-def projection_records(ctx: LeagueContext, values: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
-    players = sorted(ctx.all_players(), key=lambda x: x.cid)
+def _position_means(players: list[Player]) -> dict[str, dict[str, float]] | None:
     try:
         from ..valuation.valuate import positional_means
-        means: dict[str, dict[str, float]] | None = positional_means(players)
+        return positional_means(players)
     except Exception:
-        means = None
+        return None
+
+
+def projection_records(ctx: LeagueContext, values: Mapping[str, Any] | None = None,
+                       means: Mapping[str, Mapping[str, float]] | None = None) -> list[dict[str, Any]]:
+    players = sorted(ctx.all_players(), key=lambda x: x.cid)
+    if means is None:
+        means = _position_means(players)
     day = ctx.as_of or date.today()
     out = []
     for p in players:
@@ -186,10 +202,13 @@ def archive_projections(ctx: LeagueContext, data_dir: Path | str, values: Mappin
     """Snapshot projections for ``ctx.provider`` on ``as_of`` (default ctx.as_of)."""
     day = as_of or ctx.as_of or date.today()
     path = archive_dir(data_dir) / f"projections-{ctx.provider}-{day.isoformat()}.json"
+    means = _position_means(ctx.all_players())
     payload = {"version": ARCHIVE_VERSION, "provider": ctx.provider, "league_id": ctx.league_id,
                "season": ctx.season, "as_of": day.isoformat(),
                "archived_at": datetime.now().isoformat(timespec="seconds"), **_hashes(),
-               "scoring": ctx.scoring.model_dump(), "players": projection_records(ctx, values)}
+               "scoring": ctx.scoring.model_dump(),
+               "position_means": {g: {k: round(float(v), 6) for k, v in m.items()} for g, m in (means or {}).items()},
+               "players": projection_records(ctx, values, means)}
     return path, _write_dedup(path, payload, "players", indent=None)
 
 
@@ -220,6 +239,8 @@ def load_snapshot(path: Path | str) -> dict[str, Any]:
     data.setdefault("version", 1)
     data.setdefault("params_hash", None)
     data.setdefault("code_hash", None)
+    if "players" in data:
+        data.setdefault("position_means", None)
     for rec in data.get("players") or []:
         rec.setdefault("inputs", None)
     for rec in data.get("recommendations") or []:

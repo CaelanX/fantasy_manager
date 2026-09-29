@@ -241,6 +241,12 @@ class InseasonObs:
     gp_rest: int
     fpg_rest: float
     fpg_app: float = 0.0                      # the app's own pipeline (blend.py functions)
+    # live (harness replay) rows only; historical checkpoints have no league projection
+    fpg_proj: float | None = None             # league projection FPG (unshrunk)
+    fpg_hist: float | None = None             # multi-season history baseline FPG
+    status: str | None = None                 # availability status that day
+    gp_hist3: int | None = None               # NHL GP over the three prior seasons
+    start_share: float | None = None          # goalie start share that day
 
 
 def recency_weights_for(base: dict[str, float], gps: dict[str, int],

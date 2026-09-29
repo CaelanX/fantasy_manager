@@ -15,9 +15,11 @@ Field semantics of :class:`PlayerValue`:
 from __future__ import annotations
 
 from datetime import date
-from typing import Mapping
+from typing import Any, Mapping
 
 from pydantic import BaseModel, Field
+
+from . import params as _params
 
 from ..models import LeagueContext, Player, Reason, StatLine
 from ..scoring import CategoriesScoring, ScoringSystem, fit_to_context
@@ -28,8 +30,7 @@ from .blend import (PRIOR_SPLITS, baseline_k, blend_rates, blend_recency, multi_
                     shrink_k, shrink_toward)
 from .params import age_factor
 from .replacement import DEFAULT_SLOTS, ROSTERED_FALLBACK_PCT, best_slot, replacement_with_fallback, vorp
-from .schedule import (START_SHARE_K, START_SHARE_PRIOR, context_window, proj_week, schedule_factor,
-                       start_share_parts)
+from .schedule import context_window, proj_week, schedule_factor, start_share_parts
 
 PRIOR_TEAM_GAMES = 82
 PROJ_SHARE_K = 20
@@ -47,6 +48,12 @@ class PlayerValue(BaseModel):
     games_next7: int | None = None
     offnight_next7: int | None = None
     start_share: float | None = None  # goalies only
+    # goalies: where the share came from ("projection": projected workload, "history": shrunk
+    # GS / team GP with the start-share prior / k) and, for "history", its starts and team games
+    # (excluded from dumps: only the archive's refit inputs read them)
+    share_source: str | None = Field(default=None, exclude=True)
+    share_starts: float | None = Field(default=None, exclude=True)
+    share_team_games: float | None = Field(default=None, exclude=True)
     horizon_values: dict[str, float] = Field(default_factory=dict)
     rates: dict[str, float] = Field(default_factory=dict)
     reasons: list[Reason] = Field(default_factory=list)
@@ -143,7 +150,9 @@ def history_baseline(p: Player, means: dict[str, dict[str, float]], age: float |
     return rates, gp_total, desc
 
 
-def baseline_rates(p: Player, means: dict[str, dict[str, float]], age: float | None = None
+def baseline_rates(p: Player, means: dict[str, dict[str, float]], age: float | None = None,
+                   params: Mapping[str, Any] | None = None,
+                   history: tuple[dict[str, float], int, str] | None = None
                    ) -> tuple[dict[str, float], StatLine | None, float, str]:
     """(rates, raw baseline line, effective GP, source) of the pre-season baseline.
 
@@ -154,25 +163,29 @@ def baseline_rates(p: Player, means: dict[str, dict[str, float]], age: float | N
       only for a player without NHL history (rookies), linear in between.
     * Neither: a player with current-season games uses the group mean itself.
 
-    ``age`` is the age on Oct 1 of the season being projected (``season_age``)."""
+    ``age`` is the age on Oct 1 of the season being projected (``season_age``). ``params`` (a
+    full merged params mapping, default the loaded ones) and a precomputed ``history`` (rates,
+    GP, description) let the harness replay this exact computation from archived inputs."""
     g = position_group(p)
     mean = means.get(g, {})
-    hist, hist_gp, hist_desc = history_baseline(p, means, age)
+    hist, hist_gp, hist_desc = history_baseline(p, means, age) if history is None else history
     proj = p.lines.get("projected")
     if proj is not None and proj.gp > 0:
-        prates, n = shrink_baseline(proj, mean, p.is_goalie)
+        prates, n = shrink_baseline(proj, mean, p.is_goalie, params=params)
         src = f"projection ({proj.gp} GP"
         if n != proj.gp:
             src += f", counted as {n:.0f}"
         src += ")"
         if mean:
-            k = projection_k(p.is_goalie)
+            k = projection_k(p.is_goalie, params)
             src += f" shrunk {k / (n + k):.0%} toward {g} mean (k={k:g})"
         if hist:
-            w = projection_blend_weight(hist_gp)
+            w = projection_blend_weight(hist_gp, params)
             return blend_rates(prates, hist, w), proj, n, f"{w:.0%} {src} + {1 - w:.0%} NHL history ({hist_desc})"
         return prates, proj, n, src
     if hist:
+        if history is not None:
+            return hist, None, float(hist_gp), f"NHL history ({hist_desc})"
         line = next((ln for ln in history_lines(p) if ln is not None and ln.gp > 0), None)
         n = multi_season_sample(history_lines(p))[1]  # type: ignore[index]
         return hist, line, n, f"NHL history ({hist_desc})"
@@ -183,17 +196,32 @@ def baseline_rates(p: Player, means: dict[str, dict[str, float]], age: float | N
     return {}, None, 0.0, ""
 
 
-def _rates_for(p: Player, means: dict[str, dict[str, float]], scoring: ScoringSystem,
-               age: float | None = None) -> tuple[dict[str, float], list[Reason]]:
+def player_rates(p: Player, means: dict[str, dict[str, float]], age: float | None = None,
+                 params: Mapping[str, Any] | None = None,
+                 history: tuple[dict[str, float], int, str] | None = None) -> dict[str, float]:
+    """The healthy per-game rates behind ``PlayerValue.fpg`` (baseline -> season-to-date shrink ->
+    recency blend), without reasons. Pure: the harness replays archived inputs through it with
+    candidate ``params`` (``harness.refit.inseason_projection``), so the two cannot drift."""
+    return _rates_for(p, means, None, age, params=params, history=history, explain=False)[0]
+
+
+def _rates_for(p: Player, means: dict[str, dict[str, float]], scoring: ScoringSystem | None,
+               age: float | None = None, params: Mapping[str, Any] | None = None,
+               history: tuple[dict[str, float], int, str] | None = None,
+               explain: bool = True) -> tuple[dict[str, float], list[Reason]]:
     reasons: list[Reason] = []
     season = p.lines.get("season")
-    base_rates, base_line, _, base_src = baseline_rates(p, means, age)
+    base_rates, base_line, _, base_src = baseline_rates(p, means, age, params=params, history=history)
     gp = season.gp if season else 0
-    k = shrink_k(p.is_goalie)
+    k = shrink_k(p.is_goalie, params)
     if gp > 0:
         shrunk = shrink_toward(season.per_game(), gp, base_rates, k)
     else:
         shrunk = dict(base_rates)
+    l30, l15, l7 = (p.lines.get(s) for s in ("last30", "last15", "last7"))
+    rates = blend_recency(shrunk, l30, l15, l7, params=params)
+    if not explain or scoring is None:
+        return rates, reasons
     if base_rates:
         base_fpg = scoring.value(base_rates)
         raw = f" (raw {scoring.value(base_line.per_game()):.2f})" if base_line is not None else ""
@@ -204,9 +232,7 @@ def _rates_for(p: Player, means: dict[str, dict[str, float]], scoring: ScoringSy
         reasons.append(Reason(code="SHRINK_GP",
                               text=f"{gp} GP this season carry {w:.0%} weight vs baseline (k={k:g})",
                               value=float(gp), baseline=float(k)))
-    l30, l15, l7 = (p.lines.get(s) for s in ("last30", "last15", "last7"))
-    rates = blend_recency(shrunk, l30, l15, l7)
-    w = recency_weights(*(ln.gp if ln else 0 for ln in (l30, l15, l7)))
+    w = recency_weights(*(ln.gp if ln else 0 for ln in (l30, l15, l7)), params=params)
     if w["season"] < 0.999:
         reasons.append(Reason(code="RECENCY",
                               text="Recency weights season {season:.2f} / L30 {last30:.2f} / L15 {last15:.2f} / L7 {last7:.2f}"
@@ -318,25 +344,29 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                   value=a_season, baseline=1.0))
         share = 1.0
         season_value: float | None = None
+        share_parts: dict[str, Any] = {}
         if p.is_goalie:
+            ss_prior, ss_k = _params.start_share_prior(), _params.start_share_k()
             work = projected_workload(p, team_gp)
             if work is not None:
                 share, per_team_game, text = work
                 season_value = (per_team_game if per_team_game is not None else fpg * share) * a_season
+                share_parts = {"share_source": "projection"}
                 reasons.append(Reason(code="START_SHARE",
                                       text=f"{text}: season value {fpg * a_season:.2f} -> {season_value:.2f} FPG",
-                                      value=share, baseline=START_SHARE_PRIOR))
+                                      value=share, baseline=ss_prior))
             else:
                 share, gs, tg = start_share_parts(p, team_games=goalie_team_games(p, team_gp))
+                share_parts = {"share_source": "history", "share_starts": gs, "share_team_games": tg}
                 reasons.append(Reason(code="START_SHARE",
                                       text=f"Projected start share {share:.0%} ({gs:.0f} GS / {tg:.0f} team GP, "
-                                           f"k={START_SHARE_K} toward {START_SHARE_PRIOR:.0%}): "
+                                           f"k={ss_k:g} toward {ss_prior:.0%}): "
                                            f"season value {fpg * a_season:.2f} -> {fpg * a_season * share:.2f} FPG",
-                                      value=share, baseline=START_SHARE_PRIOR))
+                                      value=share, baseline=ss_prior))
         pv = PlayerValue(player=p, fpg=fpg,
                          fpg_season=season_value if season_value is not None else fpg * a_season * share,
                          fpg_week=fpg * a_week * share, vorp=0.0, rates=rates, reasons=reasons,
-                         start_share=share if p.is_goalie else None)
+                         start_share=share if p.is_goalie else None, **share_parts)
         sf = schedule_factor(p, ctx.schedule, ctx.games_per_day, window, share=share) if window else None
         if sf is not None:
             pw = proj_week(fpg, a_week, sf.games, sf.offnight) * sf.start_share

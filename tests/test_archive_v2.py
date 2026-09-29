@@ -45,7 +45,8 @@ def test_v2_projection_archive_round_trip(tmp_path):
     assert snap["params_hash"] == VP.params_hash() and len(snap["code_hash"]) == 40
     rec = {r["cid"]: r for r in snap["players"]}["espn:1"]
     inp = rec["inputs"]
-    assert inp["season"] == {"gp": 6, "stats": {"G": pytest.approx(4.8), "GP": 6}}      # zero stats dropped
+    assert inp["season"]["gp"] == 6 and inp["season"]["zeros"] is True                   # zero stats kept
+    assert inp["season"]["stats"]["G"] == pytest.approx(4.8) and inp["season"]["stats"]["GP"] == 6
     assert inp["last7"]["gp"] == 3 and inp["last15"]["gp"] == 6 and "last30" not in inp
     assert inp["history"]["gp"] == 152 and inp["history"]["rates"]["G"] > 0
     assert inp["projection"]["gp"] == 80

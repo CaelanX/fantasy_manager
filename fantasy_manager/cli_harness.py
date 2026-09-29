@@ -1,5 +1,6 @@
 """`fm harness ...`: capture and match recommendations against what happened (M1), grade them
-and keep the bar (M2: ``grade``, ``status``).
+and keep the bar (M2: ``grade``, ``status``), and correct a bounded set of valuation parameters
+(M3: ``refit``, ``rollback``, ``params``).
 
 Mounted into the main app with ``app.add_typer(harness_app, name="harness")``. See
 docs/harness.md.
@@ -141,6 +142,24 @@ def _grade_leagues(ledger: Any, leagues: list[str], week: date, today: date) -> 
     return out
 
 
+def _daily_refit(ledger: Any, settings: Any, today: date) -> dict[str, Any] | None:
+    """On a refit day (every 14 days from 2026-11-02) run the refit once: auto-apply Tier A from
+    2026-11-16 when ``prefs.harness_auto_apply`` is on, else only propose. None otherwise."""
+    from .harness.outcomes import _meta, _set_meta
+    from .harness.refit import daily_refit_mode
+    from .prefs import harness_auto_apply
+
+    mode = daily_refit_mode(today, harness_auto_apply(settings.fm_data_dir))
+    if mode is None or _meta(ledger, "refit:last_daily") == today.isoformat():
+        return None
+    try:
+        r = _run_refit(ledger, today, mode, None, None, False)
+    except Exception as e:  # noqa: BLE001 - never fail the daily capture over the refit
+        return {"mode": mode, "error": f"{type(e).__name__}: {e}"}
+    _set_meta(ledger, "refit:last_daily", today.isoformat())
+    return r
+
+
 @harness_app.command("daily")
 def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | fantrax | all"),
               archive: bool = typer.Option(True, "--archive/--no-archive",
@@ -181,7 +200,8 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
         graded = None
         if grade or today.weekday() == 0:
             graded = _grade_leagues(ledger, _leagues(league), last_monday(today), today)
-        summary = {"leagues": results, "realized": realized, "grade": graded,
+        refit = _daily_refit(ledger, settings, today)
+        summary = {"leagues": results, "realized": realized, "grade": graded, "refit": refit,
                    "seconds": round(time.perf_counter() - t0, 1)}
         failed = [r["league"] for r in results if r.get("skipped")]
         record_run(ledger, "daily", league, today, summary, "partial" if failed or "error" in realized else "ok")
@@ -216,6 +236,13 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
         console.print(f"NHL results {rl['day']}: {rl.get('players', 0)} players{note}")
     for g in summary.get("grade") or []:
         _print_grade(g)
+    rf = summary.get("refit")
+    if rf:
+        if rf.get("error"):
+            console.print(f"[yellow]refit failed: {escape(rf['error'])}[/]")
+        else:
+            console.rule(f"Refit ({rf.get('mode')})")
+            _print_refit(rf)
     console.print(f"[dim]{summary['seconds']}s[/]")
 
 
@@ -311,6 +338,7 @@ def rebuild_cmd(everything: bool = typer.Option(False, "--all",
                 ledger.execute(f"DELETE FROM {t}")
         ledger.commit()
         ing = ingest_archive(ledger, settings.fm_data_dir, force=True)
+        _store(ledger).sync_ledger()           # param_versions mirror the version files
         lines = []
         for lg in sorted({r["league"] for r in ledger.query("SELECT DISTINCT league FROM rec_episodes")}):
             lines.append(match_episodes(ledger, lg).line())
@@ -533,3 +561,199 @@ def status_cmd(json_out: bool = typer.Option(False, "--json"),
     if last_run:
         r = last_run[0]
         console.print(f"Last run: {r['command']} {r['league'] or ''} at {r['started_at']} ({r['status']})")
+
+
+# --------------------------------------------------------------------------- M3: params, refit, rollback
+
+def _store(ledger: Any):
+    from .harness.params_store import ParamsStore
+    return ParamsStore(ledger=ledger)
+
+
+def _num(v: Any, nd: int = 4) -> str:
+    if v is None:
+        return "-"
+    return f"{v:.{nd}f}" if isinstance(v, float) else str(v)
+
+
+def _print_refit(r: dict[str, Any]) -> None:
+    if r.get("locked"):
+        console.print(f"Refit {escape(r['lock_reason'])}.")
+        return
+    for n in r.get("notes") or []:
+        console.print(f"[dim]{escape(n)}[/]")
+    lg = ", ".join(f"{k} {v}" for k, v in (r.get("leagues") or {}).items()) or "none"
+    console.print(f"Replay table as of {r['as_of']}: {r['n_live']} matured 28-day obs ({r['n_goalie']} goalies) over "
+                  f"{r['weeks']} weekly snapshot(s), {r['n_week']} matured 7-day obs (leagues: {lg}); active params "
+                  f"{r['active_version']}")
+    rp = r.get("replay") or {}
+    if rp.get("checked"):
+        console.print(f"[dim]Replay check: {rp['checked']} rows, max |replay - archived fpg| "
+                      f"{_num(rp.get('max_abs_diff'))}, {rp.get('over_0.01', 0)} over 0.01; "
+                      f"{rp.get('approximate_rows', 0)} approximate rows (inputs without means / zeros)[/]")
+    if r.get("group_gains"):
+        console.print("Training-loss gain by group: "
+                      + ", ".join(f"{g} {v:+.2%}" for g, v in r["group_gains"].items()))
+    if r.get("rows"):
+        t = Table(title="Refit proposal (groups chosen by marginal gain; holdout = 2 most recent matured weeks)")
+        for c in ("Param", "Tier", "Current", "Candidate", "Bound", "Holdout before", "Holdout after",
+                  "Hist before", "Hist after"):
+            t.add_column(c, justify="left" if c in ("Param", "Tier", "Bound") else "right")
+        for row in r["rows"]:
+            t.add_row(row["param"], row["tier"], f"{row['current']:.4g}", f"{row['candidate']:.4g}", row["bound"],
+                      _num(row["holdout_before"]), _num(row["holdout_after"]), _num(row["hist_before"]),
+                      _num(row["hist_after"]), style="" if row["changed"] else "dim")
+        console.print(t)
+        for obj, s in (r.get("objectives") or {}).items():
+            ci = "-" if s.get("ci_lo") is None else f"[{s['ci_lo']:+.2%}, {s['ci_hi']:+.2%}]"
+            gain = "-" if s.get("gain") is None else f"{s['gain']:+.2%}"
+            hc = "-" if s.get("hist_change") is None else f"{s['hist_change']:+.2%}"
+            console.print(f"{obj}: holdout n={s['n_holdout']}, improvement {gain} (90% CI {ci}); "
+                          f"history change {hc} (n={s.get('n_hist', 0)})")
+    g = r.get("gate") or {}
+    if g:
+        console.print("Gate: " + ("[green]PASSED[/]" if g.get("passed") else "[red]FAILED[/]"))
+        for reason in g.get("reasons") or []:
+            console.print(f"  - {escape(reason)}")
+    act = r.get("action")
+    if act == "applied":
+        console.print(f"[green]Applied {r['version']}[/] (undo with `fm harness rollback`).")
+    elif act == "proposed":
+        console.print(f"Proposed {r['version']} (not applied).")
+    elif act == "dry-run":
+        console.print("[dim]Dry run: nothing written.[/]")
+
+
+def _run_refit(ledger: Any, today: date, mode: str, only: list[str] | None, leagues: list[str] | None,
+               force: bool) -> dict[str, Any]:
+    from .harness.refit import run_refit
+
+    return run_refit(ledger, today, mode=mode, only=only, leagues=leagues, force=force).to_dict()
+
+
+@harness_app.command("refit")
+def refit_cmd(dry_run: bool = typer.Option(False, "--dry-run", help="Fit and gate, write nothing."),
+              apply: bool = typer.Option(False, "--apply", help="Activate the candidate if it passes the gate."),
+              only: Optional[str] = typer.Option(None, "--only",
+                                                 help="Comma-separated groups: k_inseason, recency_weights, "
+                                                      "projection_weight, k_projection (Tier A), availability, "
+                                                      "start_share, offnight_bonus (Tier B)."),
+              league: str = typer.Option("all", "--league", "-l", help="espn | fantrax | all"),
+              force: bool = typer.Option(False, "--force",
+                                         help="Bypass the calendar lock (never the statistical gate)."),
+              as_of: Optional[str] = typer.Option(None, "--as-of", help="Pretend today is YYYY-MM-DD."),
+              json_out: bool = typer.Option(False, "--json")) -> None:
+    """Refit the eligible valuation parameters from the ledger (bounded and gated; docs/harness.md).
+    Without --dry-run / --apply a candidate that passes the gate is stored as a proposed version."""
+    from .harness.ingest import record_run
+
+    if dry_run and apply:
+        console.print("[red]--dry-run and --apply are exclusive.[/]")
+        raise typer.Exit(2)
+    mode = "dry-run" if dry_run else ("apply" if apply else "propose")
+    groups = [g.strip() for g in only.split(",") if g.strip()] if only else None
+    settings = _settings()
+    today = _parse_day(as_of) or date.today()
+    leagues = None if (league or "all").lower() in ("all", "both") else _leagues(league)
+    ledger = _ledger(settings)
+    try:
+        try:
+            r = _run_refit(ledger, today, mode, groups, leagues, force)
+        except ValueError as e:
+            console.print(f"[red]{escape(str(e))}[/]")
+            raise typer.Exit(2)
+        if mode != "dry-run" and not r.get("locked"):
+            record_run(ledger, "refit", league, today,
+                       {k: r.get(k) for k in ("mode", "action", "version", "n_live", "groups_selected")})
+    finally:
+        ledger.close()
+    if json_out:
+        typer.echo(json.dumps(r, indent=2, default=str))
+        return
+    _print_refit(r)
+
+
+@harness_app.command("rollback")
+def rollback_cmd(to: Optional[str] = typer.Option(None, "--to",
+                                                  help="vNNNN or packaged (default: the active version's parent)."),
+                 json_out: bool = typer.Option(False, "--json")) -> None:
+    """Roll the active params version back (to its parent by default)."""
+    from .harness.ingest import record_run
+
+    settings = _settings()
+    ledger = _ledger(settings)
+    try:
+        try:
+            out = _store(ledger).rollback(to=to, by="manual")
+        except ValueError as e:
+            if json_out:
+                typer.echo(json.dumps({"error": str(e)}))
+            else:
+                console.print(f"[yellow]{escape(str(e))}[/]")
+            raise typer.Exit(1)
+        record_run(ledger, "rollback", None, date.today(), out)
+    finally:
+        ledger.close()
+    if json_out:
+        typer.echo(json.dumps(out, indent=2))
+        return
+    console.print(f"Rolled back {out['from']} -> {out['to']} (params hash {out['hash'][:10]}).")
+
+
+@harness_app.command("params")
+def params_cmd(history: bool = typer.Option(False, "--history", help="List every version with its changelog."),
+               json_out: bool = typer.Option(False, "--json")) -> None:
+    """The active valuation params (packaged fit + harness version) and the refittable values."""
+    from .harness.refit import KNOBS, REFIT_START, current_knobs, is_refit_day, next_refit_day, tier
+    from .valuation import params as vparams
+
+    settings = _settings()
+    ledger = _ledger(settings)
+    try:
+        st = _store(ledger)
+        st.sync_ledger()
+        versions = st.versions()
+        active = st.active_name()
+    finally:
+        ledger.close()
+    knobs = current_knobs()
+    today = date.today()
+    payload = {"active": active, "source": vparams.source(), "hash": vparams.params_hash(),
+               "override_enabled": vparams.override_enabled(), "dir": str(st.dir),
+               "knobs": {k.name: {"value": knobs[k.name], "group": k.group, "tier": tier(k.group),
+                                  "bound": k.bound_label()} for k in KNOBS},
+               "next_refit": (today if is_refit_day(today) else next_refit_day(today)).isoformat(),
+               "versions": versions if history else [{k: v.get(k) for k in ("version", "status", "created", "parent")}
+                                                     for v in versions]}
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, default=str))
+        return
+    console.print(f"Active params: [bold]{active}[/] ({escape(payload['source'])}; hash {payload['hash'][:10]})")
+    if not payload["override_enabled"]:
+        console.print("[yellow]FM_PARAMS_OVERRIDE=0: harness versions are ignored.[/]")
+    t = Table(title="Refittable parameters")
+    for c in ("Param", "Group", "Tier", "Value", "Step bound"):
+        t.add_column(c, justify="right" if c == "Value" else "left")
+    for name, k in payload["knobs"].items():
+        t.add_row(name, k["group"], k["tier"], f"{k['value']:.4g}", k["bound"])
+    console.print(t)
+    console.print(f"[dim]Next refit day: {payload['next_refit']} (locked until {REFIT_START.isoformat()}; Tier A "
+                  "auto-apply from 2026-11-16, Tier B proposals only until 2026-12-01).[/]")
+    if not versions:
+        console.print("No harness versions yet (packaged params only).")
+    elif history:
+        t = Table(title="Params versions")
+        for c in ("Version", "Status", "Parent", "Created", "Changed", "Holdout", "Hist", "N live", "Changelog"):
+            t.add_column(c)
+        for v in versions:
+            m = v.get("metrics") or {}
+            ho = f"{_num(m.get('holdout_before'))} -> {_num(m.get('holdout_after'))}"
+            hi = f"{_num(m.get('hist_before'))} -> {_num(m.get('hist_after'))}"
+            log = "; ".join(f"{str(e.get('at', ''))[:10]} {e.get('event')} ({e.get('by')})"
+                            for e in v.get("changelog") or [])
+            t.add_row(v["version"], v.get("status") or "-", v.get("parent") or "-", str(v.get("created"))[:10],
+                      ", ".join(v.get("changed_keys") or []), ho, hi, str(m.get("n_live", "-")), escape(log))
+        console.print(t)
+    else:
+        console.print(f"{len(versions)} version(s): " + ", ".join(f"{v['version']} ({v.get('status')})"
+                                                              for v in versions) + " (--history for details)")

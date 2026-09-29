@@ -217,6 +217,15 @@ def _footer(lc: LeagueContext, errors: list[str] | None = None) -> None:
         console.print(f"[dim yellow]! {w}[/]")
 
 
+def _params_source() -> str:
+    try:
+        from .valuation.params import source
+
+        return source()
+    except Exception as e:  # noqa: BLE001
+        return f"unavailable ({type(e).__name__})"
+
+
 def _fmt(v: float | None, signed: bool = False) -> str:
     if v is None:
         return "-"
@@ -381,7 +390,7 @@ def settings(ctx: typer.Context,
                "teams": [{"team_id": t.team_id, "name": t.name, "record": t.record, "mine": t.owner_is_me}
                          for t in lc.teams],
                "free_agents_loaded": len(lc.free_agents), "provider_settings": extra,
-               "warnings": lc.warnings})
+               "params_source": _params_source(), "warnings": lc.warnings})
         return
     console.print(f"[bold]{lc.name}[/]  ({lc.provider} league {lc.league_id}, season {lc.season})")
     console.print(f"Scoring: [cyan]{lc.scoring.kind}[/]   Matchup period: {lc.matchup_period}"
@@ -416,6 +425,7 @@ def settings(ctx: typer.Context,
             console.print(f"  {line}")
     if not lc.dynasty and lc.provider == "fantrax":
         console.print(f"[dim]{escape(_mode_line(lc))} (used only when dynasty valuation is on)[/]")
+    console.print(f"[dim]Valuation params: {escape(_params_source())} (`fm harness params`)[/]")
     _footer(lc)
 
 

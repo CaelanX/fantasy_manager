@@ -20,6 +20,7 @@ PREFS_FILE = "prefs.json"
 DYNASTY_MODE_KEY = "dynasty_mode"
 DYNASTY_MODES = ("contend", "balanced", "rebuild")
 DEFAULT_DYNASTY_MODE = "balanced"
+HARNESS_AUTO_APPLY_KEY = "harness_auto_apply"
 # source code -> human label ("Dynasty mode: balanced (from dashboard/prefs)")
 MODE_SOURCE_LABEL = {
     "prefs": "dashboard/prefs",
@@ -104,6 +105,15 @@ def dynasty_mode_info(settings: Any = None) -> tuple[str, str]:
     return DEFAULT_DYNASTY_MODE, "default"
 
 
+def harness_auto_apply(data_dir: str | Path | None = None) -> bool:
+    """``harness_auto_apply`` (default True): may ``fm harness daily`` apply a Tier A params
+    refit on a refit day (from 2026-11-16) when it passes the gate?"""
+    v = get_pref(HARNESS_AUTO_APPLY_KEY, True, data_dir=data_dir)
+    if isinstance(v, str):
+        return v.strip().lower() not in ("0", "false", "no", "off")
+    return bool(v)
+
+
 def effective_dynasty_mode(settings: Any = None) -> str:
     return dynasty_mode_info(settings)[0]
 
@@ -112,6 +122,7 @@ def mode_source_label(source: str | None) -> str:
     return MODE_SOURCE_LABEL.get(source or "", source or "default")
 
 
-__all__ = ["DEFAULT_DYNASTY_MODE", "DYNASTY_MODES", "DYNASTY_MODE_KEY", "MODE_SOURCE_LABEL", "PREFS_FILE",
-           "dynasty_mode_info", "effective_dynasty_mode", "get_pref", "load_prefs", "mode_source_label",
+__all__ = ["DEFAULT_DYNASTY_MODE", "DYNASTY_MODES", "DYNASTY_MODE_KEY", "HARNESS_AUTO_APPLY_KEY", "MODE_SOURCE_LABEL",
+           "PREFS_FILE", "dynasty_mode_info", "effective_dynasty_mode", "get_pref", "harness_auto_apply",
+           "load_prefs", "mode_source_label",
            "normalize_mode", "prefs_path", "set_pref"]

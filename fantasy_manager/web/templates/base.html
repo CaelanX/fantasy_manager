@@ -65,6 +65,7 @@
       {% if show_mode %}
       <p class="mode-foot">Dynasty mode: <strong>{{ data_mode }}</strong> (from {{ mode_source_label(data_mode_source) }}){% if res and res.compute_seconds is not none %} &middot; computed in {{ '%.1f'|format(res.compute_seconds) }}s{% if res.recalc_only %} (mode recalculation only){% endif %}{% endif %}</p>
       {% endif %}
+      {% if params_source %}<p class="params-foot">Valuation params: {{ params_source }}</p>{% endif %}
       {% if res %}
       {% if res.ctx.source_notes %}
       <details><summary>Data sources ({{ res.ctx.source_notes|length }})</summary>
