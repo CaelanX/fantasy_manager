@@ -1331,10 +1331,15 @@ def auth_fantrax(ctx: typer.Context,
 
 @app.command()
 def web(ctx: typer.Context,
-        host: str = typer.Option("127.0.0.1", "--host", help="Interface to bind (127.0.0.1 = this PC only)."),
+        host: str = typer.Option("127.0.0.1", "--host",
+                                 help="Interface to bind (127.0.0.1 = this PC only; 0.0.0.0 = every interface, "
+                                      "needs FM_WEB_PASSWORD or FM_WEB_ALLOW_INSECURE=1)."),
         port: int = typer.Option(8765, "--port", help="Port to listen on."),
         league: Optional[LeagueName] = typer.Option(None, "--league", "-l")) -> None:
-    """Start the mobile-friendly web dashboard (needs the optional web extras)."""
+    """Start the mobile-friendly web dashboard (needs the optional web extras).
+
+    With FM_WEB_PASSWORD set every page needs a login. Without it the dashboard answers only on this
+    machine, and a non-loopback --host is refused unless FM_WEB_ALLOW_INSECURE=1."""
     league_name, _ = _opts(ctx, league, False)
     try:
         import fastapi  # noqa: F401
@@ -1348,8 +1353,10 @@ def web(ctx: typer.Context,
         if missing in ("fastapi", "uvicorn", "jinja2", "starlette", "multipart"):
             _fail(WEB_HINT)
         _fail(f"the web dashboard is not available ({_short_err(e)})")
-    console.print(f"Serving the dashboard at http://{host}:{port}  (Ctrl+C to stop)")
-    run(host, port, league_name)
+    try:  # run() prints the URL once the access checks pass
+        run(host, port, league_name)
+    except ValueError as e:  # auth.InsecureBindError: non-loopback host without FM_WEB_PASSWORD
+        _fail(str(e))
 
 
 if __name__ == "__main__":

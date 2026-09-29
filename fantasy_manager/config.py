@@ -114,6 +114,16 @@ class Settings(BaseSettings):
     fm_data_dir: Path = Path("./data")
     fm_offline: bool = False
 
+    # Web dashboard access (see web/auth.py and docs/hosting.md). With a password every page needs a
+    # login; without one the dashboard answers only on this machine unless FM_WEB_ALLOW_INSECURE=1.
+    fm_web_password: SecretStr | None = Field(default=None, exclude=True)
+    # Session-cookie signing key; default: a random key kept in <FM_DATA_DIR>/web_secret.
+    fm_web_secret: SecretStr | None = Field(default=None, exclude=True)
+    fm_web_allow_insecure: bool = False
+    fm_web_session_days: int = 30
+    # Reverse proxies whose X-Forwarded-For / X-Forwarded-Proto are believed (comma separated).
+    fm_web_trusted_proxies: str = "127.0.0.1,::1"
+
     @field_validator("fantrax_mode", mode="before")
     @classmethod
     def _parse_mode(cls, v: Any) -> Any:

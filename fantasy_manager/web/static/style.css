@@ -465,3 +465,14 @@ select { font: inherit; font-size: .9rem; padding: 6px 8px; min-height: 36px; ma
   .reasons-t td[data-label="Explanation"]::before { float: none; display: block; }
   .stack .vorp { grid-template-columns: 4rem 3.4rem; }
 }
+
+/* ---------------------------------------------------------------- login */
+.login { max-width: 420px; padding-block: 32px 48px; }
+.login h1 { font: 600 1.6rem/1.2 var(--serif); margin: 0 0 18px; }
+.login-form { display: grid; gap: 8px; margin: 0 0 18px; }
+.login-form label { font-weight: 600; font-size: .9rem; }
+.login-form input { font: inherit; min-height: 44px; padding: 8px 10px; border: 1px solid var(--rule-2);
+  border-radius: 6px; background: var(--paper); color: var(--ink); }
+.login-form button { font: inherit; font-weight: 600; min-height: 44px; border: 0; border-radius: 6px;
+  background: var(--accent); color: var(--accent-ink); cursor: pointer; margin-top: 6px; }
+.foot-actions { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: flex-start; }

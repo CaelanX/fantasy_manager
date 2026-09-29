@@ -1,0 +1,13 @@
+# Runs fantasy-daily.service every day at 07:30 in the server's time zone
+# (set it with: sudo timedatectl set-timezone America/Toronto). Check: systemctl list-timers
+[Unit]
+Description=Fantasy Manager daily job at 07:30
+
+[Timer]
+OnCalendar=*-*-* 07:30:00
+# Run at the next boot if the server was off at 07:30.
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

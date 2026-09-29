@@ -1,5 +1,8 @@
 # Daily report with Windows Task Scheduler
 
+On a Linux server the same four steps run from a systemd timer (`deploy/daily.sh`, installed by
+`deploy/install.sh`); see [hosting.md](hosting.md).
+
 The daily task runs four commands, in this order:
 
 | Step | Command | What it does | Idempotent? |

@@ -8,6 +8,9 @@ fantrax_session.json
 
 # Local data: HTTP cache, crosswalk, status history, prefs, reports, archives, backtest tables
 data/
+# docker-compose backup volume (deploy/backup.sh) and the dashboard session key
+backups/
+web_secret
 
 # Python
 .venv/

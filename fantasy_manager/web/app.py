@@ -9,6 +9,10 @@ header toggle or ``fm mode`` > FANTRAX_MODE > balanced). ``POST /mode`` saves it
 league's cached result; ``PipelineLoader`` keeps the mode-independent half of the pipeline, so the
 next page load only reruns dynasty valuation and ``advise``.
 
+Access control lives in ``auth.py``: with ``FM_WEB_PASSWORD`` set every page and API needs a
+login; without it the server answers loopback clients only (unless ``FM_WEB_ALLOW_INSECURE=1``).
+``create_app(auth=None)`` (tests) installs no checks.
+
 Run with ``fm web`` or ``python -m uvicorn fantasy_manager.web.app:app --port 8765``.
 """
 from __future__ import annotations
@@ -32,6 +36,7 @@ from markupsafe import Markup, escape
 
 from ..models import LeagueContext, Player, Recommendation
 from ..providers.base import ProviderError
+from . import auth as web_auth
 from . import views
 from .views import is_prospect, player_age
 
@@ -715,9 +720,11 @@ EXPLAIN_FAILED = ("Explanation unavailable right now (free model rate-limited); 
 
 def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                clock: Callable[[], float] = time.monotonic, default_league: str = "espn",
-               llm: Callable[[], Any] | None = None) -> FastAPI:
+               llm: Callable[[], Any] | None = None, auth: web_auth.AuthConfig | None = None) -> FastAPI:
     """Build the dashboard app. ``loader(league) -> LoadResult`` defaults to the live pipeline;
-    ``llm()`` returns the client for on-demand explanations (defaults to ``default_llm``)."""
+    ``llm()`` returns the client for on-demand explanations (defaults to ``default_llm``);
+    ``auth`` is the access policy (``auth.auth_from_settings()`` for the real server; None = no
+    checks, as in the tests)."""
     from ..prefs import DYNASTY_MODE_KEY, DYNASTY_MODES, mode_source_label, normalize_mode, set_pref
 
     app = FastAPI(title="Fantasy Manager", docs_url=None, redoc_url=None)
@@ -738,7 +745,9 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                        strength_info=views.strength_info, counterparty=views.counterparty, rec_key=rec_key,
                        SKATER_RATES=views.SKATER_RATES, GOALIE_RATES=views.GOALIE_RATES,
                        RATE_LABEL=views.RATE_LABEL, POSITION_FILTERS=views.POSITION_FILTERS,
-                       EXPLAIN_FAILED=EXPLAIN_FAILED)
+                       EXPLAIN_FAILED=EXPLAIN_FAILED, auth_enabled=False)
+    if auth is not None:
+        web_auth.install(app, auth, templates)
     make_llm = llm or default_llm
 
     def llm_available() -> bool:
@@ -1165,16 +1174,32 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
 
 
 def run(host: str = "127.0.0.1", port: int = 8765, league: str = "espn") -> None:
-    """Serve the dashboard with uvicorn (blocking). ``league`` is the default when a URL has none."""
+    """Serve the dashboard with uvicorn (blocking). ``league`` is the default when a URL has none.
+
+    Raises ``auth.InsecureBindError`` for a non-loopback ``host`` without ``FM_WEB_PASSWORD``
+    (unless ``FM_WEB_ALLOW_INSECURE=1``)."""
     import uvicorn
 
-    web = create_app(default_league=league)
-    print(f"Fantasy Manager dashboard: http://{host}:{port}/?league={league}")
-    uvicorn.run(web, host=host, port=port, log_level="info")
+    policy = web_auth.auth_from_settings()
+    web_auth.check_bind(host, bool(policy.password), policy.allow_insecure)
+    web = create_app(default_league=league, auth=policy)
+    print(f"Fantasy Manager dashboard: http://{host}:{port}/?league={league}"
+          + ("  (password required)" if policy.password else "") + "  (Ctrl+C to stop)")
+    uvicorn.run(web, host=host, port=port, log_level="info", proxy_headers=True,
+                forwarded_allow_ips=",".join(sorted(policy.trusted_proxies)))
 
 
-# Module-level app for `uvicorn fantasy_manager.web.app:app`; building it never touches the network.
-app = create_app()
+def _server_policy() -> web_auth.AuthConfig:
+    try:
+        return web_auth.auth_from_settings()
+    except Exception as e:  # noqa: BLE001 - a bad .env must not open the dashboard: fail closed
+        log.error("could not read the dashboard settings (%s); serving loopback clients only", type(e).__name__)
+        return web_auth.AuthConfig()
+
+
+# Module-level app for `uvicorn fantasy_manager.web.app:app` (the systemd service), with the
+# access policy from .env / the environment. Building it never touches the network or writes files.
+app = create_app(auth=_server_policy())
 
 __all__ = ["BaseLoad", "LoadResult", "PipelineLoader", "ResultCache", "action_line", "app", "create_app",
            "current_mode", "default_loader", "finish", "load_base", "overview_summary", "run", "safe_next"]

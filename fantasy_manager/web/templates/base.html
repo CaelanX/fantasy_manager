@@ -79,9 +79,16 @@
       {% endif %}
       {% endif %}
     </div>
-    <form method="post" action="/refresh?league={{ league }}&amp;next={{ here|urlencode }}">
-      <button type="submit" class="linkbtn">Refresh data</button>
-    </form>
+    <div class="foot-actions">
+      <form method="post" action="/refresh?league={{ league }}&amp;next={{ here|urlencode }}">
+        <button type="submit" class="linkbtn">Refresh data</button>
+      </form>
+      {% if auth_enabled %}
+      <form method="post" action="/logout" hx-boost="false">
+        <button type="submit" class="linkbtn">Log out</button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 </footer>
 </body>

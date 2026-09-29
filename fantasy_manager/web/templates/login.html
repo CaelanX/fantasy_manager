@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Log in | Fantasy Manager</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="wrap">
+  <div class="mast">
+    <span class="brand">Fantasy Manager <span>/ hockey</span></span>
+  </div>
+</header>
+<main id="main" class="wrap login" tabindex="-1">
+  <h1>Log in</h1>
+  {% if error %}<div class="warn-box" role="alert"><p>{{ error }}</p></div>{% endif %}
+  <form method="post" action="/login" class="login-form" hx-boost="false">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label for="password">Dashboard password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+    <button type="submit">Log in</button>
+  </form>
+  <p class="muted small">The password is <code>FM_WEB_PASSWORD</code> in the server's <code>.env</code>.</p>
+</main>
+</body>
+</html>

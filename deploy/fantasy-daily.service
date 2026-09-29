@@ -1,0 +1,32 @@
+# One run of the daily job: Fantrax ping, projection archive, harness, report + webhooks.
+# Started by fantasy-daily.timer. Logs: journalctl -u fantasy-daily and /opt/fantasy_manager/data/logs/
+[Unit]
+Description=Fantasy Manager daily job (ping, archive, harness, report)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=fantasy
+Group=fantasy
+WorkingDirectory=/opt/fantasy_manager
+EnvironmentFile=/opt/fantasy_manager/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bin/bash /opt/fantasy_manager/deploy/daily.sh
+TimeoutStartSec=45min
+Nice=5
+
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/fantasy_manager/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=

@@ -1,0 +1,64 @@
+# Container alternative: dashboard + Caddy (automatic HTTPS) + a sidecar that runs the daily job
+# at 07:30 and a backup afterwards. See docs/hosting.md, "Docker alternative".
+#
+#   add FM_DOMAIN=fantasy.example.com (and optionally TZ=America/Toronto) to .env
+#   mkdir -p data backups && sudo chown -R 10001:10001 data backups   # containers run as uid 10001
+#   docker compose up -d --build
+#
+# .env (league ids, cookies, FM_WEB_PASSWORD, ...) is read at runtime and never copied into the image.
+# Compose also reads .env for the ${...} values below. Compose treats "$" in .env values as a
+# variable reference: write a literal $ as $$ (cookies rarely contain one).
+services:
+  web:
+    build: .
+    image: fantasy-manager:latest
+    env_file: .env
+    environment:
+      FM_DATA_DIR: /app/data
+      TZ: ${TZ:-America/Toronto}
+    volumes:
+      - ./data:/app/data
+    expose:
+      - "8765"          # reachable from caddy only; nothing is published on the host
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      FM_DOMAIN: ${FM_DOMAIN:?set FM_DOMAIN to your domain}
+      FM_UPSTREAM: web:8765
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data          # certificates: keep this volume
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+    restart: unless-stopped
+
+  cron:
+    build: .
+    image: fantasy-manager:latest  # same image as web
+    env_file: .env
+    environment:
+      FM_DATA_DIR: /app/data
+      TZ: ${TZ:-America/Toronto}
+      DAILY_AT: "07:30"
+      BACKUP_DIR: /app/backups
+      KEEP: "14"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+    command: ["bash", "/app/deploy/docker-cron.sh"]
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  caddy_logs:

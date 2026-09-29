@@ -1,0 +1,29 @@
+# Nightly backup of /opt/fantasy_manager/data to /var/backups/fantasy_manager (keeps 14).
+[Unit]
+Description=Fantasy Manager data backup
+
+[Service]
+Type=oneshot
+User=fantasy
+Group=fantasy
+WorkingDirectory=/opt/fantasy_manager
+Environment=BACKUP_DIR=/var/backups/fantasy_manager
+Environment=KEEP=14
+ExecStart=/bin/bash /opt/fantasy_manager/deploy/backup.sh
+TimeoutStartSec=30min
+Nice=10
+IOSchedulingClass=idle
+
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# data/ is listed too: SQLite needs its -wal/-shm files writable to take a consistent snapshot.
+ReadWritePaths=/var/backups/fantasy_manager /opt/fantasy_manager/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=

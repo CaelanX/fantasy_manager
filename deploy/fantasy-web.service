@@ -1,0 +1,45 @@
+# Fantasy Manager web dashboard (uvicorn on 127.0.0.1:8765, behind Caddy).
+# Installed to /etc/systemd/system/ by deploy/install.sh. Logs: journalctl -u fantasy-web
+[Unit]
+Description=Fantasy Manager web dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fantasy
+Group=fantasy
+WorkingDirectory=/opt/fantasy_manager
+# The same .env the CLI reads (pydantic also reads it from WorkingDirectory). Keep values on one
+# line and unquoted; systemd does not expand $ in this file.
+EnvironmentFile=/opt/fantasy_manager/.env
+Environment=PYTHONUNBUFFERED=1
+# Only Caddy on this machine may set X-Forwarded-For / X-Forwarded-Proto.
+ExecStart=/opt/fantasy_manager/.venv/bin/uvicorn fantasy_manager.web.app:app --host 127.0.0.1 --port 8765 --proxy-headers --forwarded-allow-ips=127.0.0.1 --no-server-header
+Restart=always
+RestartSec=5
+
+# Hardening: read-only system, writable data dir only.
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/fantasy_manager/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

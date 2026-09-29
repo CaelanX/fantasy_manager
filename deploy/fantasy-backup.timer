@@ -1,0 +1,11 @@
+# Nightly data backup at 03:15 (server time). Check: systemctl list-timers
+[Unit]
+Description=Fantasy Manager nightly data backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

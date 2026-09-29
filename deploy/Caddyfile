@@ -1,0 +1,36 @@
+# Caddy reverse proxy for the Fantasy Manager dashboard.
+#
+# Ubuntu (systemd) path: deploy/install.sh copies this file to /etc/caddy/Caddyfile and replaces
+# fantasy.example.com with your domain when you run it with DOMAIN=your.domain. Caddy then gets and
+# renews a Let's Encrypt certificate automatically (ports 80 and 443 must be open and the domain's
+# A record must point at this server).
+#
+# Docker path: docker-compose.yml mounts this file and sets FM_DOMAIN and FM_UPSTREAM (web:8765).
+#
+# Check it with:  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+{$FM_DOMAIN:fantasy.example.com} {
+	encode zstd gzip
+
+	# The dashboard itself listens on 127.0.0.1:8765 only; uvicorn trusts X-Forwarded-* from here.
+	reverse_proxy {$FM_UPSTREAM:127.0.0.1:8765}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		# htmx comes from cdnjs; the charts are inline SVG; bars use inline style="width: ...%".
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/fantasy-access.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+	}
+}
