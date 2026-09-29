@@ -1,0 +1,31 @@
+{
+  "_about": "NHL equivalency (NHLe) factors: NHL points per game ~= source-league points per game x factor. APPROXIMATE practitioner midpoints (public NHLe work; the published values drift by season and method), not fitted here. Refit later by replacing this file; keys are the NHL landing page's seasonTotals[].leagueAbbrev strings (verified live 2026-09-29). 'class' picks the league-norm age for the age adjustment; 'reliability' (0-1) scales how much a season in that league counts as evidence.",
+  "version": "2026-09 practitioner midpoints (approximate)",
+  "age_adjustment": {
+    "per_year": 0.08,
+    "max_years": 3,
+    "_about": "A season played younger than the league's norm age is bumped up by per_year for each year under it (at most max_years): an 18-year-old scoring in a men's league is a better prospect than a 24-year-old with the same line."
+  },
+  "norm_age": {"nhl": 24, "pro": 22, "college": 21, "junior": 19},
+  "leagues": {
+    "NHL":               {"factor": 1.0,   "class": "nhl",     "reliability": 1.0},
+    "KHL":               {"factor": 0.775, "class": "pro",     "reliability": 0.9},
+    "SHL":               {"factor": 0.575, "class": "pro",     "reliability": 0.9},
+    "Czechia":           {"factor": 0.5,   "class": "pro",     "reliability": 0.8},
+    "Liiga":             {"factor": 0.475, "class": "pro",     "reliability": 0.85},
+    "AHL":               {"factor": 0.455, "class": "pro",     "reliability": 0.95},
+    "NLA":               {"factor": 0.45,  "class": "pro",     "reliability": 0.8},
+    "NL":                {"factor": 0.45,  "class": "pro",     "reliability": 0.8},
+    "DEL":               {"factor": 0.4,   "class": "pro",     "reliability": 0.7, "_note": "not in the core table; approximate"},
+    "NCAA":              {"factor": 0.375, "class": "college", "reliability": 0.85},
+    "HockeyAllsvenskan": {"factor": 0.3,   "class": "pro",     "reliability": 0.6, "_note": "not in the core table; approximate"},
+    "VHL":               {"factor": 0.3,   "class": "pro",     "reliability": 0.6, "_note": "not in the core table; approximate"},
+    "OHL":               {"factor": 0.275, "class": "junior",  "reliability": 0.85},
+    "WHL":               {"factor": 0.275, "class": "junior",  "reliability": 0.85},
+    "QMJHL":             {"factor": 0.25,  "class": "junior",  "reliability": 0.8},
+    "USHL":              {"factor": 0.15,  "class": "junior",  "reliability": 0.5, "_note": "not in the core table; approximate"},
+    "MHL":               {"factor": 0.12,  "class": "junior",  "reliability": 0.4, "_note": "not in the core table; approximate"},
+    "NTDP":              {"factor": 0.12,  "class": "junior",  "reliability": 0.4, "_note": "not in the core table; approximate"},
+    "J20 Nationell":     {"factor": 0.1,   "class": "junior",  "reliability": 0.4, "_note": "not in the core table; approximate"}
+  }
+}

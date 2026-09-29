@@ -553,7 +553,8 @@ def current_matchup(ctx: LeagueContext, provider: Any = None, values: Mapping[st
         try:
             plan = streaming_targets(ctx, values, start, limit=3, today=from_day, end=end, team_limit=3)
             best = sorted((t for ts in plan.by_slot.values() for t in ts), key=lambda t: -t.proj)[:3]
-            names = [f"{t.name} ({t.team}, {t.games} GP, {t.proj:.1f} pts)" for t in best]
+            names = [f"{t.name} ({t.team}, {t.games} GP, {t.proj:.1f} pts"
+                     + (f"; {t.needs_drop}" if t.needs_drop else "") + ")" for t in best]
             teams = [f"{r.team} {r.games}" for r in plan.teams if r.games > 0]
         except Exception as e:  # noqa: BLE001
             m.warnings.append(f"Streaming targets unavailable: {e}")

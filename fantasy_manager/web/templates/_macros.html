@@ -112,6 +112,7 @@
     {% if g %}
     <b class="gain-v">{{ g.value|n1(True) }}</b> <span class="gain-u">{{ g.unit }}</span>
     <span class="gain-h">{{ [g.horizon, g.confidence_label]|select|join(' · ') }}{% if g.dynasty is not none %}{{ ' · ' if g.horizon or g.confidence_label }}dynasty {{ g.dynasty|n1(True) }}{% endif %}</span>
+    {% if g.trade %}<span class="gain-h trade-acc">acceptance {{ g.trade.p_text }}{% if g.trade.ev is not none %} &middot; expected value {{ g.trade.ev|num(2, True) }}{% endif %}{% if g.trade.sweet %} &middot; sweet spot{% endif %}</span>{% endif %}
     {% else %}
     <span class="gain-h">No numeric gain for this kind of move</span>
     {% endif %}

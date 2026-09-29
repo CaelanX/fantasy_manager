@@ -275,6 +275,12 @@ class StreamTarget(BaseModel):
     proj: float
     pct_owned: float | None = None
     opps: list[str] = Field(default_factory=list)
+    # Set when my roster is at a per-position maximum for him (e.g. "G limit 3"): streaming him
+    # needs a same-position drop, not just any drop.
+    needs_drop: str | None = None
+    # Moves-left note when the league limits moves ("1 of 2 moves left this week"); with none left
+    # it is also appended to ``needs_drop`` so every view shows it.
+    note: str | None = None
 
 
 class StreamingPlan(BaseModel):
@@ -284,6 +290,7 @@ class StreamingPlan(BaseModel):
     by_slot: dict[str, list[StreamTarget]] = Field(default_factory=dict)
     teams: list[TeamWeekRow] = Field(default_factory=list)   # best NHL teams to stream from
     bonus: float = 0.05
+    moves_note: str | None = None     # "1 of 2 moves left this week" (None = unlimited)
 
 
 def streaming_targets(ctx: LeagueContext, values: Mapping[str, Any], week_start: date,
@@ -293,7 +300,20 @@ def streaming_targets(ctx: LeagueContext, values: Mapping[str, Any], week_start:
     """Free agents ranked by projected points over the rest of the week starting at
     ``week_start``'s Monday (from ``today`` = ``ctx.as_of`` once the week has begun):
     per-game value x games x (1 + bonus x off-night games). Injured / suspended free agents are
-    skipped. ``teams`` ranks the NHL teams with the most games left (then off-night games)."""
+    skipped. ``teams`` ranks the NHL teams with the most games left (then off-night games).
+    Targets whose position is at a league roster maximum on my team (``ctx.position_limits``) get
+    ``needs_drop`` ("G limit 3 reached: drop a G"). When the league limits moves every target gets
+    ``note`` ("1 of 2 moves left this week"), appended to ``needs_drop`` when there is one; with
+    no moves left ``needs_drop`` says so ("no moves left this week (2/2 used)")."""
+    from ..recommend.base import cap_text, capped_positions, moves_left, moves_note, no_moves_text
+    budget_note = moves_note(ctx)
+    exhausted = budget_note is not None and moves_left(ctx) == 0
+    if exhausted:
+        budget_note = no_moves_text(ctx).split(";")[0]
+    try:
+        my_team = ctx.my_team if ctx.position_limits else None
+    except LookupError:
+        my_team = None
     start = monday(week_start)
     week_end = end or (start + timedelta(days=6))
     today = today or ctx.as_of
@@ -319,17 +339,23 @@ def streaming_targets(ctx: LeagueContext, values: Mapping[str, Any], week_start:
             continue
         opp = (ctx.opponents or {}).get(p.team, {})
         opps = [opp.get(d) or d.strftime("%a") for d in days if d in set(ctx.schedule[p.team])]
+        capped = capped_positions(my_team, ctx, p) if my_team is not None else []
+        drop_txt = (", ".join(cap_text(ctx, k) for k in capped) + f" reached: drop a {'/'.join(capped)}")             if capped else None
+        if budget_note and (drop_txt or exhausted):
+            drop_txt = "; ".join(x for x in (drop_txt, budget_note[:1].lower() + budget_note[1:] if exhausted
+                                             else budget_note) if x)
         by_slot[g].append(StreamTarget(
             cid=p.cid, name=p.name, team=p.team, pos="/".join(x for x in p.positions if x != "F") or g,
             group=g, status=p.status, games=games, offnights=off, b2b=b2b, per_game=pg,
-            proj=pg * games * (1 + bonus * off), pct_owned=p.pct_owned, opps=opps))
+            proj=pg * games * (1 + bonus * off), pct_owned=p.pct_owned, opps=opps,
+            needs_drop=drop_txt, note=budget_note))
     for s in by_slot:
         by_slot[s] = sorted(by_slot[s], key=lambda t: (-t.proj, t.name))[:limit]
     rows = [_team_row(ctx, t, days, gpd, threshold) for t in ctx.schedule] if days else []
     for r in rows:
         r.free_agents = fa_by_team.get(r.team, 0)
     return StreamingPlan(week_start=start, week_end=week_end, from_day=from_day, by_slot=by_slot,
-                         teams=_rank_rows(rows)[:team_limit], bonus=bonus)
+                         teams=_rank_rows(rows)[:team_limit], bonus=bonus, moves_note=budget_note)
 
 
 # --------------------------------------------------------------------------- league calendar

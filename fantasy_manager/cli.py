@@ -374,6 +374,28 @@ def _print_fit(lc: LeagueContext, provider: Any, as_json: bool) -> None:
     _footer(lc)
 
 
+def _moves_line(lc: LeagueContext) -> str:
+    """"Moves: 2 per matchup period (1 used, 1 left, resets Mon Oct 5)" / "Moves: unlimited"."""
+    from .recommend.base import moves_text
+
+    line = f"Moves: {moves_text(lc)}"
+    if lc.faab_remaining is not None:
+        line += f"; FAAB left ${lc.faab_remaining:g}"
+    return line
+
+
+def _moves_json(lc: LeagueContext) -> dict[str, Any]:
+    from .recommend.base import moves_left
+
+    return {"limit_per_period": lc.moves_limit_per_period, "period": lc.moves_period_label,
+            "used_this_period": lc.moves_used_this_period, "left": moves_left(lc),
+            "limit_season": lc.moves_limit_season, "used_season": lc.moves_used_season,
+            "period_start": lc.period_start.isoformat() if lc.period_start else None,
+            "period_end": lc.period_end.isoformat() if lc.period_end else None,
+            "recent_adds": {k: v.isoformat() for k, v in lc.recent_adds.items()},
+            "faab_remaining": lc.faab_remaining}
+
+
 @app.command()
 def settings(ctx: typer.Context,
              league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
@@ -401,12 +423,14 @@ def settings(ctx: typer.Context,
     if as_json:
         _dump({"provider": lc.provider, "league_id": lc.league_id, "season": lc.season, "name": lc.name,
                "scoring": lc.scoring.model_dump(), "roster_shape": lc.roster_shape,
+               "position_limits": lc.position_limits, "max_roster_size": lc.max_roster_size,
                "matchup_period": lc.matchup_period, "my_team": my.name if my else None,
                "dynasty": lc.dynasty, "keeper_horizon_years": lc.keeper_horizon_years,
                "dynasty_mode": lc.dynasty_mode, "dynasty_mode_source": lc.dynasty_mode_source,
                "teams": [{"team_id": t.team_id, "name": t.name, "record": t.record, "mine": t.owner_is_me}
                          for t in lc.teams],
                "free_agents_loaded": len(lc.free_agents), "provider_settings": extra,
+               "moves": _moves_json(lc),
                "params_source": _params_source(), "warnings": lc.warnings})
         return
     console.print(f"[bold]{lc.name}[/]  ({lc.provider} league {lc.league_id}, season {lc.season})")
@@ -426,6 +450,9 @@ def settings(ctx: typer.Context,
         console.print("Categories: " + ", ".join(lc.scoring.categories))
     shape = sorted(lc.roster_shape.items(), key=lambda kv: SLOT_ORDER.get(kv[0], 99))
     console.print("Roster: " + "  ".join(f"{s}x{n}" for s, n in shape))
+    from .recommend.base import position_limits_text
+    console.print("Roster maximums: " + (position_limits_text(lc) or "none reported by the provider"))
+    console.print(escape(_moves_line(lc)))
     console.print(f"My team: [bold green]{my.name if my else '?'}[/]")
     tt = Table(title="Teams")
     for c in ("ID", "Team", "W-L-T"):
@@ -490,6 +517,7 @@ def roster(ctx: typer.Context,
     repl = replacement_for(lc, values)
     console.print("Replacement FPG: " + "  ".join(f"{s} {v:.2f}" for s, v in repl.items()))
     console.print(f"[dim]* prospect: age <= {PROSPECT_MAX_AGE} and fewer than {PROSPECT_MAX_GP} NHL games[/]")
+    console.print(f"[dim]{escape(_moves_line(lc))}[/]")
     _footer(lc)
 
 
@@ -514,11 +542,18 @@ def waivers(ctx: typer.Context,
         _dump([r.model_dump(mode="json") for r in recs])
         return
     if not recs:
-        msg = "No free agent beats your weakest same-position player by more than 0.3 FPG"
-        if dyn:
-            msg += " while also clearing the dynasty-value bar (x1.15, x1.5 for protected players)"
-        console.print(msg + ".")
+        from .recommend.base import move_scarcity_threshold, moves_left, no_moves_text
+
+        if moves_left(lc) == 0:
+            console.print(escape(no_moves_text(lc)) + ".")
+        else:
+            thr = move_scarcity_threshold(lc) or 0.3
+            msg = f"No free agent beats your weakest same-position player by more than {thr:.1f} FPG"
+            if dyn:
+                msg += " while also clearing the dynasty-value bar (x1.15, x1.5 for protected players)"
+            console.print(msg + ".")
         _print_protected(blocked)
+        console.print(f"[dim]{escape(_moves_line(lc))}[/]")
         _footer(lc)
         return
     tbl = Table(title=f"Waiver targets ({horizon.value} horizon)", show_lines=True)
@@ -539,18 +574,30 @@ def waivers(ctx: typer.Context,
         tbl.add_row(_rank_cell(r, i), add, drop, _gain_cell(r), _strength_cell(r), why)
     console.print(tbl)
     _print_protected(blocked)
+    console.print(f"[dim]{escape(_moves_line(lc))}[/]")
     _footer(lc)
 
 
 def _print_protected(blocked: list[dict[str, Any]]) -> None:
     """One dim line per protected player that blocked at least one waiver drop."""
     by_drop: dict[str, list[dict[str, Any]]] = {}
+    capped = [b for b in blocked if b["reason"].code == "POSITION_CAP"]
+    churn: dict[str, list[dict[str, Any]]] = {}
     for b in blocked:
-        by_drop.setdefault(b["drop"], []).append(b)
+        if b["reason"].code == "CHURN_GUARD":
+            churn.setdefault(b["drop"], []).append(b)
+        elif b["reason"].code != "POSITION_CAP":
+            by_drop.setdefault(b["drop"], []).append(b)
+    for name, items in churn.items():
+        best = max(items, key=lambda b: b["add_value"] or 0.0)
+        console.print(f"[dim]Churn guard: {escape(best['reason'].text)} (blocked {len(items)} pickup"
+                      f"{'s' if len(items) != 1 else ''})[/]")
     for name, items in by_drop.items():
         best = max(items, key=lambda b: b["add_value"])
         console.print(f"[dim]Protected: {best['reason'].text} (blocked {len(items)} pickup"
                       f"{'s' if len(items) != 1 else ''})[/]")
+    for b in capped[:3]:
+        console.print(f"[dim]Position limit: {escape(b['reason'].text)}[/]")
 
 
 @app.command()
@@ -834,7 +881,7 @@ def _run_advise(d: Loaded, history: Any, errors: list[str], limit: int | None = 
         recs = _safe(errors, "advise", advise, d.lc, d.values, dynasty_values=d.dyn, history=history,
                      include=("lineup", "waivers", "flags", "injuries", "alerts"), default=[])
     trades = _safe(errors, "trades", recommend_trades, d.lc, d.values, dynasty_values=d.dyn,
-                   wants=_trade_wants(d.lc, d.provider), default=[])
+                   wants=_trade_wants(d.lc, d.provider), offered=_trade_offered(d.provider), default=[])
     merged = list(recs) + normalize_scores(trades)
 
     def prio(r: Recommendation) -> int:
@@ -918,7 +965,9 @@ def trades(ctx: typer.Context,
            league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
            mode: Optional[ModeName] = _mode_opt(),
            json_out: bool = typer.Option(False, "--json")) -> None:
-    """Trade proposals: 1-for-1 and 2-for-1 deals that improve your lineup and are fair."""
+    """Trade proposals ranked by expected value: your lineup gain x the chance they accept
+    (judged by market value: ADP / % rostered). Plus the sweet spot: deals the market calls fair
+    that our model says you win."""
     from .recommend.trades import recommend_trades
 
     league_name, as_json = _opts(ctx, league, json_out)
@@ -926,41 +975,74 @@ def trades(ctx: typer.Context,
     lc, errors = d.lc, d.errors
     wants = _trade_wants(lc, d.provider)
     future: list[Recommendation] = []
+    sweet: list[Recommendation] = []
     recs = _safe(errors, "trades", recommend_trades, lc, d.values, dynasty_values=d.dyn,
-                 max_per_team=per_team, limit=limit, wants=wants, default=[],
+                 max_per_team=per_team, limit=limit, wants=wants, offered=_trade_offered(d.provider),
+                 default=[], sweet_spot=sweet,
                  future_only=future if d.dyn and lc.dynasty_mode == "contend" else None)
     if as_json:
-        _json_out({"trades": _recs_json(recs), "future_only": _recs_json(future[:5]),
+        _json_out({"trades": _recs_json(recs), "sweet_spot": _recs_json(sweet), "future_only": _recs_json(future[:5]),
                    "trade_block_wants": {k: sorted(v) for k, v in (wants or {}).items()}},
                   lc, errors)
         return
     if not recs:
-        console.print("No trade passes the fairness band with a lineup gain above +0.5 for you.")
+        console.print("No trade gains you more than +0.3 with at least a 25% chance of being accepted.")
         _print_future(future)
         _footer(lc, errors)
         return
-    units = "dynasty value" if d.dyn else "VORP"
-    tbl = Table(title=f"Trade proposals (Me/Them = starting-lineup FPG change; fairness on {units})",
-                show_lines=True)
-    for c, j in (("#", "right"), ("With", "left"), ("Give", "left"), ("Get", "left"), ("Me", "right"),
-                 ("Them", "right"), ("Fair", "right"), ("Strength", "right"), ("Why", "left")):
-        tbl.add_column(c, justify=j)
-    for i, r in enumerate(recs, 1):
-        gap = _reason_val(r, "FAIR_PCT")
-        why = [x.text for x in r.reasons if x.code in ("DYNASTY_DELTA", "THEIR_NEED", "ROSTER_DROP", "FA_FILL",
-                                                        "ROTO_BALANCE")]
-        tbl.add_row(_rank_cell(r, i), r.counterparty or "-",
-                    "\n".join(f"{p.name} ({_pos(p)})" for p in r.drop),
-                    "\n".join(f"{p.name} ({_pos(p)})" for p in r.add),
-                    _fmt(_reason_val(r, "DELTA_ME"), signed=True), _fmt(_reason_val(r, "DELTA_THEM"), signed=True),
-                    "-" if gap is None else f"{gap:.0%} gap", _strength_cell(r), "\n".join(why) or "-")
-    console.print(tbl)
+    console.print(_trade_table("Trade proposals, ranked by expected value (EV = your gain x acceptance chance)",
+                               recs))
+    console.print("[dim]Market = how the deal looks to them by market value (ADP / % rostered worth points, + = in "
+                  "their favour); acceptance is a prior until the harness has logged 20 proposals (docs/trades.md).[/]")
+    if sweet:
+        console.print(_trade_table("Sweet spot: the market calls it fair, our model says you win", sweet,
+                                   sweet=True))
     if wants:
         console.print("[dim]Trade-block wants: " + "; ".join(
             f"{next((t.name for t in lc.teams if t.team_id == k), k)}: {', '.join(sorted(v))}"
             for k, v in wants.items()) + "[/]")
     _print_future(future)
     _footer(lc, errors)
+
+
+def _trade_offered(provider: Any) -> dict[str, set[str]] | None:
+    """team_id -> player cids that team offers on its Fantrax trade block (None without blocks)."""
+    out: dict[str, set[str]] = {}
+    for b in getattr(provider, "trade_blocks", None) or []:
+        tid = str(getattr(b, "team_id", "") or "")
+        cids = {c for c in getattr(b, "players_offered", None) or [] if c}
+        if tid and cids:
+            out[tid] = cids
+    return out or None
+
+
+def _trade_table(title: str, recs: list[Recommendation], sweet: bool = False) -> Table:
+    """One row per trade: your gain, the market view, acceptance, EV, strength and the why."""
+    tbl = Table(title=title, show_lines=True)
+    for c, j in (("#", "right"), ("With", "left"), ("Give", "left"), ("Get", "left"), ("You gain", "right"),
+                 ("Market", "right"), ("Accept", "right"), ("EV", "right"), ("Strength", "right"),
+                 ("Why", "left")):
+        tbl.add_column(c, justify=j)
+    for i, r in enumerate(recs, 1):
+        edge = _reason_val(r, "MY_EDGE")
+        dyn = _reason_val(r, "DYNASTY_DELTA")
+        this_season = _reason_val(r, "DELTA_ME")
+        gain = _fmt(this_season, signed=True) + (f"\ndyn {dyn:+.2f}" if dyn is not None else "")
+        perceived, p = _reason_val(r, "MARKET_VIEW"), _reason_val(r, "P_ACCEPT")
+        mv = _reason(r, "MARKET_VIEW")
+        label = mv.text.split(" by market value")[0].replace("Looks ", "").replace(" to them", "") if mv else ""
+        ev = edge * p if edge is not None and p is not None else None
+        codes = ("THEIR_NEED", "TRADE_BLOCK", "ROSTER_CONSEQUENCE", "POSITION_CAP", "WIN_NOW_COST", "ROTO_BALANCE")
+        why = [x.text for x in r.reasons if x.code in codes]
+        if not sweet and _reason(r, "SWEET_SPOT") is not None:
+            why.insert(0, "Sweet spot")
+        tbl.add_row(str(i) if sweet else _rank_cell(r, i), r.counterparty or "-",
+                    "\n".join(f"{x.name} ({_pos(x)})" for x in r.drop),
+                    "\n".join(f"{x.name} ({_pos(x)})" for x in r.add), gain,
+                    "-" if perceived is None else f"{perceived:+.1f}\n{label}",
+                    "-" if p is None else f"{p:.0%}", _fmt(ev, signed=True), _strength_cell(r),
+                    "\n".join(why) or "-")
+    return tbl
 
 
 def _print_future(future: list[Recommendation], n: int = 3) -> None:
@@ -1680,6 +1762,8 @@ def _stream_tables(plan: Any) -> list[Table]:
             tbl.add_column(c, justify=j)
         for t in targets:
             name = escape(t.name) + ("" if t.status == "healthy" else f" [yellow]({t.status})[/]")
+            if t.needs_drop:
+                name += f" [magenta]({escape(t.needs_drop)})[/]"
             tbl.add_row(name, t.pos, t.team or "-", str(t.games), str(t.offnights), _fmt(t.per_game), _fmt(t.proj),
                         "-" if t.pct_owned is None else f"{t.pct_owned:.0f}", escape(" ".join(t.opps)))
         if not targets:

@@ -174,6 +174,17 @@ def credits(ctx: LeagueContext) -> list[str]:
         return []
 
 
+def limits_text(ctx: LeagueContext) -> str | None:
+    """Per-position / roster-size maximums for the footer's league line ("max G 3; roster 22
+    (excl. IR)"), or None when the provider reported none."""
+    from ..recommend.base import position_limits_text
+
+    try:
+        return position_limits_text(ctx)
+    except Exception:  # never let a footer line sink a page
+        return None
+
+
 def player_row(res: Any, p: Player, slot: Any = None, owner: str | None = None) -> dict[str, Any]:
     ctx = res.ctx
     pv = res.values.get(p.cid)
@@ -314,7 +325,23 @@ def gain_info(r: Recommendation, res: Any = None) -> dict[str, Any] | None:
     if value is None:
         return None
     return {"value": value, "unit": unit, "horizon": horizon, "confidence": conf, "confidence_label": conf_label,
-            "dynasty": dyn}
+            "dynasty": dyn, "trade": trade_info(r)}
+
+
+def trade_info(r: Recommendation) -> dict[str, Any] | None:
+    """A trade's acceptance view (recommend.trades): acceptance probability, expected value
+    (my edge x p), the market view in percentile points (+ = in their favour) and whether it is
+    a sweet-spot deal. None for other kinds and for trade recs without a P_ACCEPT reason."""
+    if r.kind != "trade" or (acc := _reason(r, "P_ACCEPT")) is None or _num(acc.value) is None:
+        return None
+    p = float(acc.value)
+    edge = _reason(r, "MY_EDGE")
+    edge_v = _num(edge.value) if edge is not None else _num(getattr(r, "predicted_gain", None))
+    mv = _reason(r, "MARKET_VIEW")
+    return {"p": p, "p_text": f"~{5 * round(p * 20):.0f}%", "ev": edge_v * p if edge_v is not None else None,
+            "edge": edge_v, "market": _num(mv.value) if mv is not None else None,
+            "market_text": mv.text if mv is not None else None,
+            "sweet": _reason(r, "SWEET_SPOT") is not None}
 
 
 def strength_info(r: Recommendation, recs: Iterable[Recommendation] = ()) -> dict[str, Any]:

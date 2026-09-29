@@ -12,7 +12,8 @@ from fantasy_manager.providers.base import ProviderError
 from fantasy_manager.providers.fantrax import (FPTS_KEY, FantraxProvider, canonical_slot, data_split,
                                                fit_weights, load_cookies, parse_cookie_header,
                                                parse_cookie_text, parse_league_rules, parse_player_pool,
-                                               parse_roster, player_positions, rules_weights,
+                                               parse_roster, player_positions, rules_max_roster,
+                                               rules_position_limits, rules_weights,
                                                season_from_settings, status_from_icons, timeframe_codes,
                                                validate_weights, weights_check)
 from fantasy_manager.scoring import PointsScoring
@@ -436,6 +437,28 @@ def test_league_rules_parse():
     assert base == RULE_WEIGHTS and goalie == {"A": 3.0, "G": 20.0} and notes == []
 
 
+def test_league_rules_total_max_per_position():
+    content = fx("league_rules")["content"]
+    rules = parse_league_rules(content)
+    # this league leaves "Total Max" blank: no per-position roster maximum, 16 players in all
+    assert {p: v["max"] for p, v in rules.positions.items()} == {"F": None, "D": None, "G": None}
+    assert rules_position_limits(rules) == {} and rules_max_roster(rules) == 16
+    goalie_row = "<td><p>Goalie (G)</p></td><td><p>0</p></td><td><p>2</p></td><td><p></p></td>"
+    defense_row = "<td><p>Defense (D)</p></td><td><p>0</p></td><td><p>3</p></td><td><p></p></td>"
+    assert goalie_row in content and defense_row in content
+    capped = content.replace(goalie_row, goalie_row.replace("<p></p>", "<p>3</p>"))         .replace(defense_row, defense_row.replace("<p></p>", "<p>6</p>"))
+    rules = parse_league_rules(capped)
+    assert rules.positions["G"] == {"min_active": 0, "max_active": 2, "max": 3}
+    assert rules_position_limits(rules) == {"D": 6, "G": 3}
+    # columns are found by header text, not position
+    table = ("<table><tr><th><p>Pos</p></th><th><p>Total Max</p></th><th><p>Min Active</p></th>"
+             "<th><p>Max Active</p></th></tr><tr><td><p>Goalie (G)</p></td><td><p>4</p></td>"
+             "<td><p>1</p></td><td><p>2</p></td></tr></table>")
+    rules = parse_league_rules(table)
+    assert rules.positions["G"] == {"min_active": 1, "max_active": 2, "max": 4}
+    assert rules_max_roster(parse_league_rules("")) is None and rules_position_limits(None) == {}
+
+
 def _synthetic(n, goalie, weights, goalie_weights=None, seed=1):
     import random
     rnd = random.Random(seed)
@@ -542,6 +565,7 @@ def test_provider_live_shape_end_to_end(tmp_path):
     assert prov.config_mae > 0.1   # the test POINTS are not this league's rules
     assert ctx.roster_shape == {"BN": 6, "F": 5, "D": 3, "G": 2}   # no IR / minors slots
     assert ctx.dynasty is True                                     # from "Keeper league Type: Dynasty"
+    assert ctx.position_limits == {} and ctx.max_roster_size == 16    # blank "Total Max" column
     eichel = next(p for p in ctx.my_team.players if p.name == "Jack Eichel")
     assert set(eichel.lines) == {"projected"} and eichel.gp() == 0
     assert prov.fantasy_points[eichel.cid] == (440.4, 5.79) and prov.ages[eichel.cid] == 29
@@ -570,6 +594,7 @@ def test_provider_live_shape_end_to_end(tmp_path):
     for s in ("Scoring (Fantrax league rules): A=2", "goalies: A=3, G=20", "Scoring check: mean abs error 0.000",
               "Roster: max total 16, active 10, reserve 6, IR Not Used, minors Not Used",
               "Active by position (max): F 5, D 3, G 2", "Keeper league type: Dynasty",
+              "Whole roster by position (Total Max): no limits",
               "Draft picks tradeable: Yes (3 future years, 10 rounds)",
               "Lineup changes: weekly (Rules page: Weekly every Monday)",
               "Playoffs: start scoring period 25", ", 6 teams", "My draft picks: 2027: 10 picks (rounds 1-10)",

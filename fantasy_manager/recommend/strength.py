@@ -7,13 +7,16 @@ below, 0 at no gain, capped at 10):
 
 * waiver / FPG gains (season_fpg): 0.3 -> 3, 1.0 -> 6, 2.0 -> 9, 3.0 -> 10
 * week points (week_pts, lineup and week-horizon waivers): 1 -> 3, 3 -> 6, 6 -> 9, 8 -> 10
-* trades (lineup_fpg ΔMe): 0.5 -> 4, 1.0 -> 6, 2.0 -> 9, 3.0 -> 10; +1 when the dynasty Δ
-  (DYNASTY_DELTA reason) is positive, -1 when negative
+* trades: expected value EV = my edge (MY_EDGE reason; the dynasty Δ for future-only recs)
+  x acceptance probability (P_ACCEPT reason), see recommend.trades: 0.15 -> 3, 0.35 -> 6
+  (a +0.5 FPG deal at p = 0.7), 0.6 -> 8, 1.0 -> 10. Trade recs without P_ACCEPT (older
+  engines / fixtures) keep the legacy lineup-gain scale 0.5 -> 4, 1.0 -> 6, 2.0 -> 9, 3.0 -> 10,
+  +1 / -1 for a positive / negative dynasty Δ (DYNASTY_DELTA)
 * flags: |form ratio - 1| 0.35 -> 4, 0.6 -> 7, 1.0 -> 10
 * injury: the waiver add's strength, floored at 5 when the rec frees an IR slot; a bare
   status alert maps severity (dtd 2.5, out/suspended 5, ir 7.5, ltir 10)
 
-Waivers and trades multiply the gain by confidence (GP / (GP + k), floor 0.25, averaged over
+Waivers and trades multiply the gain (trades: the EV) by confidence (GP / (GP + k), floor 0.25, averaged over
 every player in a trade) before mapping, so preseason moves read lower.
 """
 from __future__ import annotations
@@ -26,6 +29,7 @@ from .base import confidence
 WAIVER_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (0.3, 3.0), (1.0, 6.0), (2.0, 9.0), (3.0, 10.0))
 WEEK_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (1.0, 3.0), (3.0, 6.0), (6.0, 9.0), (8.0, 10.0))
 TRADE_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (0.5, 4.0), (1.0, 6.0), (2.0, 9.0), (3.0, 10.0))
+TRADE_EV_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (0.15, 3.0), (0.35, 6.0), (0.6, 8.0), (1.0, 10.0))
 FLAG_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (0.35, 4.0), (0.6, 7.0), (1.0, 10.0))
 IR_FLOOR = 5.0
 SEVERITY_STRENGTH = {"dtd": 2.5, "suspended": 5.0, "out": 5.0, "ir": 7.5, "ltir": 10.0}
@@ -73,6 +77,13 @@ def strength_for(rec: Recommendation) -> float:
         ratio = _reason(rec, "FORM_RATIO")
         return round(interp(abs(ratio - 1.0), FLAG_SCALE), 2) if ratio is not None else 0.0
     if rec.kind == "trade":
+        p = _reason(rec, "P_ACCEPT")
+        if p is not None:
+            edge = gain if rec.gain_units == "dynasty" else _reason(rec, "MY_EDGE")
+            edge = gain if edge is None else edge
+            if edge is None:
+                return 0.0
+            return round(interp(edge * p * rec_confidence(rec), TRADE_EV_SCALE), 2)
         if gain is None:
             return 0.0
         s = interp(gain * rec_confidence(rec), TRADE_SCALE if rec.gain_units != "week_pts" else WEEK_SCALE)

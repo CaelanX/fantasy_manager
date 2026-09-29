@@ -34,7 +34,7 @@ import math
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
@@ -1107,14 +1107,68 @@ def parse_league_rules(content: str) -> LeagueRules:
         abbr = abbr_m.group(1).strip()
         rules.scoring.setdefault(_text(group) or "All", {})[abbr] = points
         rules.scoring_names.setdefault(abbr, name)
+    # Rosters table: Pos | Min Active | Max Active | Total Max ("Total Max" = the most players at
+    # that position on the whole roster; blank = no limit). Columns are located by header text
+    # when the header row is present, else by position.
+    cols = {"min_active": 1, "max_active": 2, "max": 3}
     for row in _ROW_RE.findall(content):
         cells = [_text(c) for c in _CELL_RE.findall(row)]
+        low = [c.lower() for c in cells]
+        if "max active" in low or "total max" in low:
+            found = {key: low.index(label) for key, label in (("min_active", "min active"),
+                                                              ("max_active", "max active"),
+                                                              ("max", "total max")) if label in low}
+            cols = {**{k: None for k in cols}, **found}
+            continue
         if len(cells) >= 3 and (pm := _ABBR_RE.search(cells[0])) and all(
                 re.fullmatch(r"-?\d*", c) for c in cells[1:4]):
-            vals = [int(c) if c else None for c in cells[1:4]] + [None] * (3 - len(cells[1:4]))
-            rules.positions[pm.group(1).strip().upper()] = {"min_active": vals[0], "max_active": vals[1],
-                                                            "max": vals[2]}
+            def cell(i: int | None) -> int | None:
+                v = cells[i] if i is not None and i < len(cells) else ""
+                return int(v) if re.fullmatch(r"-?\d+", v) else None
+            rules.positions[pm.group(1).strip().upper()] = {k: cell(i) for k, i in cols.items()}
     return rules
+
+
+def rules_position_limits(rules: LeagueRules | None) -> dict[str, int]:
+    """{position: "Total Max"} from the Rules page Rosters table (positions with a limit only;
+    Fantrax's F/D/G or C/LW/RW/D/G map to canonical slots)."""
+    out: dict[str, int] = {}
+    for pos, v in ((rules.positions if rules is not None else {}) or {}).items():
+        cap = v.get("max")
+        if cap is not None and cap > 0:
+            out[canonical_slot(pos)] = int(cap)
+    return out
+
+
+def rules_max_roster(rules: LeagueRules | None) -> int | None:
+    """"Maximum Total Players" (active + reserve; Fantrax counts IR and minors separately)."""
+    n = rules.get_int("Maximum Total Players") if rules is not None else None
+    return n if n and n > 0 else None
+
+
+CLAIMS_SEASON_LABEL = "Max # of claims per season"
+CLAIMS_WEEK_LABEL = "Max # of claims per week"
+
+
+def parse_claim_limit(text: str | None) -> int | None:
+    """"Unlimited" / blank / "Not Used" -> None (no limit); "10" -> 10; the live format
+    "3 (Free Agents:Unlimited, Waiver Wire:Unlimited) starting every Monday" -> 3 (the total;
+    the parenthesis limits each claim type). "Unlimited (Free Agents:2, Waiver Wire:1)" -> 3."""
+    m = re.match(r"\s*(\d+)", text or "")
+    if m:
+        return int(m.group(1))
+    subs = re.findall(r"[A-Za-z][A-Za-z ]*:\s*(\d+|Unlimited)", text or "")
+    if subs and all(v.isdigit() for v in subs):
+        return sum(int(v) for v in subs)
+    return None
+
+
+def rules_claim_limits(rules: LeagueRules | None) -> tuple[int | None, int | None]:
+    """(max claims per season, max claims per week) from the Rules page "Claims/Drops"
+    section; None = Unlimited (or not stated)."""
+    if rules is None:
+        return None, None
+    return parse_claim_limit(rules.get(CLAIMS_SEASON_LABEL)), parse_claim_limit(rules.get(CLAIMS_WEEK_LABEL))
 
 
 def stat_key(abbr: str) -> str | None:
@@ -1540,6 +1594,8 @@ class FantraxProvider:
             name=str(fs.get("leagueName") or f"Fantrax {s.fantrax_league_id}"),
             scoring=scoring,
             roster_shape=self._roster_shape(slot_counts),
+            position_limits=rules_position_limits(self.rules),
+            max_roster_size=rules_max_roster(self.rules),
             teams=teams,
             free_agents=free_agents,
             matchup_period=None,
@@ -1549,7 +1605,50 @@ class FantraxProvider:
             lineup_lock=self.lineup_lock,
             as_of=self.today or date.today(),
         )
+        self._apply_budget(my_id)
         return self._ctx
+
+    def _budget_period(self, today: date, need_exact: bool) -> tuple[date, date]:
+        """The scoring period containing ``today``: Fantrax's scoring periods (getTeamRosterInfo
+        GAMES_PER_POS) when ``need_exact`` (a numeric weekly claim limit), else the Monday-Sunday
+        week (this league's periods are Monday-Sunday weeks)."""
+        if need_exact:
+            r = self._try("Fantrax scoring periods", ("getTeamRosterInfo", {"view": "GAMES_PER_POS"}))
+            if r:
+                from ..analysis.schedule_grid import fantrax_periods
+
+                lst = ((r[0] or {}).get("displayedLists") or {}).get("scoringPeriodList") or []
+                for per in fantrax_periods(lst):
+                    if per.start <= today <= per.end:
+                        return per.start, per.end
+        start = today - timedelta(days=today.weekday())
+        return start, start + timedelta(days=6)
+
+    def _apply_budget(self, my_id: str) -> None:
+        """Claim limits from the Rules page ("Max # of claims per season / per week"), my claims
+        this scoring period and in the last 14 days from the transaction history. Best effort."""
+        ctx = self._ctx
+        if ctx is None:
+            return
+        from ..recommend.base import RECENT_ADDS_WINDOW, count_adds, recent_adds_from
+
+        try:
+            season_cap, week_cap = rules_claim_limits(self.rules)
+            ctx.moves_limit_per_period, ctx.moves_limit_season = week_cap, season_cap
+            ctx.moves_period_label = "week"
+            ctx.period_start, ctx.period_end = self._budget_period(ctx.as_of, week_cap is not None)
+            names = {t.team_id: t.name for t in ctx.teams}
+            items = activity_from_transactions(self.transactions, names, season_start_year_for(ctx.as_of))
+            ctx.recent_adds = recent_adds_from(items, my_id, ctx.as_of, RECENT_ADDS_WINDOW)
+            ctx.moves_used_this_period = count_adds(items, my_id, ctx.period_start, ctx.period_end)
+            if season_cap is not None:
+                y0 = season_start_year_for(ctx.as_of)
+                ctx.moves_used_season = count_adds(items, my_id, date(y0, 8, 1))
+                if len(self.transactions) >= 50:
+                    ctx.warnings.append("Fantrax claims this season are counted from the last 50 league "
+                                        "transactions only")
+        except Exception as e:  # noqa: BLE001 - the budget is optional
+            self.warnings.append(f"Fantrax claim limits unavailable: {type(e).__name__}: {e}")
 
     def _rosters(self, team_ids: list[str], positions: Mapping[str, str]) -> list[ParsedRoster]:
         """Every team's roster, with season-to-date and full-season projection lines.
@@ -1879,6 +1978,8 @@ class FantraxProvider:
         if r.positions:
             lines.append("Active by position (max): " + ", ".join(
                 f"{p} {v['max_active']}" for p, v in r.positions.items() if v.get("max_active") is not None))
+            totals = [f"{p} {v['max']}" for p, v in r.positions.items() if v.get("max")]
+            lines.append("Whole roster by position (Total Max): " + (", ".join(totals) if totals else "no limits"))
         if (v := val("Keeper league Type")):
             lines.append(f"Keeper league type: {v}")
         if (v := val("Allow trading of draft Picks")):
@@ -1893,6 +1994,9 @@ class FantraxProvider:
         if (v := val("Playoffs will begin in this Scoring Period")):
             teams = val("Number of teams qualifying for playoffs")
             lines.append(f"Playoffs: start scoring period {v}" + (f", {teams} teams" if teams else ""))
+        cs, cw = val(CLAIMS_SEASON_LABEL), val(CLAIMS_WEEK_LABEL)
+        if cs or cw:
+            lines.append(f"Claims: max per season {cs or 'not stated'}, per week {cw or 'not stated'}")
         for label in ("Draft Type", "# of rounds", "Trade Deadline Date", "Trade Voting System",
                       "Waiver Wire claim system", "# of days players remain on waivers for"):
             if (v := val(label)):

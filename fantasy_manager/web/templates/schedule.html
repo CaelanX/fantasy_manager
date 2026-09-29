@@ -70,7 +70,7 @@
         <tbody>
           {% for t in targets %}
           <tr>
-            <th scope="row" class="pname" data-label="Player">{{ plink(t, league) }}<small>{{ t.pos }} &middot; {{ t.team }}{% if t.status != 'healthy' %} &middot; {{ pill(t.status) }}{% endif %}</small></th>
+            <th scope="row" class="pname" data-label="Player">{{ plink(t, league) }}<small>{{ t.pos }} &middot; {{ t.team }}{% if t.status != 'healthy' %} &middot; {{ pill(t.status) }}{% endif %}{% if t.needs_drop %} &middot; <span class="cap-note">{{ t.needs_drop }}</span>{% endif %}</small></th>
             <td data-label="Games" class="n">{{ t.games }}</td>
             <td data-label="Off-nights" class="n">{{ t.offnights }}</td>
             <td data-label="FP/G" class="n">{{ t.per_game|n1 }}</td>

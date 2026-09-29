@@ -1,4 +1,10 @@
-"""Injury alerts: status changes since the last snapshot, IR moves and IR activations."""
+"""Injury alerts: status changes since the last snapshot, IR moves and IR activations.
+
+The IR move itself is free (ESPN counts acquisitions, not IR moves), but the replacement add costs
+one move: it is only proposed while the league's move limit has one left (an injury replacement
+clears the last move, see ``base.move_scarcity_threshold``), with a MOVE_BUDGET reason; with none
+left the IR move is still proposed with a NO_MOVES note. Activating a player from IR never drops a
+player I added in the last 7 days unless he is out / IR / suspended (churn guard)."""
 from __future__ import annotations
 
 import sqlite3
@@ -12,7 +18,8 @@ from pydantic import BaseModel
 from ..models import LeagueContext, Player, Reason, Recommendation
 from ..valuation.adjust import Horizon
 from ..valuation.valuate import PlayerValue
-from .base import droppable_players, shares_slot
+from .base import (CHURN_EXEMPT_STATUSES, cap_text, capped_positions, churn_text, droppable_players,
+                   moves_budget_reason, moves_left, no_moves_text, position_room, recently_added, shares_slot)
 from .strength import IR_FLOOR, apply_ranks, apply_strength
 from .waivers import recommend_waivers
 
@@ -94,13 +101,19 @@ def _best_add(ctx: LeagueContext, values: Mapping[str, PlayerValue], injured: Pl
 
 def _best_add_rec(ctx: LeagueContext, values: Mapping[str, PlayerValue], injured: Player,
                   horizon: Horizon) -> tuple[Player | None, Recommendation | None]:
-    """(best add, the waiver rec it came from or None for the open-spot fallback)."""
+    """(best add, the waiver rec it came from or None for the open-spot fallback). Only no-drop
+    adds qualify: a pickup that would break a per-position roster maximum (the IR player still
+    counts toward it) is skipped. (None, None) when no moves are left this period."""
+    if moves_left(ctx) == 0:
+        return None, None
     for rec in recommend_waivers(ctx, values, limit=10, horizon=horizon):
-        if rec.add and shares_slot(rec.add[0], injured):
+        if rec.add and not rec.drop and shares_slot(rec.add[0], injured):
             return rec.add[0], rec
     # the waiver engine demands a gain over a drop; with an open roster spot any positive VORP helps
+    team = ctx.my_team
     pool = [fa for fa in ctx.free_agents
-            if fa.cid in values and shares_slot(fa, injured) and fa.status in ("healthy", "unknown", "dtd")]
+            if fa.cid in values and shares_slot(fa, injured) and fa.status in ("healthy", "unknown", "dtd")
+            and position_room(team, ctx, fa) > 0]
     pool = [fa for fa in pool if values[fa.cid].vorp_for(horizon) > 0] or pool
     return max(pool, key=lambda fa: values[fa.cid].fpg_for(horizon), default=None), None
 
@@ -162,6 +175,12 @@ def recommend_injuries(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                    Reason(code="IR_SLOT", text=f"{free_ir} of {ir_cap} IR slot(s) free", value=float(free_ir))]
         if p.status == "out":
             reasons.append(Reason(code="IR_RULES", text="Status is OUT, not IR: check your league allows it in IR"))
+        capped = capped_positions(mt, moved, p)
+        if add is None and capped:
+            reasons.append(Reason(code="POSITION_CAP",
+                                  text=f"No {'/'.join(capped)} pickup without a drop: "
+                                       + ", ".join(cap_text(moved, k) for k in capped)
+                                       + " reached (players in IR still count)"))
         title = f"Move {p.name} to IR"
         if add is not None:
             av = values[add.cid]
@@ -170,6 +189,11 @@ def recommend_injuries(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                                   text=f"{add.name} ({'/'.join(x for x in add.positions if x != 'F')}, "
                                        f"{add.team or 'FA'}): {av.fpg_for(horizon):.2f} FPG, no drop needed",
                                   value=av.fpg_for(horizon)))
+        if add is not None and (budget := moves_budget_reason(moved)) is not None:
+            reasons.append(budget)
+        elif add is None and moves_left(moved) == 0:
+            reasons.append(Reason(code="NO_MOVES", text=no_moves_text(moved) + " (the IR move itself is free)",
+                                  value=0.0))
         if wrec is not None:
             gain, units, days = wrec.predicted_gain, wrec.gain_units, wrec.horizon_days
         elif add is not None:
@@ -193,6 +217,14 @@ def recommend_injuries(ctx: LeagueContext, values: Mapping[str, PlayerValue],
         drop = None
         full = len([x for x in team.slots if x.player is not None and x.slot != "IR"]) >= \
             sum(n for k, n in ctx.roster_shape.items() if k != "IR")
+        # churn guard: never drop a player I just added (unless he is hurt) to activate someone
+        pool = [d for d in droppable if not recently_added(ctx, d) or d.status in CHURN_EXEMPT_STATUSES]
+        if full and len(pool) < len(droppable):
+            kept = [d for d in droppable if d not in pool]
+            reasons.append(Reason(code="CHURN_GUARD",
+                                  text="Not dropping " + ", ".join(f"{d.name} ({churn_text(ctx, d)})" for d in kept)
+                                       + ": just added"))
+        droppable = pool
         if full and droppable:
             drop = min(droppable, key=lambda d: values[d.cid].fpg_for("season"))
             reasons.append(Reason(code="DROP", text=f"Roster is full: weakest is {drop.name} "

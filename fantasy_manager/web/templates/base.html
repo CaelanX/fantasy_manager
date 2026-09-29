@@ -57,6 +57,8 @@
       {% if res %}
       <p>
         <strong>{{ res.ctx.name }}</strong> &middot; {{ res.ctx.provider }} league {{ res.ctx.league_id }}
+        {% set lim = limits_text(res.ctx) %}{% if lim %}&middot; <span class="limits-foot">roster limits: {{ lim }}</span>{% endif %}
+        {% set mv = moves_text(res.ctx) %}{% if mv %}&middot; <span class="moves-foot">moves: {{ mv }}</span>{% endif %}
         &middot; data as of {{ res.ctx.as_of }} &middot; loaded
         <time datetime="{{ res.loaded_at.isoformat(timespec='seconds') }}">{{ res.loaded_at.strftime('%H:%M') }}</time>
         ({{ res.loaded_at|ago(now) }}; cached for 10 min)

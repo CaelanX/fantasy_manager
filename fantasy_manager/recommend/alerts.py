@@ -14,7 +14,8 @@ player, ``strength`` set directly (the strongest trigger wins):
   because the other goalie is confirmed                    -> 4   my players only (sell / bench caution)
 
 Reasons: LINE_CHANGE, PP_UNIT and CONFIRMED_START, each naming the Daily Faceoff source and
-time. A weak offense is a bottom-``WEAK_OFFENSE_TEAMS`` team by goals per game summed over
+time; free-agent streamer alerts add MOVE_BUDGET ("1 of 2 moves left this week") when the league
+limits moves. A weak offense is a bottom-``WEAK_OFFENSE_TEAMS`` team by goals per game summed over
 the league's skaters (season line once teams have played ``MIN_TEAM_GP`` games, else prior
 season) - a heuristic, since the pool only holds rostered players and listed free agents.
 """
@@ -175,6 +176,16 @@ def _line_alert(p: Player, mine: bool, ctx: LeagueContext,
     return _rec(p, title, strength, reasons)
 
 
+def _budget_reason(ctx: LeagueContext) -> Reason | None:
+    """MOVE_BUDGET note for a streamer pickup ("1 of 2 moves left this week", or "No moves left
+    this week (2/2 used); ..."); None when moves are unlimited."""
+    from .base import moves_budget_reason, moves_left, no_moves_text
+
+    if moves_left(ctx) == 0:
+        return Reason(code="MOVE_BUDGET", text=no_moves_text(ctx), value=0.0)
+    return moves_budget_reason(ctx)
+
+
 def _strength_word(p: Player) -> str:
     m = _STRENGTH_RE.search(p.start_source or "")
     return m.group(1).lower() if m else "confirmed"
@@ -199,6 +210,20 @@ def _start_alert(p: Player, ctx: LeagueContext, mine: bool, weak: Mapping[str, f
             gpg = weak[opp]
             txt = f"{opp} scores {gpg:.2f} goals per game (bottom-{len(weak)} offense)" if gpg else                 f"{opp} is a weak offense"
             reasons.append(Reason(code="OPPONENT", text=txt, value=gpg or None))
+        if not mine and ctx.position_limits:
+            from .base import cap_text, capped_positions
+            try:
+                capped = capped_positions(ctx.my_team, ctx, p)
+            except LookupError:
+                capped = []
+            if capped:
+                reasons.append(Reason(code="POSITION_CAP",
+                                      text=", ".join(cap_text(ctx, k) for k in capped)
+                                           + f" reached: streaming him needs a {'/'.join(capped)} drop"))
+        if not mine:
+            budget = _budget_reason(ctx)
+            if budget is not None:
+                reasons.append(budget)
         return _rec(p, title, CONFIRMED_START, reasons)
     if mine and word == "confirmed":
         return _rec(p, f"{p.name} not starting tonight{vs}: bench caution", DEMOTION,

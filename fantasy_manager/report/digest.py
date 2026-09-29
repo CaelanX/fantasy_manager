@@ -26,6 +26,9 @@ REC_SECTIONS: list[tuple[str, tuple[str, ...]]] = [
 KIND_LABEL = {"lineup": "Lineup", "waiver": "Waiver", "trade": "Trade", "sell_high": "Sell high",
               "buy_low": "Buy low", "injury": "Injury", "alert": "Alert"}
 MONEYPUCK_CREDIT = "Expected goals: MoneyPuck.com"
+# Trade lines: the reasons a reader needs (recommend.trades); the solver detail stays in the app.
+TRADE_REASONS = ("MY_EDGE", "MARKET_VIEW", "THEIR_NEED", "TRADE_BLOCK", "ROSTER_CONSEQUENCE", "SWEET_SPOT",
+                 "WIN_NOW_COST", "POSITION_CAP")
 DFO_CREDIT = "Lines, power-play units and starting goalies: Daily Faceoff (dailyfaceoff.com)"
 
 
@@ -121,12 +124,19 @@ def credits(ctx: LeagueContext) -> list[str]:
 
 # --------------------------------------------------------------------------- markdown
 
+def _reasons(r: Recommendation) -> list[Any]:
+    """Reasons to print: for trades scored by acceptance (a MY_EDGE reason), only TRADE_REASONS."""
+    if r.kind == "trade" and any(x.code == "MY_EDGE" for x in r.reasons):
+        return [x for x in r.reasons if x.code in TRADE_REASONS]
+    return list(r.reasons)
+
+
 def _md_rec(r: Recommendation, level: str = "###") -> list[str]:
     cp = f" (with {r.counterparty})" if r.counterparty else ""
     out = [f"{level} {r.title}{cp}", "", f"*{KIND_LABEL.get(r.kind, r.kind)} - score {r.score:.2f}*", ""]
     if r.narrative:
         out += [f"> {r.narrative}", ""]
-    out += [f"- {reason.text}" for reason in r.reasons]
+    out += [f"- {reason.text}" for reason in _reasons(r)]
     return out + [""]
 
 
@@ -228,7 +238,7 @@ def _html_rec(r: Recommendation, cls: str = "card") -> str:
     if r.narrative:
         parts.append(f'<p class="narr">{_e(r.narrative)}</p>')
     if r.reasons:
-        parts.append("<ul>" + "".join(f"<li>{_e(x.text)}</li>" for x in r.reasons) + "</ul>")
+        parts.append("<ul>" + "".join(f"<li>{_e(x.text)}</li>" for x in _reasons(r)) + "</ul>")
     parts.append("</div>")
     return "".join(parts)
 

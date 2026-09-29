@@ -14,6 +14,8 @@ from datetime import date, datetime, timedelta
 from datetime import date as Date
 from typing import Any, Callable, Iterable, Literal
 
+from pathlib import Path
+
 import httpx
 from pydantic import BaseModel, Field
 
@@ -618,6 +620,115 @@ def game_window_filter(start: date | None, end: date | None) -> str | None:
     return " and ".join(parts) or None
 
 
+# --------------------------------------------------------------------------- preseason (gameType 1)
+#
+# Verified live 2026-09-29: the NHL publishes NO preseason data through the stats REST reports
+# (``gameTypeId=1`` returns total 0 for summary / timeonice / powerplay, season and per-game,
+# 2025-26 and 2026-27 alike) nor through the player game logs (``/game-log/{season}/1`` has no
+# ``gameLog``). Preseason games do appear in ``club-schedule-season`` (gameType 1) and their
+# ``gamecenter/{id}/boxscore`` carries per-skater G / A / PTS / +/- / PIM / hits / blocks / PPG /
+# SOG / TOI / shifts; ``gamecenter/{id}/landing`` lists every goal with its strength (ev / pp /
+# sh) and assists, which gives PP / SH assists (the box score only has PP goals). No preseason
+# PP ice time or PP share is published anywhere.
+
+PRESEASON = 1
+FINAL_STATES = ("FINAL", "OFF")
+_BOX_SKATER_MAP = {"goals": "G", "assists": "A", "points": "PTS", "plusMinus": "PM", "pim": "PIM",
+                   "hits": "HIT", "blockedShots": "BLK", "powerPlayGoals": "PPG", "sog": "SOG",
+                   "shorthandedGoals": "SHG"}
+
+
+class NhlSkaterGameLine(BaseModel):
+    """One skater's box-score line in one game (built for preseason games, gameType 1).
+
+    ``stats`` uses canonical keys (GP = 1). PPA / PPP / SHA / SHP are only present when the
+    game's scoring summary was parsed (``has_strength``)."""
+    player_id: int
+    game_id: int
+    game_type: int | None = None
+    date: Date
+    team: str | None = None
+    opponent: str | None = None
+    home: bool | None = None
+    name: str | None = None
+    position: str | None = None
+    toi: float | None = None             # seconds
+    shifts: int | None = None
+    has_strength: bool = False
+    stats: dict[str, float] = Field(default_factory=dict)
+
+
+def _box_skater(row: dict, game: dict, side: str) -> NhlSkaterGameLine | None:
+    if row.get("playerId") is None:
+        return None
+    home, away = game.get("homeTeam") or {}, game.get("awayTeam") or {}
+    me, other = (home, away) if side == "homeTeam" else (away, home)
+    stats = {"GP": 1.0}
+    stats.update({canon: _num(row.get(src)) for src, canon in _BOX_SKATER_MAP.items() if src in row})
+    shifts = row.get("shifts")
+    return NhlSkaterGameLine(
+        player_id=int(row["playerId"]), game_id=int(game.get("id") or 0), game_type=game.get("gameType"),
+        date=_parse_date(game.get("gameDate")), team=me.get("abbrev"), opponent=other.get("abbrev"),
+        home=side == "homeTeam", name=_default(row.get("name")), position=map_position(row.get("position")),
+        toi=_secs(row.get("toi")), shifts=int(shifts) if isinstance(shifts, (int, float)) else None, stats=stats)
+
+
+def boxscore_skater_lines(box: dict) -> list[NhlSkaterGameLine]:
+    """Skater lines (forwards + defense, both teams) of a ``gamecenter/{id}/boxscore`` payload;
+    [] when the game is not final or the box score carries no player stats (limited scoring)."""
+    if (box.get("gameState") or "") not in FINAL_STATES:
+        return []
+    by_team = box.get("playerByGameStats") or {}
+    out = []
+    for side in ("awayTeam", "homeTeam"):
+        team = by_team.get(side) or {}
+        for group in ("forwards", "defense"):
+            for row in team.get(group) or []:
+                ln = _box_skater(row, box, side)
+                if ln is not None:
+                    out.append(ln)
+    return out
+
+
+def goal_strength_points(landing: dict) -> dict[int, dict[str, float]] | None:
+    """player_id -> {PPG, PPA, SHG, SHA} from a ``gamecenter/{id}/landing`` scoring summary
+    (goals with strength "pp" / "sh"); None when the payload has no scoring summary."""
+    periods = (landing.get("summary") or {}).get("scoring")
+    if periods is None:
+        return None
+    out: dict[int, dict[str, float]] = {}
+    for per in periods:
+        for g in per.get("goals") or []:
+            strength = str(g.get("strength") or "").lower()
+            if strength not in ("pp", "sh"):
+                continue
+            tag = strength.upper()
+            if g.get("playerId") is not None:
+                d = out.setdefault(int(g["playerId"]), {})
+                d[f"{tag}G"] = d.get(f"{tag}G", 0.0) + 1.0
+            for a in g.get("assists") or []:
+                if a.get("playerId") is not None:
+                    d = out.setdefault(int(a["playerId"]), {})
+                    d[f"{tag}A"] = d.get(f"{tag}A", 0.0) + 1.0
+    return out
+
+
+def apply_goal_strength(lines: list[NhlSkaterGameLine], strength: dict[int, dict[str, float]] | None) -> None:
+    """Add PPA / PPP / SHA / SHP from a scoring summary (goals keep the box score's PPG / SHG
+    when it has them, else the summary's)."""
+    if strength is None:
+        return
+    for ln in lines:
+        s = strength.get(ln.player_id, {})
+        for tag in ("PP", "SH"):
+            g = ln.stats.get(f"{tag}G", s.get(f"{tag}G", 0.0))
+            a = s.get(f"{tag}A", 0.0)
+            ln.stats[f"{tag}G"] = g
+            ln.stats[f"{tag}A"] = a
+            ln.stats[f"{tag}P"] = g + a
+        ln.has_strength = True
+
+
 # --------------------------------------------------------------------------- client
 
 class NhlClient:
@@ -725,6 +836,15 @@ class NhlClient:
             draft_team=draft.get("teamAbbrev"),
             career_gp=_int(career.get("gamesPlayed")) if career else (0 if d else None),
         )
+
+    def player_history(self, player_id: int, landing: "NhlPlayerLanding | None" = None) -> list["LeagueSeason"]:
+        """Regular-season lines in every league the player played in (``landing.seasonTotals``;
+        WHL / OHL / SHL / Liiga / KHL / NCAA / AHL / NHL / tournaments...), oldest first, with his
+        age on Oct 1 of each season. ``landing`` reuses an already parsed page (the enrich pedigree
+        step fetched it); otherwise the page is fetched through ``fetch_json`` (the enrich fetchers
+        cache ``/landing`` for 30 days, ``providers.enrich.TTL_LANDING``)."""
+        landing = landing if landing is not None else self.player_landing(player_id)
+        return parse_season_totals(landing.season_totals, landing.birth_date)
 
     def game_log(self, player_id: int, season: int | None = None, game_type: int = 2) -> list[NhlGameLogEntry]:
         """Per-game lines, most recent first (as returned by the API)."""
@@ -906,3 +1026,128 @@ class NhlClient:
                 sh_toi_per_game=_secs(r.get("shTimeOnIcePerGame")),
                 pp_share=float(pct) if isinstance(pct, (int, float)) and not isinstance(pct, bool) else None)
         return out
+
+    # ---- preseason (gameType 1; see the "preseason" section above) ---------------------
+    def preseason_game_logs(self, player_id: int, season: int | None = None) -> list[NhlGameLogEntry]:
+        """The player's preseason game log (``/game-log/{season}/1``). As of 2026-09 the NHL
+        returns no ``gameLog`` for preseason, so this is [] in practice; the box scores
+        (:meth:`preseason_skater_games`) are the source that works."""
+        return self.game_log(player_id, season, game_type=PRESEASON)
+
+    def preseason_games(self, season: int | None = None, teams: Iterable[str] = NHL_TEAMS,
+                        before: date | None = None) -> list[NhlGame]:
+        """Unique preseason games (gameType 1) of ``teams`` dated before ``before`` (all when
+        None), from the club schedules (the same payloads as the regular-season schedule)."""
+        seen: dict[int, NhlGame] = {}
+        for t in teams:
+            for g in self.team_schedule(t, season, game_type=PRESEASON):
+                if before is None or g.date < before:
+                    seen.setdefault(g.game_id, g)
+        return sorted(seen.values(), key=lambda g: (g.date, g.game_id))
+
+    def game_skater_lines(self, game_id: int, strength: bool = True) -> list[NhlSkaterGameLine]:
+        """Skater box-score lines of one finished game; with ``strength`` the game's scoring
+        summary adds PP / SH assists and points (a failing summary only drops those)."""
+        lines = boxscore_skater_lines(self.fetch_json(f"{WEB_BASE}/gamecenter/{game_id}/boxscore", None) or {})
+        if lines and strength:
+            try:
+                landing = self.fetch_json(f"{WEB_BASE}/gamecenter/{game_id}/landing", None) or {}
+            except Exception:
+                landing = {}
+            apply_goal_strength(lines, goal_strength_points(landing))
+        return lines
+
+    def preseason_skater_games(self, season: int | None = None, teams: Iterable[str] = NHL_TEAMS,
+                               before: date | None = None) -> list[NhlSkaterGameLine]:
+        """Per-game skater lines (G / A / PTS / SOG / PPP / TOI ...) of every finished preseason
+        game: 1 box score + 1 scoring summary per game (the stats REST reports carry no
+        preseason; see above). Games whose box score fails are skipped."""
+        out: list[NhlSkaterGameLine] = []
+        for g in self.preseason_games(season, teams, before):
+            try:
+                out.extend(self.game_skater_lines(g.game_id))
+            except Exception:
+                continue
+        return out
+
+
+# --------------------------------------------------------------------------- league history / NHLe
+#
+# ``player/{id}/landing`` -> ``seasonTotals``: one row per (season, league, team, game type), e.g.
+# (verified live 2026-09-29 on Ivar Stenberg 8486103, Anton Frondell 8485391, Jimmy Snuggerud
+# 8483516, Ivan Demidov 8484984 and a dozen other prospects) ``{"season": 20252026, "gameTypeId":
+# 2, "leagueAbbrev": "SHL", "teamName": {"default": "Frölunda HC"}, "gamesPlayed": 43, "goals": 11,
+# "assists": 22, "points": 33, "sequence": ...}``. gameTypeId 2 = regular season, 3 = playoffs.
+# Goalies' rows carry no points. League strings seen: NHL, AHL, KHL, SHL, Liiga, Czechia, NLA, DEL,
+# NCAA, OHL, WHL, QMJHL, USHL, NTDP, MHL, VHL, HockeyAllsvenskan, J20 Nationell, WJC-20, WC, ...
+
+NHLE_FACTORS_PATH = Path(__file__).resolve().parent.parent / "valuation" / "nhle_factors.json"
+
+
+class LeagueSeason(BaseModel):
+    """One regular-season line in any league (``landing.seasonTotals``)."""
+    season: int                       # e.g. 20252026
+    league: str                       # leagueAbbrev: "SHL", "OHL", "AHL", "NHL", "WJC-20", ...
+    team: str | None = None
+    gp: int
+    g: int = 0
+    a: int = 0
+    pts: int = 0
+    age_at_season: float | None = None  # age on Oct 1 of the season's start year
+
+    @property
+    def start_year(self) -> int:
+        return self.season // 10000
+
+    @property
+    def pts_per_game(self) -> float:
+        return self.pts / self.gp if self.gp else 0.0
+
+
+def _age_oct1(birth: date | None, start_year: int) -> float | None:
+    if birth is None:
+        return None
+    return round((date(start_year, 10, 1) - birth).days / 365.25, 2)
+
+
+def parse_season_totals(rows: Iterable[dict] | None, birth_date: date | None = None,
+                        game_type: int = 2) -> list[LeagueSeason]:
+    """``seasonTotals`` rows of ``game_type`` (2 = regular season) with games played, oldest first.
+    Points default to goals + assists when missing (goalies carry neither and get 0)."""
+    out: list[LeagueSeason] = []
+    for r in rows or []:
+        try:
+            if int(r.get("gameTypeId") or 0) != game_type:
+                continue
+            gp = int(r.get("gamesPlayed") or 0)
+            season = int(r.get("season"))
+        except (TypeError, ValueError):
+            continue
+        if gp <= 0:
+            continue
+        g, a = int(r.get("goals") or 0), int(r.get("assists") or 0)
+        pts = r.get("points")
+        out.append(LeagueSeason(season=season, league=str(r.get("leagueAbbrev") or "?"),
+                                team=_default(r.get("teamName")), gp=gp, g=g, a=a,
+                                pts=int(pts) if pts is not None else g + a,
+                                age_at_season=_age_oct1(birth_date, season // 10000)))
+    out.sort(key=lambda x: (x.season, int(x.league != "NHL")))
+    return out
+
+
+_NHLE_CACHE: dict[str, Any] = {}
+
+
+def load_nhle_factors(path: str | None = None) -> dict[str, Any]:
+    """The NHLe table (``valuation/nhle_factors.json``): {"leagues": {abbrev: {factor, class,
+    reliability}}, "norm_age": {...}, "age_adjustment": {...}, "version": ...}. Approximate
+    practitioner midpoints, kept as data so they can be refit later. Cached per path."""
+    key = str(path or NHLE_FACTORS_PATH)
+    if key not in _NHLE_CACHE:
+        with open(key, encoding="utf-8") as f:
+            _NHLE_CACHE[key] = json.load(f)
+    return _NHLE_CACHE[key]
+
+
+# The packaged default table (a small local file, read once at import).
+NHLE_FACTORS: dict[str, Any] = load_nhle_factors()

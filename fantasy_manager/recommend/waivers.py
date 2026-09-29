@@ -5,6 +5,11 @@ Roster spot for the pickup, in order of preference:
 0. An open roster (bench/reserve) spot: nobody is dropped (OPEN_SPOT reason).
 1. IR first (only when the league has IR slots): when my team has a free IR slot and an active-roster player with IR/LTIR status,
    that player moves to IR and nobody is dropped (``drop`` is empty, IR_MOVE reason).
+Per-position roster maximums (``ctx.position_limits``, e.g. ESPN's "max 3 goalies"): when the
+no-drop add of 0./1. would put the roster over a maximum, the pickup instead drops the weakest
+same-position player (POSITION_CAP reason); drops are always limited to players whose removal
+keeps the roster legal (``base.roster_legal_after``).
+
 2. Otherwise drop the weakest same-slot player: lowest dynasty value in dynasty leagues
    (never a player with no stats at all, whose value is unknown), else lowest FPG for the
    horizon.
@@ -22,6 +27,17 @@ Dynasty leagues add three rules:
   CONTEND_DROP. Skipped drops are reported in ``debug`` (PROSPECT_PROTECTED), never as recs;
 * recommendations are scored by dynasty gain (x confidence), not season gain.
 
+Transaction budget (``ctx.moves_limit_per_period`` etc., see ``base.moves_left``): the gain
+threshold rises as moves run out (``base.move_scarcity_threshold``: 0.3 FPG with >= 4 moves left or
+no limit, 0.6 with 2-3, 1.0 with the last one unless the add replaces an out / IR player - a suspension
+is not an injury); with no
+moves left there are no pickups at all ([], the CLI says when they resume). Every pickup carries a
+MOVE_BUDGET reason ("2 of 4 moves left this week") when a limit applies.
+
+Churn guard: a player I added fewer than 7 days ago (``ctx.recent_adds``) is never proposed as the
+drop unless the pickup beats him by >= 1.5 FPG or he is out / IR / suspended. A skipped drop is
+recorded in ``debug`` (CHURN_GUARD) and, when another drop is used instead, noted on that pickup.
+
 Market timing: when the provider reports the weekly change in % rostered (``pct_owned_change``,
 ESPN ``percentChange`` / Fantrax "+/-"), an OWNERSHIP_TREND reason (value = change, baseline = %
 rostered) replaces the plain OWNED one. Risers (change >= RISER_MIN points) get their score
@@ -38,8 +54,10 @@ from ..models import LeagueContext, Player, Reason, Recommendation
 from ..valuation.adjust import Horizon
 from ..valuation.valuate import PlayerValue
 from .strength import apply_ranks, apply_strength
-from .base import (PROTECT_OVERRIDE, confidence, droppable_players, dynasty_map, free_ir_slots, has_data,
-                   ir_movable, open_roster_spots, player_age, protection_reason, shares_slot)
+from .base import (CHURN_EXEMPT_STATUSES, CHURN_OVERRIDE_GAIN, INJURY_REPLACEMENT_STATUSES, PROTECT_OVERRIDE,
+                   churn_blocked, churn_text, confidence, droppable_players, dynasty_map, free_ir_slots,
+                   has_data, ir_movable, move_scarcity_threshold, moves_budget_reason, open_roster_spots,
+                   player_age, protection_reason, recently_added, roster_legal_after, shares_slot)
 
 MIN_GAIN = 0.3
 DYNASTY_MIN_RATIO = 1.15
@@ -92,8 +110,12 @@ def _low_this_season(p: Player, pv: PlayerValue) -> str | None:
 def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit: int = 10,
                       horizon: Horizon = "season", dynasty_values: Mapping[str, Any] | None = None,
                       debug: list[dict[str, Any]] | None = None) -> list[Recommendation]:
-    """Ranked waiver pickups. `debug` (a list) collects drops that prospect protection blocked:
-    {"add", "drop", "reason", "add_value", "drop_value"}."""
+    """Ranked waiver pickups. `debug` (a list) collects drops that prospect protection, the
+    churn guard or a position cap blocked: {"add", "drop", "reason", "add_value", "drop_value"}.
+    [] when the league's move limit is used up for this period."""
+    if move_scarcity_threshold(ctx, injury_replacement=True) is None:
+        return []   # no moves left this period (base.no_moves_text says when they resume)
+    budget = moves_budget_reason(ctx)
     team = ctx.my_team
     dyn = dynasty_map(ctx, values, dynasty_values)
     contend = getattr(ctx, "dynasty_mode", "contend") == "contend"
@@ -125,9 +147,43 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         weakest = min(candidates, key=lambda p: values[p.cid].fpg_for(horizon))
         drop = None
         extra: list[Reason] = []
-        if not open_spots and ir_move is None:
+        # per-position roster maximums: a no-drop add that would break one needs a same-position drop
+        cap_why: str | None = None
+        spot_open, spot_ir = bool(open_spots), ir_move
+        if spot_open or spot_ir is not None:
+            ok, why = roster_legal_after(team, ctx, add=[fa], to_ir=[spot_ir] if spot_ir is not None else [])
+            if not ok:
+                cap_why, spot_open, spot_ir = why, False, None
+        if not spot_open and spot_ir is None:
             # dynasty: a player with no stats at all has unknown (not zero) value -> keep him
             pool = sorted((p for p in candidates if dyn is None or has_data(values[p.cid])), key=drop_key)
+            legal = [p for p in pool if roster_legal_after(team, ctx, add=[fa], drop=[p])[0]]
+            if len(legal) < len(pool) and cap_why is None:
+                cap_why = roster_legal_after(team, ctx, add=[fa])[1]
+            pool = legal
+            # churn guard: keep players I just added unless the upgrade is big or they are hurt
+            kept_recent: list[Player] = []
+            unguarded = []
+            for p in pool:
+                g_p = fv.fpg_for(horizon) - values[p.cid].fpg_for(horizon)
+                if churn_blocked(ctx, p, g_p):
+                    kept_recent.append(p)
+                    if debug is not None:
+                        debug.append({"add": fa.name, "drop": p.name, "add_value": fv.fpg_for(horizon),
+                                      "drop_value": values[p.cid].fpg_for(horizon),
+                                      "reason": Reason(code="CHURN_GUARD",
+                                                       text=f"Not dropping {p.name} ({churn_text(ctx, p)}): "
+                                                            f"{fa.name} is only {g_p:+.2f} FPG over him "
+                                                            f"(needs +{CHURN_OVERRIDE_GAIN:g} or an injury)",
+                                                       value=g_p, baseline=CHURN_OVERRIDE_GAIN)})
+                else:
+                    unguarded.append(p)
+            pool = unguarded
+            if not pool and cap_why is not None and debug is not None:
+                debug.append({"add": fa.name, "drop": None, "add_value": None, "drop_value": None,
+                              "reason": Reason(code="POSITION_CAP",
+                                               text=f"Not adding {fa.name}: {cap_why} and no droppable "
+                                                    f"same-position player")})
             if dyn is not None:
                 a_val = dyn.get(fa.cid, 0.0)
                 chosen = None
@@ -157,10 +213,27 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
             if not pool:
                 continue
             drop = pool[0]
+            if kept_recent:
+                better = [p for p in kept_recent if drop_key(p) <= drop_key(drop)]
+                if better:
+                    names = ", ".join(f"{p.name} ({churn_text(ctx, p)})" for p in better)
+                    extra.append(Reason(code="CHURN_GUARD",
+                                        text=f"Keeping {names}: just added, so {drop.name} is the drop "
+                                             f"instead (a recent add is only dropped for "
+                                             f"+{CHURN_OVERRIDE_GAIN:g} FPG or an injury)"))
+            if recently_added(ctx, drop):
+                g_d = fv.fpg_for(horizon) - values[drop.cid].fpg_for(horizon)
+                why_ok = (f"he is {drop.status}" if drop.status in CHURN_EXEMPT_STATUSES
+                          else f"{fa.name} is +{g_d:.2f} FPG over him")
+                extra.append(Reason(code="CHURN_GUARD",
+                                    text=f"{drop.name} was {churn_text(ctx, drop)}, dropping him anyway: {why_ok}",
+                                    value=g_d, baseline=CHURN_OVERRIDE_GAIN))
         cmp = drop or weakest
         cv = values[cmp.cid]
         gain = fv.fpg_for(horizon) - cv.fpg_for(horizon)
-        if gain <= MIN_GAIN:
+        injury_replacement = spot_ir is not None or (drop is not None and drop.status in INJURY_REPLACEMENT_STATUSES)
+        threshold = move_scarcity_threshold(ctx, injury_replacement)
+        if threshold is None or gain <= threshold:
             continue
         dyn_gain = None
         if dyn is not None:
@@ -177,7 +250,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         over = f"over dropping {drop.name}" if drop else f"over benching {weakest.name}"
         reasons = [
             Reason(code="VORP_DELTA", text=f"+{gain:.2f} FPG ({horizon}) {over}",
-                   value=gain, baseline=MIN_GAIN),
+                   value=gain, baseline=threshold),
             Reason(code="FPG_ADD", text=f"{fa.name}: {fv.fpg_for(horizon):.2f} FPG, VORP {fv.vorp_for(horizon):+.2f}",
                    value=fv.fpg_for(horizon)),
             Reason(code="FPG_DROP", text=f"{cmp.name}: {cv.fpg_for(horizon):.2f} FPG, VORP {cv.vorp_for(horizon):+.2f}",
@@ -185,14 +258,18 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
             Reason(code="GP", text=f"{gp} GP this season -> confidence {conf:.2f}", value=float(gp),
                    baseline=conf),
         ]
-        if open_spots:
+        if cap_why is not None and drop is not None:
+            reasons.append(Reason(code="POSITION_CAP",
+                                  text=f"League roster maximum ({cap_why}): drop {drop.name} "
+                                       f"(same position) to make room"))
+        if spot_open:
             reasons.append(Reason(code="OPEN_SPOT",
                                   text=f"{open_spots} open roster spot{'s' if open_spots != 1 else ''}: "
                                        f"no drop needed ({weakest.name} goes to the bench)",
                                   value=float(open_spots)))
-        elif ir_move is not None:
+        elif spot_ir is not None:
             reasons.append(Reason(code="IR_MOVE",
-                                  text=f"Move {ir_move.name} ({ir_move.status.upper()}) to IR "
+                                  text=f"Move {spot_ir.name} ({spot_ir.status.upper()}) to IR "
                                        f"({free_ir} IR slot{'s' if free_ir != 1 else ''} free): no drop needed",
                                   value=float(free_ir)))
         if dyn is not None and drop is not None:
@@ -202,6 +279,8 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                                        f"same-slot player; needs x{DYNASTY_MIN_RATIO:g})",
                                   value=dyn.get(fa.cid, 0.0), baseline=dyn.get(drop.cid, 0.0)))
         reasons.extend(extra)
+        if budget is not None:
+            reasons.append(budget.model_copy())
         if dyn_gain is not None:
             if drop is None:
                 gain_text = f"Dynasty value added {dyn_gain:+.2f} (no drop, so the whole value counts; score basis)"
@@ -220,16 +299,16 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                                   value=fa.pct_owned))
         if drop is not None:
             title = f"Add {fa.name}, drop {drop.name}"
-        elif open_spots:
+        elif spot_open:
             title = f"Add {fa.name} (open roster spot)"
         else:
-            title = f"Add {fa.name}, move {ir_move.name} to IR"
+            title = f"Add {fa.name}, move {spot_ir.name} to IR"
         score = (dyn_gain if dyn_gain is not None else gain) * conf * market_multiplier(fa.pct_owned_change)
         pred, units, days = predicted_gain(fv, cv, gain, horizon)
         recs.append(Recommendation(kind="waiver", score=score, title=title,
                                    add=[fa], drop=[drop] if drop is not None else [], reasons=reasons,
                                    predicted_gain=pred, gain_units=units, horizon_days=days,
-                                   subjects=[ir_move] if drop is None and not open_spots and ir_move else []))
+                                   subjects=[spot_ir] if drop is None and not spot_open and spot_ir else []))
     recs.sort(key=lambda r: r.score, reverse=True)
     return apply_ranks(apply_strength(recs[:limit]))
 

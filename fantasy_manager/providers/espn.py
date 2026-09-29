@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterable, Mapping
 
 from ..cache import CacheMiss, HttpCache, install_espn_cache
@@ -131,6 +131,7 @@ def player_from_espn(p: Any, year: int, pct_owned: float | None = None,
         pct_owned = own.get("pct_owned")
     status_raw = getattr(p, "injuryStatus", None)
     note = status_raw if isinstance(status_raw, str) and status_raw not in ("", "ACTIVE", "NORMAL") else None
+    primary = SLOT_NAMES.get(getattr(p, "position", None) or "")
     return Player(
         cid=f"espn:{p.playerId}",
         name=p.name,
@@ -138,6 +139,7 @@ def player_from_espn(p: Any, year: int, pct_owned: float | None = None,
         ids={"espn": str(p.playerId)},
         team=pro_team_abbrev(getattr(p, "proTeam", None)),
         positions=positions_from_espn(getattr(p, "eligibleSlots", []), getattr(p, "position", None)),
+        primary_position=primary if primary in ("C", "LW", "RW", "D", "G") else None,
         status=map_injury_status(status_raw, bool(getattr(p, "injured", False))),
         status_note=note,
         lines=parse_stat_lines(getattr(p, "stats", {}) or {}, year),
@@ -188,6 +190,145 @@ def roster_shape_from_counts(counts: dict[str, Any]) -> dict[str, int]:
         if slot and int(n) > 0:
             shape[slot] = int(n)
     return shape
+
+
+# rosterSettings.positionLimits is keyed by the player's ESPN defaultPositionId (not the lineup
+# slot id): 1 C, 2 LW, 3 RW, 4 D, 5 G (espn_api maps defaultPositionId 1-3 to POSITION_MAP[id - 1]);
+# key 0 is unused. Values <= 0 (-1 in the UI's "no limit", 0 on the unused key) mean no limit.
+POSITION_LIMIT_IDS = {1: "C", 2: "LW", 3: "RW", 4: "D", 5: "G"}
+
+
+def position_limits_from_settings(roster_settings: Mapping[str, Any] | None) -> dict[str, int]:
+    """ESPN ``rosterSettings.positionLimits`` -> {C/LW/RW/D/G: max rostered at that default
+    position}, only for positions that have a limit."""
+    out: dict[str, int] = {}
+    for pid, n in ((roster_settings or {}).get("positionLimits") or {}).items():
+        try:
+            pos, cap = POSITION_LIMIT_IDS.get(int(pid)), int(n)
+        except (TypeError, ValueError):
+            continue
+        if pos and cap > 0:
+            out[pos] = cap
+    return out
+
+
+def max_roster_from_counts(counts: Mapping[str, Any] | None) -> int | None:
+    """Maximum rostered players outside IR: the sum of the non-IR lineupSlotCounts."""
+    shape = roster_shape_from_counts(dict(counts or {}))
+    n = sum(v for k, v in shape.items() if k != "IR")
+    return n or None
+
+
+# -- transaction budget: settings.acquisitionSettings (verified on a live league) -----------
+#
+# acquisitionLimit            season acquisitions, -1 = unlimited
+# matchupAcquisitionLimit     acquisitions per matchup period, <= 0 = unlimited. When
+# matchupLimitPerScoringPeriod is true ESPN stores it per scoring period (a day in hockey):
+#                             0.2857 = 2/7, i.e. 2 per 7-day matchup; a matchup of N days
+#                             allows round(value x N)
+# isUsingAcquisitionBudget    FAAB on/off; acquisitionBudget = the season budget
+# waiverHours / acquisitionType (WAIVERS_TRADITIONAL, ...)
+# ESPN counts acquisitions (adds and waiver claims), not drops or IR moves; the team's
+# transactionCounter has "acquisitions" (season), "matchupAcquisitionTotals" {matchup period: n}
+# and "acquisitionBudgetSpent". Preseason adds (before scoring period 1) are not counted.
+
+WEEK_DAYS = 7
+
+
+def _num_or_none(v: Any) -> float | None:
+    try:
+        return float(v) if v is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def acquisition_limits(acq: Mapping[str, Any] | None, period_days: int | None = None) -> dict[str, Any]:
+    """ESPN ``settings.acquisitionSettings`` -> {"per_period": int | None (None = unlimited),
+    "season": int | None, "per_scoring_period": float | None, "faab_budget": float | None,
+    "waiver_hours": int | None, "type": str | None}. ``period_days`` = scoring periods in the
+    current matchup (default 7) for a per-scoring-period limit."""
+    acq = acq or {}
+    raw = _num_or_none(acq.get("matchupAcquisitionLimit"))
+    per_sp = bool(acq.get("matchupLimitPerScoringPeriod"))
+    per_period: int | None = None
+    if raw is not None and raw > 0:
+        per_period = int(round(raw * (period_days or WEEK_DAYS))) if per_sp else int(round(raw))
+    season_raw = _num_or_none(acq.get("acquisitionLimit"))
+    season = int(season_raw) if season_raw is not None and season_raw >= 0 else None
+    budget = _num_or_none(acq.get("acquisitionBudget")) if acq.get("isUsingAcquisitionBudget") else None
+    hours = _num_or_none(acq.get("waiverHours"))
+    return {"per_period": per_period, "season": season,
+            "per_scoring_period": raw if per_sp and raw is not None and raw > 0 else None,
+            "faab_budget": budget, "waiver_hours": int(hours) if hours is not None else None,
+            "type": acq.get("acquisitionType")}
+
+
+def transaction_counter(team_json: Mapping[str, Any] | None, matchup_period: int | None
+                        ) -> tuple[int | None, int | None, float | None]:
+    """(acquisitions this matchup period, acquisitions this season, FAAB spent) from a raw
+    league team's ``transactionCounter``; Nones when the counter is absent."""
+    tc = (team_json or {}).get("transactionCounter")
+    if not isinstance(tc, Mapping):
+        return None, None, None
+    totals = tc.get("matchupAcquisitionTotals") or {}
+    period = None
+    if matchup_period is not None and isinstance(totals, Mapping):
+        period = int(totals.get(str(matchup_period), totals.get(matchup_period, 0)) or 0)
+    season = tc.get("acquisitions")
+    return (period, int(season) if isinstance(season, (int, float)) else None,
+            _num_or_none(tc.get("acquisitionBudgetSpent")))
+
+
+ET_OFFSET = timedelta(hours=5)   # game start (UTC) -> US Eastern calendar date
+
+
+def espn_scoring_dates(pro_schedule: Mapping[str, Any] | None) -> tuple[dict[int, date], dict[date, int]]:
+    """``proTeamSchedules_wl`` JSON -> ({scoring period: date}, {date: NHL games}). A scoring
+    period's date is the Eastern date of its earliest game."""
+    first: dict[int, datetime] = {}
+    games: dict[date, set] = {}
+    for team in ((pro_schedule or {}).get("settings") or {}).get("proTeams") or []:
+        for sp, rows in (team.get("proGamesByScoringPeriod") or {}).items():
+            for g in rows or []:
+                try:
+                    when = datetime.fromtimestamp(float(g["date"]) / 1000.0, tz=timezone.utc) - ET_OFFSET
+                    k = int(sp)
+                except (KeyError, TypeError, ValueError, OverflowError, OSError):
+                    continue
+                if k not in first or when < first[k]:
+                    first[k] = when
+                games.setdefault(when.date(), set()).add(g.get("id") or (g.get("homeProTeamId"), when))
+    return {k: v.date() for k, v in first.items()}, {d: len(ids) for d, ids in sorted(games.items())}
+
+
+def espn_period_bounds(opening: date, final_scoring_period: int | None, n_periods: int | None,
+                       today: date, games_per_day: Mapping[date, int] | None = None,
+                       current_period: int | None = None) -> tuple[date, date] | None:
+    """Dates of the matchup period containing ``today`` (the first one before the season):
+    Monday-Sunday weeks from opening night, the All-Star-break week merged into the next when
+    ``games_per_day`` shows it, then the first two merged while there are more weeks than
+    ``n_periods`` (``analysis.schedule_grid.calendar_weeks``, as ``espn_calendar`` does). When
+    ESPN's ``current_period`` number disagrees with that calendar the merge guess was wrong and
+    the plain Monday-Sunday week containing ``today`` is used."""
+    from ..analysis.schedule_grid import calendar_weeks
+
+    days = int(final_scoring_period) if final_scoring_period else 200
+    last = opening + timedelta(days=days - 1)
+    stub = LeagueContext(provider="espn", league_id="", season=0, name="", scoring=ScoringConfig(kind="points"),
+                         roster_shape={}, teams=[], free_agents=[], matchup_period=None, as_of=today,
+                         games_per_day=dict(games_per_day or {}))
+    weeks = calendar_weeks(stub, n_periods, opening, last)
+    if not weeks:
+        return None
+    if today < weeks[0][0]:
+        return weeks[0]
+    found = next(((i + 1, w) for i, w in enumerate(weeks) if w[0] <= today <= w[1]), None)
+    if found is None:
+        return None
+    if current_period is None or found[0] == current_period:
+        return found[1]
+    plain = calendar_weeks(stub.model_copy(update={"games_per_day": {}}), None, opening, last)
+    return next((w for w in plain if w[0] <= today <= w[1]), found[1])
 
 
 def _norm_swid(s: Any) -> str:
@@ -530,7 +671,8 @@ class EspnProvider:
             raise ProviderError(f"Offline mode and ESPN data not cached: {e}") from e
 
         owned = _ownership_from_league(raw_league)
-        counts = raw_settings.get("settings", {}).get("rosterSettings", {}).get("lineupSlotCounts", {})
+        roster_settings = raw_settings.get("settings", {}).get("rosterSettings", {}) or {}
+        counts = roster_settings.get("lineupSlotCounts", {})
 
         mine = find_my_team(league.teams, s.espn_swid, s.espn_team)
         teams: list[FantasyTeam] = []
@@ -556,9 +698,78 @@ class EspnProvider:
             name=st.name,
             scoring=scoring_from_settings(st.scoring_type, st._raw_scoring_settings.get("scoringItems", [])),
             roster_shape=roster_shape_from_counts(counts),
+            position_limits=position_limits_from_settings(roster_settings),
+            max_roster_size=max_roster_from_counts(counts),
             teams=teams,
             free_agents=list(fas.values()),
             matchup_period=getattr(league, "currentMatchupPeriod", None),
             as_of=date.today(),
         )
+        self._apply_budget(league, raw_league, raw_settings, str(mine.team_id))
         return self._ctx
+
+    def _apply_budget(self, league: Any, raw_league: Mapping[str, Any], raw_settings: Mapping[str, Any],
+                      my_team_id: str) -> None:
+        """Fill the context's transaction budget (moves_* / period_* / recent_adds /
+        faab_remaining) from settings.acquisitionSettings, my team's transactionCounter and the
+        activity feed. Moves used = the larger of ESPN's counter and my ADDs in the activity feed
+        since the period started (the counter can lag). Best effort: failures become warnings."""
+        ctx = self._ctx
+        if ctx is None:
+            return
+        from ..recommend.base import RECENT_ADDS_WINDOW, count_adds, recent_adds_from
+
+        try:
+            st = (raw_settings or {}).get("settings") or {}
+            acq = st.get("acquisitionSettings") or {}
+            status = (raw_settings or {}).get("status") or (raw_league or {}).get("status") or {}
+            today = ctx.as_of
+            cur_mp = status.get("currentMatchupPeriod") or getattr(league, "currentMatchupPeriod", None)
+            cur_mp = int(cur_mp) if isinstance(cur_mp, (int, float)) and cur_mp else None
+            n_periods = len((st.get("scheduleSettings") or {}).get("matchupPeriods") or {}) or None
+            final = status.get("finalScoringPeriod") or getattr(league, "finalScoringPeriod", None)
+            limits = acquisition_limits(acq)
+            bounds = None
+            if limits["per_period"] is not None or limits["season"] is not None:
+                opening = None
+                gpd: dict[date, int] = {}
+                try:
+                    dates, gpd = espn_scoring_dates(league.espn_request.get_pro_schedule())
+                    opening = dates.get(1)
+                except Exception as e:  # noqa: BLE001
+                    self._warn(f"ESPN pro schedule unavailable ({type(e).__name__}); move-limit period "
+                               f"dates are approximate")
+                sp = getattr(league, "current_week", None)
+                if opening is None and isinstance(sp, int) and sp > 1:
+                    opening = today - timedelta(days=sp - 1)
+                if opening is not None:
+                    bounds = espn_period_bounds(opening, final if isinstance(final, int) else None, n_periods,
+                                                today, gpd, cur_mp)
+            if bounds is None:
+                start = today - timedelta(days=today.weekday())
+                bounds = (start, start + timedelta(days=6))
+            ctx.period_start, ctx.period_end = bounds
+            limits = acquisition_limits(acq, (bounds[1] - bounds[0]).days + 1)
+            ctx.moves_limit_per_period = limits["per_period"]
+            ctx.moves_limit_season = limits["season"]
+            ctx.moves_period_label = "matchup period"
+            team_json = next((t for t in (raw_league or {}).get("teams") or []
+                              if str(t.get("id")) == my_team_id), None)
+            ctr_period, ctr_season, spent = transaction_counter(team_json, cur_mp)
+            if limits["faab_budget"] is not None:
+                ctx.faab_remaining = limits["faab_budget"] - (spent or 0.0)
+            since = min(bounds[0], today - timedelta(days=RECENT_ADDS_WINDOW))
+            items = self.activity(since=since)
+            ctx.recent_adds = recent_adds_from(items, my_team_id, today)
+            from_feed = count_adds(items, my_team_id, bounds[0], bounds[1])
+            used = [v for v in (ctr_period, from_feed) if v is not None]
+            ctx.moves_used_this_period = max(used) if used else None
+            ctx.moves_used_season = ctr_season
+            if ctr_period is not None and ctr_period != from_feed and ctx.moves_limit_per_period is not None:
+                ctx.source_notes.append(
+                    f"ESPN moves: the league counter shows {ctr_period} acquisition"
+                    f"{'s' if ctr_period != 1 else ''} this matchup period, the activity feed "
+                    f"{from_feed} add{'s' if from_feed != 1 else ''} since {bounds[0]:%b} {bounds[0].day}; "
+                    f"using {ctx.moves_used_this_period} (the more conservative)")
+        except Exception as e:  # noqa: BLE001 - the budget is optional
+            self._warn(f"ESPN move limits unavailable: {type(e).__name__}: {e}")

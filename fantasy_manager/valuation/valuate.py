@@ -18,10 +18,38 @@ once a skater has ``XG_MIN_GP`` (5) GP this season and MoneyPuck's ixG describes
 ``regression.shrink_goals`` (k = 15 games) before the baseline shrink and recency blend
 (reason XG_SHRINK; -1.5% MAE on single-season rates in ``backtest.xg_backtest``).
 
+Availability: the week horizon uses the flat status multiplier (0 while out); the season horizon
+is proportional to the games he is expected to miss (``adjust.season_availability``: an estimated
+return date / game count / duration read from ``status_note``, counted on his team's schedule,
+``1 - missed / remaining`` with a 0.05 floor; IR without a timetable = 30 days, LTIR = rest of
+season, suspension = 5 games; flat value only when nothing can be inferred). Reason RETURN_ESTIMATE.
+
 Harness ledger inputs (opt-in, filled by the enrich deployment step only when a team has >= 5
 games in the ledger): ``ctx.goalie_actual_starts`` feeds ``start_share(actual=...)`` for goalies
 without a projection (START_ACTUAL) and ``ctx.b2b_second_night`` feeds
 ``schedule_factor(b2b_p=...)`` for the week window (B2B).
+
+Preseason (weak signal, unproven skaters only: career NHL GP < 82 or no prior season with >= 20
+GP, ``providers.preseason_enrich``): when the enrich preseason step registered a preseason line,
+the baseline's points-driving rates (G, A, PTS, SOG, PPP, PPG, PPA) become
+``(1 - w) * baseline + w * preseason`` with ``w = min(0.25, preseason GP / 12)``, fading to 0
+over the first 20 regular-season games (``valuation.blend.preseason_weight``; why the cap is
+0.25 is documented there). Reason PRESEASON (value = preseason PTS/GP, baseline = preseason
+GP). Established players are never touched. ``player_rates`` (the harness replay) takes no
+preseason line: the archive does not store one, and the blend has faded out long before a
+refit reads a snapshot's 28-day outcome for most of these players.
+
+Rookie / unproven skaters (``valuation.rookie``; same "unproven" definition, and only with rookie
+evidence: pedigree loaded, league history registered by the enrich rookie step, a Daily Faceoff
+lineup spot or a news role signal): the baseline above becomes ``rookie.rookie_value`` - a blend
+of the baseline (still one vote), an NHL-equivalency prior from his junior / college / European /
+AHL seasons, a draft-pedigree prior and the role signals (DFO line / PP unit, news). The old vs
+new baseline is logged in reason ROOKIE_BLEND; the preseason blend then runs as before. His
+season value (``fpg_season``) is multiplied by the rookie games share (reason GP_EXPECTATION; an
+AHL demotion or a return to junior sends it to ~0) and the week value by the near-term share
+(demotion / scratch only). ``fpg`` stays the healthy per-game value. ``PlayerValue.rookie`` keeps
+the estimate for the player page and ``valuation.dynasty`` (excluded from dumps). Established
+players are untouched, and ``player_rates`` (the harness replay) never uses the rookie model.
 """
 from __future__ import annotations
 
@@ -34,11 +62,11 @@ from . import params as _params
 
 from ..models import LeagueContext, Player, Reason, StatLine
 from ..scoring import CategoriesScoring, ScoringSystem, fit_to_context
-from .adjust import Horizon, availability_multiplier
+from .adjust import Horizon, availability_multiplier, season_availability
 from ..matching.normalize import normalize_team
-from .blend import (PRIOR_SPLITS, baseline_k, blend_rates, blend_recency, multi_season_baseline,
-                    multi_season_sample, projection_blend_weight, projection_k, recency_weights, shrink_baseline,
-                    shrink_k, shrink_toward)
+from .blend import (PRIOR_SPLITS, baseline_k, blend_preseason, blend_rates, blend_recency, multi_season_baseline,
+                    multi_season_sample, preseason_weight, projection_blend_weight, projection_k, recency_weights,
+                    shrink_baseline, shrink_k, shrink_toward)
 from .params import age_factor
 from .replacement import DEFAULT_SLOTS, ROSTERED_FALLBACK_PCT, best_slot, replacement_with_fallback, vorp
 from .regression import K_GOALS, shrink_goals
@@ -72,6 +100,8 @@ class PlayerValue(BaseModel):
     horizon_values: dict[str, float] = Field(default_factory=dict)
     rates: dict[str, float] = Field(default_factory=dict)
     reasons: list[Reason] = Field(default_factory=list)
+    # unproven skaters valued by valuation.rookie: the RookieEstimate (display / dynasty only)
+    rookie: Any = Field(default=None, exclude=True)
 
     def fpg_for(self, horizon: Horizon) -> float:
         return self.fpg_week if horizon == "week" else self.fpg_season
@@ -223,11 +253,32 @@ def player_rates(p: Player, means: dict[str, dict[str, float]], age: float | Non
 def _rates_for(p: Player, means: dict[str, dict[str, float]], scoring: ScoringSystem | None,
                age: float | None = None, params: Mapping[str, Any] | None = None,
                history: tuple[dict[str, float], int, str] | None = None,
-               explain: bool = True) -> tuple[dict[str, float], list[Reason]]:
+               explain: bool = True, preseason: Any = None,
+               rookie: dict[str, Any] | None = None) -> tuple[dict[str, float], list[Reason]]:
+    """``preseason``: the player's ``providers.preseason_enrich.PreseasonLine`` (unproven skaters
+    only; the caller checks), blended into the baseline (module docstring). ``rookie`` (unproven
+    skaters with rookie evidence; the caller checks): {"history": [LeagueSeason], "signals":
+    [RoleSignal], "as_of": date}; the baseline is replaced by ``rookie.rookie_value`` and the
+    estimate is stored back under ``rookie["estimate"]``."""
     reasons: list[Reason] = []
     season = p.lines.get("season")
     base_rates, base_line, _, base_src = baseline_rates(p, means, age, params=params, history=history)
     gp = season.gp if season else 0
+    rookie_reasons: list[Reason] = []
+    if rookie is not None and not p.is_goalie:
+        est = _rookie_estimate(p, means, age, base_rates, gp, rookie, scoring)
+        rookie["estimate"] = est
+        if est.rates != base_rates:
+            base_src = f"rookie blend of {base_src}" if base_src else "rookie priors (NHLe / pedigree, no projection)"
+        base_rates = est.rates
+        rookie_reasons = est.reasons
+    pre_base: dict[str, float] | None = None       # baseline before the preseason blend
+    pre_w = 0.0
+    if preseason is not None and not p.is_goalie and base_rates:
+        pre_w = preseason_weight(preseason.gp, gp)
+        if pre_w > 0:
+            pre_base = base_rates
+            base_rates = blend_preseason(base_rates, preseason.per_game(), pre_w)
     k = shrink_k(p.is_goalie, params)
     xg: tuple[float, float, float] | None = None
     if gp > 0:
@@ -244,10 +295,13 @@ def _rates_for(p: Player, means: dict[str, dict[str, float]], scoring: ScoringSy
     if not explain or scoring is None:
         return rates, reasons
     if base_rates:
-        base_fpg = scoring.value(base_rates)
+        base_fpg = scoring.value(pre_base if pre_base is not None else base_rates)
         raw = f" (raw {scoring.value(base_line.per_game()):.2f})" if base_line is not None else ""
         reasons.append(Reason(code="BASELINE", text=f"Baseline from {base_src}: {base_fpg:.2f} FPG{raw}",
                               value=base_fpg))
+    reasons.extend(rookie_reasons)
+    if preseason is not None and not p.is_goalie and preseason.gp > 0:
+        reasons.append(_preseason_reason(preseason, pre_w, pre_base, base_rates, gp, scoring))
     if xg is not None:
         g_rate, ixg_rate, new_g = xg
         reasons.append(Reason(code="XG_SHRINK",
@@ -269,6 +323,74 @@ def _rates_for(p: Player, means: dict[str, dict[str, float]], scoring: ScoringSy
     if not rates:
         reasons.append(Reason(code="NO_DATA", text="No current, projected or prior stats available"))
     return rates, reasons
+
+
+def _rookie_estimate(p: Player, means: dict[str, dict[str, float]], age: float | None,
+                     base_rates: dict[str, float], season_gp: int, rookie: Mapping[str, Any],
+                     scoring: ScoringSystem | None) -> Any:
+    """``rookie.rookie_value`` for an unproven skater (the NHL rows of his league history are
+    left out when the baseline already carries his NHL seasons)."""
+    from .rookie import rookie_prior, rookie_value
+
+    as_of = rookie.get("as_of")
+    hist_gp = history_baseline(p, means, age)[1] if any(p.gp(s) > 0 for s in PRIOR_SPLITS) else 0
+    start = season_start_year(as_of) if as_of else None
+    before = start * 10000 + start + 1 if start else None
+    prior = rookie_prior(p, rookie.get("history") or [], age=age, include_nhl=hist_gp <= 0, before_season=before)
+    proj = p.lines.get("projected")
+    return rookie_value(p, prior, base_rates, preseason=rookie.get("preseason"), deployment=p,
+                        news_signals=rookie.get("signals") or [], baseline_gp=float(hist_gp),
+                        projection_gp=proj.gp if proj is not None and proj.gp > 0 else None,
+                        mean=means.get(position_group(p), {}), season_gp=season_gp, as_of=as_of, scoring=scoring)
+
+
+def _rookie_lookup(ctx: LeagueContext) -> dict[str, dict[str, Any]]:
+    """cid -> rookie inputs of the context's unproven skaters with rookie evidence ({} on error or
+    with FM_ROOKIE_MODEL=0)."""
+    import os
+
+    if os.environ.get("FM_ROOKIE_MODEL", "1").strip().lower() in ("0", "false", "no", "off"):
+        return {}
+    try:
+        from ..providers.rookie_enrich import history_for, signals_for
+        from .rookie import has_rookie_evidence, is_unproven
+    except Exception:  # an optional signal must never break valuation
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for p in ctx.all_players():
+        try:
+            if p.is_goalie or not is_unproven(p):
+                continue
+            hist, sigs = history_for(p), signals_for(p)
+            if has_rookie_evidence(p, hist, sigs):
+                out[p.cid] = {"history": hist, "signals": sigs, "as_of": ctx.as_of}
+        except Exception:
+            continue
+    return out
+
+
+def _preseason_reason(line: Any, w: float, before: dict[str, float] | None, after: dict[str, float],
+                      season_gp: int, scoring: ScoringSystem) -> Reason:
+    """Reason PRESEASON: the preseason line and what the blend did (value = PTS/GP, baseline = GP)."""
+    text = f"Preseason {line.summary()} ({line.pts_per_game:.2f} PTS/GP)"
+    if before is not None and w > 0:
+        text += (f": blended at {w:.0%} into the baseline ({scoring.value(before):.2f} -> "
+                 f"{scoring.value(after):.2f} FPG; capped at 25%: preseason opponents and usage are weak evidence")
+        text += f", fading over the first 20 GP, {season_gp} played)" if season_gp > 0 else ")"
+    elif not after:
+        text += ": not blended (no baseline to adjust)"
+    else:
+        text += f": no longer blended ({season_gp} regular-season GP)"
+    return Reason(code="PRESEASON", text=text, value=round(line.pts_per_game, 4), baseline=float(line.gp))
+
+
+def _preseason_lookup(ctx: LeagueContext) -> dict[str, Any]:
+    """cid -> preseason line of the context's unproven skaters ({} when none were loaded)."""
+    try:
+        from ..providers.preseason_enrich import preseason_lines
+        return preseason_lines(ctx)
+    except Exception:  # an optional signal must never break valuation
+        return {}
 
 
 def xg_applies(p: Player, gp: int | None = None) -> bool:
@@ -368,10 +490,18 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
     if window is not None and window.avg_team_games <= 0:
         window = None
     partial: dict[str, PlayerValue] = {}
+    preseason = _preseason_lookup(ctx)
+    rookies = _rookie_lookup(ctx)
     for p in players:
-        rates, reasons = _rates_for(p, means, scoring, season_age(p, ctx.as_of))
+        rk = rookies.get(p.cid)
+        if rk is not None:
+            rk["preseason"] = preseason.get(p.cid)
+        rates, reasons = _rates_for(p, means, scoring, season_age(p, ctx.as_of), preseason=preseason.get(p.cid),
+                                    rookie=rk)
+        est = rk.get("estimate") if rk else None
         fpg = scoring.value(rates) if rates else 0.0
-        a_season = availability_multiplier(p.status, "season")
+        a_season, ret_est = season_availability(p.status, p.status_note, ctx.as_of,
+                                                ctx.schedule.get(normalize_team(p.team) or "", []), ctx.season_start)
         a_week = availability_multiplier(p.status, "week")
         season = p.lines.get("season")
         raw = f", season raw {scoring.value(season.per_game()):.2f}" if season and season.gp else ""
@@ -381,6 +511,9 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                   text=f"Status {p.status}{' (' + p.status_note + ')' if p.status_note else ''}: "
                                        f"x{a_week:.2f} this week, x{a_season:.2f} rest of season",
                                   value=a_season, baseline=1.0))
+            if ret_est is not None:
+                reasons.append(Reason(code="RETURN_ESTIMATE", text=ret_est.text(), value=round(ret_est.games_missed, 2),
+                                      baseline=round(ret_est.games_remaining, 2)))
         share = 1.0
         season_value: float | None = None
         share_parts: dict[str, Any] = {}
@@ -414,10 +547,18 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                                f"k={ss_k:g} toward {ss_prior:.0%}): "
                                                f"season value {fpg * a_season:.2f} -> {fpg * a_season * share:.2f} FPG",
                                           value=share, baseline=ss_prior))
+        gp_share = week_share = 1.0
+        if est is not None:
+            gp_share, week_share = float(est.gp_expectation), float(est.week_share)
+            if gp_share < 1.0 or week_share < 1.0:
+                reasons.append(Reason(code="ROOKIE_GAMES",
+                                      text=f"Rookie games share: season value x{gp_share:.2f}"
+                                           + (f", week value x{week_share:.2f}" if week_share < 1.0 else ""),
+                                      value=gp_share, baseline=1.0))
         pv = PlayerValue(player=p, fpg=fpg,
-                         fpg_season=season_value if season_value is not None else fpg * a_season * share,
-                         fpg_week=fpg * a_week * share, vorp=0.0, rates=rates, reasons=reasons,
-                         start_share=share if p.is_goalie else None, **share_parts)
+                         fpg_season=(season_value if season_value is not None else fpg * a_season * share) * gp_share,
+                         fpg_week=fpg * a_week * share * week_share, vorp=0.0, rates=rates, reasons=reasons,
+                         start_share=share if p.is_goalie else None, rookie=est, **share_parts)
         b2b = ctx.b2b_second_night.get(normalize_team(p.team) or "") if p.is_goalie else None
         sf = schedule_factor(p, ctx.schedule, ctx.games_per_day, window, share=share,
                              b2b_p=b2b[0] if b2b else None) if window else None
@@ -428,7 +569,7 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                           f"p={b2b[0]:.2f} ({seen}); week start share {share:.0%} -> "
                                           f"{sf.start_share:.0%}", value=sf.start_share, baseline=share))
         if sf is not None:
-            pw = proj_week(fpg, a_week, sf.games, sf.offnight) * sf.start_share
+            pw = proj_week(fpg, a_week, sf.games, sf.offnight) * sf.start_share * week_share
             pv.proj_week, pv.games_next7, pv.offnight_next7 = pw, sf.games, sf.offnight
             pv.fpg_week = pw / window.avg_team_games
             pre = " (preseason: first 7 days from opening night)" if window.preseason else ""

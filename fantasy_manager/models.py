@@ -58,6 +58,9 @@ class Player(BaseModel):
     ids: dict[str, str]
     team: str | None
     positions: list[str]
+    # The platform's single default position (ESPN defaultPositionId), which is what ESPN's
+    # per-position roster maximums count; None when the provider has no such notion.
+    primary_position: str | None = None
     birth_date: date | None = None
     status: Status = "unknown"
     status_note: str | None = None
@@ -147,6 +150,13 @@ class LeagueContext(BaseModel):
     scoring: ScoringConfig
     roster_shape: dict[str, int]
     teams: list[FantasyTeam]
+    # Per-position roster maximums (C/LW/RW/F/D/G -> max players at that position on the whole
+    # roster, IR included; see recommend.base.limit_positions for how a player is counted) and the
+    # maximum number of rostered players outside IR / minors slots. Empty / None = not known.
+    # ESPN: rosterSettings.positionLimits (keyed by defaultPositionId, <= 0 = no limit) and the
+    # non-IR lineupSlotCounts; Fantrax: the Rules page "Total Max" column and "Maximum Total Players".
+    position_limits: dict[str, int] = Field(default_factory=dict)
+    max_roster_size: int | None = None
     free_agents: list[Player]
     matchup_period: int | None
     dynasty: bool = False
@@ -174,6 +184,23 @@ class LeagueContext(BaseModel):
     b2b_second_night: dict[str, tuple[float, int]] = Field(default_factory=dict)
     # cid -> deployment summary (harness.deployment.summarize_rows) for exact role-alert numbers
     deployment_details: dict[str, dict[str, Any]] = Field(default_factory=dict, exclude=True)
+    # Transaction budget (recommend.base.moves_left / move_scarcity_threshold). "Moves" are
+    # acquisitions (adds / waiver claims); drops and IR moves are free. ``moves_limit_per_period``
+    # is the league's limit per ``moves_period_label`` (ESPN: per matchup period,
+    # settings.acquisitionSettings.matchupAcquisitionLimit; Fantrax: "Max # of claims per week");
+    # None = unlimited or unknown. ``moves_used_this_period``: my adds since ``period_start``
+    # (``period_start``..``period_end`` = the current matchup / scoring period, inclusive).
+    # Season limits (ESPN acquisitionLimit, Fantrax "Max # of claims per season") cap it further.
+    # ``recent_adds``: cid -> date I added him, last 14 days (churn guard).
+    moves_limit_per_period: int | None = None
+    moves_used_this_period: int | None = None
+    moves_period_label: str | None = None
+    moves_limit_season: int | None = None
+    moves_used_season: int | None = None
+    period_start: date | None = None
+    period_end: date | None = None
+    recent_adds: dict[str, date] = Field(default_factory=dict)
+    faab_remaining: float | None = None
     # Human-readable data freshness notes and non-fatal warnings per source.
     source_notes: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

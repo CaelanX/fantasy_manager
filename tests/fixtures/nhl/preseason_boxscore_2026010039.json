@@ -1,0 +1,113 @@
+{
+ "id": 2026010039,
+ "season": 20262027,
+ "gameType": 1,
+ "gameDate": "2026-09-24",
+ "gameState": "FINAL",
+ "awayTeam": {
+  "abbrev": "ANA"
+ },
+ "homeTeam": {
+  "abbrev": "SJS"
+ },
+ "playerByGameStats": {
+  "awayTeam": {
+   "forwards": [
+    {
+     "playerId": 8482118,
+     "sweaterNumber": 12,
+     "name": {
+      "default": "S. Colangelo"
+     },
+     "position": "R",
+     "goals": 0,
+     "assists": 0,
+     "points": 0,
+     "plusMinus": -3,
+     "pim": 0,
+     "hits": 0,
+     "powerPlayGoals": 0,
+     "sog": 2,
+     "faceoffWinningPctg": 0.0,
+     "toi": "12:08",
+     "blockedShots": 0,
+     "shifts": 17,
+     "giveaways": 2,
+     "takeaways": 0
+    }
+   ],
+   "defense": [],
+   "goalies": []
+  },
+  "homeTeam": {
+   "forwards": [
+    {
+     "playerId": 8486103,
+     "sweaterNumber": 41,
+     "name": {
+      "default": "I. Stenberg"
+     },
+     "position": "L",
+     "goals": 3,
+     "assists": 1,
+     "points": 4,
+     "plusMinus": 3,
+     "pim": 0,
+     "hits": 0,
+     "powerPlayGoals": 1,
+     "sog": 3,
+     "toi": "15:23",
+     "blockedShots": 0,
+     "shifts": 17,
+     "giveaways": 0,
+     "takeaways": 0
+    },
+    {
+     "playerId": 8485402,
+     "sweaterNumber": 77,
+     "name": {
+      "default": "M. Misa"
+     },
+     "position": "C",
+     "goals": 1,
+     "assists": 3,
+     "points": 4,
+     "plusMinus": 3,
+     "pim": 0,
+     "hits": 0,
+     "powerPlayGoals": 0,
+     "sog": 5,
+     "faceoffWinningPctg": 0.857143,
+     "toi": "15:56",
+     "blockedShots": 0,
+     "shifts": 16,
+     "giveaways": 1,
+     "takeaways": 1
+    },
+    {
+     "playerId": 8484994,
+     "sweaterNumber": 92,
+     "name": {
+      "default": "I. Chernyshov"
+     },
+     "position": "L",
+     "goals": 2,
+     "assists": 1,
+     "points": 3,
+     "plusMinus": 3,
+     "pim": 2,
+     "hits": 0,
+     "powerPlayGoals": 0,
+     "sog": 3,
+     "toi": "14:34",
+     "blockedShots": 0,
+     "shifts": 17,
+     "giveaways": 1,
+     "takeaways": 1
+    }
+   ],
+   "defense": [],
+   "goalies": []
+  }
+ }
+}

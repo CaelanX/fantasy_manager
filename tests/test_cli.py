@@ -179,6 +179,7 @@ def test_roster_dynasty_column_and_fantrax_settings(monkeypatch, tmp_path):
         def load(self):
             ctx = _fake_ctx()
             ctx.provider, ctx.dynasty = "fantrax", True
+            ctx.position_limits, ctx.max_roster_size = {"G": 3}, 16
             return ctx
 
         def describe_settings(self):
@@ -194,10 +195,12 @@ def test_roster_dynasty_column_and_fantrax_settings(monkeypatch, tmp_path):
     assert json.loads(res.output)[0]["slots"][0]["dynasty"]["value"] == 7.5
     res = runner.invoke(cli.app, ["--league", "fantrax", "settings"])
     assert res.exit_code == 0 and "Minor league slots: 5" in res.output and "mode contend" in res.output
+    assert "Roster maximums: max G 3 (incl. IR); roster max 16 (excl. IR)" in res.output
     res = runner.invoke(cli.app, ["--json", "--league", "fantrax", "settings"])
     data = json.loads(res.output)
     assert data["provider_settings"] == ["Minor league slots: 5"] and data["dynasty"] is True
     assert data["dynasty_mode"] == "contend" and data["dynasty_mode_source"] == "env"
+    assert data["position_limits"] == {"G": 3} and data["max_roster_size"] == 16
 
 
 def test_prospect_marker():
@@ -264,13 +267,17 @@ def test_trades_command(monkeypatch, tmp_path):
     res = runner.invoke(cli.app, ["trades"])
     assert res.exit_code == 0, res.output
     assert "Trade proposals" in res.output and "my_c2" in res.output and "opp_lw" in res.output
+    assert "expected value" in res.output and "Accept" in res.output
     res = runner.invoke(cli.app, ["--json", "trades", "--limit", "5", "--per-team", "1"])
     assert res.exit_code == 0, res.output
     data = json.loads(res.output)
-    assert data["errors"] == [] and len(data["trades"]) == 1
+    assert data["errors"] == [] and len(data["trades"]) == 1 and "sweet_spot" in data
     t = data["trades"][0]
-    assert t["counterparty"] == "them" and [p["cid"] for p in t["drop"]] == ["my_c2"]
+    # my surplus C for their LW (a no-cost throw-in may ride along: it raises their acceptance)
+    assert t["counterparty"] == "them" and "my_c2" in [p["cid"] for p in t["drop"]]
     assert [p["cid"] for p in t["add"]] == ["opp_lw"]
+    codes = [x["code"] for x in t["reasons"]]
+    assert codes[:2] == ["MY_EDGE", "MARKET_VIEW"] and "P_ACCEPT" in codes
 
 
 def test_flags_command(monkeypatch, tmp_path):

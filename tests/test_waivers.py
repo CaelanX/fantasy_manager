@@ -328,3 +328,70 @@ def test_trending_alerts_thresholds():
     assert len(recommend_trending_alerts(ctx, limit=2, values=vals)) == 2
     # values omitted: computed from the context (here only the deployment risers qualify)
     assert [r.subjects[0].cid for r in recommend_trending_alerts(ctx)] == ["pp_guy", "deployed"]
+
+
+# -- per-position roster maximums (ESPN positionLimits / Fantrax "Total Max") ----------------
+
+def _goalie_cap_league(cap=3, fa_gpg=1.0):
+    """The Lankinen scenario: three goalies rostered, one open bench spot, a strong FA goalie."""
+    lank = mk("Lankinen", ["G"], fa_gpg, gp=20)
+    fa_c = mk("fa_c", ["C"], 0.9, gp=20)
+    mine = [("G", mk("Hellebuyck", ["G"], 0.8)), ("G", mk("Skinner", ["G"], 0.3)),
+            ("BN", mk("Bussi", ["G"], 0.1)), ("C", mk("my_c", ["C"], 0.2))]
+    ctx = league([lank, fa_c], mine, shape={"C": 1, "G": 2, "BN": 2, "IR": 1})
+    if cap is not None:
+        ctx.position_limits = {"G": cap}
+    return ctx
+
+
+def test_goalie_cap_blocks_open_spot_add_and_drops_a_goalie_instead():
+    from fantasy_manager.recommend.base import position_room, roster_legal_after
+    ctx = _goalie_cap_league()
+    team = ctx.my_team
+    lank = next(p for p in ctx.free_agents if p.cid == "Lankinen")
+    assert position_room(team, ctx, lank) == 0 and position_room(team, ctx, ["C"]) > 100
+    ok, why = roster_legal_after(team, ctx, add=[lank])
+    assert not ok and why == "G limit 3: would roster 4 goalies"
+    bussi = next(p for p in team.players if p.cid == "Bussi")
+    my_c = next(p for p in team.players if p.cid == "my_c")
+    assert roster_legal_after(team, ctx, add=[lank], drop=[bussi]) == (True, None)
+    assert not roster_legal_after(team, ctx, add=[lank], drop=[my_c])[0]
+
+    recs = recommend_waivers(ctx, valuate_league(ctx, PointsScoring({"G": 1.0})))
+    goalie = [r for r in recs if r.add[0].cid == "Lankinen"]
+    assert goalie, [r.title for r in recs]
+    r = goalie[0]
+    assert r.title == "Add Lankinen, drop Bussi" and [d.cid for d in r.drop] == ["Bussi"]
+    codes = [x.code for x in r.reasons]
+    assert "POSITION_CAP" in codes and "OPEN_SPOT" not in codes
+    assert "G limit 3" in next(x.text for x in r.reasons if x.code == "POSITION_CAP")
+    # skaters still use the open spot
+    skater = next(r for r in recs if r.add[0].cid == "fa_c")
+    assert skater.drop == [] and "OPEN_SPOT" in [x.code for x in skater.reasons]
+
+
+def test_without_a_cap_the_goalie_takes_the_open_spot():
+    ctx = _goalie_cap_league(cap=None)
+    recs = recommend_waivers(ctx, valuate_league(ctx, PointsScoring({"G": 1.0})))
+    r = next(r for r in recs if r.add[0].cid == "Lankinen")
+    assert r.drop == [] and r.title == "Add Lankinen (open roster spot)"
+
+
+def test_goalie_cap_with_no_worthwhile_goalie_drop_gives_no_goalie_add():
+    ctx = _goalie_cap_league(fa_gpg=0.15)     # barely better than Bussi (0.1): below MIN_GAIN
+    debug: list = []
+    recs = recommend_waivers(ctx, valuate_league(ctx, PointsScoring({"G": 1.0})), debug=debug)
+    assert not [r for r in recs if r.add[0].cid == "Lankinen"]
+
+
+def test_roster_legal_after_max_roster_size_and_ir_moves():
+    from fantasy_manager.recommend.base import position_limits_text, roster_legal_after
+    ctx = _goalie_cap_league()
+    ctx.max_roster_size = 4
+    team = ctx.my_team
+    fa_c = next(p for p in ctx.free_agents if p.cid == "fa_c")
+    ok, why = roster_legal_after(team, ctx, add=[fa_c])
+    assert not ok and why == "roster limit 4: would roster 5 players"
+    my_c = next(p for p in team.players if p.cid == "my_c")
+    assert roster_legal_after(team, ctx, add=[fa_c], to_ir=[my_c]) == (True, None)
+    assert position_limits_text(ctx) == "max G 3 (incl. IR); roster max 4 (excl. IR)"

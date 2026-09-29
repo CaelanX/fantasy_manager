@@ -1,0 +1,569 @@
+{
+ "playerId": 8484794,
+ "isActive": true,
+ "currentTeamAbbrev": "DET",
+ "firstName": {
+  "default": "Michael"
+ },
+ "lastName": {
+  "default": "Brandsegg-Nygård"
+ },
+ "position": "R",
+ "birthDate": "2005-10-05",
+ "shootsCatches": "R",
+ "draftDetails": {
+  "year": 2024,
+  "teamAbbrev": "DET",
+  "round": 1,
+  "pickInRound": 15,
+  "overallPick": 15
+ },
+ "seasonTotals": [
+  {
+   "assists": 2,
+   "gameTypeId": 2,
+   "gamesPlayed": 6,
+   "goals": 3,
+   "leagueAbbrev": "WSI U13",
+   "points": 5,
+   "season": 20172018,
+   "sequence": 11,
+   "teamName": {
+    "default": "Norway Selects U13"
+   }
+  },
+  {
+   "assists": 1,
+   "gameTypeId": 2,
+   "gamesPlayed": 4,
+   "goals": 2,
+   "leagueAbbrev": "Norway U16",
+   "pim": 0,
+   "plusMinus": 4,
+   "points": 3,
+   "season": 20182019,
+   "sequence": 11,
+   "teamName": {
+    "default": "Vålerenga U16"
+   }
+  },
+  {
+   "assists": 0,
+   "gameTypeId": 2,
+   "gamesPlayed": 6,
+   "goals": 3,
+   "leagueAbbrev": "WSI U14",
+   "points": 3,
+   "season": 20182019,
+   "sequence": 12,
+   "teamName": {
+    "default": "Norway Selects U14"
+   }
+  },
+  {
+   "assists": 16,
+   "gameTypeId": 2,
+   "gamesPlayed": 15,
+   "goals": 14,
+   "leagueAbbrev": "Norway U16",
+   "pim": 26,
+   "plusMinus": 18,
+   "points": 30,
+   "season": 20192020,
+   "sequence": 11,
+   "teamName": {
+    "default": "Vålerenga U16"
+   }
+  },
+  {
+   "assists": 4,
+   "gameTypeId": 2,
+   "gamesPlayed": 15,
+   "goals": 3,
+   "leagueAbbrev": "Norway U18",
+   "pim": 4,
+   "plusMinus": 2,
+   "points": 7,
+   "season": 20192020,
+   "sequence": 12,
+   "teamName": {
+    "default": "Vålerenga U18"
+   }
+  },
+  {
+   "assists": 5,
+   "gameTypeId": 2,
+   "gamesPlayed": 8,
+   "goals": 16,
+   "leagueAbbrev": "Norway U18",
+   "pim": 20,
+   "plusMinus": 11,
+   "points": 21,
+   "season": 20202021,
+   "sequence": 11,
+   "teamName": {
+    "default": "Vålerenga U18"
+   }
+  },
+  {
+   "assists": 1,
+   "gameTypeId": 2,
+   "gamesPlayed": 2,
+   "goals": 2,
+   "leagueAbbrev": "Norway U16",
+   "pim": 16,
+   "plusMinus": 4,
+   "points": 3,
+   "season": 20202021,
+   "sequence": 12,
+   "teamName": {
+    "default": "Vålerenga U16"
+   }
+  },
+  {
+   "assists": 2,
+   "gameTypeId": 2,
+   "gamesPlayed": 2,
+   "goals": 0,
+   "leagueAbbrev": "Norway U21",
+   "pim": 0,
+   "plusMinus": 2,
+   "points": 2,
+   "season": 20202021,
+   "sequence": 13,
+   "teamName": {
+    "default": "Vålerenga U20"
+   }
+  },
+  {
+   "assists": 18,
+   "gameTypeId": 2,
+   "gamesPlayed": 25,
+   "goals": 24,
+   "leagueAbbrev": "Norway U20",
+   "pim": 20,
+   "plusMinus": 30,
+   "points": 42,
+   "season": 20212022,
+   "sequence": 11,
+   "teamName": {
+    "default": "Vålerenga U20"
+   }
+  },
+  {
+   "assists": 9,
+   "gameTypeId": 2,
+   "gamesPlayed": 7,
+   "goals": 10,
+   "leagueAbbrev": "Norway U18",
+   "pim": 4,
+   "plusMinus": 16,
+   "points": 19,
+   "season": 20212022,
+   "sequence": 12,
+   "teamName": {
+    "default": "Vålerenga U18"
+   }
+  },
+  {
+   "assists": 0,
+   "gameTypeId": 2,
+   "gamesPlayed": 8,
+   "goals": 0,
+   "leagueAbbrev": "Norway",
+   "pim": 0,
+   "plusMinus": -1,
+   "points": 0,
+   "season": 20212022,
+   "sequence": 13,
+   "teamName": {
+    "default": "Vålerenga"
+   }
+  },
+  {
+   "assists": 2,
+   "gameTypeId": 2,
+   "gamesPlayed": 5,
+   "goals": 2,
+   "leagueAbbrev": "WJC-18 D1A",
+   "pim": 4,
+   "plusMinus": 3,
+   "points": 4,
+   "season": 20212022,
+   "sequence": 14,
+   "teamName": {
+    "default": "Norway U18"
+   }
+  },
+  {
+   "assists": 4,
+   "gameTypeId": 3,
+   "gamesPlayed": 4,
+   "goals": 2,
+   "leagueAbbrev": "Norway U20",
+   "pim": 4,
+   "plusMinus": 3,
+   "points": 6,
+   "season": 20212022,
+   "sequence": 11,
+   "teamName": {
+    "default": "Vålerenga U20"
+   }
+  },
+  {
+   "assists": 6,
+   "gameTypeId": 3,
+   "gamesPlayed": 4,
+   "goals": 2,
+   "leagueAbbrev": "Norway U18",
+   "pim": 8,
+   "plusMinus": 6,
+   "points": 8,
+   "season": 20212022,
+   "sequence": 12,
+   "teamName": {
+    "default": "Vålerenga U18"
+   }
+  },
+  {
+   "assists": 0,
+   "gameTypeId": 3,
+   "gamesPlayed": 1,
+   "goals": 0,
+   "leagueAbbrev": "Norway",
+   "pim": 0,
+   "plusMinus": 0,
+   "points": 0,
+   "season": 20212022,
+   "sequence": 13,
+   "teamName": {
+    "default": "Vålerenga"
+   }
+  },
+  {
+   "assists": 21,
+   "gameTypeId": 2,
+   "gamesPlayed": 35,
+   "goals": 17,
+   "leagueAbbrev": "J20 Nationell",
+   "pim": 28,
+   "plusMinus": 11,
+   "points": 38,
+   "season": 20222023,
+   "sequence": 11,
+   "teamName": {
+    "default": "Mora IK J20"
+   }
+  },
+  {
+   "assists": 5,
+   "gameTypeId": 2,
+   "gamesPlayed": 4,
+   "goals": 5,
+   "leagueAbbrev": "J18 Region",
+   "pim": 6,
+   "points": 10,
+   "season": 20222023,
+   "sequence": 12,
+   "teamName": {
+    "default": "Mora IK J18"
+   }
+  },
+  {
+   "assists": 2,
+   "gameTypeId": 2,
+   "gamesPlayed": 11,
+   "goals": 1,
+   "leagueAbbrev": "HockeyAllsvenskan",
+   "pim": 6,
+   "plusMinus": 3,
+   "points": 3,
+   "season": 20222023,
+   "sequence": 13,
+   "teamName": {
+    "default": "Mora IK"
+   }
+  },
+  {
+   "assists": 3,
+   "gameTypeId": 2,
+   "gamesPlayed": 5,
+   "goals": 2,
+   "leagueAbbrev": "WJC-20 D1A",
+   "pim": 10,
+   "plusMinus": 3,
+   "points": 5,
+   "season": 20222023,
+   "sequence": 14,
+   "teamName": {
+    "default": "Norway U20"
+   }
+  },
+  {
+   "assists": 10,
+   "gameTypeId": 2,
+   "gamesPlayed": 41,
+   "goals": 8,
+   "leagueAbbrev": "HockeyAllsvenskan",
+   "pim": 19,
+   "plusMinus": 3,
+   "points": 18,
+   "season": 20232024,
+   "sequence": 11,
+   "teamName": {
+    "default": "Mora IK"
+   }
+  },
+  {
+   "assists": 7,
+   "gameTypeId": 2,
+   "gamesPlayed": 7,
+   "goals": 5,
+   "leagueAbbrev": "J20 Nationell",
+   "pim": 10,
+   "plusMinus": 9,
+   "points": 12,
+   "season": 20232024,
+   "sequence": 12,
+   "teamName": {
+    "default": "Mora IK J20"
+   }
+  },
+  {
+   "assists": 2,
+   "gameTypeId": 2,
+   "gamesPlayed": 5,
+   "goals": 3,
+   "leagueAbbrev": "WJC-20",
+   "pim": 0,
+   "plusMinus": 1,
+   "points": 5,
+   "season": 20232024,
+   "sequence": 13,
+   "teamName": {
+    "default": "Norway U20"
+   }
+  },
+  {
+   "assists": 2,
+   "gameTypeId": 2,
+   "gamesPlayed": 7,
+   "goals": 3,
+   "leagueAbbrev": "WC",
+   "pim": 2,
+   "plusMinus": -6,
+   "points": 5,
+   "season": 20232024,
+   "sequence": 14,
+   "teamName": {
+    "default": "Norway"
+   }
+  },
+  {
+   "assists": 6,
+   "gameTypeId": 3,
+   "gamesPlayed": 12,
+   "goals": 4,
+   "leagueAbbrev": "HockeyAllsvenskan",
+   "pim": 8,
+   "plusMinus": 1,
+   "points": 10,
+   "season": 20232024,
+   "sequence": 11,
+   "teamName": {
+    "default": "Mora IK"
+   }
+  },
+  {
+   "assists": 6,
+   "gameTypeId": 2,
+   "gamesPlayed": 42,
+   "goals": 5,
+   "leagueAbbrev": "SHL",
+   "pim": 51,
+   "plusMinus": -2,
+   "points": 11,
+   "season": 20242025,
+   "sequence": 11,
+   "teamName": {
+    "default": "Skellefteå AIK"
+   }
+  },
+  {
+   "assists": 0,
+   "gameTypeId": 2,
+   "gamesPlayed": 3,
+   "goals": 2,
+   "leagueAbbrev": "OGQ",
+   "pim": 6,
+   "plusMinus": 0,
+   "points": 2,
+   "season": 20242025,
+   "sequence": 12,
+   "teamName": {
+    "default": "Norway"
+   }
+  },
+  {
+   "assists": 2,
+   "gameTypeId": 2,
+   "gamesPlayed": 2,
+   "goals": 0,
+   "leagueAbbrev": "Champions HL",
+   "pim": 2,
+   "plusMinus": 1,
+   "points": 2,
+   "season": 20242025,
+   "sequence": 13,
+   "teamName": {
+    "default": "Skellefteå AIK"
+   }
+  },
+  {
+   "assists": 0,
+   "gameTypeId": 2,
+   "gamesPlayed": 2,
+   "goals": 0,
+   "leagueAbbrev": "AHL",
+   "pim": 2,
+   "plusMinus": -1,
+   "points": 0,
+   "season": 20242025,
+   "sequence": 14,
+   "teamName": {
+    "default": "Grand Rapids Griffins"
+   }
+  },
+  {
+   "assists": 0,
+   "gameTypeId": 2,
+   "gamesPlayed": 5,
+   "goals": 1,
+   "leagueAbbrev": "WJC-20 D1A",
+   "pim": 6,
+   "plusMinus": 1,
+   "points": 1,
+   "season": 20242025,
+   "sequence": 14,
+   "teamName": {
+    "default": "Norway U20"
+   }
+  },
+  {
+   "assists": 4,
+   "gameTypeId": 2,
+   "gamesPlayed": 5,
+   "goals": 0,
+   "leagueAbbrev": "WC",
+   "pim": 29,
+   "plusMinus": -2,
+   "points": 4,
+   "season": 20242025,
+   "sequence": 16,
+   "teamName": {
+    "default": "Norway"
+   }
+  },
+  {
+   "assists": 2,
+   "gameTypeId": 3,
+   "gamesPlayed": 11,
+   "goals": 4,
+   "leagueAbbrev": "SHL",
+   "pim": 12,
+   "plusMinus": -3,
+   "points": 6,
+   "season": 20242025,
+   "sequence": 11,
+   "teamName": {
+    "default": "Skellefteå AIK"
+   }
+  },
+  {
+   "assists": 1,
+   "gameTypeId": 3,
+   "gamesPlayed": 3,
+   "goals": 2,
+   "leagueAbbrev": "AHL",
+   "pim": 4,
+   "plusMinus": 1,
+   "points": 3,
+   "season": 20242025,
+   "sequence": 12,
+   "teamName": {
+    "default": "Grand Rapids Griffins"
+   }
+  },
+  {
+   "assists": 1,
+   "avgToi": "12:31",
+   "faceoffWinningPctg": 0.0,
+   "gameTypeId": 2,
+   "gameWinningGoals": 0,
+   "gamesPlayed": 14,
+   "goals": 0,
+   "leagueAbbrev": "NHL",
+   "otGoals": 0,
+   "pim": 2,
+   "plusMinus": -5,
+   "points": 1,
+   "powerPlayGoals": 0,
+   "powerPlayPoints": 0,
+   "season": 20252026,
+   "sequence": 1,
+   "shootingPctg": 0.0,
+   "shorthandedGoals": 0,
+   "shorthandedPoints": 0,
+   "shots": 20,
+   "teamCommonName": {
+    "default": "Red Wings"
+   },
+   "teamName": {
+    "default": "Detroit Red Wings",
+    "fr": "Red Wings de Detroit"
+   },
+   "teamPlaceNameWithPreposition": {
+    "default": "Detroit",
+    "fr": "de Detroit"
+   }
+  },
+  {
+   "assists": 24,
+   "gameTypeId": 2,
+   "gamesPlayed": 60,
+   "goals": 20,
+   "leagueAbbrev": "AHL",
+   "pim": 42,
+   "plusMinus": 17,
+   "points": 44,
+   "season": 20252026,
+   "sequence": 11,
+   "teamName": {
+    "default": "Grand Rapids Griffins"
+   }
+  },
+  {
+   "assists": 4,
+   "gameTypeId": 3,
+   "gamesPlayed": 8,
+   "goals": 4,
+   "leagueAbbrev": "AHL",
+   "pim": 10,
+   "plusMinus": 4,
+   "points": 8,
+   "season": 20252026,
+   "sequence": 11,
+   "teamName": {
+    "default": "Grand Rapids Griffins"
+   }
+  }
+ ],
+ "careerTotals": {
+  "regularSeason": {
+   "gamesPlayed": 14,
+   "goals": 0,
+   "assists": 1,
+   "points": 1
+  }
+ }
+}

@@ -327,6 +327,20 @@ class ResultCache:
 
 # --------------------------------------------------------------------------- view helpers
 
+def _moves_footer(ctx: LeagueContext) -> str | None:
+    """Footer league line: "moves: 2 per matchup period (1 used, 1 left, resets Mon Oct 5)";
+    None when the context carries no budget information."""
+    try:
+        from ..recommend.base import moves_text
+
+        if ctx.moves_limit_per_period is None and ctx.moves_used_this_period is None \
+                and ctx.moves_limit_season is None:
+            return None
+        return moves_text(ctx)
+    except Exception:  # never let a footer line sink a page
+        return None
+
+
 def fmt_num(v: Any, digits: int = 2, signed: bool = False) -> str:
     if not isinstance(v, (int, float)):
         return "-"
@@ -760,7 +774,9 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                        strength_info=views.strength_info, counterparty=views.counterparty, rec_key=rec_key,
                        SKATER_RATES=views.SKATER_RATES, GOALIE_RATES=views.GOALIE_RATES,
                        RATE_LABEL=views.RATE_LABEL, POSITION_FILTERS=views.POSITION_FILTERS,
-                       EXPLAIN_FAILED=EXPLAIN_FAILED, auth_enabled=False, credits=views.credits)
+                       EXPLAIN_FAILED=EXPLAIN_FAILED, auth_enabled=False, credits=views.credits,
+                       limits_text=views.limits_text)
+    env.globals.update(moves_text=_moves_footer)
     if auth is not None:
         web_auth.install(app, auth, templates)
     make_llm = llm or default_llm

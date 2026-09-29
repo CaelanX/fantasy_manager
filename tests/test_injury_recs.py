@@ -109,3 +109,19 @@ def test_activation_gain_is_season_fpg_over_the_drop():
     r = [r for r in recommend_injuries(ctx, vals, {}) if r.title.startswith("Activate")][0]
     assert r.gain_units == "season_fpg"
     assert r.predicted_gain == pytest.approx(vals["back"].fpg_season - vals["weak"].fpg_season)
+
+
+def test_ir_chain_add_respects_goalie_cap():
+    hurt = mk("hurt_g", ["G"], 1.0, status="ir")
+    g2, g3 = mk("g2", ["G"], 0.5), mk("g3", ["G"], 0.3)
+    fa_g = mk("fa_g", ["G"], 0.9)
+    shape = {"G": 2, "BN": 1, "IR": 1}
+    ctx = ctx_for([("G", hurt), ("G", g2), ("BN", g3)], [fa_g], shape)
+    vals = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    free = [r for r in recommend_injuries(ctx, vals, {}) if r.title.startswith("Move hurt_g")]
+    assert free and free[0].title == "Move hurt_g to IR and add fa_g"      # no cap: the goalie add
+    ctx.position_limits = {"G": 3}                  # hurt_g still counts in IR: no 4th goalie
+    r = next(r for r in recommend_injuries(ctx, vals, {}) if r.title.startswith("Move hurt_g"))
+    assert r.title == "Move hurt_g to IR" and r.add == []
+    cap = next(x for x in r.reasons if x.code == "POSITION_CAP")
+    assert "G limit 3" in cap.text

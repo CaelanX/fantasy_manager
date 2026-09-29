@@ -18,7 +18,9 @@ game of the MoneyPuck season used; its fantasy size = that x the league's goal w
 MoneyPuck.com). Without xG fields the shooting% heuristic above is unchanged.
 
 Role-change alerts (``recommend_role_alerts``, kind "alert"): TOI / PP-share changes from the NHL
-per-game deployment reports; see the section at the end of this module.
+per-game deployment reports; see the section at the end of this module. It also returns the
+"Preseason standout" alerts (``recommend_preseason_alerts``) and "Rookie role signal" alerts
+(``recommend_rookie_role_alerts``, last section).
 """
 from __future__ import annotations
 
@@ -348,5 +350,207 @@ def recommend_role_alerts(ctx: LeagueContext, values: Mapping[str, Any] | None =
         title = f"{'Role up' if sign > 0 else 'Role loss'}: {p.name} ({', '.join(what)}; {where})"
         recs.append(Recommendation(kind="alert", score=c["strength"], title=title, subjects=[p],
                                    counterparty=team_name, reasons=_role_reasons(c), strength=c["strength"]))
+    # preseason standouts and rookie news-role signals ride along (the advise "alerts" engines are
+    # fixed in recommend.advise)
+    try:
+        recs.extend(recommend_preseason_alerts(ctx))
+    except Exception:  # an optional signal must never hide the role alerts
+        pass
+    try:
+        recs.extend(recommend_rookie_role_alerts(ctx))
+    except Exception:
+        pass
     recs.sort(key=lambda r: (-(r.strength or 0.0), r.title))
     return apply_ranks(recs[:limit] if limit else recs)
+
+
+# --------------------------------------------------------------------------- preseason standouts
+#
+# Unproven skaters (providers.preseason_enrich.is_unproven: career NHL GP < 82 or no prior season
+# with >= 20 GP) whose preseason line (registered by the enrich preseason step, NHL box scores)
+# shows >= 3 GP and either >= 1.0 PTS/GP or >= 16 min TOI per game. My players, other teams'
+# players (counterparty = their team) and free agents (counterparty "FA"). Only while the
+# player has < 5 regular-season GP (after that his real games speak louder).
+# Strength 4-6 (preseason is weak evidence, so it never outranks a real role change):
+# PTS/GP 1.0 -> 4.5, 2.0+ -> 6; TOI 16 -> 4, 20+ -> 5; +0.5 when both thresholds are met; capped 6.
+# No predicted gain (not graded).
+
+PRESEASON_MIN_GP = 3
+PRESEASON_PTS_PG = 1.0
+PRESEASON_TOI = 16.0
+PRESEASON_MAX_SEASON_GP = 5
+PRESEASON_STRENGTH = (4.0, 6.0)
+
+
+def _ramp(x: float, x0: float, x1: float, y0: float, y1: float) -> float:
+    return y0 + (y1 - y0) * min(1.0, max(0.0, (x - x0) / (x1 - x0)))
+
+
+def preseason_standout(line: Any) -> dict[str, Any] | None:
+    """Thresholds and 4-6 strength of a preseason line; None when it is not a standout."""
+    if line is None or line.gp < PRESEASON_MIN_GP:
+        return None
+    ppg, toi = line.pts_per_game, line.toi_per_game
+    pts_hit = ppg >= PRESEASON_PTS_PG
+    toi_hit = toi is not None and toi >= PRESEASON_TOI
+    if not (pts_hit or toi_hit):
+        return None
+    s = 0.0
+    if pts_hit:
+        s = max(s, _ramp(ppg, PRESEASON_PTS_PG, 2.0, 4.5, 6.0))
+    if toi_hit:
+        s = max(s, _ramp(toi, PRESEASON_TOI, 20.0, 4.0, 5.0))
+    if pts_hit and toi_hit:
+        s += 0.5
+    lo, hi = PRESEASON_STRENGTH
+    return {"pts_pg": ppg, "toi": toi, "pts_hit": pts_hit, "toi_hit": toi_hit,
+            "strength": round(min(hi, max(lo, s)), 2)}
+
+
+def _pp_label(p: Player) -> str:
+    if p.pp_unit:
+        return p.pp_unit.upper()
+    return "no PP unit" if p.line else "PP unit unknown"
+
+
+def recommend_preseason_alerts(ctx: LeagueContext, values: Mapping[str, Any] | None = None, *,
+                               lines: Mapping[str, Any] | None = None,
+                               limit: int | None = None) -> list[Recommendation]:
+    """"Preseason standout" alerts (see the section comment). ``lines`` = {cid: PreseasonLine}
+    overrides the registry (``providers.preseason_enrich.preseason_lines``)."""
+    if lines is None:
+        from ..providers.preseason_enrich import preseason_lines
+        lines = preseason_lines(ctx)
+    if not lines:
+        return []
+    from ..providers.preseason_enrich import is_unproven
+    try:
+        me = ctx.my_team
+    except LookupError:
+        me = None
+    owner: dict[str, tuple[str, bool]] = {}
+    for t in ctx.teams:
+        for p in t.players:
+            owner.setdefault(p.cid, (t.name, bool(me is not None and t.team_id == me.team_id)))
+    recs: list[Recommendation] = []
+    for p in ctx.all_players():
+        line = lines.get(p.cid)
+        if line is None or p.is_goalie or not is_unproven(p) or p.gp("season") >= PRESEASON_MAX_SEASON_GP:
+            continue
+        c = preseason_standout(line)
+        if c is None:
+            continue
+        team_name, mine = owner.get(p.cid, (FA_LABEL, False))
+        where = "free agent" if team_name == FA_LABEL else ("my team" if mine else team_name)
+        toi = f"TOI {c['toi']:.1f}" if c["toi"] is not None else "TOI n/a"
+        title = (f"Preseason standout: {p.name} ({line.gp} GP, {c['pts_pg']:.2f} PTS/GP, {toi}, "
+                 f"{_pp_label(p)}; {where})")
+        career = f"{p.career_gp} career NHL GP" if p.career_gp is not None else "no NHL season with 20+ GP"
+        reasons = [Reason(code="PRESEASON", text=f"Preseason {line.summary()} ({c['pts_pg']:.2f} PTS/GP)",
+                          value=round(c["pts_pg"], 4), baseline=PRESEASON_PTS_PG)]
+        if c["toi"] is not None:
+            reasons.append(Reason(code="PRESEASON_TOI", text=f"{c['toi']:.1f} min TOI per preseason game",
+                                  value=round(c["toi"], 2), baseline=PRESEASON_TOI))
+        if p.pp_unit:
+            reasons.append(Reason(code="PP_UNIT", text=f"Daily Faceoff lists him on {p.pp_unit.upper()}"))
+        reasons.append(Reason(code="UNPROVEN", text=f"Unproven: {career}; preseason is a weak signal "
+                              f"(blended at most 25% into his value)",
+                              value=float(p.career_gp) if p.career_gp is not None else None))
+        recs.append(Recommendation(kind="alert", score=c["strength"], title=title, subjects=[p],
+                                   counterparty=team_name, reasons=reasons, strength=c["strength"]))
+    recs.sort(key=lambda r: (-(r.strength or 0.0), r.title))
+    return recs[:limit] if limit else recs
+
+
+# --------------------------------------------------------------------------- rookie role signals
+#
+# News role signals (providers.news_roles, registered per player by the enrich rookie step) on
+# unproven skaters (career NHL GP < 82 or no prior season with >= 20 GP). One alert per player,
+# from his most recent usable signal (<= 10 days old, confidence >= 0.6, not ambiguous):
+#   * positive top_line / pp1 / nhl_roster ("skating on the top line", "first power-play unit",
+#     "named to the opening-night roster") for my players, other teams' players and free agents:
+#     strength 5 + kind bonus (pp1 +1, top_line +0.5, nhl_roster 0) + 2.5 x (confidence - 0.6),
+#     clamped to 5-7;
+#   * negative (AHL demotion, returned to junior / Europe, scratched, off the top line / PP1, won't
+#     make the roster) for MY unproven players only: strength 5.
+# Title: "Rookie role signal: <name> — <quote> (source, date)". No predicted gain (not graded).
+
+ROOKIE_ALERT_MAX_AGE_DAYS = 10
+ROOKIE_ALERT_STRENGTH = (5.0, 7.0)
+ROOKIE_NEG_STRENGTH = 5.0
+ROOKIE_KIND_BONUS = {"pp1": 1.0, "top_line": 0.5, "nhl_roster": 0.0}
+ROOKIE_NEG_KINDS = ("ahl_demotion", "junior_return", "scratched", "top_line", "pp1", "nhl_roster")
+
+
+def rookie_signal_strength(sig: Mapping[str, Any]) -> float | None:
+    """0-10 strength of a positive rookie role signal, None when the kind does not alert."""
+    if sig.get("direction", 0) <= 0 or sig.get("kind") not in ROOKIE_KIND_BONUS:
+        return None
+    lo, hi = ROOKIE_ALERT_STRENGTH
+    s = lo + ROOKIE_KIND_BONUS[sig["kind"]] + 2.5 * (float(sig.get("confidence") or 0.0) - 0.6)
+    return round(min(hi, max(lo, s)), 2)
+
+
+def recommend_rookie_role_alerts(ctx: LeagueContext, values: Mapping[str, Any] | None = None, *,
+                                 signals: Mapping[str, list[Any]] | None = None,
+                                 limit: int | None = None) -> list[Recommendation]:
+    """"Rookie role signal" alerts (see the section comment). ``signals`` = {cid: [RoleSignal or
+    dict]} overrides the enrich registry (``providers.rookie_enrich``)."""
+    from ..providers.preseason_enrich import is_unproven
+    from ..valuation.rookie import usable_news
+
+    if signals is None:
+        from ..providers.rookie_enrich import all_signals
+        signals = all_signals()
+    if not signals:
+        return []
+    try:
+        me = ctx.my_team
+    except LookupError:
+        me = None
+    owner: dict[str, tuple[str, bool]] = {}
+    for t in ctx.teams:
+        for p in t.players:
+            owner.setdefault(p.cid, (t.name, bool(me is not None and t.team_id == me.team_id)))
+    recs: list[Recommendation] = []
+    for p in ctx.all_players():
+        sigs = signals.get(p.cid)
+        if not sigs or p.is_goalie or not is_unproven(p):
+            continue
+        usable = usable_news(sigs, ctx.as_of, max_age_days=ROOKIE_ALERT_MAX_AGE_DAYS)
+        usable = [d for d in usable if d["kind"] in ROOKIE_KIND_BONUS or d["kind"] in ROOKIE_NEG_KINDS]
+        if not usable:
+            continue
+        team_name, mine = owner.get(p.cid, (FA_LABEL, False))
+        pos = [d for d in usable if rookie_signal_strength(d) is not None]
+        neg = [d for d in usable if d["direction"] < 0 and d["kind"] in ROOKIE_NEG_KINDS]
+        latest = usable[0]                               # newest first
+        if latest["direction"] > 0 and pos:
+            sig, strength = pos[0], rookie_signal_strength(pos[0])
+        elif mine and neg:
+            sig, strength = neg[0], ROOKIE_NEG_STRENGTH
+        elif pos:
+            sig, strength = pos[0], rookie_signal_strength(pos[0])
+        else:
+            continue
+        pub = sig.get("published")
+        when = pub.strftime("%Y-%m-%d") if hasattr(pub, "strftime") else (str(pub)[:10] if pub else "undated")
+        src = sig.get("source") or "news"
+        title = f"Rookie role signal: {p.name} — {sig['quote']} ({src}, {when})"
+        where = "free agent" if team_name == FA_LABEL else ("my team" if mine else team_name)
+        kind = str(sig["kind"]).replace("_", " ")
+        career = f"{p.career_gp} career NHL GP" if p.career_gp is not None else "no NHL season with 20+ GP"
+        reasons = [Reason(code="ROLE_NEWS",
+                          text=f"{kind} {'+' if sig['direction'] > 0 else '-'} ({sig.get('origin') or 'rules'}, "
+                               f"confidence {float(sig.get('confidence') or 0):.2f}; {where}): \"{sig['quote']}\"",
+                          value=float(sig["direction"]), baseline=float(sig.get("confidence") or 0.0)),
+                   Reason(code="UNPROVEN", text=f"Unproven: {career}; news is the earliest role signal for a "
+                                               f"rookie (the valuation's rookie model uses it too)",
+                          value=float(p.career_gp) if p.career_gp is not None else None)]
+        if p.line or p.pp_unit:
+            reasons.append(Reason(code="ROLE_DFO", text="Daily Faceoff: " + " / ".join(
+                x.upper() for x in (p.line, p.pp_unit) if x)))
+        recs.append(Recommendation(kind="alert", score=strength, title=title, subjects=[p],
+                                   counterparty=team_name, reasons=reasons, strength=strength))
+    recs.sort(key=lambda r: (-(r.strength or 0.0), r.title))
+    return recs[:limit] if limit else recs

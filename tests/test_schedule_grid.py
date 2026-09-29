@@ -116,6 +116,23 @@ def test_streaming_targets_rank_by_games_and_offnights():
         "F": [plan.by_slot["F"][0]]}
 
 
+def test_streaming_targets_mark_position_capped_pickups():
+    fas = [_p("fa1", "AAA"), _p("fa4", "AAA", ("G",))]
+    values = {"fa1": _pv(2.0), "fa4": _pv(4.0, share=0.5)}
+    ctx = make_ctx(free_agents=fas)
+    ctx.my_team.slots += [RosterSlot(slot="BN", player=_p(f"g{i}", "BBB", ("G",)), starting=False)
+                          for i in range(3)]
+    plan = sg.streaming_targets(ctx, values, D(2026, 10, 5), today=D(2026, 10, 5))
+    assert plan.by_slot["G"][0].needs_drop is None                 # no limits known
+    ctx.position_limits = {"G": 3}
+    plan = sg.streaming_targets(ctx, values, D(2026, 10, 5), today=D(2026, 10, 5))
+    assert plan.by_slot["G"][0].needs_drop == "G limit 3 reached: drop a G"
+    assert plan.by_slot["F"][0].needs_drop is None
+    ctx.position_limits = {"G": 4}
+    plan = sg.streaming_targets(ctx, values, D(2026, 10, 5), today=D(2026, 10, 5))
+    assert plan.by_slot["G"][0].needs_drop is None
+
+
 def test_per_game_value_from_week_projection():
     pv = SimpleNamespace(fpg=3.0, proj_week=12.0 * (1 + sg.offnight_bonus()), games_next7=4, offnight_next7=1)
     assert sg.per_game_value(pv) == pytest.approx(3.0)

@@ -67,6 +67,14 @@ def test_healthz_does_not_load(client, loader):
     assert loader.calls == []
 
 
+def test_footer_league_line_shows_roster_limits():
+    res = make_result()
+    res.ctx.position_limits, res.ctx.max_roster_size = {"G": 3}, 22
+    h = TestClient(create_app(lambda league: res)).get("/").text
+    assert "roster limits: max G 3 (incl. IR); roster max 22 (excl. IR)" in h
+    assert "roster limits:" not in TestClient(create_app(lambda league: make_result())).get("/").text
+
+
 def test_overview(client):
     r = client.get("/")
     assert r.status_code == 200
@@ -984,3 +992,25 @@ def test_ci_band_and_chart_markup():
     assert ">100%<" in svg and ">0%<" in svg
     leg = charts.legend([charts.Line("b", "Base", [], "base", "5 3"), charts.Line("m", "Main", [], "main")], "CI")
     assert leg.index("Main") < leg.index("Base") < leg.index("CI")
+
+
+def test_trade_acceptance_and_sweet_spot_on_moves_page():
+    res = make_result()
+    t = res.recs[1]
+    assert t.kind == "trade"
+    res.recs[1] = t.model_copy(update={"predicted_gain": 0.6, "gain_units": "lineup_fpg", "reasons": [
+        Reason(code="MY_EDGE", text="You gain +0.60 pts/game this season", value=0.6),
+        Reason(code="MARKET_VIEW", text="Looks even to them by market value (ADP/rostered %); acceptance ~70%",
+               value=1.5),
+        Reason(code="SWEET_SPOT", text="Sweet spot", value=0.6),
+        Reason(code="P_ACCEPT", text="Acceptance 70%", value=0.7)]})
+    from fantasy_manager.web import views
+
+    info = views.trade_info(res.recs[1])
+    assert info["p_text"] == "~70%" and info["ev"] == pytest.approx(0.42) and info["sweet"]
+    assert views.trade_info(res.recs[0]) is None
+    client = TestClient(create_app(lambda league: res))
+    h = client.get("/recommendations?kind=trade").text
+    assert "acceptance ~70%" in h and "expected value +0.42" in h
+    assert "Sweet spot trades" in h and "Looks even to them by market value" in h
+    assert "Sweet spot trades" not in client.get("/recommendations?kind=waiver").text

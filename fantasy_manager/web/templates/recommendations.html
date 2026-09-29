@@ -29,4 +29,21 @@
   <p class="empty">{% if filtered %}No moves match these filters.{% else %}No moves of this type right now.{% endif %}</p>
   {% endif %}
 </section>
+{% if kind in ('all', 'trade') %}
+{% set sweet = [] %}
+{% for r in res.recs if r.kind == 'trade' %}{% set g = gain_info(r, res) %}{% if g and g.trade and g.trade.sweet and sweet|length < 5 %}{% set _ = sweet.append((r, g.trade)) %}{% endif %}{% endfor %}
+{% if sweet %}
+<section id="sweet-spot" aria-labelledby="h-sweet">
+  <h2 id="h-sweet">Sweet spot trades <span class="aside">{{ sweet|length }}</span></h2>
+  <p class="sub">The market (ADP / % rostered) calls these fair, so they are easy to propose, while our model says you come out ahead.</p>
+  <ul class="why">
+    {% for r, t in sweet %}
+    <li><b>{{ r|action }}</b>{% if r.counterparty %} <span class="muted">with {{ r.counterparty.strip() }}</span>{% endif %}:
+      {{ r.reasons|selectattr('code', 'equalto', 'MY_EDGE')|map(attribute='text')|first|default('') }};
+      {{ t.market_text or '' }}{% if t.ev is not none %} &middot; expected value {{ t.ev|num(2, True) }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endif %}
 {% endblock %}

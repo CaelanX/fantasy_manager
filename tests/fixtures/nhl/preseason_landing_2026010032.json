@@ -1,0 +1,78 @@
+{
+ "id": 2026010032,
+ "gameType": 1,
+ "summary": {
+  "scoring": [
+   {
+    "periodDescriptor": {
+     "number": 1
+    },
+    "goals": []
+   },
+   {
+    "periodDescriptor": {
+     "number": 2
+    },
+    "goals": []
+   },
+   {
+    "periodDescriptor": {
+     "number": 3
+    },
+    "goals": [
+     {
+      "strength": "pp",
+      "playerId": 8485402,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8486103
+       },
+       {
+        "playerId": 8475200
+       }
+      ]
+     },
+     {
+      "strength": "ev",
+      "playerId": 8482125,
+      "teamAbbrev": {
+       "default": "VGK"
+      },
+      "assists": [
+       {
+        "playerId": 8479550
+       },
+       {
+        "playerId": 8480874
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "periodDescriptor": {
+     "number": 4
+    },
+    "goals": []
+   },
+   {
+    "periodDescriptor": {
+     "number": 5
+    },
+    "goals": [
+     {
+      "strength": "ev",
+      "playerId": 8483890,
+      "teamAbbrev": {
+       "default": "VGK"
+      },
+      "assists": []
+     }
+    ]
+   }
+  ]
+ }
+}

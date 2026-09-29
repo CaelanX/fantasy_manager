@@ -27,6 +27,12 @@ Modes (``ctx.dynasty_mode``): contend weights this season most ([1.0, 0.65, 0.45
 balanced is a plain 0.8/yr discount ([1.0, 0.8, 0.64], T=1.5), rebuild favours later seasons
 ([0.7, 0.9, 0.9], T=2.0). Horizons longer than the weight list extend it geometrically.
 
+Rookie confidence (``valuation.rookie``): for an unproven player valued by the rookie model
+(``PlayerValue.rookie``), the upside term (growth + pedigree premium over a flat trajectory) is
+scaled by ``0.6 + 0.4 * confidence`` (confidence 0..1 = how much evidence - projection, NHLe,
+pedigree - stands behind his rates), so a thinly-evidenced prospect's projected growth counts
+less (reason ROOKIE_CONFIDENCE).
+
 Market prior: when at least MARKET_MIN_PLAYERS players carry a league-wide % rostered, every
 such player is ranked by it and mapped to the model value at the same rank among all modelled
 players (a rank-to-value transform); ``value = 0.65 * model + 0.35 * market``.
@@ -73,6 +79,8 @@ AGE_CURVES = PRODUCTION_CURVES
 PEDIGREE_MAX_AGE = 23.0
 PEDIGREE_FADE_AGE = 25.0
 PEDIGREE_PROVEN_GP = 200
+
+ROOKIE_UPSIDE_FLOOR = 0.6
 
 MARKET_WEIGHT = 0.35
 MARKET_MIN_PLAYERS = 50
@@ -289,6 +297,14 @@ def apply_dynasty(values: Mapping[str, "PlayerValue"], ctx: LeagueContext,
                                   value=ped, baseline=1.0))
         healthy = _healthy_fpg(pv, fpg)
         base, flat, term = _trajectory(fpg, group, age, years, healthy, mode, ped)
+        rk_conf = getattr(getattr(pv, "rookie", None), "confidence", None)
+        if rk_conf is not None and abs(base - flat) > 1e-9:
+            f = ROOKIE_UPSIDE_FLOOR + (1.0 - ROOKIE_UPSIDE_FLOOR) * max(0.0, min(1.0, float(rk_conf)))
+            scaled = flat + (base - flat) * f
+            reasons.append(Reason(code="ROOKIE_CONFIDENCE",
+                                  text=f"Rookie model confidence {float(rk_conf):.0%}: upside {base - flat:+.2f} "
+                                       f"x{f:.2f} -> {scaled - flat:+.2f}", value=f, baseline=1.0))
+            base = scaled
         later = f", {healthy:.2f} healthy in later years" if years > 1 and abs(healthy - fpg) > 1e-9 else ""
         wtxt = "/".join(f"{x:g}" for x in weights)
         reasons.append(Reason(

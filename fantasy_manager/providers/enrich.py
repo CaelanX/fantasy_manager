@@ -13,7 +13,14 @@ rest still runs, so offline / partial runs degrade gracefully):
 6b. pedigree: draft position and career GP from NHL player pages for young (<= 24) or
    unproven (no prior season with >= 40 GP) players, rostered first, then the most-owned
    free agents; at most ``pedigree_limit`` uncached pages per run (30-day cache)
+6c. ``rookies=True`` (needs the HTTP cache): rookie evidence (``providers.rookie_enrich``): league history (every league's
+   seasonTotals, for the NHLe prior) of unproven skaters - 6b's landing pages reused, then at most
+   200 uncached pages (30-day cache) - and news role signals (``providers.news_roles``: RotoWire /
+   ESPN through the 30-minute RSS cache; optional free LLM pass when OPENROUTER_API_KEY is set,
+   cached in ``<fm_data_dir>/news_roles.json``; FM_NEWS_ROLES_LLM=0 turns it off)
 7. ``deep=True``: last7/15/30 lines from per-player game logs (date windows ending ``as_of``)
+7b. ``preseason=True``: preseason (gameType 1) lines of unproven skaters from NHL box scores
+   (``providers.preseason_enrich``; needs the HTTP cache; until 45 days after opening night)
 8. ``deployment=True``: TOI / PP share per skater (``providers.deployment_enrich``) from the
    harness ledger (``<fm_data_dir>/harness.db``, only when it exists; never created here), else
    the NHL season reports (preseason: last season's); goalie starts / back-to-back rates from the
@@ -290,8 +297,9 @@ def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = F
                    nhl: NhlClient | None = None, injuries_fetch: Callable | None = None,
                    crosswalk: Crosswalk | None = None, teams: Iterable[str] = NHL_TEAMS,
                    deep_fa_limit: int = DEEP_FA_LIMIT, pedigree_limit: int = PEDIGREE_LIMIT,
-                   deployment: bool = True, lines: bool = True, xg: bool = True,
-                   ledger: Any = None, lines_client: Any = None, xg_client: Any = None) -> LeagueContext:
+                   deployment: bool = True, lines: bool = True, xg: bool = True, preseason: bool = True,
+                   ledger: Any = None, lines_client: Any = None, xg_client: Any = None,
+                   rookies: bool = True) -> LeagueContext:
     """Mutates and returns ``ctx``; never raises for a single failing data source.
 
     ``deployment`` / ``lines`` / ``xg`` switch steps 8-10 off (tests, offline runs). ``ledger``
@@ -397,11 +405,21 @@ def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = F
                                 f"{filled['prior2']} prior2 / {filled['prior3']} prior3 lines")
 
     # 6b. pedigree (needs prior lines from step 6) ------------------------------------------
-    step("NHL player pages", lambda: _pedigree(ctx, client, players, pedigree_limit, cache))
+    landings: dict[int, Any] = {}
+    step("NHL player pages", lambda: _pedigree(ctx, client, players, pedigree_limit, cache, landings))
+
+    # 6c. rookie evidence: league history (reuses 6b's landings) + news role signals -----------
+    if rookies and cache is not None:
+        step("Rookie evidence", lambda: _rookie_step(ctx, settings, client, cache, tracker, landings))
 
     # 7. deep: recent form from game logs ---------------------------------------------------
     if deep:
         _deep_game_logs(ctx, client, season, players, deep_fa_limit)
+
+    # 7b. preseason lines of unproven skaters (box scores; needs career GP from 6b) ---------------
+    if preseason and cache is not None:
+        from .preseason_enrich import enrich_preseason
+        step("NHL preseason box scores", lambda: enrich_preseason(ctx, cache, None, season, teams=teams))
 
     if tracker:
         ctx.source_notes.extend(tracker.notes())
@@ -531,6 +549,35 @@ def _xg_step(ctx: LeagueContext, cache: Any, client: Any = None) -> None:
                                     f"{_age(time.time() - t)}")
 
 
+def _rookie_llm(settings: Any) -> Any:
+    """The free-only LLM client for the news-role pass, or None (no key, or FM_NEWS_ROLES_LLM=0)."""
+    import os
+
+    if os.environ.get("FM_NEWS_ROLES_LLM", "1").strip().lower() in ("0", "false", "no", "off"):
+        return None
+    if not getattr(settings, "openrouter_api_key", None):
+        return None
+    try:
+        from ..llm.openrouter import LLMClient
+
+        client = LLMClient(settings, timeout=30.0)
+        return client if client.available else None
+    except Exception:
+        return None
+
+
+def _rookie_step(ctx: LeagueContext, settings: Any, client: NhlClient, cache: Any, tracker: Any,
+                 landings: dict[int, Any]) -> None:
+    """Step 6c (``providers.rookie_enrich``): league history for unproven skaters (6b's landings
+    first, then <= 200 uncached pages) and news role signals. Needs the HTTP cache (the caller
+    skips it without one, so tests and offline runs never reach the network by accident)."""
+    from .rookie_enrich import HISTORY_LIMIT, enrich_rookies
+
+    enrich_rookies(ctx, client, landings=landings, fetch_text=tracker.fetch_text if tracker is not None else None,
+                   llm=_rookie_llm(settings), store_dir=getattr(settings, "fm_data_dir", None),
+                   limit=HISTORY_LIMIT, is_cached=lambda nid: _landing_cached(cache, nid))
+
+
 def needs_pedigree(p: Player, as_of: date) -> bool:
     """Young (<= PEDIGREE_MAX_AGE, or age unknown) or unproven (no prior line with at least
     PEDIGREE_PROVEN_GP games) players whose draft pedigree has not been loaded yet."""
@@ -574,9 +621,10 @@ def _landing_cached(cache: Any, player_id: int) -> bool:
 
 
 def _pedigree(ctx: LeagueContext, client: NhlClient, players: list[Player], limit: int,
-              cache: Any = None) -> None:
+              cache: Any = None, landings: dict[int, Any] | None = None) -> None:
     """Load pedigree for every target; only uncached pages count toward `limit` network
-    requests per run (the 30-day cache fills the rest in over later runs)."""
+    requests per run (the 30-day cache fills the rest in over later runs). ``landings`` collects
+    the parsed pages by NHL id (the rookie step reuses their ``seasonTotals``)."""
     todo = pedigree_targets(ctx, players)
     done = errors = drafted = fetched = skipped = 0
     for p in todo:
@@ -591,6 +639,8 @@ def _pedigree(ctx: LeagueContext, client: NhlClient, players: list[Player], limi
             errors += 1
             continue
         apply_landing(p, landing)
+        if landings is not None:
+            landings[int(p.nhl_id)] = landing
         done += 1
         drafted += landing.draft_overall is not None
     if todo:

@@ -212,3 +212,48 @@ def blend_recency(season_rates: dict[str, float], l30: StatLine | None, l15: Sta
             if share > 0:
                 rates[k] = rates[k] / share
     return rates
+
+
+# --------------------------------------------------------------------------- preseason (weak signal)
+#
+# Unproven skaters only (providers.preseason_enrich.is_unproven): their preseason per-game rates
+# are blended into the baseline, baseline' = (1 - w) * baseline + w * preseason, on the
+# points-driving stats only. w = min(0.25, preseason GP / 12): 1 GP -> 0.08, 2 -> 0.17, 3+ -> 0.25.
+# The cap is low on purpose: preseason rosters are half AHL / junior players, veterans play a
+# few games at reduced effort, coaches audition kids in offensive roles and on the power play,
+# and 3-7 games are a tiny sample, so even a dominant preseason is weak evidence of regular-
+# season scoring. It stays a nudge on top of the projection / pedigree baseline, never a
+# replacement. Regular-season games supersede it: w fades linearly to 0 over the first 20 GP.
+PRESEASON_STATS = ("G", "A", "PTS", "SOG", "PPP", "PPG", "PPA")
+PRESEASON_MAX_WEIGHT = 0.25
+PRESEASON_FULL_GP = 12
+PRESEASON_SHRINK_K = 9  # games; 3 GP -> 25% of max, 6 GP -> 40%, 9 GP -> 50%
+PRESEASON_FADE_GP = 20
+
+
+def preseason_weight(gp_pre: int, season_gp: int = 0) -> float:
+    """Weight of preseason rates in an unproven player's baseline.
+
+    ``PRESEASON_MAX_WEIGHT * gp_pre / (gp_pre + PRESEASON_SHRINK_K)``, faded by
+    ``max(0, 1 - season_gp / PRESEASON_FADE_GP)``. The shrinkage denominator keeps a
+    3-game preseason at ~6% and a full 6-game preseason at ~10%: exhibition games are
+    weak evidence (mixed rosters, weak opponents), so they nudge a rookie's value
+    rather than rewrite it. 0 without preseason games.
+    """
+    if gp_pre <= 0:
+        return 0.0
+    w = PRESEASON_MAX_WEIGHT * gp_pre / (gp_pre + PRESEASON_SHRINK_K)
+    return w * max(0.0, 1.0 - max(0, season_gp) / PRESEASON_FADE_GP)
+
+
+def blend_preseason(base: dict[str, float], pre: Mapping[str, float], w: float,
+                    stats: Sequence[str] = PRESEASON_STATS) -> dict[str, float]:
+    """``(1 - w) * base + w * pre`` for ``stats`` both sides carry; every other stat (and a stat
+    only one side has) keeps the baseline rate, so the blend never invents a stat."""
+    out = dict(base)
+    if w <= 0:
+        return out
+    for key in stats:
+        if key in base and key in pre:
+            out[key] = (1.0 - w) * base[key] + w * float(pre[key])
+    return out

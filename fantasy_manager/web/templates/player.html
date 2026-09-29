@@ -51,6 +51,50 @@
   {% endif %}
 </section>
 
+{% set rk = pv.rookie if (pv and pv.rookie is defined) else none %}
+{% if rk %}
+<section aria-labelledby="h-rookie" class="rookie-signals">
+  <h2 id="h-rookie">Rookie signals <span class="aside">unproven player &middot; blended estimate</span></h2>
+  <dl class="tiles">
+    {% if rk.pts_pg is not none %}<div><dt>Blended PTS/GP</dt><dd>{{ '%.2f'|format(rk.pts_pg) }}{% if rk.baseline_pts_pg is not none %} <small>baseline {{ '%.2f'|format(rk.baseline_pts_pg) }}</small>{% endif %}</dd></div>{% endif %}
+    {% if rk.prior and rk.prior.pts_pg_nhle is not none %}<div><dt>NHLe</dt><dd>{{ '%.2f'|format(rk.prior.pts_pg_nhle) }} <small>PTS/GP &middot; {{ (rk.prior.nhle_confidence * 100)|round|int }}% conf.</small></dd></div>{% endif %}
+    {% if rk.prior and rk.prior.pedigree_pts_pg is not none %}<div><dt>Pedigree prior</dt><dd>{{ '%.2f'|format(rk.prior.pedigree_pts_pg) }} <small>PTS/GP &middot; {{ rk.prior.pedigree_label }}</small></dd></div>{% endif %}
+    {% if rk.role_mult != 1.0 %}<div><dt>Role</dt><dd>&times;{{ '%.2f'|format(rk.role_mult) }}</dd></div>{% endif %}
+    <div><dt>Games share</dt><dd>{{ (rk.gp_expectation * 100)|round|int }}<small>%{% if rk.week_share < 1.0 %} &middot; week {{ (rk.week_share * 100)|round|int }}%{% endif %}</small></dd></div>
+    <div><dt>Confidence</dt><dd>{{ (rk.confidence * 100)|round|int }}<small>%</small></dd></div>
+    {% if p.line or p.pp_unit %}<div><dt>DFO role</dt><dd class="small-dd">{{ [p.line, p.pp_unit]|select|map('upper')|join(' / ') }}</dd></div>{% endif %}
+  </dl>
+  {% if rk.votes %}
+  <p class="foot-note">Votes (PTS/GP, weight in games): {% for v in rk.votes %}{{ v.name }} {{ '%.2f'|format(v.pts_pg) }} (w {{ v.weight|round|int }}){% if not loop.last %} &middot; {% endif %}{% endfor %}</p>
+  {% endif %}
+  {% if rk.prior and rk.prior.nhle_rows %}
+  <h3 class="sub-h">League history used for the NHLe</h3>
+  <div class="tbl"><table class="r stack nhle">
+    <caption class="sr-only">League seasons behind the NHL-equivalency estimate</caption>
+    <thead><tr><th scope="col">Season</th><th scope="col">League</th><th scope="col">Team</th><th scope="col" class="n">GP</th><th scope="col" class="n">G</th><th scope="col" class="n">A</th><th scope="col" class="n">PTS/GP</th><th scope="col" class="n">Factor</th><th scope="col" class="n">Age adj.</th><th scope="col" class="n">NHLe PTS/GP</th></tr></thead>
+    <tbody>
+      {% for r in rk.prior.nhle_rows %}
+      <tr><th scope="row" data-label="Season">{{ (r.season // 10000) }}-{{ '%02d'|format(r.season % 100) }}</th><td data-label="League">{{ r.league }}</td><td data-label="Team">{{ r.team or '-' }}</td><td data-label="GP" class="n">{{ r.gp }}</td><td data-label="G" class="n">{{ r.g }}</td><td data-label="A" class="n">{{ r.a }}</td><td data-label="PTS/GP" class="n">{{ '%.2f'|format(r.pts_pg) }}</td><td data-label="Factor" class="n">&times;{{ r.factor }}</td><td data-label="Age adj." class="n">&times;{{ '%.2f'|format(r.age_mult) }}</td><td data-label="NHLe PTS/GP" class="n">{{ '%.2f'|format(r.nhle_pts_pg) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+  {% set pre = (pv.reasons if pv else [])|selectattr('code', 'equalto', 'PRESEASON')|first %}
+  {% if pre %}<p><strong>Preseason:</strong> {{ pre.text }}</p>{% endif %}
+  {% if rk.signals %}
+  <h3 class="sub-h">Role signals</h3>
+  <ul class="role-signals">
+    {% for s in rk.signals %}
+    <li><span class="{{ 'pos' if s.direction > 0 else 'neg' }}">{{ s.kind|replace('_', ' ') }} {{ '+' if s.direction > 0 else '-' }}</span> &ldquo;{{ s.quote }}&rdquo; <small>({{ s.source or 'news' }}{% if s.published %}, {{ s.published[:10] }}{% endif %}{% if s.origin == 'llm' %}, LLM-classified{% endif %})</small></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">No Daily Faceoff role or recent news role signal.</p>
+  {% endif %}
+  <p class="foot-note">NHL-equivalency factors and draft-tier priors are approximate; news text is quoted as reported.</p>
+</section>
+{% endif %}
+
 {% if breakdown %}
 <section aria-labelledby="h-dyn">
   <h2 id="h-dyn">Dynasty breakdown <span class="aside">{{ breakdown.mode }} mode &middot; {{ breakdown.horizon }}-year horizon</span></h2>
@@ -111,6 +155,15 @@
         {% for c in cols %}<td data-label="{{ RATE_LABEL.get(c, c) }}/GP" class="n">{{ r.pg[c]|rate(c) if r.pg[c] is not none else '-' }}</td>{% endfor %}
       </tr>
       {% endfor %}
+      {% set pre = (pv.reasons if pv else [])|selectattr('code', 'equalto', 'PRESEASON')|first if 'preseason' not in p.lines else none %}
+      {% if pre %}
+      <tr class="preseason-row">
+        <th scope="row" data-label="Split">Preseason</th>
+        <td data-label="GP" class="n">{{ pre.baseline|int }}</td>
+        {% if show_fpg %}<td data-label="FPG" class="n">-</td>{% endif %}
+        {% if cols %}<td data-label="Preseason" colspan="{{ cols|length }}" class="wrap">{{ pre.text }}</td>{% endif %}
+      </tr>
+      {% endif %}
       {% if rates %}
       <tr class="model-row">
         <th scope="row" data-label="Split">Model per game</th>

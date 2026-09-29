@@ -6,7 +6,8 @@ import pytest
 
 from fantasy_manager.providers.base import ProviderError
 from fantasy_manager.providers.espn import (canonical_stats, find_my_team, map_injury_status,
-                                            parse_stat_lines, player_from_espn, pro_team_abbrev,
+                                            max_roster_from_counts, parse_stat_lines, player_from_espn,
+                                            position_limits_from_settings, pro_team_abbrev,
                                             roster_shape_from_counts, scoring_from_settings)
 from fantasy_manager.scoring import PointsScoring
 
@@ -95,6 +96,23 @@ def test_scoring_from_settings_categories():
 def test_roster_shape():
     assert roster_shape_from_counts(FIXTURE["lineupSlotCounts"]) == {
         "C": 2, "LW": 2, "RW": 2, "D": 4, "G": 2, "UTIL": 1, "BN": 5, "IR": 3}
+
+
+def test_position_limits_keyed_by_default_position_id():
+    rs = FIXTURE["rosterSettings"]
+    # {"0": 0, "1": -1, ..., "5": 3}: key = defaultPositionId (5 = goalie), <= 0 = no limit
+    assert position_limits_from_settings(rs) == {"G": 3}
+    assert position_limits_from_settings({"positionLimits": {"1": 6, "4": 8, "5": 2, "0": 0}}) == {
+        "C": 6, "D": 8, "G": 2}
+    assert position_limits_from_settings({}) == {} and position_limits_from_settings(None) == {}
+    # roster size: every non-IR lineup slot (F 9 + D 5 + G 2 + UTIL 1 + BN 5)
+    assert max_roster_from_counts(rs["lineupSlotCounts"]) == 22
+    assert max_roster_from_counts({}) is None
+
+
+def test_primary_position_is_the_espn_default_position():
+    players = [player_from_espn(espn_player(d), YEAR) for d in FIXTURE["players"]]
+    assert [p.primary_position for p in players] == ["C", "G", "RW"]
 
 
 def test_find_my_team():

@@ -1,0 +1,166 @@
+{
+ "id": 2026010039,
+ "gameType": 1,
+ "summary": {
+  "scoring": [
+   {
+    "periodDescriptor": {
+     "number": 1
+    },
+    "goals": [
+     {
+      "strength": "ev",
+      "playerId": 8478975,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": []
+     },
+     {
+      "strength": "ev",
+      "playerId": 8486103,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8485402
+       }
+      ]
+     },
+     {
+      "strength": "ev",
+      "playerId": 8484994,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8483428
+       },
+       {
+        "playerId": 8481228
+       }
+      ]
+     },
+     {
+      "strength": "ev",
+      "playerId": 8485402,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8486103
+       },
+       {
+        "playerId": 8482700
+       }
+      ]
+     },
+     {
+      "strength": "ev",
+      "playerId": 8484994,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8484152
+       },
+       {
+        "playerId": 8484806
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "periodDescriptor": {
+     "number": 2
+    },
+    "goals": [
+     {
+      "strength": "ev",
+      "playerId": 8486103,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8485402
+       },
+       {
+        "playerId": 8480748
+       }
+      ]
+     },
+     {
+      "strength": "ev",
+      "playerId": 8478975,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8484227
+       },
+       {
+        "playerId": 8484801
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "periodDescriptor": {
+     "number": 3
+    },
+    "goals": [
+     {
+      "strength": "pp",
+      "playerId": 8481517,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8484421
+       },
+       {
+        "playerId": 8485402
+       }
+      ]
+     },
+     {
+      "strength": "pp",
+      "playerId": 8486103,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8481517
+       },
+       {
+        "playerId": 8481228
+       }
+      ]
+     },
+     {
+      "strength": "ev",
+      "playerId": 8483428,
+      "teamAbbrev": {
+       "default": "SJS"
+      },
+      "assists": [
+       {
+        "playerId": 8484994
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}
