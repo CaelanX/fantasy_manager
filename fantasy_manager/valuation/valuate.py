@@ -29,6 +29,14 @@ games in the ledger): ``ctx.goalie_actual_starts`` feeds ``start_share(actual=..
 without a projection (START_ACTUAL) and ``ctx.b2b_second_night`` feeds
 ``schedule_factor(b2b_p=...)`` for the week window (B2B).
 
+Teammate-aware goalie shares (``schedule.teammate_shares``, reason TEAMMATE_OUT): when a team's
+higher-share goalie is out / IR / LTIR / suspended, his share is redistributed to the team's other
+goalies (league pool + NHL roster goalies, ``ctx.nhl_goalies``) in proportion to their shares:
+for the week by the fraction of the window's games he misses (new #1 capped at 0.9), for the
+season by ``games missed / games remaining``. ``start_share`` is then the week share (Daily
+Faceoff confirmed starts still override today's game in ``recommend.lineup``) and ``fpg_season``
+uses the season share. ``share_source`` becomes "teammate".
+
 Preseason (weak signal, unproven skaters only: career NHL GP < 82 or no prior season with >= 20
 GP, ``providers.preseason_enrich``): when the enrich preseason step registered a preseason line,
 the baseline's points-driving rates (G, A, PTS, SOG, PPP, PPG, PPA) become
@@ -70,7 +78,8 @@ from .blend import (PRIOR_SPLITS, baseline_k, blend_preseason, blend_rates, blen
 from .params import age_factor
 from .replacement import DEFAULT_SLOTS, ROSTERED_FALLBACK_PCT, best_slot, replacement_with_fallback, vorp
 from .regression import K_GOALS, shrink_goals
-from .schedule import context_window, proj_week, schedule_factor, start_share, start_share_parts
+from .schedule import (ROSTER_ONLY_SHARE, context_window, proj_week, schedule_factor, start_share, start_share_parts,
+                       teammate_shares)
 
 PRIOR_TEAM_GAMES = 82
 PROJ_SHARE_K = 20
@@ -460,6 +469,38 @@ def projected_workload(p: Player, team_gp: Mapping[str, int] | None = None
     return share, per_team_game, text
 
 
+def goalie_base_share(p: Player, ctx: LeagueContext, team_gp: Mapping[str, int]) -> tuple[float, bool]:
+    """(start share before teammate adjustments, has evidence) - the same share valuate_league
+    computes (projection, else ledger starts, else the shrunk stat-line share). ``has evidence``
+    is False when the share is the bare prior (no projection, no starts, no team games)."""
+    work = projected_workload(p, team_gp)
+    if work is not None:
+        return work[0], True
+    tg = goalie_team_games(p, team_gp)
+    actual = ctx.goalie_actual_starts.get(p.cid)
+    if actual is not None and actual[1] >= MIN_LEDGER_TEAM_GAMES:
+        return start_share(p, team_games=tg, actual=actual), True
+    share, _, games = start_share_parts(p, team_games=tg)
+    return share, games > 0
+
+
+def _teammate_shares(ctx: LeagueContext, team_gp: Mapping[str, int], window: Any) -> dict[str, Any]:
+    """cid -> schedule.TeammateShare for goalies whose higher-share teammate is absent."""
+    base: dict[str, float] = {}
+    weights: dict[str, float] = {}
+    for p in ctx.all_players():
+        if not p.is_goalie:
+            continue
+        share, evidence = goalie_base_share(p, ctx, team_gp)
+        base[p.cid] = share
+        if not evidence:
+            weights[p.cid] = min(share, ROSTER_ONLY_SHARE)
+    try:
+        return teammate_shares(ctx, base, window, weights)
+    except Exception:  # an optional adjustment must never break valuation
+        return {}
+
+
 def _slots(ctx: LeagueContext) -> list[str]:
     return [s for s in ("C", "LW", "RW", "F", "D", "G") if s in ctx.roster_shape] or list(DEFAULT_SLOTS)
 
@@ -490,6 +531,7 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
     if window is not None and window.avg_team_games <= 0:
         window = None
     partial: dict[str, PlayerValue] = {}
+    teammates = _teammate_shares(ctx, team_gp, window)
     preseason = _preseason_lookup(ctx)
     rookies = _rookie_lookup(ctx)
     for p in players:
@@ -547,6 +589,15 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                                f"k={ss_k:g} toward {ss_prior:.0%}): "
                                                f"season value {fpg * a_season:.2f} -> {fpg * a_season * share:.2f} FPG",
                                           value=share, baseline=ss_prior))
+        share_week = share_season = share
+        tm = teammates.get(p.cid) if p.is_goalie else None
+        if tm is not None:
+            share_week, share_season = tm.week, tm.season
+            if season_value is not None:
+                season_value = season_value * share_season / share if share > 0 else fpg * share_season * a_season
+            share_parts = {"share_source": "teammate"}
+            reasons.append(Reason(code="TEAMMATE_OUT", text=tm.text(p), value=round(share_week, 4),
+                                  baseline=round(share, 4)))
         gp_share = week_share = 1.0
         if est is not None:
             gp_share, week_share = float(est.gp_expectation), float(est.week_share)
@@ -556,18 +607,19 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                            + (f", week value x{week_share:.2f}" if week_share < 1.0 else ""),
                                       value=gp_share, baseline=1.0))
         pv = PlayerValue(player=p, fpg=fpg,
-                         fpg_season=(season_value if season_value is not None else fpg * a_season * share) * gp_share,
-                         fpg_week=fpg * a_week * share * week_share, vorp=0.0, rates=rates, reasons=reasons,
-                         start_share=share if p.is_goalie else None, rookie=est, **share_parts)
+                         fpg_season=(season_value if season_value is not None else fpg * a_season * share_season)
+                         * gp_share,
+                         fpg_week=fpg * a_week * share_week * week_share, vorp=0.0, rates=rates, reasons=reasons,
+                         start_share=share_week if p.is_goalie else None, rookie=est, **share_parts)
         b2b = ctx.b2b_second_night.get(normalize_team(p.team) or "") if p.is_goalie else None
-        sf = schedule_factor(p, ctx.schedule, ctx.games_per_day, window, share=share,
+        sf = schedule_factor(p, ctx.schedule, ctx.games_per_day, window, share=share_week,
                              b2b_p=b2b[0] if b2b else None) if window else None
-        if sf is not None and b2b is not None and abs(sf.start_share - share) > 1e-4:
+        if sf is not None and b2b is not None and abs(sf.start_share - share_week) > 1e-4:
             seen = f"{b2b[1]} seen" + ("" if b2b[1] >= 5 else ", league prior until 5")
             pv.reasons.append(Reason(code="B2B",
                                      text=f"Back-to-back second nights {window.label()}: the #1 starts them with "
-                                          f"p={b2b[0]:.2f} ({seen}); week start share {share:.0%} -> "
-                                          f"{sf.start_share:.0%}", value=sf.start_share, baseline=share))
+                                          f"p={b2b[0]:.2f} ({seen}); week start share {share_week:.0%} -> "
+                                          f"{sf.start_share:.0%}", value=sf.start_share, baseline=share_week))
         if sf is not None:
             pw = proj_week(fpg, a_week, sf.games, sf.offnight) * sf.start_share * week_share
             pv.proj_week, pv.games_next7, pv.offnight_next7 = pw, sf.games, sf.offnight

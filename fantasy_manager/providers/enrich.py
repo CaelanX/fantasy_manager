@@ -4,7 +4,8 @@ Steps (each one is best-effort: a failing source adds a warning to ``ctx.warning
 rest still runs, so offline / partial runs degrade gracefully):
 
 1. schedule: regular-season dates per NHL team, games per day, opening night
-2. NHL season rows (current, prior and the two seasons before it) and current rosters
+2. NHL season rows (current, prior and the two seasons before it) and current rosters (roster
+   goalies kept in ``ctx.nhl_goalies`` for teammate-aware goalie start shares)
 3. crosswalk: provider player -> NHL id (``player.ids["nhl"]``)
 4. birth dates (and missing NHL teams) from rosters
 5. injuries: ESPN injury feed merged with provider status (more severe wins)
@@ -360,6 +361,12 @@ def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = F
             last_err = e
     if roster_errors:
         ctx.warnings.append(f"NHL rosters: {roster_errors}/{len(teams)} teams unavailable ({_short(last_err)})")
+    goalies: dict[str, dict[int, str]] = {}
+    for r in roster:
+        if r.position == "G":
+            goalies.setdefault(r.team, {})[r.player_id] = r.name
+    if goalies:
+        ctx.nhl_goalies = goalies
 
     # 3. crosswalk ------------------------------------------------------------------
     cands = nhl_candidates(pr_sk, pr_g, cur_sk, cur_g, roster)

@@ -256,3 +256,61 @@ def test_narrate_end_to_end_with_client_and_fake_sdk():
     sdk = FakeSDK(_status_err(openai.UnprocessableEntityError, 422), _resp('```json\n{"0": "Worth +0.5 FPG."}\n```'))
     narrate(recs, ctx, [], LLMClient(sdk=sdk, fallbacks=[]))
     assert recs[0].narrative == "Worth +0.5 FPG."
+
+
+# ------------------------------------------------------------------ entity grounding (names / teams)
+
+def _misa_rec(reasons=("Preseason 4 GP, 5 PTS (1.25 PTS/GP)", "Daily Faceoff lists him on PP2")):
+    from fantasy_manager.models import Player
+
+    misa = Player(cid="m", name="Michael Misa", name_norm="michael misa", ids={}, team="SJS", positions=["C"])
+    drop = Player(cid="d", name="Jake Sanderson", name_norm="jake sanderson", ids={}, team="OTT", positions=["D"])
+    return Recommendation(kind="waiver", score=2.0, title="Add Michael Misa, drop Jake Sanderson", add=[misa],
+                          drop=[drop], reasons=[Reason(code="X", text=t) for t in reasons])
+
+
+def _narrate_one(rec, text, ctx=None):
+    narrate([rec], ctx, [], StubLLM(json.dumps({"0": text})))
+    return rec.narrative
+
+
+def test_narrative_naming_the_wrong_team_is_dropped(caplog):
+    import logging
+
+    rec = _misa_rec()
+    with caplog.at_level(logging.INFO, logger="fantasy_manager.llm.openrouter"):
+        assert _narrate_one(rec, "Misa is skating on Chicago's second power-play unit.") is None
+    assert "'Chicago'" in caplog.text
+    rec = _misa_rec()
+    assert _narrate_one(rec, "Misa is skating on San Jose's second power-play unit.") == \
+        "Misa is skating on San Jose's second power-play unit."
+    # the other names of an allowed team, and the dropped player's team, are fine too
+    for ok in ("The Sharks rookie beats keeping Sanderson in Ottawa.", "Michael Misa (SJS) replaces Jake Sanderson."):
+        rec = _misa_rec()
+        assert _narrate_one(rec, ok) == ok
+    for bad in ("The Blackhawks rookie is a buy.", "Misa (CHI) is a buy.", "Misa could pass Toronto's depth."):
+        rec = _misa_rec()
+        assert _narrate_one(rec, bad) is None, bad
+
+
+def test_narrative_inventing_a_person_is_dropped_but_common_words_pass():
+    from fantasy_manager.llm.openrouter import grounding_entities, ungrounded_entity
+
+    rec = _misa_rec(reasons=("Daily Faceoff lists him on PP2 with Macklin Celebrini",))
+    ent = grounding_entities(rec, "Add Michael Misa, drop Jake Sanderson\n- Daily Faceoff lists him on PP2 with "
+                                  "Macklin Celebrini")
+    assert ungrounded_entity("He skates with Connor Bedard.", ent) == "Connor Bedard"
+    assert ungrounded_entity("He skates with Macklin Celebrini on PP2.", ent) is None
+    fine = ("Start Michael Misa in October: Daily Faceoff lists him on PP2. Move Jake Sanderson to the bench. "
+            "Adding Misa costs one move. The Stanley Cup is far away, but RotoWire and ESPN agree. PP1 next Monday.")
+    assert ungrounded_entity(fine, ent) is None
+    assert ungrounded_entity("A wild preseason in the min column.", ent) is None     # lowercase: not teams
+
+
+def test_opponent_named_in_reasons_is_grounded_and_numbers_still_checked():
+    rec = _misa_rec(reasons=("Plays SJS@VAN tonight", "Blended 1.25 FPG"))
+    assert _narrate_one(rec, "Misa faces Vancouver tonight at 1.25 FPG.") == "Misa faces Vancouver tonight at 1.25 FPG."
+    rec = _misa_rec(reasons=("Plays SJS@VAN tonight", "Blended 1.25 FPG"))
+    assert _narrate_one(rec, "Misa faces Vancouver tonight at 1.75 FPG.") is None      # invented number
+    rec = _misa_rec(reasons=("Plays SJS@VAN tonight",))
+    assert _narrate_one(rec, "Misa faces Calgary tonight.") is None

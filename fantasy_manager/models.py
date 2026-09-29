@@ -182,6 +182,11 @@ class LeagueContext(BaseModel):
     # valuation.valuate (START_ACTUAL / B2B reasons).
     goalie_actual_starts: dict[str, tuple[int, int]] = Field(default_factory=dict)
     b2b_second_night: dict[str, tuple[float, int]] = Field(default_factory=dict)
+    # NHL team -> {NHL id: name} of the goalies on the club's current NHL roster (providers.enrich
+    # step 2, from the cached roster pulls; empty when unavailable). Teammate-aware goalie start
+    # shares (valuation.schedule.teammate_shares) use it to skip minor-league goalies and to count
+    # roster goalies missing from the league pool.
+    nhl_goalies: dict[str, dict[int, str]] = Field(default_factory=dict)
     # cid -> deployment summary (harness.deployment.summarize_rows) for exact role-alert numbers
     deployment_details: dict[str, dict[str, Any]] = Field(default_factory=dict, exclude=True)
     # Transaction budget (recommend.base.moves_left / move_scarcity_threshold). "Moves" are

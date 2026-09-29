@@ -209,3 +209,88 @@ def test_proposal_keeps_its_first_seen_time(tmp_path):
         pull_transactions(led, FakeProvider([prop(5)]), "fantrax", None, FakeCtx())
         pull_transactions(led, FakeProvider([prop(9)]), "fantrax", None, FakeCtx())
         assert led.query("SELECT day, is_me FROM transactions") == [{"day": "2026-10-05", "is_me": 1}]
+
+
+# --------------------------------------------------------------------------- alerts
+
+def alert(first, subjects, title, counterparty=None, negative=False, eid="a1", last=None):
+    e = ep("alert", first, last, subjects=subjects, title=title, eid=eid)
+    e.counterparty, e.negative = counterparty, negative
+    return e
+
+
+def test_free_agent_alert_followed_by_my_add_is_followed_like_a_waiver():
+    e = alert(D(2026, 10, 5), ["misa"], "Preseason standout: Michael Misa (4 GP, 1.25 PTS/GP; free agent)", "FA")
+    assert window_end(e, "fantrax") == D(2026, 10, 8)
+    eps, dec = run([e], [tx("ADD", "misa", D(2026, 10, 7)), tx("DROP", "old", D(2026, 10, 7))], provider="fantrax")
+    assert eps["a1"]["status"] == "followed" and eps["a1"]["acted_on"] == "2026-10-07"
+    m = json.loads(eps["a1"]["match_json"])
+    assert m["added"] == ["misa"] and m["dropped"] == ["old"] and m["alert"] == "fa"
+    assert [(d["origin"], d["kind"], json.loads(d["adds_json"]), json.loads(d["drops_json"])) for d in dec] == \
+        [("followed", "alert", ["misa"], ["old"])]                      # the group is consumed: no user_only
+
+
+def test_free_agent_alert_add_after_the_window_expires():
+    e = alert(D(2026, 10, 5), ["x"], "X (free agent) promoted to PP1 (PP2 -> PP1): waiver watch")
+    eps, dec = run([e], [tx("ADD", "x", D(2026, 10, 9))])
+    assert eps["a1"]["status"] == "expired"
+    assert [(d["origin"], d["kind"]) for d in dec] == [("user_only", "waiver")]
+
+
+def test_alert_on_a_player_on_no_roster_counts_as_free_agent():
+    e = alert(D(2026, 10, 5), ["x"], "Rookie role signal: X - skating on the top line (RotoWire, 2026-10-05)")
+    rostered = [LineupRow("2", D(2026, 10, 5), "y", "C", True)]
+    eps, _ = run([e], [tx("ADD", "x", D(2026, 10, 6))], rostered)
+    assert eps["a1"]["status"] == "followed"
+    # on another team's roster that day: informational, my later add does not follow it
+    eps, _ = run([e], [tx("ADD", "x", D(2026, 10, 6))], rostered + [LineupRow("2", D(2026, 10, 5), "x", "C", True)])
+    assert eps["a1"]["status"] == "expired"
+
+
+def test_negative_alert_on_my_player_followed_by_drop_or_trade():
+    e = alert(D(2026, 10, 5), ["m"], "Role loss: M (TOI -3.1, off PP1; my team)", "Me")
+    assert window_end(e, "espn") == D(2026, 10, 12)
+    eps, dec = run([e], [tx("DROP", "m", D(2026, 10, 11)), tx("ADD", "n", D(2026, 10, 11))])
+    assert eps["a1"]["status"] == "followed"
+    m = json.loads(eps["a1"]["match_json"])
+    assert (m["via"], m["dropped"], m["added"]) == ("drop", ["m"], ["n"])
+    assert [d["origin"] for d in dec] == ["followed"]
+    eps, _ = run([e], [tx("TRADE_OUT", "m", D(2026, 10, 9), "T"), tx("TRADE_IN", "t", D(2026, 10, 9), "T")])
+    assert eps["a1"]["status"] == "followed" and json.loads(eps["a1"]["match_json"])["via"] == "trade"
+    # scratched / off PP1 titles and negative rookie news count as negative too
+    assert run([alert(D(2026, 10, 5), ["m"], "M out of the lineup (scratched): bench caution")],
+               [tx("DROP", "m", D(2026, 10, 6))])[0]["a1"]["status"] == "followed"
+    assert run([alert(D(2026, 10, 5), ["m"], "Rookie role signal: M - sent down", negative=True)],
+               [tx("DROP", "m", D(2026, 10, 6))])[0]["a1"]["status"] == "followed"
+
+
+def test_positive_alert_on_my_player_then_drop_is_not_followed():
+    e = alert(D(2026, 10, 5), ["m"], "M promoted to PP1 (PP2 -> PP1): start him / hold")
+    eps, dec = run([e], [tx("DROP", "m", D(2026, 10, 6))])
+    assert eps["a1"]["status"] == "expired"
+    assert [d["origin"] for d in dec] == ["user_only"]
+
+
+def test_followed_alert_is_graded_and_ignored_alerts_are_not(tmp_path):
+    from fantasy_manager.harness.outcomes import load_subjects
+
+    _write_recs(tmp_path, "2026-10-05", [
+        _rec("alert", "Preseason standout: M (4 GP; free agent)", subjects=["espn:m"], counterparty="FA", gain=None),
+        _rec("alert", "Rising: Q (+6.0% rostered this week)", subjects=["espn:q"], counterparty="FA", gain=None)])
+    with Ledger(tmp_path) as ledger:
+        ingest_archive(ledger, tmp_path)
+        items = [ActivityItem(source="espn", tx_id="t1", ts=datetime(2026, 10, 6, 9), team_id="1", action="ADD",
+                              cid="espn:m", group_id="t1"),
+                 ActivityItem(source="espn", tx_id="t1", ts=datetime(2026, 10, 6, 9), team_id="1", action="DROP",
+                              cid="espn:d", group_id="t1")]
+        pull_transactions(ledger, FakeProvider(items), "espn", date(2026, 10, 1), FakeCtx())
+        s = match_episodes(ledger, "espn", today=date(2026, 10, 20))
+        assert s.by_kind_status == {"alert": {"followed": 1, "expired": 1}}
+        assert s.decisions == {"followed": 1}
+        subs = {(x.title.split(":")[0], x.basis): x for x in load_subjects(ledger, "espn")}
+        first = subs[("Preseason standout", "first_seen")]
+        assert (first.adds, first.drops, first.origin) == (["espn:m"], ["espn:d"], "followed")
+        assert (subs[("Preseason standout", "acted_on")].adds, subs[("Preseason standout", "acted_on")].drops) == \
+            (["espn:m"], ["espn:d"])
+        ignored = subs[("Rising", "first_seen")]
+        assert ignored.origin == "ignored" and ignored.adds == [] and ignored.drops == []   # never graded

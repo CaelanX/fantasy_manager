@@ -23,6 +23,10 @@ game in the window (preseason, a break) the realized gain is None: not judgeable
 Realized gain (fantasy points over the window unless noted):
 
 * waiver / injury (and my own adds)  pts(add) - pts(drop); an IR-only move has no gain.
+* alert   only when followed (``harness.match``: my add of a free-agent alert's subject, or my
+          drop / trade of my player after a negative alert): pts(added) - pts(dropped in the same
+          transaction), like a waiver add; a drop with nothing added back is not graded. Every
+          other alert is informational: no outcome row, so it never enters a hit-rate denominator.
 * trade   pts(get) - pts(give) - (n_get - n_give) * replacement, where the replacement is the
           realized points of the ~replacement-level players that day (the ``REPLACEMENT_N``
           players with |vorp| closest to 0): a 2-for-1 frees (or costs) a roster spot.
@@ -487,6 +491,14 @@ def _json_list(v: str | None) -> list[str]:
         return []
 
 
+def _alert_sides(status: str, match: Mapping[str, Any]) -> tuple[list[str], list[str]]:
+    """(adds, drops) graded for an alert episode: the matched move of a followed alert, nothing
+    (not graded) otherwise or when nothing was added (a bare drop)."""
+    if status not in ("followed", "partial") or not match.get("added"):
+        return [], []
+    return sorted(match["added"]), sorted(match.get("dropped") or [])
+
+
 def load_subjects(ledger: Ledger, league: str) -> list[Subject]:
     eps = {e.episode_id: e for e in load_episodes(ledger, league)}
     rows = ledger.query("SELECT * FROM rec_episodes WHERE league=? ORDER BY first_seen", (league,))
@@ -498,20 +510,24 @@ def load_subjects(ledger: Ledger, league: str) -> list[Subject]:
         if e is None:
             continue
         origin = ORIGIN_OF_STATUS.get(r["status"], r["status"])
+        try:
+            m = json.loads(r["match_json"] or "{}")
+        except ValueError:
+            m = {}
         common = dict(league=league, kind=r["kind"], origin=origin, episode_id=r["episode_id"],
                       predicted_gain=r["predicted_gain"], gain_units=r["gain_units"],
                       horizon_days=r["horizon_days"], title=r["title"], strength=r["strength"],
                       last_seen=e.last_seen)
-        out.append(Subject(basis="first_seen", day=e.first_seen, adds=sorted(e.adds), drops=sorted(e.drops),
-                           **common))
+        adds0, drops0 = sorted(e.adds), sorted(e.drops)
+        if r["kind"] == "alert":
+            adds0, drops0 = _alert_sides(r["status"], m)
+        out.append(Subject(basis="first_seen", day=e.first_seen, adds=adds0, drops=drops0, **common))
         dec = decisions.get(r["episode_id"])
         if r["acted_on"] and r["status"] in ("followed", "partial") and r["kind"] != "lineup":
             adds, drops = sorted(e.adds), sorted(e.drops)
-            try:
-                m = json.loads(r["match_json"] or "{}")
-            except ValueError:
-                m = {}
-            if r["kind"] == "waiver" and m.get("added"):
+            if r["kind"] == "alert":
+                adds, drops = _alert_sides(r["status"], m)
+            elif r["kind"] == "waiver" and m.get("added"):
                 adds, drops = sorted(m["added"]), sorted(m.get("dropped") or [])
             elif r["kind"] == "trade" and m.get("got"):
                 adds, drops = sorted(m["got"]), sorted(m.get("gave") or [])

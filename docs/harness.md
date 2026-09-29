@@ -46,7 +46,8 @@ Everything lives in `<FM_DATA_DIR>/harness.db` (sqlite). `fm harness daily` runs
 4. **Pull yesterday's NHL results** for every player.
 5. **Match** episodes to your moves: *followed* (you did exactly what it said), *partial* (part
    of it), *proposed* (a trade you offered), *expired* (you didn't; graded as *ignored*). Your
-   moves that no recommendation explains are *your own moves* (`user_only`).
+   moves that no recommendation explains are *your own moves* (`user_only`). Waiver, trade,
+   lineup, injury, sell-high / buy-low and alert episodes are matched; see "Alerts" below.
 
 Then, once for both leagues:
 
@@ -80,6 +81,26 @@ lack the keys (read as unknown).
 Run it every day: the ESPN activity feed pages back 25 moves at a time and Fantrax keeps only the
 last 50 transactions, so skipped days can lose moves for good.
 
+### Alerts
+
+Alerts (line / power-play changes, goalie starts, role changes, preseason standouts, rookie news,
+rising free agents) are mostly informational, so only two kinds of reaction count as following one:
+
+- **A free-agent alert you pick up.** The alert's player is a free agent (the alert says "FA" /
+  "free agent", or he is on no fantasy roster in that day's lineup rows) and you add him within 3
+  days of the alert's last sighting: the alert is *followed* and graded like a waiver add, points
+  of the player added minus points of the player you dropped in the same transaction (if any).
+  Example: a "Preseason standout" alert on a free agent you then add.
+- **A warning about your own player you act on.** A negative alert about your player (role loss,
+  dropped off PP1, out of the lineup / scratched, a negative rookie news signal) followed by your
+  drop or trade of him within 7 days: *followed*, graded as what came back in that transaction
+  minus him (a drop with nothing added back is not graded).
+
+Every other alert (a positive note on your own player, a goalie start, a player on another team's
+roster) expires as before but is never graded, so it never counts in a hit-rate denominator. A
+move that followed an alert is not also counted as one of your own moves. Alerts only exist in
+the ledger when the day's archived recommendations include them.
+
 ## What the bar means
 
 Graded weekly (as of Monday; only windows that have fully ended count):
@@ -92,8 +113,8 @@ Graded weekly (as of Monday; only windows that have fully ended count):
   +10% means the model's errors are 10% smaller than just trusting season-to-date. It comes
   with a 95% confidence interval (bootstrap, resampling whole players).
 - **Hit rate** per recommendation kind and per how you acted on it: a waiver or injury rec
-  "hits" when the added player outscored the dropped one over the window (28 days; 7 for
-  lineup and week-horizon recs). Shown with a 95% Wilson interval. Followed, ignored and
+  (or a followed alert) "hits" when the added player outscored the dropped one over the window
+  (28 days; 7 for lineup and week-horizon recs). Shown with a 95% Wilson interval. Followed, ignored and
   your-own moves are reported separately, because what you chose to follow is not a random
   sample.
 - **Calibration**: predicted gain vs realized gain by bin. A realized/predicted ratio near

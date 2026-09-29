@@ -23,6 +23,14 @@ Rules (window = first_seen .. window_end; only my own transactions count):
            ``partial``. "Activate X from IR" recs: X out of the IR slot (or an ACTIVATE).
 * flags    last_seen + 14d. sell_high: I traded the player away; buy_low: I traded for him
            (``proposed`` when only offered).
+* alert    (:func:`alert_category`) a free-agent alert (counterparty "FA", "free agent" in the
+           title, or a subject on no fantasy roster that day per the lineup rows), last_seen + 3d:
+           my ADD of a subject is ``followed`` (match detail ``added`` / ``dropped``: the drops of
+           that transaction group, else of that day; graded like a waiver add). A negative alert
+           about my own player (role loss, off PP1, out of the lineup / scratched, a negative
+           rookie news signal), last_seen + 7d: my DROP or TRADE_OUT of him is ``followed``
+           (``dropped`` / ``added``: what came back in that group). Every other alert is
+           informational: it expires as before and is never graded (no hit-rate denominator).
 
 Unmatched episodes turn ``expired`` once ``today`` is past ``window_end``. Every matched
 episode becomes a decision (origin = its status); my transaction groups that no episode
@@ -32,6 +40,7 @@ consumed become ``decisions(origin=user_only)``. Other teams' moves stay in
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -40,6 +49,11 @@ from typing import Any, Iterable
 from .ledger import Ledger, now_iso
 
 WINDOW_DAYS = {"waiver": 3, "trade": 7, "injury": 2, "sell_high": 14, "buy_low": 14}
+ALERT_FA_DAYS = 3         # a free-agent alert followed by my add within last_seen + 3d
+ALERT_MINE_DAYS = 7       # a negative alert on my player followed by my drop / trade within last_seen + 7d
+FA_COUNTERPARTY = "FA"
+# titles of negative alerts about my own players (recommend.alerts / recommend.flags)
+_NEGATIVE_ALERT_RE = re.compile(r"^Role loss:|dropped off PP1|out of the lineup|scratched|demot", re.I)
 LINEUP_GRACE = {"espn": 2, "fantrax": 7}
 TERMINAL = ("followed", "partial")
 
@@ -54,6 +68,21 @@ class EpisodeRow:
     adds: set[str] = field(default_factory=set)
     drops: set[str] = field(default_factory=set)
     subjects: set[str] = field(default_factory=set)
+    counterparty: str | None = None
+    negative: bool = False          # alerts: a negative signal (role loss, demotion, scratch)
+
+
+def alert_category(ep: EpisodeRow) -> str | None:
+    """Alerts only: "fa" (a free agent: counterparty "FA" or "free agent" in the title), "mine"
+    (a negative alert about my own player) or "info" (anything else; ``match_rows`` still turns
+    an "info" alert whose subject is on no fantasy roster that day into "fa")."""
+    if ep.kind != "alert":
+        return None
+    if (ep.counterparty or "").upper() == FA_COUNTERPARTY or "free agent" in (ep.title or "").lower():
+        return "fa"
+    if ep.negative or _NEGATIVE_ALERT_RE.search(ep.title or ""):
+        return "mine"
+    return "info"
 
 
 @dataclass
@@ -108,6 +137,8 @@ def first_lockable_day(provider: str, day: date) -> date:
 
 
 def window_end(ep: EpisodeRow, provider: str) -> date:
+    if ep.kind == "alert":
+        return ep.last_seen + timedelta(days=ALERT_MINE_DAYS if alert_category(ep) == "mine" else ALERT_FA_DAYS)
     if ep.kind == "lineup":
         return first_lockable_day(provider, ep.first_seen) + timedelta(days=LINEUP_GRACE.get(provider, 2))
     return ep.last_seen + timedelta(days=WINDOW_DAYS.get(ep.kind, 3))
@@ -260,6 +291,47 @@ def _match_injury(ep: EpisodeRow, mine: list[TxRow], lineups: list[LineupRow], e
     return ("followed" if all(parts) else "partial"), min(days), groups, detail
 
 
+def _rostered_on(lineups: list[LineupRow], cids: set[str], day: date) -> bool | None:
+    """Whether any of ``cids`` is on a fantasy roster on ``day`` per the lineup rows of every
+    team (the latest lineup day on or before ``day``, at most 3 days back); None without rows."""
+    days = sorted({r.day for r in lineups if day - timedelta(days=3) <= r.day <= day})
+    if not days:
+        return None
+    last = days[-1]
+    return any(r.cid in cids for r in lineups if r.day == last)
+
+
+def _match_alert(ep: EpisodeRow, mine: list[TxRow], end: date, category: str
+                 ) -> tuple[str, date, set[str], dict] | None:
+    targets = ep.subjects | ep.adds
+    if category == "fa":
+        adds = sorted((t for t in mine if t.action == "ADD" and t.cid in targets and _in_window(t, ep, end)),
+                      key=lambda t: t.day)
+        if not adds:
+            return None
+        t0 = adds[0]
+        same = [t for t in mine if t.action == "DROP" and t.group == t0.group]
+        if not same:
+            same = [t for t in mine if t.action == "DROP" and t.day == t0.day]
+        groups = {t0.group} | {t.group for t in same}
+        return "followed", t0.day, groups, {"alert": "fa", "added": sorted({t.cid for t in adds if t.day == t0.day}),
+                                            "dropped": sorted({t.cid for t in same})}
+    if category == "mine":
+        outs = sorted((t for t in mine if t.action in ("DROP", "TRADE_OUT") and t.cid in targets
+                       and _in_window(t, ep, end)), key=lambda t: t.day)
+        if not outs:
+            return None
+        t0 = outs[0]
+        back = [t for t in mine if t.action in ("ADD", "TRADE_IN") and t.group == t0.group]
+        if not back and t0.action == "DROP":
+            back = [t for t in mine if t.action == "ADD" and t.day == t0.day]
+        groups = {t0.group} | {t.group for t in back}
+        return "followed", t0.day, groups, {"alert": "mine", "via": "trade" if t0.action == "TRADE_OUT" else "drop",
+                                            "dropped": sorted({t.cid for t in outs if t.day == t0.day}),
+                                            "added": sorted({t.cid for t in back})}
+    return None
+
+
 # --------------------------------------------------------------------------- driver
 
 def _decision_kind(actions: set[str]) -> str:
@@ -276,10 +348,15 @@ def match_rows(episodes: Iterable[EpisodeRow], txs: Iterable[TxRow], lineups: It
     every team's rows; only ``my_team``'s are used."""
     txs = list(txs)
     mine = [t for t in txs if t.team_id == my_team or (t.action == "PROPOSED" and t.counterparty_id == my_team)]
+    lineups = list(lineups)
     my_lineups = [r for r in lineups if r.team_id == my_team]
     res = MatchResult()
     consumed: set[str] = set()
     for ep in episodes:
+        category = alert_category(ep)
+        if category == "info" and _rostered_on(lineups, ep.subjects | ep.adds, ep.first_seen) is False:
+            category = "fa"          # on no fantasy roster that day: a free agent
+            ep = EpisodeRow(**{**ep.__dict__, "counterparty": FA_COUNTERPARTY})
         end = window_end(ep, provider)
         m = None
         if ep.kind == "waiver":
@@ -292,6 +369,8 @@ def match_rows(episodes: Iterable[EpisodeRow], txs: Iterable[TxRow], lineups: It
             m = _match_lineup(ep, my_lineups, provider)
         elif ep.kind == "injury":
             m = _match_injury(ep, mine, my_lineups, end)
+        elif ep.kind == "alert":
+            m = _match_alert(ep, mine, end, category or "info")
         if m is None:
             status = "expired" if today > end else "open"
             res.episodes.append({"episode_id": ep.episode_id, "status": status, "acted_on": None,
@@ -306,10 +385,14 @@ def match_rows(episodes: Iterable[EpisodeRow], txs: Iterable[TxRow], lineups: It
         if status == "expired":
             continue
         consumed |= groups
+        if ep.kind == "alert":
+            adds, drops = set(detail.get("added") or []), set(detail.get("dropped") or [])
+        else:
+            adds, drops = ep.adds, ep.drops
         res.decisions.append({"decision_id": f"ep:{ep.episode_id}", "league": league, "day": day.isoformat(),
                               "origin": status, "kind": ep.kind, "episode_id": ep.episode_id,
                               "group_id": ",".join(sorted(groups)) or None,
-                              "adds_json": json.dumps(sorted(ep.adds)), "drops_json": json.dumps(sorted(ep.drops)),
+                              "adds_json": json.dumps(sorted(adds)), "drops_json": json.dumps(sorted(drops)),
                               "created_at": now_iso()})
     groups_tx: dict[str, list[TxRow]] = {}
     for t in mine:
@@ -344,18 +427,31 @@ def load_episodes(ledger: Ledger, league: str) -> list[EpisodeRow]:
     eps = ledger.query("SELECT episode_id, rec_key, kind, title, first_seen, last_seen FROM rec_episodes"
                        " WHERE league=? ORDER BY first_seen", (league,))
     players = ledger.query("SELECT as_of, rec_key, side, cid FROM rec_players WHERE league=?", (league,))
+    recs = {(r["rec_key"], r["as_of"]): r for r in ledger.query(
+        "SELECT rec_key, as_of, counterparty, reasons_json FROM recs WHERE league=? AND kind='alert'", (league,))}
     idx: dict[tuple[str, str], dict[str, set[str]]] = {}
     for p in players:
         idx.setdefault((p["rec_key"], p["as_of"]), {}).setdefault(p["side"], set()).add(p["cid"])
     out = []
     for e in eps:
         sides = idx.get((e["rec_key"], e["first_seen"]), {})
+        rec = recs.get((e["rec_key"], e["first_seen"])) or {}
         out.append(EpisodeRow(episode_id=e["episode_id"], kind=e["kind"], title=e["title"] or "",
                               first_seen=date.fromisoformat(e["first_seen"]),
                               last_seen=date.fromisoformat(e["last_seen"]),
                               adds=sides.get("add", set()), drops=sides.get("drop", set()),
-                              subjects=sides.get("subject", set())))
+                              subjects=sides.get("subject", set()), counterparty=rec.get("counterparty"),
+                              negative=_negative_reasons(rec.get("reasons_json"))))
     return out
+
+
+def _negative_reasons(raw: str | None) -> bool:
+    """A negative rookie news signal (ROLE_NEWS with value < 0) among an alert's reasons."""
+    try:
+        reasons = json.loads(raw) if raw else []
+    except ValueError:
+        return False
+    return any(isinstance(r, dict) and r.get("code") == "ROLE_NEWS" and (r.get("value") or 0) < 0 for r in reasons)
 
 
 def load_txs(ledger: Ledger, league: str) -> list[TxRow]:
@@ -364,12 +460,16 @@ def load_txs(ledger: Ledger, league: str) -> list[TxRow]:
             for r in ledger.query("SELECT * FROM transactions WHERE league=?", (league,))]
 
 
-def load_lineups(ledger: Ledger, league: str, team_id: str | None) -> list[LineupRow]:
+def load_lineups(ledger: Ledger, league: str, team_id: str | None, all_teams: bool = False) -> list[LineupRow]:
+    """My lineup rows (every team's with ``all_teams``: free-agent alerts check who was rostered)."""
     if team_id is None:
         return []
+    sql, params = "SELECT * FROM lineup_days WHERE league=?", (league,)
+    if not all_teams:
+        sql, params = sql + " AND team_id=?", (league, team_id)
     return [LineupRow(team_id=r["team_id"], day=date.fromisoformat(r["day"]), cid=r["cid"], slot=r["slot"] or "",
                       starting=bool(r["starting"]))
-            for r in ledger.query("SELECT * FROM lineup_days WHERE league=? AND team_id=?", (league, team_id))]
+            for r in ledger.query(sql, params)]
 
 
 def match_episodes(ledger: Ledger, league: str, today: date | None = None,
@@ -379,7 +479,7 @@ def match_episodes(ledger: Ledger, league: str, today: date | None = None,
     today = today or date.today()
     team = my_team_id(ledger, league)
     eps = load_episodes(ledger, league)
-    res = match_rows(eps, load_txs(ledger, league), load_lineups(ledger, league, team), team,
+    res = match_rows(eps, load_txs(ledger, league), load_lineups(ledger, league, team, all_teams=True), team,
                      provider or league, today, league)
     now = now_iso()
     for u in res.episodes:

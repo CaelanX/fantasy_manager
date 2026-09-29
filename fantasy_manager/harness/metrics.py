@@ -54,7 +54,8 @@ BOOTSTRAP_N = 200
 BOOTSTRAP_SEED = 20260928
 Z95 = 1.959964
 BASELINES = ("to_date", "preseason", "provider", "last_season")
-HIT_KINDS = ("waiver", "lineup", "injury", "sell_high", "buy_low")
+# "alert": followed alerts only (harness.match); informational alerts are never graded
+HIT_KINDS = ("waiver", "lineup", "injury", "sell_high", "buy_low", "alert")
 HIT_ORIGINS = ("followed", "partial", "ignored", "user_only")
 CORE_HIT_ROWS = ("waiver:followed", "waiver:ignored", "lineup:followed", "lineup:ignored", "waiver:user_only")
 CALIBRATION_KINDS = ("waiver", "injury", "lineup")

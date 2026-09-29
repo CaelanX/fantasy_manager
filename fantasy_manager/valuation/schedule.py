@@ -22,6 +22,12 @@ re-weight a goalie's share for the second nights of back-to-backs in the window.
 team's back-to-backs, then ``harness.deployment.b2b_second_night_rate``); a backup (share
 0.25-0.5) with ``1 - b2b_p``. The other nights get the share that keeps the season average
 unchanged given ``SEASON_B2B_FRAC`` of games are second nights.
+
+Absent teammates (:func:`teammate_shares`, reason TEAMMATE_OUT in valuate.py): when a team's
+higher-share goalie is out / IR / LTIR / suspended, his share goes to the team's other goalies
+(league pool + NHL roster goalies) in proportion to their shares. Week: times the fraction of the
+window's games he misses (``adjust.return_estimate``), the new #1 capped at ``TEAMMATE_CAP`` (0.9).
+Season: ``share + absent share x games missed / games remaining`` (split the same way).
 """
 from __future__ import annotations
 
@@ -231,3 +237,180 @@ def schedule_factor(player: Player, schedule: Mapping[str, list[date]], games_pe
                           offnight=off_night_games(dates, games_per_day, window.start, window.days, threshold),
                           start_share=s,
                           window=window)
+
+
+# --------------------------------------------------------------------------- teammate-aware shares
+
+TEAMMATE_CAP = 0.9            # a goalie absorbing an absent teammate's starts never goes above this
+ROSTER_ONLY_SHARE = 0.10      # weight of an NHL roster goalie outside the league pool (or without any history)
+ABSENT_STATUSES = ("out", "ir", "ltir", "suspended")
+_STATUS_WORDS = {"out": "out", "ir": "on IR", "ltir": "on LTIR", "suspended": "suspended"}
+
+
+def redistribute_shares(shares: Mapping[str, float], absent: Mapping[str, float],
+                        cap: float = TEAMMATE_CAP) -> dict[str, float]:
+    """New start shares of the goalies of one team not in ``absent`` ({key: fraction of the
+    horizon he misses, 0..1}).
+
+    Only an absent goalie whose share is above every remaining goalie's (the #1, or a tandem
+    goalie ahead of the rest) donates: ``share x fraction`` goes to the remaining goalies in
+    proportion to their own shares. A recipient never ends above ``cap`` (or his own share, if
+    that is higher); what he cannot take goes to the others, and is lost (an emergency call-up's
+    starts) when nobody can take it."""
+    rest = {k: max(0.0, float(v)) for k, v in shares.items() if k not in absent}
+    if not rest:
+        return {}
+    top = max(rest.values())
+    pool = sum(float(shares[k]) * min(max(float(f), 0.0), 1.0)
+               for k, f in absent.items() if k in shares and float(shares[k]) > top)
+    out = dict(rest)
+    open_ = set(rest)
+    while pool > 1e-12 and open_:
+        wsum = sum(rest[k] for k in open_)
+        spill = 0.0
+        n_open = len(open_)
+        for k in sorted(open_):
+            w = rest[k] / wsum if wsum > 0 else 1.0 / n_open
+            lim = max(cap, rest[k])
+            new = out[k] + pool * w
+            if new >= lim:
+                spill += new - lim
+                out[k] = lim
+                open_.discard(k)
+            else:
+                out[k] = new
+        pool = spill
+    return out
+
+
+class TeammateAbsence(BaseModel):
+    """An absent goalie whose starts are redistributed: the fraction of the week window / of the
+    rest of the season he misses."""
+    name: str
+    status: str
+    return_date: date | None = None
+    week_frac: float
+    season_frac: float
+    games_missed: float | None = None
+    games_remaining: float | None = None
+
+
+class TeammateShare(BaseModel):
+    """A goalie's start shares after his absent teammates' starts are redistributed."""
+    base: float
+    week: float
+    season: float
+    absent: list[TeammateAbsence]
+    window_label: str | None = None
+
+    def text(self, player: Player) -> str:
+        me = _last_name(player.name)
+        parts = []
+        for a in self.absent:
+            who = f"{_last_name(a.name)} {_STATUS_WORDS.get(a.status, a.status)}"
+            if a.return_date is not None:
+                who += f" until ~{a.return_date:%b} {a.return_date.day}"
+            elif a.season_frac >= 0.999:
+                who += " for the rest of the season"
+            if a.games_missed is not None and a.games_remaining:
+                who += f" (~{a.games_missed:.0f} of {a.games_remaining:.0f} games)"
+            parts.append(who)
+        week = f"{self.base:.2f} -> {self.week:.2f} this week"
+        if self.window_label:
+            week += f" ({self.window_label})"
+        return (f"{' and '.join(parts)}: {me}'s start share {week}, {self.base:.2f} -> {self.season:.2f} "
+                f"rest of season")
+
+
+def _last_name(name: str) -> str:
+    parts = (name or "").split()
+    return parts[-1] if parts else name
+
+
+def _week_fraction(status: str, est: Any, team_dates: Iterable[date], window: WeekWindow | None) -> float:
+    """Fraction of the team's games in ``window`` an absent goalie misses (the flat week
+    availability when the window has no games or nothing can be inferred: 1.0 while out)."""
+    from .adjust import availability_multiplier
+
+    flat = min(max(1.0 - availability_multiplier(status, "week"), 0.0), 1.0)
+    if window is None:
+        return flat
+    games = sorted(d for d in set(team_dates) if _in_window(d, window.start, window.days))
+    if not games or est is None:
+        return flat
+    if est.return_date is None:
+        return 1.0 if est.games_missed > 0 else 0.0
+    return sum(1 for d in games if d < est.return_date) / len(games)
+
+
+def teammate_shares(ctx: LeagueContext, base: Mapping[str, float], window: WeekWindow | None = None,
+                    weights: Mapping[str, float] | None = None, cap: float = TEAMMATE_CAP
+                    ) -> dict[str, TeammateShare]:
+    """cid -> teammate-adjusted week / season start shares of the goalies whose team's #1 (a
+    goalie with a higher share) is out / IR / LTIR / suspended.
+
+    Per NHL team: the league pool's goalies (``ctx.all_players()``, keyed by cid with their
+    ``base`` share) plus the club's NHL roster goalies missing from the pool
+    (``ctx.nhl_goalies``, weight ``ROSTER_ONLY_SHARE``); a healthy pool goalie with an NHL id
+    that is not on a known NHL roster (a minor-leaguer) takes nothing. ``weights`` overrides a
+    goalie's share for the redistribution (e.g. ``ROSTER_ONLY_SHARE`` for one whose share is the
+    bare prior, so an injured minor-leaguer never donates and a call-up without history does not
+    take half of the starts).
+
+    Week: the absent goalie's share x the fraction of his team's games in ``window`` he misses
+    (``adjust.return_estimate``; the whole window while out without a timetable) is spread over
+    the others in proportion to their shares (:func:`redistribute_shares`, new #1 capped at
+    ``cap``). Season: ``share + absent share x games missed / games remaining`` (same split)."""
+    from .adjust import availability_multiplier, return_estimate
+
+    by_team: dict[str, list[Player]] = {}
+    for p in ctx.all_players():
+        if p.is_goalie and p.cid in base:
+            team = normalize_team(p.team)
+            if team:
+                by_team.setdefault(team, []).append(p)
+    out: dict[str, TeammateShare] = {}
+    for team, goalies in by_team.items():
+        absent = {g.cid: g for g in goalies if g.status in ABSENT_STATUSES}
+        if not absent:
+            continue
+        roster = ctx.nhl_goalies.get(team) or {}
+        team_dates = ctx.schedule.get(team, [])
+        shares: dict[str, float] = {}
+        for g in goalies:
+            if g.cid in absent or not roster or g.nhl_id is None or g.nhl_id in roster:
+                shares[g.cid] = float((weights or {}).get(g.cid, base[g.cid]))
+        pool_ids = {g.nhl_id for g in goalies if g.nhl_id is not None}
+        for nid in roster:
+            if nid not in pool_ids:
+                shares[f"nhl:{nid}"] = ROSTER_ONLY_SHARE
+        info: dict[str, TeammateAbsence] = {}
+        for cid, a in absent.items():
+            est = return_estimate(a.status, a.status_note, ctx.as_of, team_dates, ctx.season_start)
+            if est is not None:
+                season_frac = est.games_missed / est.games_remaining if est.games_remaining > 0 else 1.0
+            else:
+                season_frac = 1.0 - availability_multiplier(a.status, "season")
+            info[cid] = TeammateAbsence(
+                name=a.name, status=a.status, return_date=est.return_date if est else None,
+                week_frac=_week_fraction(a.status, est, team_dates, window),
+                season_frac=min(max(season_frac, 0.0), 1.0),
+                games_missed=round(est.games_missed, 2) if est else None,
+                games_remaining=round(est.games_remaining, 2) if est else None)
+        week = redistribute_shares(shares, {c: i.week_frac for c, i in info.items()}, cap)
+        season = redistribute_shares(shares, {c: i.season_frac for c, i in info.items()}, cap)
+        rest_top = max((v for k, v in shares.items() if k not in info), default=0.0)
+        donors = [i for c, i in info.items() if shares[c] > rest_top]
+        for g in goalies:
+            if g.cid in info or g.cid not in week:
+                continue
+            b = float(base[g.cid])
+            w0 = shares[g.cid]
+            lim = max(cap, b)
+            wk = min(lim, b + week[g.cid] - w0)
+            sn = min(lim, b + season[g.cid] - w0)
+            if wk - b <= 1e-4 and sn - b <= 1e-4:
+                continue
+            out[g.cid] = TeammateShare(base=b, week=wk, season=sn, absent=donors,
+                                       window_label=window.label() if window is not None else None)
+    return out
