@@ -511,6 +511,8 @@ def action_note(r: Recommendation) -> str | None:
         return "Fills an empty starting slot."
     if r.kind == "lineup" and title.startswith("Bench ") and ":" in title:
         return title.split(":", 1)[1].strip().capitalize() + "."
+    if r.kind == "waiver" and (w := next((x for x in r.reasons if x.code == "WAIVER_CLAIM"), None)) is not None:
+        return w.text + ("" if w.text.endswith(".") else ".")
     if r.kind == "waiver" and "(open roster spot)" in title:
         return "Uses an open roster spot, no drop needed."
     return None

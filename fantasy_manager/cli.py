@@ -571,6 +571,8 @@ def waivers(ctx: typer.Context,
         a = r.add[0]
         d = r.drop[0] if r.drop else None
         add = f"{a.name} ({_pos(a)}, {a.team or 'FA'})\n{values[a.cid].fpg_for(h):.2f} FPG"
+        if a.waiver_until is not None and any(x.code == "WAIVER_CLAIM" for x in r.reasons):
+            add += f"\n[yellow]W ({a.waiver_until:%a}): claim[/]"
         if d is None:
             ir_move = next((x.text for x in r.reasons if x.code == "IR_MOVE"), None)
             drop = ir_move or "(no drop: open roster spot)"

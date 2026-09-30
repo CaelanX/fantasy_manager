@@ -490,6 +490,16 @@ class RowStats:
     owned_change: float | None = None      # "+/-": change in % rostered from the previous week
     status_cell: str | None = None
     status_team_id: str | None = None
+    waiver_day: int | None = None          # weekday (Mon=0) of a "W (Wed)" status cell
+
+
+WAIVER_STATUS_RE = re.compile(r"^W\s*\(\s*([A-Za-z]{3})", re.I)
+WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+
+def waiver_clear_date(day: int | None, today: date) -> date | None:
+    """The next date (today included) falling on weekday `day`."""
+    return None if day is None else today + timedelta(days=(day - today.weekday()) % 7)
 
 
 def parse_row_cells(header_cells: list[Mapping[str, Any]], cells: list[Mapping[str, Any]]) -> RowStats:
@@ -519,6 +529,9 @@ def parse_row_cells(header_cells: list[Mapping[str, Any]], cells: list[Mapping[s
     if (c := cell(_find(idx, STATUS_IDS))) is not None:
         out.status_cell = strip_html(c.get("content")) or None
         out.status_team_id = c.get("teamId")
+        m = WAIVER_STATUS_RE.match(out.status_cell or "")
+        if m and m.group(1).lower() in WEEKDAYS:
+            out.waiver_day = WEEKDAYS.index(m.group(1).lower())
     return out
 
 
@@ -543,7 +556,7 @@ def season_line(rs: RowStats, split: str = "season") -> StatLine | None:
 
 
 def player_from_scorer(scorer: Mapping[str, Any], rs: RowStats | None = None,
-                       split: str | None = "season") -> Player:
+                       split: str | None = "season", today: date | None = None) -> Player:
     sid = str(scorer["scorerId"])
     name = strip_html(scorer.get("name")) or sid
     status, note = status_from_icons(scorer.get("icons"))
@@ -559,6 +572,7 @@ def player_from_scorer(scorer: Mapping[str, Any], rs: RowStats | None = None,
         positions=player_positions(scorer.get("posShortNames")),
         status=status,
         status_note=note,
+        waiver_until=waiver_clear_date(rs.waiver_day, today or date.today()) if rs is not None else None,
         lines=lines,
         pct_owned=rs.owned if rs is not None else None,
         pct_owned_change=rs.owned_change if rs is not None else None,
@@ -869,8 +883,8 @@ def lineup_days_from_teams(teams: Iterable[FantasyTeam], day: date) -> list[Line
 
 
 
-def parse_player_pool(data: Mapping[str, Any], codes: Mapping[str, Mapping[str, str]] | None = None
-                      ) -> tuple[list[Player], dict[str, RowStats], int]:
+def parse_player_pool(data: Mapping[str, Any], codes: Mapping[str, Mapping[str, str]] | None = None,
+                      today: date | None = None) -> tuple[list[Player], dict[str, RowStats], int]:
     """getPlayerStats -> (available players, row stats by cid, total pages).
 
     Stat lines get the split of the displayed timeframe (see `data_split`)."""
@@ -885,7 +899,7 @@ def parse_player_pool(data: Mapping[str, Any], codes: Mapping[str, Mapping[str, 
         rs = parse_row_cells(header, entry.get("cells") or [])
         if rs.status_team_id:  # rostered by a fantasy team: not a free agent
             continue
-        p = player_from_scorer(scorer, rs, split)
+        p = player_from_scorer(scorer, rs, split, today)
         players.append(p)
         rows[p.cid] = rs
     pages = int((data.get("paginatedResultSet") or {}).get("totalNumPages") or 1)
@@ -1848,7 +1862,7 @@ class FantraxProvider:
                     data = client.call(("getPlayerStats", {**params, "maxResultsPerPage": str(FA_PAGE_SIZE),
                                                            "pageNumber": str(page)}))[0]
                     split = data_split(data, self._codes or None)
-                    got, got_rows, pages = parse_player_pool(data, self._codes or None)
+                    got, got_rows, pages = parse_player_pool(data, self._codes or None, self.today)
                     ok += 1
                     useful = [p for p in got if p.lines or split is None]
                     for p in useful:

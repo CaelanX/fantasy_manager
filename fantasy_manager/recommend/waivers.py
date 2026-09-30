@@ -48,10 +48,13 @@ share (kind "alert").
 """
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any, Mapping
 
+from ..matching.normalize import normalize_team
 from ..models import LeagueContext, Player, Reason, Recommendation
 from ..valuation.adjust import Horizon
+from ..valuation.schedule import context_window
 from ..valuation.valuate import PlayerValue
 from .strength import apply_ranks, apply_strength
 from .base import (CHURN_EXEMPT_STATUSES, CHURN_OVERRIDE_GAIN, INJURY_REPLACEMENT_STATUSES, PROTECT_OVERRIDE,
@@ -94,6 +97,27 @@ def ownership_trend_reason(p: Player) -> Reason | None:
     elif chg <= -RISER_MIN:
         text += ": falling league-wide, no rush (others are dropping him)"
     return Reason(code="OWNERSHIP_TREND", text=text, value=chg, baseline=p.pct_owned)
+
+
+def waiver_adjust(ctx: LeagueContext, fa: Player, fv: PlayerValue) -> tuple[PlayerValue, Reason | None]:
+    """A free agent still on waivers (``waiver_until`` on/after today) can't be added before the claim
+    clears: WAIVER_CLAIM reason, and ``fv`` with proj_week / fpg_week scaled to the games his team plays
+    after the clear date (a copy; ``fv`` is returned unchanged for real free agents)."""
+    until = fa.waiver_until
+    if until is None or until < ctx.as_of:
+        return fv, None
+    text = f"{fa.name} is on waivers until {until:%a}: claim, won't be available before then"
+    window = context_window(ctx)
+    dates = ctx.schedule.get(normalize_team(fa.team) or "", []) if window is not None else []
+    if window is None or fv.proj_week is None or not dates:
+        return fv, Reason(code="WAIVER_CLAIM", text=text)
+    in_win = {d for d in dates if window.start <= d < window.start + timedelta(days=window.days)}
+    left = sum(1 for d in in_win if d > until)
+    share = left / len(in_win) if in_win else 0.0
+    text += f" ({left} of {len(in_win)} games {window.label()} count)"
+    adj = fv.model_copy(update={"proj_week": fv.proj_week * share, "fpg_week": fv.fpg_week * share,
+                                "games_next7": left})
+    return adj, Reason(code="WAIVER_CLAIM", text=text, value=float(left), baseline=float(len(in_win)))
 
 
 def _low_this_season(p: Player, pv: PlayerValue) -> str | None:
@@ -141,6 +165,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         fv = values.get(fa.cid)
         if fv is None or fv.vorp_for(horizon) <= 0:
             continue
+        fv, waiver = waiver_adjust(ctx, fa, fv)
         candidates = [p for p in mine if shares_slot(fa, p)]
         if not candidates:
             continue
@@ -258,6 +283,8 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
             Reason(code="GP", text=f"{gp} GP this season -> confidence {conf:.2f}", value=float(gp),
                    baseline=conf),
         ]
+        if waiver is not None:
+            reasons.insert(1, waiver)
         if cap_why is not None and drop is not None:
             reasons.append(Reason(code="POSITION_CAP",
                                   text=f"League roster maximum ({cap_why}): drop {drop.name} "
