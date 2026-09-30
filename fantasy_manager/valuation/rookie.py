@@ -42,12 +42,16 @@ Role signals then shift the estimate:
   news wins: "assigned to the AHL" -> 0.05, "returned to junior / loaned to Europe" -> 0.02 for the
   horizon (until a newer recall). A scratch x0.85. Games played this season pull it toward 1.0
   (fully at 20 GP) unless the latest news is a demotion.
+* Week games share (``week_share``): his chance to dress in the coming week. 1.0 once he is
+  confirmed in the NHL lineup (x0.85 after a scratch), the demotion share after a demotion, and
+  otherwise the season games share (the roster spot is as uncertain this week as all season).
 
-``valuate.valuate_league`` multiplies an unproven player's season (and week) value by the games
-share. Established players are never touched, and the model only engages when there is rookie
-evidence (pedigree loaded, league history registered or a role signal), so a bare test player is
-valued exactly as before. Every step is a Reason: NHLE, PEDIGREE_PRIOR, ROOKIE_BLEND (old vs new),
-ROLE_DFO, ROLE_NEWS (with the quote), GP_EXPECTATION (PRESEASON comes from ``valuate``).
+``valuate.valuate_league`` multiplies an unproven player's season value by the games share and
+his week value (``fpg_week`` / ``proj_week``) by the week games share. Established players are never
+touched, and the model only engages when there is rookie evidence (pedigree loaded, league history
+registered or a role signal), so a bare test player is valued exactly as before. Every step is a
+Reason: NHLE, PEDIGREE_PRIOR, ROOKIE_BLEND (old vs new), ROLE_DFO, ROLE_NEWS (with the quote),
+GP_EXPECTATION (PRESEASON comes from ``valuate``).
 """
 from __future__ import annotations
 
@@ -132,7 +136,7 @@ class RookiePrior(BaseModel):
 class RookieEstimate(BaseModel):
     rates: dict[str, float] = Field(default_factory=dict)       # per game, before preseason
     gp_expectation: float = 1.0               # season games share (0..1)
-    week_share: float = 1.0                   # near-term games share (roster status / scratches only)
+    week_share: float = 1.0                   # near-term games share (chance to dress this week)
     confidence: float = 0.0                   # 0..1: how much evidence stands behind the rates
     pts_pg: float | None = None               # posterior PTS/GP (before the role multiplier)
     role_mult: float = 1.0
@@ -521,6 +525,8 @@ def rookie_value(player: Player, prior: RookiePrior | None, provider_projection:
             parts.append(f"scratched x{SCRATCH_MULT:g}")
         if season_gp > 0 and gp_exp < 1.0:
             gp_exp += (1.0 - gp_exp) * min(1.0, season_gp / GP_FADE_SEASON_GP)
+        if not confirmed:
+            week = gp_exp            # roster spot unconfirmed: the same chance to dress this week
     est.gp_expectation = round(max(0.0, min(1.0, gp_exp)), 4)
     est.week_share = round(max(0.0, min(1.0, week)), 4)
     reasons.append(Reason(code="GP_EXPECTATION",

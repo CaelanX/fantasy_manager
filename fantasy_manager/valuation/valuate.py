@@ -54,8 +54,9 @@ of the baseline (still one vote), an NHL-equivalency prior from his junior / col
 AHL seasons, a draft-pedigree prior and the role signals (DFO line / PP unit, news). The old vs
 new baseline is logged in reason ROOKIE_BLEND; the preseason blend then runs as before. His
 season value (``fpg_season``) is multiplied by the rookie games share (reason GP_EXPECTATION; an
-AHL demotion or a return to junior sends it to ~0) and the week value by the near-term share
-(demotion / scratch only). ``fpg`` stays the healthy per-game value. ``PlayerValue.rookie`` keeps
+AHL demotion or a return to junior sends it to ~0) and the week value (``fpg_week`` and
+``proj_week``) by the week share (his chance to dress: 1.0 once confirmed in the NHL lineup, else
+the games share). ``fpg`` stays the healthy per-game value. ``PlayerValue.rookie`` keeps
 the estimate for the player page and ``valuation.dynasty`` (excluded from dumps). Established
 players are untouched, and ``player_rates`` (the harness replay) never uses the rookie model.
 """
@@ -629,7 +630,8 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                   text=f"{sf.games} games {window.label()}{pre}, {sf.offnight} on off-nights"
                                        f" (avg team {window.avg_team_games:.1f})",
                                   value=float(sf.games), baseline=window.avg_team_games))
-            pv.reasons.append(Reason(code="PROJ_WEEK", text=f"Projected {pw:.1f} pts over {window.label()}",
+            rk_week = f" (x{week_share:.2f} rookie games share)" if week_share < 1.0 else ""
+            pv.reasons.append(Reason(code="PROJ_WEEK", text=f"Projected {pw:.1f} pts over {window.label()}{rk_week}",
                                   value=pw))
         partial[p.cid] = pv
 

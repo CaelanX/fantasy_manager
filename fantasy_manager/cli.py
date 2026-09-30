@@ -523,6 +523,9 @@ def roster(ctx: typer.Context,
     repl = replacement_for(lc, values)
     console.print("Replacement FPG: " + "  ".join(f"{s} {v:.2f}" for s, v in repl.items()))
     console.print(f"[dim]* prospect: age <= {PROSPECT_MAX_AGE} and fewer than {PROSPECT_MAX_GP} NHL games[/]")
+    if any(v.proj_week is not None for v in values.values()):
+        console.print(f"[dim]{_vlabel(lc)} wk: schedule-adjusted, not a per-game rate (Proj wk / avg team games "
+                      f"this week, so 4 games incl. off-nights reads above {_vlabel(lc)})[/]")
     console.print(f"[dim]{escape(_moves_line(lc))}[/]")
     _footer(lc)
 
@@ -531,7 +534,8 @@ def roster(ctx: typer.Context,
 def waivers(ctx: typer.Context,
             limit: int = typer.Option(10, "--limit", "-n", help="Max recommendations."),
             horizon: HorizonName = typer.Option(HorizonName.season, "--horizon",
-                                                help="Value over the next week or rest of season."),
+                                                help="Value over the next week (schedule-adjusted: games this week vs "
+                                                     "the average team, not a per-game rate) or rest of season."),
             deep: bool = typer.Option(False, "--deep", help="Also fetch NHL game logs for recent form."),
             league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
             mode: Optional[ModeName] = _mode_opt(),

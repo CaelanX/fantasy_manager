@@ -371,6 +371,36 @@ def test_valuate_demotion_and_role_signals():
     assert up.fpg_season > base.fpg_season
 
 
+def test_week_projection_applies_the_games_share_until_confirmed():
+    from fantasy_manager.providers.nhl import games_per_day
+    from fantasy_manager.valuation.schedule import proj_week
+    bonk = sk("bonk", draft=30, pos=("D",), proj=(2, 8, 21))           # on a team, roster spot unconfirmed
+    vet = sk("vet", nhl_id=8470000, career=500, prior_gp=82, proj=(20, 30, 82), born=date(1995, 1, 1))
+    ctx = ctx_with(mine=[vet], fas=[bonk])
+    opening = ctx.season_start
+    ctx.schedule = {"SJS": [opening + timedelta(days=d) for d in (0, 1, 3, 5)], "TOR": [opening]}
+    ctx.games_per_day = games_per_day(ctx.schedule)
+    vals = _vals(ctx)
+    pv, est = vals["bonk"], vals["bonk"].rookie
+    assert est.gp_expectation == pytest.approx(0.515) and est.week_share == est.gp_expectation
+    assert pv.games_next7 == 4
+    full = proj_week(pv.fpg, 1.0, pv.games_next7, pv.offnight_next7)
+    assert pv.proj_week == pytest.approx(0.515 * full)                # not 4 x per-game
+    assert pv.fpg_season == pytest.approx(pv.fpg * 0.515)
+    assert "week value x0.52" in next(r.text for r in pv.reasons if r.code == "ROOKIE_GAMES")
+    assert "rookie games share" in next(r.text for r in pv.reasons if r.code == "PROJ_WEEK")
+    # an established player's week projection is untouched
+    v = vals["vet"]
+    assert v.rookie is None
+    assert v.proj_week == pytest.approx(proj_week(v.fpg, 1.0, v.games_next7, v.offnight_next7))
+    assert not any(r.code == "ROOKIE_GAMES" for r in v.reasons)
+    # confirmed in the NHL lineup: the full week, while the season value still blends the projection's GP
+    re_.register_signals("bonk", [sig("nhl_roster", 1)])
+    conf = _vals(ctx)["bonk"]
+    assert conf.rookie.week_share == 1.0 and conf.rookie.gp_expectation < 1.0
+    assert conf.proj_week == pytest.approx(proj_week(conf.fpg, 1.0, conf.games_next7, conf.offnight_next7))
+
+
 def test_bare_unproven_player_without_evidence_is_untouched():
     bare = sk("bare", career=None, proj=(10, 15, 60))              # pedigree never loaded, no signals
     assert is_unproven(bare) and not has_rookie_evidence(bare, [], [])
