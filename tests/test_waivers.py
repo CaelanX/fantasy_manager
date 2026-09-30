@@ -395,3 +395,47 @@ def test_roster_legal_after_max_roster_size_and_ir_moves():
     my_c = next(p for p in team.players if p.cid == "my_c")
     assert roster_legal_after(team, ctx, add=[fa_c], to_ir=[my_c]) == (True, None)
     assert position_limits_text(ctx) == "max G 3 (incl. IR); roster max 4 (excl. IR)"
+
+
+# -- no-drop adds are scored by their marginal lineup value (issue #1) -----------------------
+
+def test_fa_filling_empty_starting_slot_gains_his_full_value():
+    fa = mk("fa_d", ["D"], 1.0, gp=20)
+    hurt = mk("hurt_d", ["D"], 0.8, status="ir")               # the only other D, in an IR slot
+    ctx = league([fa], [("C", mk("my_c", ["C"], 0.2)), ("IR", hurt)],
+                 shape={"C": 1, "D": 1, "BN": 1, "IR": 1})
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    r = recommend_waivers(ctx, values)[0]
+    assert r.drop == [] and r.title == "Add fa_d (open roster spot)"
+    codes = {x.code: x for x in r.reasons}
+    assert codes["VORP_DELTA"].value == pytest.approx(values["fa_d"].fpg_season)
+    assert "fills empty D slot" in codes["VORP_DELTA"].text and "fills empty D slot" in codes["OPEN_SPOT"].text
+    assert "FPG_DROP" not in codes
+    assert r.predicted_gain == pytest.approx(values["fa_d"].fpg_season)
+
+
+def test_fa_filling_empty_slot_is_not_scored_against_a_healthy_same_position_starter():
+    """The Bonk case: two healthy D start, the third D slot is empty (Sanderson on IR)."""
+    fa = mk("bonk", ["D"], 0.6, gp=20)
+    mine = [("D", mk("hughes", ["D"], 1.0)), ("D", mk("jones", ["D"], 0.4)),
+            ("IR", mk("sanderson", ["D"], 0.8, status="ir"))]
+    ctx = league([fa], mine, shape={"D": 3, "BN": 1, "IR": 1})
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    r = recommend_waivers(ctx, values)[0]
+    delta = next(x for x in r.reasons if x.code == "VORP_DELTA")
+    assert delta.value == pytest.approx(values["bonk"].fpg_season)
+    assert "jones" not in delta.text and "fills empty D slot" in delta.text
+
+
+def test_open_bench_spot_with_full_lineup_still_measured_against_displaced_starter():
+    fa = mk("fa_c", ["C"], 1.0, gp=20)
+    my_c = mk("my_c", ["C"], 0.2)
+    bench_c = mk("bench_c", ["C"], 0.1)                        # weaker, but not starting
+    ctx = league([fa], [("C", my_c), ("D", mk("my_d", ["D"], 0.5)), ("BN", bench_c)],
+                 shape={"C": 1, "D": 1, "BN": 2, "IR": 1})
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    r = recommend_waivers(ctx, values)[0]
+    assert r.drop == []
+    delta = next(x for x in r.reasons if x.code == "VORP_DELTA")
+    assert delta.value == pytest.approx(values["fa_c"].fpg_season - values["my_c"].fpg_season)
+    assert "over benching my_c" in delta.text

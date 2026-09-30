@@ -14,8 +14,10 @@ keeps the roster legal (``base.roster_legal_after``).
    (never a player with no stats at all, whose value is unknown), else lowest FPG for the
    horizon.
 
-The season gain is always FA FPG minus the weakest same-slot player's FPG (the lineup
-upgrade) and must exceed MIN_GAIN.
+With a drop, the gain is FA FPG minus the dropped player's FPG. A no-drop add (open spot or IR
+move) is scored by its marginal lineup value: the optimal starting lineup's FPG total with him
+minus without him (``lineup.starting_slots``), i.e. his full FPG when he fills an empty starting
+slot, else his FPG minus the starter he displaces. The gain must exceed MIN_GAIN.
 
 Dynasty leagues add three rules:
 
@@ -53,6 +55,7 @@ from typing import Any, Mapping
 from ..models import LeagueContext, Player, Reason, Recommendation
 from ..valuation.adjust import Horizon
 from ..valuation.valuate import PlayerValue
+from .lineup import _dp, starting_slots
 from .strength import apply_ranks, apply_strength
 from .base import (CHURN_EXEMPT_STATUSES, CHURN_OVERRIDE_GAIN, INJURY_REPLACEMENT_STATUSES, PROTECT_OVERRIDE,
                    churn_blocked, churn_text, confidence, droppable_players, dynasty_map, free_ir_slots,
@@ -107,6 +110,14 @@ def _low_this_season(p: Player, pv: PlayerValue) -> str | None:
     return None
 
 
+def _lineup_fpg(players: list[Player], slots: list[str], values: Mapping[str, PlayerValue],
+                horizon: Horizon) -> tuple[float, set[str]]:
+    """(FPG total, starter cids) of the optimal starting lineup from ``players``."""
+    total, assign = _dp(players, slots,
+                        lambda p, t: values[p.cid].fpg_for(horizon) if p.cid in values else 0.0)
+    return total, set(assign.values())
+
+
 def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit: int = 10,
                       horizon: Horizon = "season", dynasty_values: Mapping[str, Any] | None = None,
                       debug: list[dict[str, Any]] | None = None) -> list[Recommendation]:
@@ -125,6 +136,21 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
     ir_move = to_ir[0] if to_ir and not open_spots else None
     moving = {p.cid for p in to_ir}
     mine = [p for p in droppable_players(team) if p.cid in values and p.cid not in moving]
+    slots = starting_slots(ctx.roster_shape)
+    active = droppable_players(team)
+    base_lineup: dict[str | None, tuple[float, set[str]]] = {}   # IR-move player (or None) -> optimal lineup without the FA
+
+    def no_drop_gain(fa: Player, to_ir: Player | None) -> tuple[float, Player | None]:
+        """Marginal lineup FPG of adding ``fa`` without a drop, and the starter he displaces
+        (None: he fills an empty starting slot)."""
+        key = to_ir.cid if to_ir is not None else None
+        pool = [p for p in active if to_ir is None or p.cid != to_ir.cid]
+        if key not in base_lineup:
+            base_lineup[key] = _lineup_fpg(pool, slots, values, horizon)
+        before, starters = base_lineup[key]
+        after, new_starters = _lineup_fpg(pool + [fa], slots, values, horizon)
+        out = [p for p in pool if p.cid in starters - new_starters]
+        return after - before, min(out, key=lambda p: values[p.cid].fpg_for(horizon)) if out else None
     protected = {}
     if dyn is not None:
         for p in mine:
@@ -142,9 +168,6 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         if fv is None or fv.vorp_for(horizon) <= 0:
             continue
         candidates = [p for p in mine if shares_slot(fa, p)]
-        if not candidates:
-            continue
-        weakest = min(candidates, key=lambda p: values[p.cid].fpg_for(horizon))
         drop = None
         extra: list[Reason] = []
         # per-position roster maximums: a no-drop add that would break one needs a same-position drop
@@ -228,9 +251,12 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                 extra.append(Reason(code="CHURN_GUARD",
                                     text=f"{drop.name} was {churn_text(ctx, drop)}, dropping him anyway: {why_ok}",
                                     value=g_d, baseline=CHURN_OVERRIDE_GAIN))
-        cmp = drop or weakest
-        cv = values[cmp.cid]
-        gain = fv.fpg_for(horizon) - cv.fpg_for(horizon)
+        if drop is not None:
+            cmp = drop
+            gain = fv.fpg_for(horizon) - values[cmp.cid].fpg_for(horizon)
+        else:
+            gain, cmp = no_drop_gain(fa, spot_ir)
+        cv = values[cmp.cid] if cmp is not None else None
         injury_replacement = spot_ir is not None or (drop is not None and drop.status in INJURY_REPLACEMENT_STATUSES)
         threshold = move_scarcity_threshold(ctx, injury_replacement)
         if threshold is None or gain <= threshold:
@@ -247,17 +273,22 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                 dyn_gain = a_val
         conf = confidence(fa)
         gp = fa.gp("season")
-        over = f"over dropping {drop.name}" if drop else f"over benching {weakest.name}"
+        fill = f"fills empty {'/'.join(fa.positions)} slot"
+        if cmp is None:
+            delta = f"{fill} (+{gain:.2f} FPG, {horizon})"
+        else:
+            over = f"over dropping {drop.name}" if drop else f"over benching {cmp.name}"
+            delta = f"+{gain:.2f} FPG ({horizon}) {over}"
         reasons = [
-            Reason(code="VORP_DELTA", text=f"+{gain:.2f} FPG ({horizon}) {over}",
-                   value=gain, baseline=threshold),
+            Reason(code="VORP_DELTA", text=delta, value=gain, baseline=threshold),
             Reason(code="FPG_ADD", text=f"{fa.name}: {fv.fpg_for(horizon):.2f} FPG, VORP {fv.vorp_for(horizon):+.2f}",
                    value=fv.fpg_for(horizon)),
-            Reason(code="FPG_DROP", text=f"{cmp.name}: {cv.fpg_for(horizon):.2f} FPG, VORP {cv.vorp_for(horizon):+.2f}",
-                   value=cv.fpg_for(horizon)),
-            Reason(code="GP", text=f"{gp} GP this season -> confidence {conf:.2f}", value=float(gp),
-                   baseline=conf),
         ]
+        if cmp is not None:
+            reasons.append(Reason(code="FPG_DROP", text=f"{cmp.name}: {cv.fpg_for(horizon):.2f} FPG, "
+                                  f"VORP {cv.vorp_for(horizon):+.2f}", value=cv.fpg_for(horizon)))
+        reasons.append(Reason(code="GP", text=f"{gp} GP this season -> confidence {conf:.2f}", value=float(gp),
+                              baseline=conf))
         if cap_why is not None and drop is not None:
             reasons.append(Reason(code="POSITION_CAP",
                                   text=f"League roster maximum ({cap_why}): drop {drop.name} "
@@ -265,7 +296,8 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         if spot_open:
             reasons.append(Reason(code="OPEN_SPOT",
                                   text=f"{open_spots} open roster spot{'s' if open_spots != 1 else ''}: "
-                                       f"no drop needed ({weakest.name} goes to the bench)",
+                                       f"no drop needed ("
+                                       + (f"{cmp.name} goes to the bench)" if cmp is not None else f"{fill})"),
                                   value=float(open_spots)))
         elif spot_ir is not None:
             reasons.append(Reason(code="IR_MOVE",
@@ -288,7 +320,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                 gain_text = f"Dynasty gain {dyn_gain:+.2f} over {drop.name} (score basis)"
             reasons.append(Reason(code="DYNASTY_GAIN", text=gain_text, value=dyn_gain))
         for pl, pv in ((fa, fv), (cmp, cv)):
-            if pl.status not in ("healthy", "unknown"):
+            if pl is not None and pl.status not in ("healthy", "unknown"):
                 reasons.append(Reason(code="STATUS", text=f"{pl.name} is {pl.status}"
                                       + (f" ({pl.status_note})" if pl.status_note else ""),
                                       value=pv.fpg_for(horizon) / pv.fpg if pv.fpg else None))
@@ -313,14 +345,14 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
     return apply_ranks(apply_strength(recs[:limit]))
 
 
-def predicted_gain(add: PlayerValue, cmp: PlayerValue, fpg_gain: float, horizon: Horizon
+def predicted_gain(add: PlayerValue, cmp: PlayerValue | None, fpg_gain: float, horizon: Horizon
                    ) -> tuple[float, str, int | None]:
     """(gain, units, horizon days) of a pickup: week points over the 7-day window when the
     week horizon has a schedule, else the FPG gain (rest of season, or the week's per-game
-    value with horizon_days 7)."""
+    value with horizon_days 7). ``cmp`` None: the add fills an empty starting slot (vs 0)."""
     if horizon == "week":
-        if add.proj_week is not None and cmp.proj_week is not None:
-            return float(add.proj_week - cmp.proj_week), "week_pts", 7
+        if add.proj_week is not None and (cmp is None or cmp.proj_week is not None):
+            return float(add.proj_week - (cmp.proj_week if cmp is not None else 0.0)), "week_pts", 7
         return float(fpg_gain), "season_fpg", 7
     return float(fpg_gain), "season_fpg", None
 
