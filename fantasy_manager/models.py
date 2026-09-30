@@ -64,6 +64,8 @@ class Player(BaseModel):
     birth_date: date | None = None
     status: Status = "unknown"
     status_note: str | None = None
+    # On waivers: the date the claim clears (Fantrax "W (Wed)"); None for a true free agent.
+    waiver_until: date | None = None
     lines: dict[str, StatLine] = Field(default_factory=dict)
     pct_owned: float | None = None
     # NHL pedigree (player landing page, filled by providers.enrich for young / unproven players)

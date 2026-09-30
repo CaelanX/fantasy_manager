@@ -50,10 +50,13 @@ share (kind "alert").
 """
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any, Mapping
 
+from ..matching.normalize import normalize_team
 from ..models import LeagueContext, Player, Reason, Recommendation
 from ..valuation.adjust import Horizon
+from ..valuation.schedule import context_window
 from ..valuation.valuate import PlayerValue
 from .lineup import _dp, starting_slots
 from .strength import apply_ranks, apply_strength
@@ -99,6 +102,27 @@ def ownership_trend_reason(p: Player) -> Reason | None:
     return Reason(code="OWNERSHIP_TREND", text=text, value=chg, baseline=p.pct_owned)
 
 
+def waiver_adjust(ctx: LeagueContext, fa: Player, fv: PlayerValue) -> tuple[PlayerValue, Reason | None]:
+    """A free agent still on waivers (``waiver_until`` on/after today) can't be added before the claim
+    clears: WAIVER_CLAIM reason, and ``fv`` with proj_week / fpg_week scaled to the games his team plays
+    after the clear date (a copy; ``fv`` is returned unchanged for real free agents)."""
+    until = fa.waiver_until
+    if until is None or until < ctx.as_of:
+        return fv, None
+    text = f"{fa.name} is on waivers until {until:%a}: claim, won't be available before then"
+    window = context_window(ctx)
+    dates = ctx.schedule.get(normalize_team(fa.team) or "", []) if window is not None else []
+    if window is None or fv.proj_week is None or not dates:
+        return fv, Reason(code="WAIVER_CLAIM", text=text)
+    in_win = {d for d in dates if window.start <= d < window.start + timedelta(days=window.days)}
+    left = sum(1 for d in in_win if d > until)
+    share = left / len(in_win) if in_win else 0.0
+    text += f" ({left} of {len(in_win)} games {window.label()} count)"
+    adj = fv.model_copy(update={"proj_week": fv.proj_week * share, "fpg_week": fv.fpg_week * share,
+                                "games_next7": left})
+    return adj, Reason(code="WAIVER_CLAIM", text=text, value=float(left), baseline=float(len(in_win)))
+
+
 def _low_this_season(p: Player, pv: PlayerValue) -> str | None:
     """Why `p` projects to contribute little this season, or None."""
     proj = p.lines.get("projected")
@@ -140,15 +164,15 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
     active = droppable_players(team)
     base_lineup: dict[str | None, tuple[float, set[str]]] = {}   # IR-move player (or None) -> optimal lineup without the FA
 
-    def no_drop_gain(fa: Player, to_ir: Player | None) -> tuple[float, Player | None]:
-        """Marginal lineup FPG of adding ``fa`` without a drop, and the starter he displaces
-        (None: he fills an empty starting slot)."""
+    def no_drop_gain(fa: Player, fv: PlayerValue, to_ir: Player | None) -> tuple[float, Player | None]:
+        """Marginal lineup FPG of adding ``fa`` (valued at ``fv``) without a drop, and the starter he
+        displaces (None: he fills an empty starting slot)."""
         key = to_ir.cid if to_ir is not None else None
         pool = [p for p in active if to_ir is None or p.cid != to_ir.cid]
         if key not in base_lineup:
             base_lineup[key] = _lineup_fpg(pool, slots, values, horizon)
         before, starters = base_lineup[key]
-        after, new_starters = _lineup_fpg(pool + [fa], slots, values, horizon)
+        after, new_starters = _lineup_fpg(pool + [fa], slots, {**values, fa.cid: fv}, horizon)
         out = [p for p in pool if p.cid in starters - new_starters]
         return after - before, min(out, key=lambda p: values[p.cid].fpg_for(horizon)) if out else None
     protected = {}
@@ -167,6 +191,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         fv = values.get(fa.cid)
         if fv is None or fv.vorp_for(horizon) <= 0:
             continue
+        fv, waiver = waiver_adjust(ctx, fa, fv)
         candidates = [p for p in mine if shares_slot(fa, p)]
         drop = None
         extra: list[Reason] = []
@@ -255,7 +280,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
             cmp = drop
             gain = fv.fpg_for(horizon) - values[cmp.cid].fpg_for(horizon)
         else:
-            gain, cmp = no_drop_gain(fa, spot_ir)
+            gain, cmp = no_drop_gain(fa, fv, spot_ir)
         cv = values[cmp.cid] if cmp is not None else None
         injury_replacement = spot_ir is not None or (drop is not None and drop.status in INJURY_REPLACEMENT_STATUSES)
         threshold = move_scarcity_threshold(ctx, injury_replacement)
@@ -289,6 +314,8 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                                   f"VORP {cv.vorp_for(horizon):+.2f}", value=cv.fpg_for(horizon)))
         reasons.append(Reason(code="GP", text=f"{gp} GP this season -> confidence {conf:.2f}", value=float(gp),
                               baseline=conf))
+        if waiver is not None:
+            reasons.insert(1, waiver)
         if cap_why is not None and drop is not None:
             reasons.append(Reason(code="POSITION_CAP",
                                   text=f"League roster maximum ({cap_why}): drop {drop.name} "

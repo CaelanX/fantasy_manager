@@ -774,3 +774,16 @@ def test_lineup_lock_is_parsed_once_and_shared():
     assert lineup_lock_for(fx, SimpleNamespace(rules=SimpleNamespace(get=lambda k: "Daily"))) == "daily"
     assert lineup_lock_for(SimpleNamespace(provider="fantrax", lineup_lock="daily")) == "daily"
     assert lineup_lock_for(SimpleNamespace(provider="espn", lineup_lock=None)) == "daily"
+
+
+def test_parse_player_pool_waiver_status_vs_free_agent():
+    from copy import deepcopy
+    data = deepcopy(fx("player_pool"))
+    data["statsTable"][1]["cells"][1]["content"] = "W (Wed)"     # f2 on waivers; f1 stays "FA"
+    players, rows, _ = parse_player_pool(data, today=date(2026, 10, 1))   # a Thursday
+    by = {p.cid: p for p in players}
+    assert by["fantrax:f2"].waiver_until == date(2026, 10, 7)
+    assert rows["fantrax:f2"].waiver_day == 2
+    assert by["fantrax:f1"].waiver_until is None and by["fantrax:p4"].waiver_until is None
+    same_day, _, _ = parse_player_pool(data, today=date(2026, 10, 7))
+    assert same_day[1].waiver_until == date(2026, 10, 7)

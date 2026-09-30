@@ -439,3 +439,55 @@ def test_open_bench_spot_with_full_lineup_still_measured_against_displaced_start
     delta = next(x for x in r.reasons if x.code == "VORP_DELTA")
     assert delta.value == pytest.approx(values["fa_c"].fpg_season - values["my_c"].fpg_season)
     assert "over benching my_c" in delta.text
+
+
+def _sched_league(fa, my):
+    ctx = league([fa], [("C", my)])
+    days = [date(2026, 10, d) for d in (1, 3, 5, 7, 8)]
+    ctx.schedule = {"EDM": days}
+    ctx.games_per_day = {d: 4 for d in days}
+    return ctx
+
+
+def test_waiver_player_week_gain_counts_only_games_after_clear_date():
+    def run(waiver_until):
+        fa = mk("fa_c", ["C"], 3.0, gp=20).model_copy(update={"waiver_until": waiver_until})
+        ctx = _sched_league(fa, mk("my_c", ["C"], 0.2))
+        values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+        (r,) = recommend_waivers(ctx, values, horizon="week")
+        return r, values
+
+    free, values = run(None)
+    waiv, _ = run(date(2026, 10, 5))         # clears Mon Oct 5: only Oct 7 counts (window Oct 1-7)
+    assert not any(x.code == "WAIVER_CLAIM" for x in free.reasons)
+    claim = next(x for x in waiv.reasons if x.code == "WAIVER_CLAIM")
+    assert "on waivers until Mon: claim, won't be available before then" in claim.text
+    assert claim.value == 1 and claim.baseline == 4
+    full = values["fa_c"].proj_week
+    assert free.gain_units == "week_pts"
+    assert free.predicted_gain - waiv.predicted_gain == pytest.approx(full * 3 / 4)
+
+
+def test_waiver_already_cleared_is_a_plain_add():
+    fa = mk("fa_c", ["C"], 3.0, gp=20).model_copy(update={"waiver_until": date(2026, 9, 30)})
+    ctx = _sched_league(fa, mk("my_c", ["C"], 0.2))
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    (r,) = recommend_waivers(ctx, values, horizon="week")
+    assert not any(x.code == "WAIVER_CLAIM" for x in r.reasons)
+
+
+def test_waiver_player_filling_empty_slot_gains_only_games_after_clear_date():
+    """Issues #1 + #3: the marginal lineup gain uses the waiver-scaled week value."""
+    fa = mk("fa_d", ["D"], 3.0, gp=20).model_copy(update={"waiver_until": date(2026, 10, 5)})
+    hurt = mk("hurt_d", ["D"], 0.8, status="ir")
+    ctx = league([fa], [("C", mk("my_c", ["C"], 0.2)), ("IR", hurt)],
+                 shape={"C": 1, "D": 1, "BN": 1, "IR": 1})
+    days = [date(2026, 10, d) for d in (1, 3, 5, 7, 8)]
+    ctx.schedule = {"EDM": days}
+    ctx.games_per_day = {d: 4 for d in days}
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    r = recommend_waivers(ctx, values, horizon="week")[0]
+    codes = {x.code: x for x in r.reasons}
+    assert "WAIVER_CLAIM" in codes and "fills empty D slot" in codes["VORP_DELTA"].text
+    assert codes["VORP_DELTA"].value == pytest.approx(values["fa_d"].fpg_week / 4)
+    assert r.predicted_gain == pytest.approx(values["fa_d"].proj_week / 4)
