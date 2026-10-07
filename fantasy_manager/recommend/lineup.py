@@ -24,8 +24,10 @@ instead of his season start share (CONFIRMED_START reason on the recs involving 
 from __future__ import annotations
 
 import re
+from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Mapping, NamedTuple
 
+from ..analysis.schedule_grid import per_game_value
 from ..matching.normalize import normalize_team
 from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation
 from ..valuation.adjust import Horizon
@@ -96,12 +98,15 @@ def _solve(players: list[Player], values: Mapping[str, PlayerValue], slots: list
 
 
 _PLACE_ALL = 1000.0     # >> number of players: placing everyone dominates keeping slot types
+_LOCK_BONUS = 1e6       # >> any lineup value: a locked starter is never benched
 
 
-def _arrange(players: list[Player], slots: list[str], now: Mapping[str, str]) -> dict[int, str]:
+def _arrange(players: list[Player], slots: list[str], now: Mapping[str, str],
+             locked: frozenset[str] = frozenset()) -> dict[int, str]:
     """Place every one of ``players`` (a feasible starting set) so that as many as possible
-    stay in their current slot type ``now[cid]`` -> {slot index: cid}."""
-    _, assign = _dp(players, slots, lambda p, t: _PLACE_ALL + (1.0 if now.get(p.cid) == t else 0.0))
+    stay in their current slot type ``now[cid]`` (``locked`` players first) -> {slot index: cid}."""
+    _, assign = _dp(players, slots, lambda p, t: _PLACE_ALL + (
+        (100.0 if p.cid in locked else 1.0) if now.get(p.cid) == t else 0.0))
     return assign
 
 
@@ -119,23 +124,131 @@ def _current_types(team: FantasyTeam) -> dict[str, str]:
     return {s.player.cid: s.slot for s in team.slots if s.player is not None and s.starting}
 
 
+def _best(team: FantasyTeam, slots: list[str], vals: Mapping[str, float],
+          locked: frozenset[str] = frozenset()) -> tuple[dict[int, str], float]:
+    """Max-value assignment {slot index: cid} of ``team`` for per-player ``vals``, arranged so
+    starters keep their slot type where possible. ``locked`` players (their game has started)
+    cannot move: locked starters stay in their slot, locked bench players stay out."""
+    current = _starters(team)
+    pool = [p for p in _candidates(team) if p.cid not in locked or p.cid in current]
+    v = {p.cid: vals.get(p.cid, 0.0) + (STABILITY_BONUS if p.cid in current else 0.0)
+         + (_LOCK_BONUS if p.cid in locked else 0.0) for p in pool}
+    _, best = _dp(pool, slots, lambda p, t: v[p.cid])
+    chosen = set(best.values())
+    assign = _arrange([p for p in pool if p.cid in chosen], slots, _current_types(team), locked)
+    if set(assign.values()) != chosen:          # cannot happen (best is feasible); be safe
+        assign = best
+    return assign, sum(vals.get(c, 0.0) for c in assign.values())
+
+
 def optimal_lineup(team: FantasyTeam, values: Mapping[str, PlayerValue], roster_shape: Mapping[str, int],
                    horizon: Horizon = "week") -> tuple[dict[int, str], float]:
     """Best assignment {index into starting_slots(roster_shape): cid} and its total value."""
-    slots = starting_slots(roster_shape)
-    pool = _candidates(team)
-    _, best = _solve(pool, values, slots, horizon, _starters(team))
-    chosen = set(best.values())
-    assign = _arrange([p for p in pool if p.cid in chosen], slots, _current_types(team))
-    if set(assign.values()) != chosen:          # cannot happen (best is feasible); be safe
-        assign = best
-    total = sum(_value(values.get(c), horizon) for c in assign.values())
-    return assign, total
+    return _best(team, starting_slots(roster_shape), {c: _value(pv, horizon) for c, pv in values.items()})
 
 
 def current_total(team: FantasyTeam, values: Mapping[str, PlayerValue], horizon: Horizon = "week") -> float:
     return sum(_value(values.get(s.player.cid), horizon) for s in team.slots
                if s.player is not None and s.starting)
+
+
+# -- daily-lineup leagues: one lineup per day over the rest of the matchup ----------------------
+
+class PlanDay(NamedTuple):
+    day: date
+    assign: dict[int, str]       # {slot index: cid}, players with a game that day
+    values: dict[str, float]     # cid -> expected points that day (0 without a game)
+    playing: set[str]            # cids whose NHL team plays that day (unavailable players excluded)
+    locked: frozenset[str]       # cids whose game has already started (today only)
+    optimal: float
+    current: float               # the lineup as set now, left unchanged that day
+
+
+class DailyPlan(NamedTuple):
+    days: list[PlanDay]
+
+    @property
+    def optimal(self) -> float:
+        return sum(d.optimal for d in self.days)
+
+    @property
+    def current(self) -> float:
+        return sum(d.current for d in self.days)
+
+    def starts(self, cid: str) -> int:
+        return sum(1 for d in self.days if cid in d.assign.values())
+
+    def points(self, cid: str) -> float:
+        return sum(d.values.get(cid, 0.0) for d in self.days if cid in d.assign.values())
+
+
+def plan_days(ctx: LeagueContext) -> list[date]:
+    """Days left in the matchup period (today through ``period_end``), else the next 7 days."""
+    end = ctx.period_end if ctx.period_end is not None and ctx.period_end >= ctx.as_of \
+        else ctx.as_of + timedelta(days=6)
+    return [ctx.as_of + timedelta(days=k) for k in range((end - ctx.as_of).days + 1)]
+
+
+def _plays(ctx: LeagueContext, p: Player, day: date) -> bool:
+    return day in (ctx.schedule.get(normalize_team(p.team) or "") or ())
+
+
+def available_on(p: Player, pv: PlayerValue | None, day: date) -> bool:
+    """False while an out / IR / suspended player is out: before his estimated return date
+    (``PlayerValue.return_date``), or every day when there is none; and for a waiver claim
+    until the day after ``waiver_until``."""
+    if p.waiver_until is not None and day <= p.waiver_until:
+        return False
+    if p.status not in UNAVAILABLE:
+        return True
+    ret = pv.return_date if pv is not None else None
+    return ret is not None and day >= ret
+
+
+def day_value(ctx: LeagueContext, p: Player, pv: PlayerValue | None, day: date) -> float:
+    """Expected points from ``p`` on ``day``: 0 without a game or while he is out, else his
+    per-game value (goalie start share included; a player back from injury at full
+    availability); today a goalie uses Daily Faceoff's start probability in place of his
+    start share."""
+    if pv is None or not _plays(ctx, p, day) or not available_on(p, pv, day):
+        return 0.0
+    v = per_game_value(pv) or 0.0
+    if p.status in UNAVAILABLE:          # back from injury: undo the week's averaged availability
+        v = v / pv.avail_week if pv.avail_week > 0 else pv.fpg * (pv.start_share or 1.0)
+    prob = confirmed_start_probability(p) if day == ctx.as_of else None
+    if prob is not None and pv.start_share:
+        v = v / pv.start_share * prob
+    return max(0.0, v)
+
+
+def started(ctx: LeagueContext, p: Player, day: date, now: datetime) -> bool:
+    """His team's game on ``day`` has started by ``now`` (ESPN locks the player for the day)."""
+    start = (ctx.game_starts.get(normalize_team(p.team) or "") or {}).get(day)
+    return start is not None and now >= start
+
+
+def daily_plan(ctx: LeagueContext, team: FantasyTeam, values: Mapping[str, PlayerValue],
+               days: list[date] | None = None, now: datetime | None = None) -> DailyPlan | None:
+    """The best lineup for each of ``days`` (default ``plan_days``: the rest of the matchup) in
+    daily-lineup leagues with the NHL schedule loaded; None otherwise. Each day only players with
+    a game who are not out compete for the slots, so two players who play on different nights
+    can both count. Today, players whose game has started (``ctx.game_starts`` vs ``now``,
+    default the current time) keep their place."""
+    if not ctx.schedule or _lock(ctx) != "daily":
+        return None
+    now = now or datetime.now(timezone.utc)
+    slots = starting_slots(ctx.roster_shape)
+    starters = _starters(team)
+    pool = _candidates(team)
+    out = []
+    for d in days if days is not None else plan_days(ctx):
+        vals = {p.cid: day_value(ctx, p, values.get(p.cid), d) for p in pool}
+        playing = {p.cid for p in pool if _plays(ctx, p, d) and available_on(p, values.get(p.cid), d)}
+        locked = frozenset(p.cid for p in pool if d == ctx.as_of and started(ctx, p, d, now))
+        assign, total = _best(team, slots, vals, locked)
+        assign = {i: c for i, c in assign.items() if c in playing}
+        out.append(PlanDay(d, assign, vals, playing, locked, total, sum(vals.get(c, 0.0) for c in starters)))
+    return DailyPlan(out)
 
 
 def _week_reasons(p: Player, pv: PlayerValue | None, horizon: Horizon) -> list[Reason]:
@@ -153,6 +266,22 @@ def _week_reasons(p: Player, pv: PlayerValue | None, horizon: Horizon) -> list[R
         out.append(Reason(code="PROJ_WEEK" if horizon == "week" else "FPG",
                           text=f"{p.name}: {pv.lineup_value(horizon):.2f} FPG ({horizon})",
                           value=pv.lineup_value(horizon)))
+    if p.status not in ("healthy", "unknown"):
+        out.append(Reason(code="STATUS", text=f"{p.name} is {p.status}"
+                          + (f" ({p.status_note})" if p.status_note else "")))
+    return out
+
+
+def _day_reasons(p: Player, plan: DailyPlan) -> list[Reason]:
+    """Today's expected points and his games left in the matchup (daily-lineup leagues)."""
+    today = plan.days[0].values.get(p.cid, 0.0)
+    games = sum(1 for d in plan.days if p.cid in d.playing)
+    text = (f"{p.name}: {today:.2f} projected pts today" if today > 0
+            else f"{p.name}: not expected to play today" if p.cid in plan.days[0].playing
+            else f"{p.name}: no game today")
+    out = [Reason(code="DAY_VALUE", text=text, value=today),
+           Reason(code="GAMES_LEFT", text=f"{p.name}: {games} game{'s' if games != 1 else ''} left this matchup "
+                  f"(through {plan.days[-1].day:%a %b} {plan.days[-1].day.day})", value=float(games))]
     if p.status not in ("healthy", "unknown"):
         out.append(Reason(code="STATUS", text=f"{p.name} is {p.status}"
                           + (f" ({p.status_note})" if p.status_note else "")))
@@ -309,14 +438,25 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
     its gain is the week (or FPG) delta of that chain, and the gains of all chains add up to
     optimal - current."""
     team = ctx.my_team
-    values, starts = apply_confirmed_starts(ctx, values, horizon)
+    plan = daily_plan(ctx, team, values) if horizon == "week" else None
+    if plan is None:
+        values, starts = apply_confirmed_starts(ctx, values, horizon)
+    else:
+        starts = {p.cid: (prob, values[p.cid].start_share or 1.0) for p in team.players
+                  if (prob := confirmed_start_probability(p)) is not None and p.cid in values
+                  and ctx.as_of in (ctx.schedule.get(normalize_team(p.team) or "") or ())}
     recs: list[Recommendation] = []
     slots = starting_slots(ctx.roster_shape)
     by_cid = {p.cid: p for p in team.players}
     starters = _starters(team)
-    assign, _ = optimal_lineup(team, values, ctx.roster_shape, horizon)
+    if plan is None:
+        assign, _ = optimal_lineup(team, values, ctx.roster_shape, horizon)
+        vc = lambda c: _value(values.get(c), horizon)  # noqa: E731
+    else:                     # daily lineups: today's changes; later days get their own run
+        today = plan.days[0].values
+        assign, _ = _best(team, slots, today, plan.days[0].locked)
+        vc = lambda c: today.get(c, 0.0)  # noqa: E731
     after = set(assign.values())
-    vc = lambda c: _value(values.get(c), horizon)  # noqa: E731
     for chain in _chains(slot_changes(team, assign, slots, vc), starters):
         head, tail = chain[0].incoming, chain[-1].outgoing
         pin = by_cid[head] if head is not None and head not in starters else None
@@ -327,17 +467,22 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
         threshold = max(MIN_GAIN_ABS, MIN_GAIN_REL * abs(v_out))
         if gain <= threshold:
             continue
-        reasons = [Reason(code="LINEUP_GAIN", text=f"+{gain:.2f} ({horizon}) from this change",
-                          value=gain, baseline=threshold)]
+        reasons = [Reason(code="LINEUP_GAIN", text=f"+{gain:.2f} ({horizon if plan is None else 'today'}) "
+                          "from this change", value=gain, baseline=threshold)]
         for x in (pin, pout):
             if x is not None:
-                reasons += _week_reasons(x, values.get(x.cid), horizon)
+                reasons += (_week_reasons(x, values.get(x.cid), horizon) if plan is None
+                            else _day_reasons(x, plan))
         for c in chain:
             if c.incoming in starters:
                 reasons.append(Reason(code="LINEUP_MOVE", text=f"{by_cid[c.incoming].name} moves to {c.slot}"
                                       + (f" (replacing {by_cid[c.outgoing].name})" if c.outgoing else "")))
-        units, days = _gain_units([x for x in (pin, pout) if x is not None] or moved, values, horizon)
-        recs.append(Recommendation(kind="lineup", score=gain, title=_chain_title(chain, by_cid),
+        if plan is None:
+            units, days = _gain_units([x for x in (pin, pout) if x is not None] or moved, values, horizon)
+        else:
+            units, days = "day_pts", 1
+        title = _chain_title(chain, by_cid) + ("" if plan is None else " today")
+        recs.append(Recommendation(kind="lineup", score=gain, title=title,
                                    add=[pin] if pin else [], drop=[pout] if pout else [], subjects=moved,
                                    reasons=reasons, predicted_gain=float(gain), gain_units=units,
                                    horizon_days=days))
@@ -364,6 +509,22 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                 reasons=[Reason(code="STATUS", text=f"{p.name} is {p.status} but sits in an IR slot"
                                 + (f" ({p.status_note})" if p.status_note else ""))]
                 + _week_reasons(p, pv, horizon)[:1]))
+        elif s.slot == "IR" and plan is not None and pv is not None and pv.return_date is not None \
+                and plan.days[0].day < pv.return_date <= plan.days[-1].day:
+            back = [d.day for d in plan.days if d.day >= pv.return_date and _plays(ctx, p, d.day)]
+            if back:
+                pts = sum(day_value(ctx, p, pv, d) for d in back)
+                ret = pv.return_date
+                recs.append(Recommendation(
+                    kind="lineup", score=pts, subjects=[p],
+                    title=f"{p.name} due back {ret:%a %b} {ret.day}: activate him from IR then",
+                    reasons=[Reason(code="RETURN_DUE",
+                                    text=f"{p.name} is {p.status}, expected back {ret:%a %b} {ret.day}"
+                                         + (f" ({p.status_note})" if p.status_note else ""), value=pts),
+                             Reason(code="GAMES_LEFT",
+                                    text=f"{p.name}: {len(back)} game{'s' if len(back) != 1 else ''} from then "
+                                         f"to {plan.days[-1].day:%a %b} {plan.days[-1].day.day}, "
+                                         f"~{pts:.1f} pts if he plays", value=float(len(back)))]))
     if starts:
         by_cid_all = {p.cid: p for p in team.players}
         for r in recs:

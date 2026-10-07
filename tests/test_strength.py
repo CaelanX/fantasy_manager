@@ -38,7 +38,7 @@ def test_waiver_anchor_points_with_full_confidence():
 def test_confidence_scales_preseason_moves_down():
     pre, late = waiver(0.95, gp=0), waiver(0.95, gp=1000)
     assert strength_for(pre) < strength_for(late)
-    assert strength_for(pre) == pytest.approx(interp(0.95 * 0.25, WAIVER_SCALE), abs=0.01)   # floor 0.25
+    assert strength_for(pre) == pytest.approx(interp(0.95 * 0.5, WAIVER_SCALE), abs=0.01)    # no NHL games: 0.5
 
 
 def test_legacy_trade_without_acceptance_keeps_the_dynasty_bump():
@@ -88,7 +88,7 @@ def test_trade_strength_anchors_on_expected_value():
 def test_trade_strength_keeps_confidence_scaling():
     pre, late = trade(0.5, 0.7, gp=0), trade(0.5, 0.7, gp=1000)
     assert strength_for(pre) < strength_for(late)
-    assert strength_for(pre) == pytest.approx(interp(0.35 * 0.25, TRADE_EV_SCALE), abs=0.01)   # floor 0.25
+    assert strength_for(pre) == pytest.approx(interp(0.35 * 0.5, TRADE_EV_SCALE), abs=0.01)    # no NHL games: 0.5
 
 
 def test_future_only_trade_strength_uses_the_dynasty_gain():

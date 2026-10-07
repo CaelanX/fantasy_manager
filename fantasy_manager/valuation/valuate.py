@@ -87,6 +87,7 @@ PROJ_SHARE_K = 20
 MIN_GP_FOR_MEAN = {"F": 20, "D": 20, "G": 10}
 XG_MIN_GP = 5                # season GP before the xG goal shrink applies (regression.MIN_CURRENT_GP)
 XG_CREDIT = "ixG: MoneyPuck.com"
+WEEK_OUT_STATUSES = ("out", "ir", "ltir", "suspended")   # out for now (day-to-day is a flat week discount)
 MIN_LEDGER_TEAM_GAMES = 5    # ledger team games before actual starts / back-to-back rates are used
 
 
@@ -101,6 +102,10 @@ class PlayerValue(BaseModel):
     games_next7: int | None = None
     offnight_next7: int | None = None
     start_share: float | None = None  # goalies only
+    # out / IR / suspended with an estimated return: that date, and the share of the week window's
+    # games on or after it (``avail_week``, 1.0 healthy) - day-level values divide it back out
+    return_date: date | None = None
+    avail_week: float = 1.0
     # goalies: where the share came from ("projection": projected workload, "history": shrunk
     # GS / team GP with the start-share prior / k) and, for "history", its starts and team games
     # (excluded from dumps: only the archive's refit inputs read them)
@@ -546,6 +551,11 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
         a_season, ret_est = season_availability(p.status, p.status_note, ctx.as_of,
                                                 ctx.schedule.get(normalize_team(p.team) or "", []), ctx.season_start)
         a_week = availability_multiplier(p.status, "week")
+        team_dates = ctx.schedule.get(normalize_team(p.team) or "", [])
+        ret_day = ret_est.return_date if ret_est is not None and p.status in WEEK_OUT_STATUSES else None
+        if ret_day is not None and window is not None:   # out now, back within the window: his games after
+            games = [d for d in set(team_dates) if window.start <= d <= window.end]
+            a_week = sum(1 for d in games if d >= ret_day) / len(games) if games else 0.0
         season = p.lines.get("season")
         raw = f", season raw {scoring.value(season.per_game()):.2f}" if season and season.gp else ""
         reasons.insert(0, Reason(code="FPG_BLEND", text=f"Blended {fpg:.2f} FPG{raw}", value=fpg))
@@ -611,7 +621,8 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                          fpg_season=(season_value if season_value is not None else fpg * a_season * share_season)
                          * gp_share,
                          fpg_week=fpg * a_week * share_week * week_share, vorp=0.0, rates=rates, reasons=reasons,
-                         start_share=share_week if p.is_goalie else None, rookie=est, **share_parts)
+                         start_share=share_week if p.is_goalie else None, rookie=est,
+                         return_date=ret_day, avail_week=a_week, **share_parts)
         b2b = ctx.b2b_second_night.get(normalize_team(p.team) or "") if p.is_goalie else None
         sf = schedule_factor(p, ctx.schedule, ctx.games_per_day, window, share=share_week,
                              b2b_p=b2b[0] if b2b else None) if window else None

@@ -5,17 +5,32 @@ from datetime import date, timedelta
 from typing import Any, Iterable, Mapping, NamedTuple
 
 from ..models import FantasyTeam, LeagueContext, Player, Reason
-from ..valuation.blend import shrink_k
 from ..valuation.replacement import DEFAULT_SLOTS, eligible_slots
 
-MIN_CONFIDENCE = 0.25
+# Confidence = how much to trust a player's projection, from the NHL games behind it: this
+# season's GP plus the prior three seasons weighted 1 / 0.8 / 0.6 (the baseline's 5/4/3).
+# 0.5 with no NHL games, rising to ~0.92 for a regular. Checked on the in-season backtest
+# (10k skater checkpoints, 2021-26): rest-of-season error relative to the projection falls from
+# 0.225 (lowest-confidence quarter) to 0.149 (highest); the old rule (this season's GP / (GP + 25))
+# hardly separated them (0.202 -> 0.167) and floored every early-season player at 0.25.
+# Hot / cold starts are not a confidence matter: the projection already weights this season by
+# GP / (GP + 25), which matched how much of a veteran's deviation persisted in that backtest
+# (e.g. 20-35 GP: 0.43 persisted, weight 0.50). A season running far from the projection added
+# no measurable error beyond that, so it does not lower confidence.
+MIN_CONFIDENCE = 0.5
+CONFIDENCE_K = 40.0
+PRIOR_GP_WEIGHTS = (("prior", 1.0), ("prior2", 0.8), ("prior3", 0.6))
+
+
+def evidence_games(player: Player) -> float:
+    """NHL games behind the projection: this season's GP + weighted GP of the prior three."""
+    return player.gp("season") + sum(w * player.gp(split) for split, w in PRIOR_GP_WEIGHTS)
 
 
 def confidence(player: Player) -> float:
-    """GP/(GP+k) from current-season games played, floored at MIN_CONFIDENCE."""
-    gp = player.gp("season")
-    k = shrink_k(player.is_goalie)
-    return max(MIN_CONFIDENCE, gp / (gp + k)) if gp > 0 else MIN_CONFIDENCE
+    """MIN_CONFIDENCE + (1 - MIN_CONFIDENCE) x E / (E + CONFIDENCE_K), E = ``evidence_games``."""
+    e = evidence_games(player)
+    return MIN_CONFIDENCE + (1.0 - MIN_CONFIDENCE) * e / (e + CONFIDENCE_K)
 
 
 def droppable_players(team: FantasyTeam) -> list[Player]:

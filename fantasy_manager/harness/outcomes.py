@@ -9,8 +9,10 @@ Windows (``window_start`` .. ``window_end`` inclusive):
 * ``7d`` / ``28d``  the 7 / 28 days after the basis day (the rec's ``first_seen``, the day I
                     acted, or my move's day); ``ros`` from the day after to the end of the
                     regular season (graded so far; complete only once the season is over).
-* lineup recs       one ``7d`` window only. ESPN (daily locks): the rec's own day + 6, counting
-                    only days on which both an ``in`` and an ``out`` player had a game. Fantrax
+* lineup recs       one ``7d`` window only. ESPN (daily locks): a ``day_pts`` start/sit covers
+                    its own day only (either side's game counts); older week recs the rec's own
+                    day + 6, counting only days on which both an ``in`` and an ``out`` player had
+                    a game. Fantrax
                     (weekly locks): the locked week, Monday (``first_lockable_day``) to Sunday.
 
 A row is ``complete`` only when the whole window is before ``as_of`` and every day of it was
@@ -38,7 +40,7 @@ Realized gain (fantasy points over the window unless noted):
 
 ``hit`` is realized > 0 for every non-flag kind. ``predicted_pts`` converts the rec's
 ``predicted_gain`` into points over the window (``gain_pts_h``): ``week_pts`` scale by
-days / 7, per-game units (``season_fpg`` / ``lineup_fpg`` / ``dynasty``) multiply by the
+days / 7, ``day_pts`` count as is, per-game units (``season_fpg`` / ``lineup_fpg`` / ``dynasty``) multiply by the
 expected games (the add's ``games_next7`` / 7 per day that day, else ``GAMES_PER_DAY``).
 Episode origins: ``followed`` / ``partial`` / ``proposed``, ``ignored`` (expired) and ``open``;
 my moves without a rec are ``user_only``, with the model's own view of the move that day
@@ -310,6 +312,8 @@ def predicted_pts(gain: float | None, units: str | None, n_days: int, rate: floa
         return None
     if units == "week_pts":
         return float(gain) * n_days / 7.0
+    if units == "day_pts":
+        return float(gain)
     if units in ("season_fpg", "lineup_fpg", "dynasty"):
         return float(gain) * rate * n_days
     return None
@@ -403,7 +407,9 @@ def grade_subject(s: Subject, players: Players, realized: Realized, as_of: date,
             start = first_lockable_day("fantrax", s.day)
         else:
             start = s.day
-        w = make_window("7d", start, start + timedelta(days=6), as_of, realized)
+        # a daily start/sit (day_pts) is about that day only
+        days = 1 if s.gain_units == "day_pts" else 7
+        w = make_window("7d", start, start + timedelta(days=days - 1), as_of, realized)
         if w is None:
             return out
         unmatched = [c for c in s.adds + s.drops if players.nhl_id(c) is None]
@@ -422,7 +428,8 @@ def grade_subject(s: Subject, players: Players, realized: Realized, as_of: date,
             for d in w.graded:
                 ins = [realized.day(players.nhl[c], d) for c in s.adds]
                 outs = [realized.day(players.nhl[c], d) for c in s.drops]
-                if any(g for g, _ in ins) and any(g for g, _ in outs):
+                played_in, played_out = any(g for g, _ in ins), any(g for g, _ in outs)
+                if (played_in or played_out) if days == 1 else (played_in and played_out):
                     gain += sum(p for _, p in ins) - sum(p for _, p in outs)
                     shared += 1
             if shared == 0:

@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 
+from fantasy_manager.analysis.schedule_grid import per_game_value
 from fantasy_manager.models import (FantasyTeam, LeagueContext, Player, RosterSlot, ScoringConfig,
                                     StatLine)
 from fantasy_manager.recommend.base import protection_reason
@@ -49,7 +50,7 @@ def test_waiver_pick_and_drop_candidate():
     r = recs[0]
     assert r.add[0].cid == "fa_c" and r.drop[0].cid == "my_c"  # IR-slot player never dropped
     assert [x.code for x in r.reasons][:4] == ["VORP_DELTA", "FPG_ADD", "FPG_DROP", "GP"]
-    assert r.score == pytest.approx(0.8 * 20 / (20 + K_INSEASON["skater"]))   # confidence uses in-season k
+    assert r.score == pytest.approx(0.8 * (0.5 + 0.5 * 20 / (20 + 40)))      # 20 GP, no prior seasons
 
 
 def test_week_horizon_skips_injured_fa():
@@ -59,7 +60,7 @@ def test_week_horizon_skips_injured_fa():
     values = valuate_league(ctx, PointsScoring({"G": 1.0}))
     assert recommend_waivers(ctx, values, horizon="week") == []
     season = recommend_waivers(ctx, values, horizon="season")
-    assert season and season[0].score == pytest.approx((0.6 - 0.2) * 0.25)
+    assert season and season[0].score == pytest.approx((0.6 - 0.2) * 0.5)     # no NHL games: confidence 0.5
 
 
 def test_valuation_reasons_carry_evidence():
@@ -212,7 +213,7 @@ def test_dynasty_add_must_beat_drop_by_fifteen_percent_and_scores_by_dynasty_gai
     values = valuate_league(ctx, PointsScoring({"G": 1.0}))
     assert recommend_waivers(ctx, values, dynasty_values={"fa_c": 5.5, "vet": 5.0}) == []   # only +10%
     r = recommend_waivers(ctx, values, dynasty_values={"fa_c": 6.0, "vet": 5.0})[0]
-    assert r.score == pytest.approx((6.0 - 5.0) * 20 / (20 + K_INSEASON["skater"]))   # dynasty gain x confidence
+    assert r.score == pytest.approx((6.0 - 5.0) * (0.5 + 0.5 * 20 / (20 + 40)))   # dynasty gain x confidence
     assert next(x for x in r.reasons if x.code == "DYNASTY_GAIN").value == pytest.approx(1.0)
 
 
@@ -463,9 +464,9 @@ def test_waiver_player_week_gain_counts_only_games_after_clear_date():
     claim = next(x for x in waiv.reasons if x.code == "WAIVER_CLAIM")
     assert "on waivers until Mon: claim, won't be available before then" in claim.text
     assert claim.value == 1 and claim.baseline == 4
-    full = values["fa_c"].proj_week
     assert free.gain_units == "week_pts"
-    assert free.predicted_gain - waiv.predicted_gain == pytest.approx(full * 3 / 4)
+    # daily lineups: the 3 games before the clear date (Oct 1, 3, 5) are lost, each at his per-game value
+    assert free.predicted_gain - waiv.predicted_gain == pytest.approx(3 * per_game_value(values["fa_c"]))
 
 
 def test_waiver_already_cleared_is_a_plain_add():
@@ -488,6 +489,54 @@ def test_waiver_player_filling_empty_slot_gains_only_games_after_clear_date():
     values = valuate_league(ctx, PointsScoring({"G": 1.0}))
     r = recommend_waivers(ctx, values, horizon="week")[0]
     codes = {x.code: x for x in r.reasons}
-    assert "WAIVER_CLAIM" in codes and "fills empty D slot" in codes["VORP_DELTA"].text
-    assert codes["VORP_DELTA"].value == pytest.approx(values["fa_d"].fpg_week / 4)
-    assert r.predicted_gain == pytest.approx(values["fa_d"].proj_week / 4)
+    assert "WAIVER_CLAIM" in codes and "best lineup each day" in codes["VORP_DELTA"].text
+    # only Oct 7 counts in the Oct 1-7 matchup days; FPG units: / EDM's 4 games in those days
+    assert codes["MATCHUP_GAIN"].value == pytest.approx(per_game_value(values["fa_d"]))
+    assert codes["VORP_DELTA"].value == pytest.approx(codes["MATCHUP_GAIN"].value / 4)
+    assert r.predicted_gain == pytest.approx(codes["MATCHUP_GAIN"].value)   # 7 plan days: a 7-day rate as is
+
+
+def test_matchup_waivers_only_in_daily_lineup_leagues():
+    from fantasy_manager.recommend.waivers import recommend_matchup_waivers
+
+    fa = mk("fa_c", ["C"], 3.0, gp=20)
+    ctx = _sched_league(fa, mk("my_c", ["C"], 0.2))
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    recs = recommend_matchup_waivers(ctx, values)
+    assert recs and recs[0].title.endswith(" for this matchup")
+    assert any(x.code == "MATCHUP_GAIN" for x in recs[0].reasons)
+    weekly = ctx.model_copy(update={"provider": "fantrax", "lineup_lock": "weekly"})
+    assert recommend_matchup_waivers(weekly, values) == []
+
+
+def test_confidence_counts_prior_nhl_seasons_not_just_this_one():
+    from fantasy_manager.recommend.base import confidence, evidence_games
+
+    rookie = mk("rk", ["C"], 0.5, gp=2)
+    vet = mk("vt", ["C"], 0.5, gp=2)
+    vet.lines.update({s: StatLine(split=s, gp=80, stats={"G": 20.0}) for s in ("prior", "prior2", "prior3")})
+    assert evidence_games(rookie) == 2 and evidence_games(vet) == pytest.approx(2 + 80 * (1 + 0.8 + 0.6))
+    assert confidence(rookie) == pytest.approx(0.5 + 0.5 * 2 / 42)          # ~0.52: projection is mostly a guess
+    assert confidence(vet) > 0.9                                            # 2 GP this season, 3 full seasons behind it
+
+
+def test_matchup_pickups_allow_a_small_stated_dynasty_cost():
+    from fantasy_manager.recommend.waivers import STREAM_DYNASTY_TOLERANCE, recommend_matchup_waivers
+
+    fa = mk("fa_c", ["C"], 3.0, gp=20)
+    ctx = _sched_league(fa, mk("my_c", ["C"], 0.2))
+    ctx.dynasty = True
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    dyn = {"fa_c": 9.0, "my_c": 10.0}                               # the add is worth 10% less long-term
+
+    def run(mode):
+        c = ctx.model_copy(update={"dynasty_mode": mode})
+        return recommend_matchup_waivers(c, values, dynasty_values=dyn), recommend_waivers(
+            c, values, horizon="week", dynasty_values=dyn)
+
+    stream, plain = run("balanced")                                 # 10% loss <= balanced 15%
+    assert STREAM_DYNASTY_TOLERANCE["balanced"] == 0.15
+    assert plain == [] and stream                                   # the 1.15x rule still blocks a normal pickup
+    cost = next(x for x in stream[0].reasons if x.code == "DYNASTY_COST")
+    assert "costs 1.0, 10% of my_c's value" in cost.text
+    assert run("rebuild")[0] == []                                  # rebuild: no long-term cost allowed

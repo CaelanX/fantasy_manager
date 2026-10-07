@@ -194,6 +194,12 @@ def lineup_players(team: FantasyTeam, ctx: LeagueContext, values: Mapping[str, A
 def project_team(ctx: LeagueContext, team: FantasyTeam, values: Mapping[str, Any], start: date, end: date,
                  locked: bool) -> tuple[list[PlayerProjection], str]:
     """Each starter's games, projected points and SD over [start, end]."""
+    if not locked and start <= end:
+        from ..recommend.lineup import daily_plan
+
+        plan = daily_plan(ctx, team, values, [start + timedelta(days=k) for k in range((end - start).days + 1)])
+        if plan is not None:
+            return _project_daily(team, values, plan), "best lineup each day"
     gpd = per_day(ctx)
     starters, basis = lineup_players(team, ctx, values, locked)
     out = []
@@ -211,6 +217,24 @@ def project_team(ctx: LeagueContext, team: FantasyTeam, values: Mapping[str, Any
             fpg=getattr(pv, "fpg", None)))
     out.sort(key=lambda x: -x.proj_remaining)
     return out, basis
+
+
+def _project_daily(team: FantasyTeam, values: Mapping[str, Any], plan: Any) -> list[PlayerProjection]:
+    """Projections for daily lineups: each player counts only the days the plan starts him."""
+    out = []
+    for p in team.players:
+        games = plan.starts(p.cid)
+        if not games:
+            continue
+        proj = plan.points(p.cid)
+        pv = values.get(p.cid)
+        slot = next((s.slot for s in team.slots if s.player is not None and s.player.cid == p.cid), None)
+        out.append(PlayerProjection(
+            cid=p.cid, name=p.name, team=p.team, pos=_pos(p), group=_group(p), slot=slot, status=p.status,
+            note=p.status_note, games_left=games, proj_remaining=proj,
+            sd=math.sqrt(games) * game_sd(proj / games, p.is_goalie), fpg=getattr(pv, "fpg", None)))
+    out.sort(key=lambda x: -x.proj_remaining)
+    return out
 
 
 def team_sd(players: Iterable[PlayerProjection]) -> float:
@@ -352,6 +376,25 @@ def espn_scores(ctx: LeagueContext, provider: Any, calendar: PeriodCalendar) -> 
     return found
 
 
+def _schedule_columns(header: Any) -> tuple[int, int, int, int]:
+    """(away team, away points, home team, home points) cell indexes from the table header: each
+    side's points are its "Total" column (FPts + Adj), else its "FPts". Without a usable header,
+    the plain Away / FPts / Home / FPts layout."""
+    keys = [str(c.get("key") or "").lower() for c in ((header or {}).get("cells") or [])]
+    if "away" not in keys or "home" not in keys:
+        return 0, 1, 2, 3
+    a, h = keys.index("away"), keys.index("home")
+
+    def pts(team_i: int, stop: int) -> int:
+        side = keys[team_i + 1:stop]
+        for k in ("total", "fpts"):
+            if k in side:
+                return team_i + 1 + side.index(k)
+        return team_i + 1
+
+    return a, pts(a, h if h > a else len(keys)), h, pts(h, a if a > h else len(keys))
+
+
 def parse_fantrax_schedule(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     """getStandings view SCHEDULE -> [{number, start, end, games: [(away_id, away_pts, home_id,
     home_pts)]}] (one per scoring-period table)."""
@@ -371,13 +414,14 @@ def parse_fantrax_schedule(data: Mapping[str, Any]) -> list[dict[str, Any]]:
                 end = datetime.strptime(b.strip(), "%a %b %d, %Y").date()
             except ValueError:
                 pass
+        away_i, away_pts, home_i, home_pts = _schedule_columns(t.get("header"))
         games = []
         for row in t.get("rows") or []:
             cells = row.get("cells") or []
-            if len(cells) < 4:
+            if len(cells) <= max(away_pts, home_pts):
                 continue
-            games.append((cells[0].get("teamId"), _num(cells[1].get("content")) or 0.0,
-                          cells[2].get("teamId"), _num(cells[3].get("content")) or 0.0))
+            games.append((cells[away_i].get("teamId"), _num(cells[away_pts].get("content")) or 0.0,
+                          cells[home_i].get("teamId"), _num(cells[home_pts].get("content")) or 0.0))
         out.append({"number": number, "start": start, "end": end, "playoffs": cap.lower().startswith("playoff"),
                     "games": games})
     return out

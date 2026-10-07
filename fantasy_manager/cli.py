@@ -620,13 +620,17 @@ def lineup(ctx: typer.Context,
            league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
            json_out: bool = typer.Option(False, "--json")) -> None:
     """Optimal starting lineup and start/sit changes."""
-    from .recommend.lineup import current_total, optimal_lineup, recommend_lineup, starting_slots
+    from .recommend.lineup import current_total, daily_plan, optimal_lineup, recommend_lineup, starting_slots
 
     league_name, as_json = _opts(ctx, league, json_out)
     lc, values, _ = _load(league_name, deep)
     h = horizon.value
     team = lc.my_team
     slots = starting_slots(lc.roster_shape)
+    plan = daily_plan(lc, team, values) if h == "week" else None
+    if plan is not None:
+        _daily_lineup(lc, team, slots, plan, recommend_lineup(lc, values, h), as_json)
+        return
     assign, total = optimal_lineup(team, values, lc.roster_shape, h)
     cur_total = current_total(team, values, h)
     recs = recommend_lineup(lc, values, h)
@@ -666,6 +670,56 @@ def lineup(ctx: typer.Context,
         console.print(_rec_table(recs, "Lineup changes"))
     else:
         console.print("[green]Your lineup is already optimal.[/]")
+    _footer(lc)
+
+
+def _daily_lineup(lc: LeagueContext, team: Any, slots: list[str], plan: Any, recs: list[Any], as_json: bool) -> None:
+    """``fm lineup`` for daily-lineup leagues: today's best lineup, then each day left in the
+    matchup (who plays, who starts, who has a game but no slot)."""
+    by_cid = {p.cid: p for p in team.players}
+    where = {s.player.cid: s.slot for s in team.slots if s.player}
+    today = plan.days[0]
+    days = [{"date": d.day.isoformat(), "optimal": d.optimal, "current": d.current,
+             "start": [by_cid[c].name for c in d.assign.values()],
+             "no_slot": [by_cid[c].name for c in d.playing
+                         if d.values.get(c, 0.0) > 0 and c not in d.assign.values()]}
+            for d in plan.days]
+    if as_json:
+        rows = [{"slot": slot, "cid": today.assign.get(i), "current_slot": where.get(today.assign.get(i)),
+                 "value": today.values.get(today.assign.get(i)),
+                 "locked": today.assign.get(i) in today.locked} for i, slot in enumerate(slots)]
+        _dump({"horizon": "week", "basis": "daily", "today": rows, "days": days,
+               "optimal_total": plan.optimal, "current_total": plan.current,
+               "recommendations": [r.model_dump(mode="json") for r in recs], "meta": _meta(lc)})
+        return
+    tbl = Table(title=f"Today's lineup ({today.day:%a %b} {today.day.day}, proj pts)")
+    for c, j in (("Slot", "left"), ("Player", "left"), ("Pos", "left"), ("NHL", "left"), ("Status", "left"),
+                 ("Today", "right"), ("Left", "right"), ("Now", "left")):
+        tbl.add_column(c, justify=j)
+    for i, slot in enumerate(slots):
+        p = by_cid.get(today.assign.get(i) or "")
+        if p is None:
+            tbl.add_row(slot, "[dim](empty: no one free with a game)[/]", "", "", "", "", "", "")
+            continue
+        now = where.get(p.cid) or "-"
+        shown = f"[bold yellow]{now}[/]" if now in ("BN", "IR") else now
+        tbl.add_row(slot, p.name, _pos(p), p.team or "-", _status(p), _fmt(today.values.get(p.cid)),
+                    str(plan.starts(p.cid)), shown + (" [dim](locked)[/]" if p.cid in today.locked else ""))
+    console.print(tbl)
+    wk = Table(title="Rest of the matchup (best lineup each day)")
+    for c, j in (("Day", "left"), ("Starts", "right"), ("Proj", "right"), ("As set", "right"),
+                 ("Game but no slot", "left")):
+        wk.add_column(c, justify=j)
+    for d, row in zip(plan.days, days):
+        wk.add_row(f"{d.day:%a %b} {d.day.day}", str(len(row["start"])), _fmt(d.optimal), _fmt(d.current),
+                   ", ".join(row["no_slot"]) or "-")
+    console.print(wk)
+    console.print(f"Rest of matchup: {plan.optimal:.2f} pts set daily vs {plan.current:.2f} with today's "
+                  f"lineup left as is ({plan.optimal - plan.current:+.2f})")
+    if recs:
+        console.print(_rec_table(recs, "Lineup changes for today"))
+    else:
+        console.print("[green]Today's lineup is already optimal.[/]")
     _footer(lc)
 
 
@@ -886,7 +940,7 @@ def _run_advise(d: Loaded, history: Any, errors: list[str], limit: int | None = 
     """advise() for lineup/waivers/flags/injuries/alerts plus recommend_trades called directly (so
     Fantrax trade-block `wants` reach it; advise() cannot forward that argument), merged
     and ordered exactly as advise() orders them."""
-    from .recommend.advise import KIND_GROUP, PRIORITY, advise, normalize_scores
+    from .recommend.advise import advise, normalize_scores, order_key
     from .recommend.trades import recommend_trades
 
     with _collect_logs("fantasy_manager.recommend.advise", errors, "advise"):
@@ -895,12 +949,7 @@ def _run_advise(d: Loaded, history: Any, errors: list[str], limit: int | None = 
     trades = _safe(errors, "trades", recommend_trades, d.lc, d.values, dynasty_values=d.dyn,
                    wants=_trade_wants(d.lc, d.provider), offered=_trade_offered(d.provider), default=[])
     merged = list(recs) + normalize_scores(trades)
-
-    def prio(r: Recommendation) -> int:
-        g = KIND_GROUP.get(r.kind, "flags")
-        return PRIORITY.index(g) if g in PRIORITY else len(PRIORITY)
-
-    merged.sort(key=lambda r: (-r.score, prio(r)))
+    merged.sort(key=order_key)
     return merged[:limit] if limit else merged
 
 

@@ -79,7 +79,9 @@ def test_projection_counts_remaining_games_only():
     assert mine["m1"].games_left == 2 and mine["m1"].proj_remaining == pytest.approx(
         values["m1"].proj_week * 2 / values["m1"].games_next7)
     assert mine["m3"].games_left == 2
-    assert "mb" not in mine                          # bench player not in the optimal lineup (m1/m2 better)
+    # daily lineups: bench C mb (CCC: Thu + Fri) fills a C slot both nights only one of m1 / m2 plays
+    assert mine["mb"].games_left == 2 and mine["mb"].proj_remaining == pytest.approx(1.0)
+    assert m.lineup_basis == "best lineup each day"
     assert m.my_projected_remaining == pytest.approx(sum(x.proj_remaining for x in m.my_players))
     theirs = {x.cid for x in m.their_players}
     assert "tir" not in theirs                       # IR players never start
@@ -179,6 +181,18 @@ def test_parse_fantrax_schedule():
     assert [t["number"] for t in tables] == [1, 2]
     assert tables[0]["start"] == D(2026, 10, 5) and tables[0]["end"] == D(2026, 10, 11)
     assert tables[0]["games"][0] == ("2", 41.5, "1", 1012.25)
+
+
+def test_parse_fantrax_schedule_real_layout_with_adj_and_total():
+    """The live getStandings SCHEDULE table (Oct 2026): Away, FPts, Adj, Total, Home, FPts, Adj, Total."""
+    hdr = {"cells": [{"key": k} for k in ("away", "fpts", "adj", "total", "home", "fpts", "adj", "total")]}
+    data = {"tableList": [{"caption": "Scoring Period 2", "subCaption": "(Mon Oct 5, 2026 - Sun Oct 11, 2026)",
+                           "header": hdr, "rows": [{"cells": [
+                               {"content": "3-0", "teamId": "a"}, {"content": "73.45"}, {"content": "0"},
+                               {"content": "73.45"}, {"content": "AruDPM", "teamId": "b"}, {"content": "46.15"},
+                               {"content": "2"}, {"content": "48.15"}]}]}]}
+    (t,) = mu.parse_fantrax_schedule(data)
+    assert t["games"] == [("a", 73.45, "b", 48.15)]          # home team found; totals include Adj
 
 
 def test_fantrax_scores_with_fake_client():
