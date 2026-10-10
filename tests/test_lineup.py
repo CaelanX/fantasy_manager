@@ -297,3 +297,105 @@ def test_goalies_and_skaters_never_mismatched_and_gains_add_up(seed, monkeypatch
         assert len({p.is_goalie for p in group}) <= 1, r.title
     _, opt = optimal_lineup(t, vals, shape)
     assert sum(r.predicted_gain for r in _swaps(recs)) == pytest.approx(opt - L.current_total(t, vals), abs=1e-4)
+
+
+# -- daily-lineup leagues: one lineup per day over the rest of the matchup -------------------
+
+def _daily(provider="espn"):
+    """One C slot; a (EDM) plays Tue + Thu, b (CGY) Wed + Thu + Mon (next matchup). Today is Tue."""
+    from fantasy_manager.models import LeagueContext
+
+    a, b = P("a", ["C"]), P("b", ["C"])
+    b.team = "CGY"
+    t = team([("C", a), ("BN", b)])
+    sched = {"EDM": [date(2026, 10, 6), date(2026, 10, 8)],
+             "CGY": [date(2026, 10, 7), date(2026, 10, 8), date(2026, 10, 12)]}
+    ctx = LeagueContext(provider=provider, league_id="1", season=2027, name="T",
+                        scoring=ScoringConfig(kind="points", weights={"G": 1.0}), roster_shape={"C": 1, "BN": 1},
+                        teams=[t], free_agents=[], matchup_period=1, as_of=date(2026, 10, 6),
+                        period_end=date(2026, 10, 11), schedule=sched)
+    vals = {"a": V(a, 2.0, proj=4.0, games=2), "b": V(b, 3.0, proj=9.0, games=3)}
+    return ctx, t, vals
+
+
+def test_daily_plan_counts_both_players_on_different_nights():
+    from fantasy_manager.recommend.lineup import daily_plan
+
+    ctx, t, vals = _daily()
+    plan = daily_plan(ctx, t, vals)
+    assert [d.day for d in plan.days] == [date(2026, 10, k) for k in range(6, 12)]   # stops at period end
+    assert [list(d.assign.values()) for d in plan.days[:3]] == [["a"], ["b"], ["b"]]
+    assert plan.optimal == pytest.approx(2.0 + 3.0 + 3.0)        # a Tue, b Wed and Thu (better than a)
+    assert plan.current == pytest.approx(2.0 + 2.0)              # a left in the slot: Tue + Thu
+    assert (plan.starts("a"), plan.starts("b")) == (1, 2)
+
+
+def test_daily_recs_are_for_today_only():
+    ctx, t, vals = _daily()
+    assert recommend_lineup(ctx, vals) == []         # today only a plays: nothing to change
+    ctx2 = ctx.model_copy(update={"as_of": date(2026, 10, 7)})
+    r = recommend_lineup(ctx2, vals)[0]
+    assert r.title == "Start b over a today" and r.predicted_gain == pytest.approx(3.0)
+    assert (r.gain_units, r.horizon_days) == ("day_pts", 1)
+    codes = [x.code for x in r.reasons]
+    assert "DAY_VALUE" in codes and "GAMES_LEFT" in codes
+
+
+def test_weekly_lock_keeps_the_week_lineup():
+    from fantasy_manager.recommend.lineup import daily_plan
+
+    ctx, t, vals = _daily("fantrax")
+    assert daily_plan(ctx, t, vals) is None
+    r = recommend_lineup(ctx, vals)[0]
+    assert r.gain_units == "week_pts"
+
+
+def test_injured_player_returns_mid_matchup():
+    from fantasy_manager.recommend.lineup import daily_plan
+
+    ctx, t, vals = _daily()
+    b = next(p for p in t.players if p.cid == "b")
+    b.status = "out"
+    # out now, back Thu Oct 8: 1 of his 3 games in the window -> week projection averaged to 1/3
+    vals["b"] = vals["b"].model_copy(update={"proj_week": 3.0, "return_date": date(2026, 10, 8),
+                                             "avail_week": 1 / 3})
+    plan = daily_plan(ctx, t, vals)
+    by_day = {d.day: d for d in plan.days}
+    assert "b" not in by_day[date(2026, 10, 7)].playing           # still out Wed
+    assert by_day[date(2026, 10, 8)].values["b"] == pytest.approx(3.0)   # full per-game value once back
+    assert list(by_day[date(2026, 10, 8)].assign.values()) == ["b"]
+
+
+def test_started_games_lock_players_for_today():
+    from datetime import datetime, timezone
+
+    from fantasy_manager.recommend.lineup import daily_plan
+
+    ctx, t, vals = _daily()
+    tue = date(2026, 10, 6)
+    ctx.schedule["CGY"].append(tue)                                  # b plays Tue too, and is better
+    ctx.game_starts = {"EDM": {tue: datetime(2026, 10, 6, 23, 0, tzinfo=timezone.utc)},
+                       "CGY": {tue: datetime(2026, 10, 7, 2, 0, tzinfo=timezone.utc)}}
+    before = datetime(2026, 10, 6, 22, 0, tzinfo=timezone.utc)
+    after = datetime(2026, 10, 6, 23, 30, tzinfo=timezone.utc)      # a's game has started
+    assert daily_plan(ctx, t, vals, now=before).days[0].locked == frozenset()
+    plan = daily_plan(ctx, t, vals, now=after)
+    assert plan.days[0].locked == {"a"} and list(plan.days[0].assign.values()) == ["a"]
+    late = datetime(2026, 10, 7, 2, 30, tzinfo=timezone.utc)        # both started: b stays benched
+    assert list(daily_plan(ctx, t, vals, now=late).days[0].assign.values()) == ["a"]
+
+
+def test_ir_player_due_back_mid_matchup_gets_an_activate_reminder():
+    ctx, t, vals = _daily()
+    hurt = P("h", ["C"], status="out")
+    t.slots.append(RosterSlot(slot="IR", player=hurt, starting=False))
+    ctx.schedule["EDM"].append(date(2026, 10, 10))
+    vals["h"] = V(hurt, 2.0, proj=2.0, games=1).model_copy(update={"return_date": date(2026, 10, 8),
+                                                                   "avail_week": 2 / 3})
+    r = next(r for r in recommend_lineup(ctx, vals) if r.subjects and r.subjects[0].cid == "h")
+    assert r.title == "h due back Thu Oct 8: activate him from IR then"
+    games = next(x for x in r.reasons if x.code == "GAMES_LEFT")
+    assert games.value == 2.0                       # EDM Thu Oct 8 + Sat Oct 10, inside the matchup
+    # back after the matchup ends: nothing to do this matchup
+    vals["h"] = vals["h"].model_copy(update={"return_date": date(2026, 10, 14)})
+    assert not any(r.subjects and r.subjects[0].cid == "h" for r in recommend_lineup(ctx, vals))

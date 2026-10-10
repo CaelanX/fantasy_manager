@@ -1109,7 +1109,9 @@ class _TradeEngine:
         need_text = None
         if them.weakest is not None:
             slot, v = them.weakest
-            fits = [p for p in give if _eligible(tuple(p.positions), slot)]
+            # an injured / suspended player can't fill their hole now
+            fits = [p for p in give if _eligible(tuple(p.positions), slot)
+                    and p.status not in (*INJURED_STATUSES, "suspended")]
             if fits:
                 vtxt = "empty" if v == -math.inf else f"starter VORP {v:+.2f}"
                 need_text = f"{fits[0].name} fills {them.team.name}'s weakest slot {slot} ({vtxt})"

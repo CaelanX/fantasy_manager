@@ -425,7 +425,9 @@ def safe_url(url: str | None) -> str | None:
 
 
 def _ranked(recs: list[Recommendation]) -> list[Recommendation]:
-    return sorted(recs, key=lambda r: -r.score)
+    from ..recommend.advise import order_key
+
+    return sorted(recs, key=order_key)
 
 
 def _filter_recs(recs: list[Recommendation], kind: str | None) -> list[Recommendation]:
@@ -537,32 +539,54 @@ def _join(items: list[Markup]) -> Markup:
 
 def overview_summary(recs: list[Recommendation], alerts: list[tuple[str, Player]],
                      prospects: int = 0) -> Markup:
-    """The plain-English lede on the overview: how many moves, the strongest one, and who is
-    hurt (plus prospects in dynasty leagues). Built here, not in the template, so it is
-    testable; every name is HTML-escaped."""
+    """The plain-English lede on the overview: how many moves to make (injury / lineup / waiver
+    recs; alerts, trades and flags are counted apart), the strongest one, and who is hurt (plus
+    prospects in dynasty leagues). A hurt player "needs attention" only when a move to make
+    involves him (bench, activate, move to IR, drop); the others are listed as hurt
+    with nothing to do. Built here, not in the template, so it is testable; every name is
+    HTML-escaped."""
+    from ..recommend.advise import KIND_GROUP, MOVE_GROUPS
+
     parts: list[Markup] = []
     ranked = _ranked(recs)
-    n = len(ranked)
+    moves = [r for r in ranked if KIND_GROUP.get(r.kind) in MOVE_GROUPS]
+    n, other = len(moves), len(ranked) - len(moves)
+    extra = f" ({other} alert{'s' if other != 1 else ''}, trade ideas and flags below)" if other else ""
     if n == 0:
-        parts.append(Markup("No moves are recommended right now."))
+        parts.append(Markup("No moves to make right now{}.").format(extra))
     else:
-        parts.append(Markup("<b>{}</b> {} on the board.").format(
-            f"{n} move{'s' if n != 1 else ''}", "is" if n == 1 else "are"))
-        title = ranked[0].title.strip().rstrip(".")
+        parts.append(Markup("<b>{}</b> to make{}.").format(f"{n} move{'s' if n != 1 else ''}", extra))
+        title = moves[0].title.strip().rstrip(".")
         lead = "The strongest" if n > 1 else "It"
         if title.split(" ", 1)[0].lower() in LEAD_VERBS:
             parts.append(Markup("{} is to {}.").format(lead, title[:1].lower() + title[1:]))
         else:
             parts.append(Markup("{}: {}.").format(lead, title))
-    k = len(alerts)
-    if k == 0:
+    acted = {p.cid for r in recs if KIND_GROUP.get(r.kind) in MOVE_GROUPS for p in (*r.add, *r.drop, *r.subjects)}
+
+    def phrase(slot: str, p: Player) -> str:      # "still in your IR slot": able to play again
+        return _status_phrase(p.status) + (" and still in your IR slot" if slot == "IR" and p.status == "dtd" else "")
+
+    needs = [(slot, p) for slot, p in alerts if p.cid in acted]
+    idle = [(slot, p) for slot, p in alerts if p.cid not in acted]
+    k = len(needs)
+    if k == 0 and not idle:
         parts.append(Markup("Nobody on your roster is hurt."))
     elif k == 1:
-        p = alerts[0][1]
-        parts.append(Markup("One player needs attention: <b>{}</b> {}.").format(p.name, _status_phrase(p.status)))
-    else:
-        who = [Markup("<b>{}</b> ({})").format(p.name, STATUS_LABEL.get(p.status, p.status)) for _, p in alerts]
+        slot, p = needs[0]
+        parts.append(Markup("One player needs attention: <b>{}</b> {}.").format(p.name, phrase(slot, p)))
+    elif k > 1:
+        who = [Markup("<b>{}</b> ({}{})").format(p.name, STATUS_LABEL.get(p.status, p.status),
+                                                 ", still in IR slot" if slot == "IR" and p.status == "dtd" else "")
+               for slot, p in needs]
         parts.append(Markup("{} players need attention: {}.").format(_number_word(k), _join(who)))
+    if idle:
+        def label(slot: str, p: Player) -> str:
+            lab = STATUS_LABEL.get(p.status, p.status)
+            return "IR slot" if slot == "IR" else (lab if lab.isupper() else lab.lower())
+
+        who = [Markup("{} ({})").format(p.name, label(slot, p)) for slot, p in idle]
+        parts.append(Markup("Hurt, nothing to do right now: {}.").format(_join(who)))
     if prospects:
         parts.append(Markup("You carry {}.").format(
             "one prospect" if prospects == 1 else f"{_number_word(prospects, False)} prospects"))

@@ -442,21 +442,43 @@ def test_summary_sentence_is_built_in_python():
     team = res.ctx.my_team
     alerts = [(s.slot, s.player) for s in team.slots if s.player and s.player.status == "ir"]
     text = str(overview_summary(res.recs, alerts))
-    assert text == ("<b>5 moves</b> are on the board. The strongest is to move Jake Sanderson to IR. "
-                    "One player needs attention: <b>Jake Sanderson</b> is on IR.")
-    assert str(overview_summary([], [])) == "No moves are recommended right now. Nobody on your roster is hurt."
+    assert text == ("<b>3 moves</b> to make (2 alerts, trade ideas and flags below). The strongest is to move "
+                    "Jake Sanderson to IR. One player needs attention: <b>Jake Sanderson</b> is on IR.")
+    assert str(overview_summary([], [])) == "No moves to make right now. Nobody on your roster is hurt."
     two = [("C", team.slots[0].player.model_copy(update={"name": "A<b>", "status": "dtd"})),
            ("D", team.slots[2].player)]
     out = str(overview_summary(res.recs[:1], two, prospects=2))
-    assert "<b>1 move</b> is on the board" in out and "It is to add Free Agent One" in out
-    assert "Two players need attention: <b>A&lt;b&gt;</b> (Day-to-day) and <b>Jake Sanderson</b> (IR)." in out
+    assert "<b>1 move</b> to make" in out and "It is to add Free Agent One" in out
+    # the one move (add FA One, drop Sanderson) involves Sanderson; nothing involves A<b>
+    assert "One player needs attention: <b>Jake Sanderson</b> is on IR." in out
+    assert "Hurt, nothing to do right now: A&lt;b&gt; (day-to-day)." in out
     assert out.endswith("You carry two prospects.")
+    # a hurt player "needs attention" only when a lineup / injury move involves him
+    from fantasy_manager.models import Recommendation
+
+    hurt = team.slots[2].player
+    hy = hurt.model_copy(update={"cid": "hy", "name": "Zach Hyman", "status": "out"})
+    he = hurt.model_copy(update={"cid": "he", "name": "Connor Hellebuyck"})
+    ek = hurt.model_copy(update={"cid": "ek", "name": "Aaron Ekblad", "status": "out"})
+    ma = hurt.model_copy(update={"cid": "ma", "name": "Brad Marchand", "status": "dtd"})
+    bench = Recommendation(kind="lineup", score=1.0, title="Bench Aaron Ekblad: out but in a starting slot (D)",
+                           drop=[ek])
+    out = str(overview_summary([bench], [("IR", hy), ("IR", he), ("D", ek), ("F", ma)]))
+    assert "One player needs attention: <b>Aaron Ekblad</b> is out." in out
+    assert out.endswith("Hurt, nothing to do right now: Zach Hyman (IR slot), Connor Hellebuyck (IR slot), "
+                        "and Brad Marchand (day-to-day).")
+    # day-to-day but still in an IR slot: the activate move makes him an attention item
+    sa = hurt.model_copy(update={"cid": "sa", "name": "Jake Sanderson", "status": "dtd"})
+    act = Recommendation(kind="lineup", score=1.0, title="Activate Jake Sanderson from IR (dtd)", add=[sa])
+    out = str(overview_summary([act], [("IR", sa), ("IR", he)]))
+    assert "One player needs attention: <b>Jake Sanderson</b> is day-to-day and still in your IR slot." in out
+    assert out.endswith("Hurt, nothing to do right now: Connor Hellebuyck (IR slot).")
 
 
 def test_overview_shows_summary_and_kind_chips(client):
     h = client.get("/?league=espn").text
     lede = h.split('<p class="lede" id="summary">')[1].split("</p>")[0]
-    assert "<b>5 moves</b> are on the board" in lede and "<b>Jake Sanderson</b> is on IR" in lede
+    assert "<b>3 moves</b> to make" in lede and "<b>Jake Sanderson</b> is on IR" in lede
     chips = h.split('<nav class="chips" aria-label="By type">')[1].split("</nav>")[0]
     assert re.search(r'aria-current="page">All <i>5</i>', chips)
     for label in ("Injury", "Lineup", "Waiver", "Trade", "Flags"):
@@ -565,9 +587,10 @@ def test_action_lines():
 def test_overview_dense_sections(rich):
     h = rich.get("/").text
     week = h.split('id="h-week"')[1].split("</section>")[0]
-    for kpi in ("Current lineup", "Optimal lineup", "Available gain", "Starter games", "Lineup changes"):
+    # daily-lineup league: rest-of-matchup totals, Start / Sit for today only
+    for kpi in ("Lineup as set now", "Set best each day", "Available gain", "Starter games", "Changes today"):
         assert kpi in week
-    assert "pts/wk" in week and "@TOR" in week and "<sup>off</sup>" in week     # opponents + off-night
+    assert "@TOR" in week and "<sup>off</sup>" in week and "Your league sets lineups daily" in week
     stand = h.split('id="h-standings"')[1].split("</section>")[0]
     assert 'class="mine"' in stand and "My Team" in stand and "Rival" in stand and "3-1-0" in stand
     fa = h.split('id="h-fa"')[1].split("</section>")[0]
@@ -1040,3 +1063,26 @@ def test_trade_gain_units_and_exploit_section_on_moves_page(monkeypatch):
     client.get("/recommendations?kind=trade")
     assert len(calls) == 1                                           # memoised per loaded result
     assert "Exploit trades" not in client.get("/recommendations?kind=waiver").text
+
+
+def test_week_panel_never_sits_a_player_without_a_game_today():
+    from fantasy_manager.web import views
+
+    res = make_result()
+    ctx = res.ctx
+    team = ctx.my_team
+    starter = next(sl.player for sl in team.slots if sl.starting and sl.slot != "IR" and sl.player)
+    # only the starter's NHL team is idle today; everyone else plays
+    ctx.schedule = {t: [d for d in ds if not (t == starter.team and d == ctx.as_of)]
+                    for t, ds in ctx.schedule.items()} if ctx.schedule else {}
+    ctx.schedule.setdefault(starter.team, [])
+    for p in team.players:
+        if p.team != starter.team:
+            ctx.schedule.setdefault(p.team, [])
+            if ctx.as_of not in ctx.schedule[p.team]:
+                ctx.schedule[p.team].append(ctx.as_of)
+    panel = views.week_panel(res, team)
+    assert panel["daily"] and panel["units"] == "pts"
+    row = next(r for r in panel["rows"] if r["p"].cid == starter.cid)
+    assert row["no_game"] and row["change"] is None
+    assert all(r["change"] != "sit" or not r["no_game"] for r in panel["rows"])

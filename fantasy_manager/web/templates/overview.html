@@ -23,11 +23,11 @@
 <section id="week" aria-labelledby="h-week">
   <h2 id="h-week">This week <span class="aside">{{ week.start.strftime('%b %d').replace(' 0', ' ') }}&ndash;{{ week.end.strftime('%b %d').replace(' 0', ' ') }}{% if week.preseason %} &middot; opening week{% endif %}</span></h2>
   <dl class="kpis">
-    <div><dt>Current lineup</dt><dd>{{ week.current|n1 }} <small>{{ week.units }}</small></dd></div>
-    <div><dt>Optimal lineup</dt><dd>{{ week.optimal|n1 }} <small>{{ week.units }}</small></dd></div>
+    <div><dt>{{ 'Lineup as set now' if week.daily else 'Current lineup' }}</dt><dd>{{ week.current|n1 }} <small>{{ week.units }}</small></dd></div>
+    <div><dt>{{ 'Set best each day' if week.daily else 'Optimal lineup' }}</dt><dd>{{ week.optimal|n1 }} <small>{{ week.units }}</small></dd></div>
     <div><dt>Available gain</dt><dd class="{{ 'pos' if week.delta > 0.05 else '' }}">{{ week.delta|n1(True) }} <small>{{ week.units }}</small></dd></div>
     <div><dt>Starter games</dt><dd>{{ week.games }} <small>{{ week.offnights }} off-night</small></dd></div>
-    <div><dt>Lineup changes</dt><dd>{{ week.changes }}</dd></div>
+    <div><dt>{{ 'Changes today' if week.daily else 'Lineup changes' }}</dt><dd>{{ week.changes }}</dd></div>
   </dl>
   {% if week.starts %}
   <div class="strip starts" id="starts">
@@ -42,7 +42,7 @@
   <div class="tbl"><table class="r stack week-t">
     <caption class="sr-only">Current and optimal lineup for the week</caption>
     <thead><tr>
-      <th scope="col">Player</th><th scope="col">Now</th><th scope="col">Optimal</th><th scope="col">Games next 7</th>
+      <th scope="col">Player</th><th scope="col">Now</th><th scope="col">{{ 'Today' if week.daily else 'Optimal' }}</th><th scope="col">Games next 7</th>
       <th scope="col" class="n">Off-nights</th><th scope="col" class="n">Proj pts/wk</th><th scope="col" class="n">FPG wk</th><th scope="col">Change</th>
     </tr></thead>
     <tbody>
@@ -50,17 +50,17 @@
       <tr{% if x.change %} class="chg"{% endif %}>
         <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}{{ unit_badges(x) }}<small>{{ x.pos }} &middot; {{ x.team }} &middot; {{ pill(x.status) }}</small></th>
         <td data-label="Now" class="slot">{{ x.slot }}</td>
-        <td data-label="Optimal" class="slot">{{ x.opt_slot or ('IR' if x.slot == 'IR' else 'BN') }}</td>
+        <td data-label="{{ 'Today' if week.daily else 'Optimal' }}" class="slot">{% if x.no_game %}<span class="muted">no game</span>{% else %}{{ x.opt_slot or ('IR' if x.slot == 'IR' else 'BN') }}{% if x.locked %} <small class="muted">locked</small>{% endif %}{% endif %}</td>
         <td data-label="Games next 7">{{ games_cell(x) }}</td>
         <td data-label="Off-nights" class="n">{{ x.offnight if x.offnight is not none else '-' }}</td>
         <td data-label="Proj pts/wk" class="n">{{ x.proj_week|n1 }}</td>
         <td data-label="FPG wk" class="n">{{ x.fpg_week|n1 }}</td>
-        <td data-label="Change">{% if x.change == 'start' %}<span class="chg-in">Start</span>{% if x.change_gain and x.change_gain.gain is not none %} <small>{{ x.change_gain.gain|n1(True) }} {{ week.units }}</small>{% endif %}{% elif x.change == 'sit' %}<span class="chg-out">Sit</span>{% if x.change_gain and x.change_gain.other %} <small>for {{ x.change_gain.other.name|last }}</small>{% endif %}{% else %}<span class="muted">&ndash;</span>{% endif %}</td>
+        <td data-label="Change">{% if x.change == 'start' %}<span class="chg-in">Start</span>{% if x.change_gain and x.change_gain.gain is not none %} <small>{{ x.change_gain.gain|n1(True) }} {{ week.change_units }}</small>{% endif %}{% elif x.change == 'sit' %}<span class="chg-out">Sit</span>{% if x.change_gain and x.change_gain.other %} <small>for {{ x.change_gain.other.name|last }}</small>{% endif %}{% else %}<span class="muted">&ndash;</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table></div>
-  <p class="foot-note">Projected points = FPG &times; availability &times; games, +5% per off-night game (fewer than 8 NHL games that night, marked <sup>off</sup>). The optimal lineup is solved exactly over your eligible slots; IR players are excluded.</p>
+  <p class="foot-note">{% if week.daily %}Your league sets lineups daily: the totals are points for the rest of this matchup, with the lineup left as it is now vs. the best lineup set each day. "Today" and Start / Sit are for today only; a player with no game today can stay where he is. {% endif %}Projected points = FPG &times; availability &times; games, +5% per off-night game (fewer than 8 NHL games that night, marked <sup>off</sup>). The optimal lineup is solved exactly over your eligible slots; IR players are excluded.</p>
 </section>
 {% endif %}
 

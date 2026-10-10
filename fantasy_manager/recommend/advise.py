@@ -3,8 +3,12 @@
 Each recommender is imported and called defensively (a missing module or a failure in one
 engine never hides the others). Raw scores are not comparable across engines, so each kind
 group is rescaled by rank to 0-10 (best = 10, then linearly down to 10/n), and the merged
-list is ordered by that normalized score with ties broken by kind priority:
-injury > alert > lineup > waiver > trade > flags (sell_high / buy_low). Alerts (kind "alert")
+list puts the moves to make (``MOVE_GROUPS``: injury, lineup and waiver recs) first, then
+everything else; within each tier it is ordered by that normalized score with ties broken by
+kind priority: injury > lineup > waiver > alert > trade > flags (sell_high / buy_low). So a
+``limit`` never cuts a move to make in favour of an alert. Waivers run twice in daily-lineup
+leagues: rest of season, then this matchup (``recommend_matchup_waivers``); a matchup pickup
+is kept only when the season run did not already propose that player. Alerts (kind "alert")
 come from recommend.alerts.recommend_line_alerts (Daily Faceoff lines / goalie starts) and,
 when those modules provide them, recommend.flags.recommend_role_alerts and
 recommend.waivers.recommend_trending_alerts; include name "alerts" runs all three. Each rec also carries its
@@ -23,7 +27,8 @@ from .strength import strength_for
 
 log = logging.getLogger(__name__)
 
-PRIORITY = ("injury", "alert", "lineup", "waiver", "trade", "flags")
+PRIORITY = ("injury", "lineup", "waiver", "alert", "trade", "flags")
+MOVE_GROUPS = ("injury", "lineup", "waiver")     # moves to make now, listed before alerts / trades / flags
 KIND_GROUP = {"injury": "injury", "alert": "alert", "lineup": "lineup", "waiver": "waiver", "trade": "trade",
               "sell_high": "flags", "buy_low": "flags"}
 # include-name -> (module, candidate function names)
@@ -31,6 +36,7 @@ ENGINES: dict[str, tuple[str, tuple[str, ...]]] = {
     "injuries": ("injuries", ("recommend_injuries", "injury_recommendations", "recommend")),
     "lineup": ("lineup", ("recommend_lineup", "lineup_recommendations", "recommend")),
     "waivers": ("waivers", ("recommend_waivers",)),
+    "matchup_waivers": ("waivers", ("recommend_matchup_waivers",)),
     "trades": ("trades", ("recommend_trades",)),
     "flags": ("flags", ("recommend_flags",)),
     "line_alerts": ("alerts", ("recommend_line_alerts",)),
@@ -38,7 +44,8 @@ ENGINES: dict[str, tuple[str, tuple[str, ...]]] = {
     "trending_alerts": ("waivers", ("recommend_trending_alerts",)),
 }
 # include-name aliases expanding to several engines
-ALIASES: dict[str, tuple[str, ...]] = {"alerts": ("line_alerts", "role_alerts", "trending_alerts")}
+ALIASES: dict[str, tuple[str, ...]] = {"alerts": ("line_alerts", "role_alerts", "trending_alerts"),
+                                       "waivers": ("waivers", "matchup_waivers")}
 
 
 def _resolve(include_name: str) -> Callable[..., Any] | None:
@@ -111,6 +118,24 @@ def _priority(r: Recommendation) -> int:
     return PRIORITY.index(g) if g in PRIORITY else len(PRIORITY)
 
 
+def order_key(r: Recommendation) -> tuple[int, float, int]:
+    """Sort key for a merged list: moves to make first, then score, then kind priority."""
+    return (0 if KIND_GROUP.get(r.kind) in MOVE_GROUPS else 1, -r.score, _priority(r))
+
+
+def _dedupe_pickups(recs: list[Recommendation]) -> list[Recommendation]:
+    """One waiver rec per added player (the first: the rest-of-season run comes first)."""
+    seen: set[str] = set()
+    out = []
+    for r in recs:
+        if r.kind == "waiver" and r.add:
+            if r.add[0].cid in seen:
+                continue
+            seen.add(r.add[0].cid)
+        out.append(r)
+    return out
+
+
 def advise(ctx: LeagueContext, values: Mapping[str, Any],
            dynasty_values: Mapping[str, Any] | None = None, history: Any = None,
            include: Iterable[str] = ("lineup", "waivers", "trades", "flags", "injuries", "alerts"),
@@ -125,8 +150,8 @@ def advise(ctx: LeagueContext, values: Mapping[str, Any],
             raw.extend(_call(fn, ctx, values, dynasty_values=dynasty_values, history=history))
         except Exception as e:
             log.warning("advise: %s failed: %s", name, e)
-    merged = normalize_scores(raw)
-    merged.sort(key=lambda r: (-r.score, _priority(r)))
+    merged = normalize_scores(_dedupe_pickups(raw))
+    merged.sort(key=order_key)
     return merged[:limit] if limit else merged
 
 

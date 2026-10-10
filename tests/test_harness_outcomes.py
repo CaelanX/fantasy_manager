@@ -268,6 +268,7 @@ def test_scoring_from_archive_header_then_meta(tmp_path):
 def test_predicted_pts_units():
     assert predicted_pts(7.0, "week_pts", 28) == 28.0
     assert predicted_pts(0.5, "season_fpg", 7, 3 / 7) == pytest.approx(1.5)
+    assert predicted_pts(2.5, "day_pts", 1) == 2.5
     assert predicted_pts(None, "week_pts", 7) is None and predicted_pts(1.0, None, 7) is None
 
 

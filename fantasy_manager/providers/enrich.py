@@ -408,6 +408,8 @@ def enrich_context(ctx: LeagueContext, settings: Any, cache: Any, deep: bool = F
         ctx.games_per_day = games_per_day(ctx.schedule)
         ctx.opponents = {t: {g.date: (g.away if g.home == t else f"@{g.home}") for g in gs}
                          for t, gs in games.items()}
+        ctx.game_starts = {t: {g.date: g.start_time_utc for g in gs if g.start_time_utc is not None}
+                           for t, gs in games.items()}
     starts = [d for ds in ctx.schedule.values() for d in ds]
     ctx.season_start = (wk.regular_season_start if wk and wk.regular_season_start else None) or \
         (min(starts) if starts else None)

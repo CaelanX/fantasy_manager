@@ -1,6 +1,6 @@
 """Season availability proportional to the games missed (valuation.adjust.season_availability):
 return-date / game-count / duration parsing of status notes, status defaults, the flat fallback,
-and the valuate hook (reason RETURN_ESTIMATE; the week horizon stays at 0 while out)."""
+and the valuate hook (reason RETURN_ESTIMATE; the week horizon counts only games on or after a return date inside the week window)."""
 from datetime import date, timedelta
 
 import pytest
@@ -116,3 +116,20 @@ def test_valuate_scales_the_season_value_by_games_missed():
     assert (r.value, r.baseline) == (7.0, 82.0) and "2026-10-17" in r.text
     assert v["sk"].fpg_season == pytest.approx(v["sk"].fpg * (1 - 14 / 82))
     assert next(x for x in v["sk"].reasons if x.code == "STATUS").value == pytest.approx(1 - 14 / 82)
+
+
+def test_week_value_counts_games_after_a_return_inside_the_window():
+    back = mk("back", "out", "Lower body: out (est. return 2026-10-09)", pos=("LW",))
+    well = mk("well", pos=("LW",))
+    ctx = LeagueContext(provider="test", league_id="1", season=2027, name="T",
+                        scoring=ScoringConfig(kind="points", weights={"G": 3.0, "A": 2.0}),
+                        roster_shape={"LW": 1, "BN": 1},
+                        teams=[FantasyTeam(team_id="1", name="me", owner_is_me=True,
+                                           slots=[RosterSlot(slot="LW", player=back, starting=True)])],
+                        free_agents=[well], matchup_period=1, as_of=AS_OF, season_start=START,
+                        schedule={"WPG": DATES})
+    v = valuate_league(ctx, from_config(ctx.scoring))
+    # opening week Oct 6-12: WPG plays Oct 6, 7, 9, 11; back from Oct 9 -> 2 of 4 games
+    assert v["back"].return_date == date(2026, 10, 9) and v["back"].avail_week == pytest.approx(0.5)
+    assert v["back"].proj_week == pytest.approx(v["well"].proj_week * 0.5)
+    assert v["well"].return_date is None and v["well"].avail_week == 1.0

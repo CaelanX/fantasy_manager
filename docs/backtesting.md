@@ -34,7 +34,7 @@ What the app takes from the file:
 | Constant | Source | Used for |
 |---|---|---|
 | `blend.K_BASELINE` {F, D, G} | `preseason.k_multi` (8 / 14 / 120) | 3-season history toward the positional mean |
-| `blend.K_INSEASON` {skater, goalie} | `inseason.k_skater` / `k_goalie` (25 / 40) | season-to-date toward the baseline, and waiver confidence GP/(GP+k) |
+| `blend.K_INSEASON` {skater, goalie} | `inseason.k_skater` / `k_goalie` (25 / 40) | season-to-date toward the baseline (waiver confidence uses the games behind the projection instead: `recommend.base.confidence`) |
 | `blend.RECENCY_WEIGHTS` | `inseason.recency_weights` (0.85 / 0.15 / 0 / 0) | recent-form blend (still applied, so `--deep` matters a little) |
 | age factor | `fm_fitted.age_yoy` (F, D only) | the history baseline, from last season's age to this one |
 | `dynasty.PRODUCTION_CURVES` F, D | `dynasty_age_curves` | dynasty trajectory (goalies stay hand-set) |

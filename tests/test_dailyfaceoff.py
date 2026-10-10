@@ -451,8 +451,8 @@ def test_espn_lineup_uses_confirmed_start():
 
 # ------------------------------------------------------------------------------ advise
 
-def test_advise_includes_alerts_after_injury():
-    assert PRIORITY.index("alert") == PRIORITY.index("injury") + 1
+def test_advise_includes_alerts_after_moves():
+    assert PRIORITY.index("alert") == PRIORITY.index("waiver") + 1
     mine = [with_change("Wyatt Johnston", ["C"], "PP2 -> PP1", "f1", "pp1"),
             with_change("Jamie Benn", ["LW"], "PP1 -> PP2", "f3", "pp2")]
     ctx = league([("C", mine[0]), ("BN", mine[1])], [])
@@ -477,3 +477,14 @@ def test_advise_alert_engine_taking_only_ctx(monkeypatch):
     monkeypatch.setattr(alerts_mod, "recommend_line_alerts", only_ctx)
     recs = adv.advise(league([], []), {}, include=("alerts",))
     assert [r.title for r in recs] == ["role"] and recs[0].strength == 3.0
+
+
+def test_advise_lists_moves_before_alerts():
+    from fantasy_manager.models import Recommendation
+    from fantasy_manager.recommend.advise import order_key
+
+    alerts = [Recommendation(kind="alert", score=10.0 - i, title=f"alert {i}") for i in range(5)]
+    move = Recommendation(kind="lineup", score=2.0, title="Bench X: out but in a starting slot (D)")
+    merged = sorted([*alerts, move], key=order_key)
+    assert merged[0] is move                       # a weak move still beats the strongest alert
+    assert [r.title for r in merged[1:]] == [f"alert {i}" for i in range(5)]

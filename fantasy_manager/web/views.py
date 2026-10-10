@@ -300,6 +300,9 @@ def gain_info(r: Recommendation, res: Any = None) -> dict[str, Any] | None:
         units = getattr(r, "gain_units", None)
         unit = GAIN_UNITS.get(units, units or "")
         horizon = horizon_label(getattr(r, "horizon_days", None))
+        if (mg := _reason(r, "MATCHUP_GAIN")) is not None and _num(mg.value) is not None:
+            # this-matchup pickup: show the matchup points, not the 7-day rate the harness grades
+            value, unit, horizon = _num(mg.value), "pts", "rest of this matchup"
         if horizon is None:  # the model's contract: no horizon_days = rest of season
             horizon = {"season_fpg": "rest of season", "lineup_fpg": "rest of season",
                        "dynasty": "multi-season"}.get(units)
@@ -442,12 +445,18 @@ def counterparty(res: Any, r: Recommendation) -> dict[str, Any] | None:
 
 def team_lineup(res: Any, team: FantasyTeam, horizon: str = "week") -> dict[str, Any]:
     """Optimal vs current lineup for ``team`` (week horizon: projected points when a schedule
-    is known, else FPG)."""
+    is known, else FPG; daily-lineup leagues: today's best lineup, totals over the rest of the
+    matchup set day by day)."""
     def build() -> dict[str, Any]:
-        from ..recommend.lineup import current_total, optimal_lineup, starting_slots
+        from ..recommend.lineup import current_total, daily_plan, optimal_lineup, starting_slots
 
         shape = res.ctx.roster_shape
         slots = starting_slots(shape)
+        plan = daily_plan(res.ctx, team, res.values) if horizon == "week" else None
+        if plan is not None:
+            return {"slots": slots, "opt_slot": {cid: slots[i] for i, cid in plan.days[0].assign.items()},
+                    "optimal": float(plan.optimal), "current": float(plan.current), "end": plan.days[-1].day,
+                    "playing_today": set(plan.days[0].playing), "locked": set(plan.days[0].locked)}
         assign, opt_total = optimal_lineup(team, res.values, shape, horizon)
         cur_total = current_total(team, res.values, horizon)
         return {"slots": slots, "opt_slot": {cid: slots[i] for i, cid in assign.items()},
@@ -457,7 +466,9 @@ def team_lineup(res: Any, team: FantasyTeam, horizon: str = "week") -> dict[str,
 
 def week_panel(res: Any, team: FantasyTeam | None = None) -> dict[str, Any] | None:
     """"This week": current vs optimal lineup with projected week points, games (with
-    opponents and off-nights) per player, and per-player start/sit changes."""
+    opponents and off-nights) per player, and per-player start/sit changes. Daily-lineup leagues:
+    the totals cover the rest of the matchup set day by day, and Start / Sit is for today only, so
+    a player with no game today is never told to sit (leaving him in his slot costs nothing)."""
     team = team or my_team(res.ctx)
     if team is None:
         return None
@@ -469,16 +480,23 @@ def week_panel(res: Any, team: FantasyTeam | None = None) -> dict[str, Any] | No
         row = player_row(res, s.player, slot=s.slot)
         now = bool(s.starting and s.slot != "IR")
         best = s.player.cid in lu["opt_slot"]
+        today = lu.get("playing_today")
+        plays = today is None or s.player.cid in today          # weekly lineups: every player counts
+        change = "start" if best and not now else ("sit" if now and not best and plays else None)
+        if s.player.cid in lu.get("locked", ()):                # game started: can't move him today
+            change = None
         row.update(now_start=now, opt_start=best, opt_slot=lu["opt_slot"].get(s.player.cid),
-                   change="start" if best and not now else ("sit" if now and not best else None),
-                   change_gain=gains.get(s.player.cid))
+                   no_game=not plays and s.slot != "IR", locked=s.player.cid in lu.get("locked", ()),
+                   change=change, change_gain=gains.get(s.player.cid))
         rows.append(row)
     has_proj = any(r["proj_week"] is not None for r in rows)
     starts = [{"p": r["p"], "starting": bool(r["confirmed_start"]), "source": r["p"].start_source}
               for r in rows if r["goalie"] and r["confirmed_start"] is not None]
     return {"team": team, "rows": rows, "current": lu["current"], "optimal": lu["optimal"], "starts": starts,
-            "delta": lu["optimal"] - lu["current"], "units": "pts/wk" if has_proj else "FPG",
-            "start": start, "end": start + timedelta(days=days - 1), "preseason": preseason,
+            "delta": lu["optimal"] - lu["current"], "daily": "end" in lu,
+            "units": "pts" if "end" in lu else ("pts/wk" if has_proj else "FPG"),
+            "change_units": "pts today" if "end" in lu else ("pts/wk" if has_proj else "FPG"),
+            "start": start, "end": lu.get("end") or start + timedelta(days=days - 1), "preseason": preseason,
             "games": sum(r["games_n"] or 0 for r in rows if r["now_start"]),
             "offnights": sum(r["offnight"] or 0 for r in rows if r["now_start"]),
             "changes": sum(1 for r in rows if r["change"])}
