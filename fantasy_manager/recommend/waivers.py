@@ -14,6 +14,12 @@ keeps the roster legal (``base.roster_legal_after``).
    (never a player with no stats at all, whose value is unknown), else lowest FPG for the
    horizon.
 
+Empty starting slot (fewer eligible players than starting slots, IR-slot players counted): a free
+agent who would fill it may replace a bench player of any position (cutting him costs the lineup
+nothing); the gain is the optimal lineup's change, and in dynasty leagues the add may cost up to
+the mode's STREAM_DYNASTY_TOLERANCE of the drop's dynasty value (a stated DYNASTY_COST), scored
+by the lineup gain.
+
 With a drop, the gain is FA FPG minus the dropped player's FPG. A no-drop add (open spot or IR
 move) is scored by its marginal lineup value: the optimal starting lineup's FPG total with him
 minus without him (``lineup.starting_slots``), i.e. his full FPG when he fills an empty starting
@@ -40,6 +46,13 @@ for the league's dynasty mode (contend 25%, balanced 15%, rebuild 0%), and is sc
 matchup gain. A DYNASTY_COST reason states the long-term change either way. Protected players are
 still never the drop.
 
+The drop of a this-matchup pickup is permanent, so outside dynasty leagues it is the droppable player
+with the least rest-of-season value (``fpg_season``, which already discounts an injured player's
+missed games), not the least this week: an IR player back next month is not cut for two days of
+streaming. The add's rest-of-season value may fall short of the drop's by the same
+``STREAM_DYNASTY_TOLERANCE`` share, stated in a SEASON_COST reason. The gain shown and graded is the
+matchup points themselves (units ``matchup_pts`` over the plan's days), not a 7-day rate.
+
 Transaction budget (``ctx.moves_limit_per_period`` etc., see ``base.moves_left``): the gain
 threshold rises as moves run out (``base.move_scarcity_threshold``: 0.3 FPG with >= 4 moves left or
 no limit, 0.6 with 2-3, 1.0 with the last one unless the add replaces an out / IR player - a suspension
@@ -58,6 +71,10 @@ multiplied by ``1 + min(0.5, change / 20)`` (act before the rest of the league d
 (change <= -RISER_MIN) only get a note. Eligibility and the gain thresholds are unchanged. ``recommend_trending_alerts`` separately flags free agents
 rising >= ALERT_MIN_CHANGE points this week who also have positive VORP or a rising TOI / PP
 share (kind "alert").
+
+Consensus check: every pickup carries MARKET_CHECK reasons for the add and the drop (market vs
+model percentile, ``market.market_check_reason``; display only). Free agents without an NHL team
+(unsigned) are never proposed: their value assumes games they will not play.
 """
 from __future__ import annotations
 
@@ -70,6 +87,7 @@ from ..valuation.adjust import Horizon
 from ..valuation.schedule import context_window
 from ..valuation.valuate import PlayerValue
 from .lineup import _dp, daily_plan, starting_slots
+from .market import MarketPool, market_check_reasons
 from .strength import apply_ranks, apply_strength
 from .base import (CHURN_EXEMPT_STATUSES, CHURN_OVERRIDE_GAIN, INJURY_REPLACEMENT_STATUSES, PROTECT_OVERRIDE,
                    churn_blocked, churn_text, confidence, droppable_players, evidence_games, dynasty_map, free_ir_slots,
@@ -215,19 +233,40 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
             if why:
                 protected[p.cid] = why
 
+    # empty starting slots: lineup pool incl. IR-slot players (their value counts the games they miss)
+    in_ir = [s.player for s in team.slots if s.player is not None and s.slot == "IR" and s.player.cid in values]
+    fill_pool = [p for p in active if p.cid in values] + in_ir
+    fill_before, fill_starters = _lineup_fpg(fill_pool, slots, values, horizon)
+    slots_empty = len(fill_starters) < len(slots)
+
     def drop_key(p: Player) -> tuple[float, float]:
         fpg = values[p.cid].fpg_for(horizon)
-        return (dyn[p.cid], fpg) if dyn is not None and p.cid in dyn else (fpg, fpg)
+        if dyn is not None and p.cid in dyn:
+            return dyn[p.cid], fpg
+        if stream:            # a this-matchup drop is still permanent: rest-of-season value decides
+            return values[p.cid].fpg_season, fpg
+        return fpg, fpg
 
+    market = MarketPool(ctx, values)
     recs: list[Recommendation] = []
     for fa in ctx.free_agents:
         fv = values.get(fa.cid)
+        if not normalize_team(fa.team):   # unsigned (no NHL team): his value assumes games he won't play
+            continue
         # this-matchup pickups are judged by the day-by-day gain alone: a below-replacement player
         # who plays my empty nights can still be the best add
         if fv is None or (fv.vorp_for(horizon) <= 0 and not stream):
             continue
         fv, waiver = waiver_adjust(ctx, fa, fv)
         candidates = [p for p in mine if shares_slot(fa, p)]
+        # a FA who would fill an empty starting slot: drop a bench player of any position instead
+        # (cutting him costs the lineup nothing; a same-slot starter would cost his value)
+        empty_fill = False
+        if slots_empty:
+            with_fa, _ = _lineup_fpg(fill_pool + [fa], slots, {**values, fa.cid: fv}, horizon)
+            if with_fa - fill_before >= fv.fpg_for(horizon) - 1e-9 > 0:
+                empty_fill = True
+                candidates = [p for p in mine if p.cid not in fill_starters]
         drop = None
         extra: list[Reason] = []
         # per-position roster maximums: a no-drop add that would break one needs a same-position drop
@@ -311,7 +350,12 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                 extra.append(Reason(code="CHURN_GUARD",
                                     text=f"{drop.name} was {churn_text(ctx, drop)}, dropping him anyway: {why_ok}",
                                     value=g_d, baseline=CHURN_OVERRIDE_GAIN))
-        if drop is not None:
+        if drop is not None and empty_fill:
+            cmp = drop
+            after_fill, _ = _lineup_fpg([p for p in fill_pool if p.cid != drop.cid] + [fa], slots,
+                                        {**values, fa.cid: fv}, horizon)
+            gain = after_fill - fill_before
+        elif drop is not None:
             cmp = drop
             gain = fv.fpg_for(horizon) - values[cmp.cid].fpg_for(horizon)
         else:
@@ -331,7 +375,8 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
             a_val = dyn.get(fa.cid, 0.0)
             if drop is not None:
                 d_val = dyn.get(drop.cid, 0.0)
-                if stream:   # this matchup only: a small, stated long-term cost is allowed
+                # this matchup only, or a season-long empty starting slot: a small, stated long-term cost is allowed
+                if stream or empty_fill:
                     tol = STREAM_DYNASTY_TOLERANCE.get(getattr(ctx, "dynasty_mode", None) or "contend", 0.0)
                     if a_val < (1.0 - tol) * d_val:
                         continue
@@ -340,11 +385,20 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                 dyn_gain = a_val - d_val
             else:
                 dyn_gain = a_val
+        elif stream and drop is not None:
+            tol = STREAM_DYNASTY_TOLERANCE.get(getattr(ctx, "dynasty_mode", None) or "contend", 0.0)
+            if fv.fpg_season < (1.0 - tol) * values[drop.cid].fpg_season:
+                continue
         conf = confidence(fa)
         gp = fa.gp("season")
         fill = f"fills empty {'/'.join(fa.positions)} slot"
+        bench_drop = (f"; drop bench {'/'.join(x for x in drop.positions if x != 'F') or 'F'} {drop.name}"
+                      if empty_fill and drop is not None else "")
         if matchup_pts is not None:
-            delta = f"+{gain:.2f} FPG ({horizon}, best lineup each day)" + (f" over dropping {drop.name}" if drop else "")
+            delta = f"+{gain:.2f} FPG ({horizon}, best lineup each day)" + (
+                f" ({fill}{bench_drop})" if bench_drop else f" over dropping {drop.name}" if drop else "")
+        elif bench_drop:
+            delta = f"{fill} (+{gain:.2f} FPG, {horizon}){bench_drop}"
         elif cmp is None:
             delta = f"{fill} (+{gain:.2f} FPG, {horizon})"
         else:
@@ -373,7 +427,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         if cap_why is not None and drop is not None:
             reasons.append(Reason(code="POSITION_CAP",
                                   text=f"League roster maximum ({cap_why}): drop {drop.name} "
-                                       f"(same position) to make room"))
+                                       f"({'bench' if empty_fill else 'same position'}) to make room"))
         if spot_open:
             reasons.append(Reason(code="OPEN_SPOT",
                                   text=f"{open_spots} open roster spot{'s' if open_spots != 1 else ''}: "
@@ -386,13 +440,21 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                                   text=f"Move {spot_ir.name} ({spot_ir.status.upper()}) to IR "
                                        f"({free_ir} IR slot{'s' if free_ir != 1 else ''} free): no drop needed",
                                   value=float(free_ir)))
-        if dyn is not None and drop is not None and stream:
+        if dyn is not None and drop is not None and (stream or empty_fill):
             d_val, a_val = dyn.get(drop.cid, 0.0), dyn.get(fa.cid, 0.0)
             reasons.append(Reason(
                 code="DYNASTY_COST",
                 text=(f"Long term: {fa.name} {a_val:.1f} vs {drop.name} {d_val:.1f} dynasty value ("
                       + (f"an upgrade, {a_val - d_val:+.1f})" if a_val >= d_val
                          else f"costs {d_val - a_val:.1f}, {(d_val - a_val) / d_val:.0%} of {drop.name}'s value)")),
+                value=a_val - d_val, baseline=d_val))
+        elif stream and drop is not None:
+            d_val, a_val = values[drop.cid].fpg_season, fv.fpg_season
+            reasons.append(Reason(
+                code="SEASON_COST",
+                text=(f"Rest of season: {fa.name} {a_val:.2f} vs {drop.name} {d_val:.2f} FPG ("
+                      + (f"an upgrade, {a_val - d_val:+.2f})" if a_val >= d_val
+                         else f"costs {d_val - a_val:.2f}, {(d_val - a_val) / d_val:.0%} of {drop.name}'s)")),
                 value=a_val - d_val, baseline=d_val))
         elif dyn is not None and drop is not None:
             reasons.append(Reason(code="DYNASTY_DROP",
@@ -403,7 +465,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         reasons.extend(extra)
         if budget is not None:
             reasons.append(budget.model_copy())
-        if dyn_gain is not None and not stream:
+        if dyn_gain is not None and not stream and not empty_fill:
             if drop is None:
                 gain_text = f"Dynasty value added {dyn_gain:+.2f} (no drop, so the whole value counts; score basis)"
             else:
@@ -419,6 +481,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         elif fa.pct_owned is not None:
             reasons.append(Reason(code="OWNED", text=f"{fa.name} rostered in {fa.pct_owned:.1f}% of leagues",
                                   value=fa.pct_owned))
+        reasons += market_check_reasons(market, [(fa, "add")] + ([(drop, "drop")] if drop is not None else []))
         if drop is not None:
             title = f"Add {fa.name}, drop {drop.name}"
         elif spot_open:
@@ -426,10 +489,10 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         else:
             title = f"Add {fa.name}, move {spot_ir.name} to IR"
         # this-matchup pickups rank by the matchup points shown (2-3 games: the confidence discount is noise)
-        score = gain if stream else (dyn_gain if dyn_gain is not None else gain) * conf * market_multiplier(fa.pct_owned_change)
+        score = gain if stream else (dyn_gain if dyn_gain is not None and not empty_fill else gain) * conf * market_multiplier(fa.pct_owned_change)
         pred, units, days = predicted_gain(fv, cv, gain, horizon)
-        if matchup_pts is not None:    # graded as week points: the matchup gain at a 7-day rate
-            pred, units, days = matchup_pts * 7 / len(base_plan.days), "week_pts", 7
+        if matchup_pts is not None:    # the matchup points themselves, over the days left in it
+            pred, units, days = matchup_pts, "matchup_pts", len(base_plan.days)
         recs.append(Recommendation(kind="waiver", score=score, title=title,
                                    add=[fa], drop=[drop] if drop is not None else [], reasons=reasons,
                                    predicted_gain=pred, gain_units=units, horizon_days=days,

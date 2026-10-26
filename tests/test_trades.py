@@ -221,6 +221,30 @@ def test_no_ir_slot_means_drop():
     assert ev.my_ir == [] and len(ev.my_drops) == 1
 
 
+def _with_ir_d(status):
+    """build() with a 2.6 FPG defenseman of `status` in my IR slot."""
+    ctx, values = build()
+    p = pl("m_dir", ["D"], status=status)
+    values["m_dir"] = pv(p, 2.6)
+    ctx.my_team.slots.append(RosterSlot(slot="IR", player=p, starting=False))
+    return ctx, values
+
+
+def test_dtd_player_in_ir_slot_counts_in_lineup():
+    ctx, values = _with_ir_d("dtd")
+    ev = evaluate_trade(ctx, values, give=["m_c2"], get=["a_d1"], lineup_fn=False)
+    # D before: m_dir 2.6 + m_d1 1.0; after: a_d1 2.9 + m_dir 2.6 (not an empty-slot 2.9 - 0.4)
+    assert ev.delta_me == pytest.approx(1.9)
+
+
+def test_trading_away_ir_slot_player_is_not_free():
+    ctx, values = _with_ir_d("ir")
+    ev = evaluate_trade(ctx, values, give=["m_dir"], get=["a_d3"], lineup_fn=False)
+    # his season value (games missed already counted) leaves the lineup: D 2.6 + 1.0 -> 1.0 + 1.0
+    assert ev.delta_me == pytest.approx(-1.6)
+    assert [p.cid for p in ev.my_drops] == ["m_lw2"]     # the IR slot does not count toward the roster size
+
+
 def test_dynasty_drop_uses_dynasty_value():
     ctx, values = build()
     dyn = {cid: 5.0 for cid in values}
@@ -1047,10 +1071,11 @@ def test_fantrax_nylander_misa_for_vejmelka_is_a_small_gain(lineup_fn):
     ctx, values, dyn = fx_ctx()
     ev = evaluate_trade(ctx, values, give=["nylander", "misa"], get=["vejmelka"], dynasty_values=dyn,
                         lineup_fn=lineup_fn)
-    # G: Vejmelka 4.64 for Blackwood 3.40 (+1.24); F: Nylander 5.15 out, Tippett 4.37 keeps his F
-    # slot because Kantserov (4.75) is a pickup I can make without the trade too (-0.78)
+    # G: Vejmelka 4.64 for Blackwood 3.40 (+1.24); F: Nylander 5.15 out, Jarvis 4.50 (IR slot,
+    # back later: his season value counts) takes the F slot, not Kantserov (4.75), a pickup I can
+    # make without the trade too (-0.65)
     assert 0.1 <= ev.delta_me <= 0.7
-    assert ev.delta_me == pytest.approx(1.24 - 0.78)
+    assert ev.delta_me == pytest.approx(1.24 - 0.65)
     assert ev.my_fill is not None and ev.my_fill.cid == "kantserov"
     # Dee: Vejmelka 4.64 -> Hofer 3.77 in goal (-0.87), Nylander 5.15 over Keller 4.81 (+0.34);
     # Dee cuts a bench skater, never Hofer (the goalie it must now start)
@@ -1069,7 +1094,7 @@ def test_an_fa_who_would_start_anyway_is_not_a_trade_gain(lineup_fn):
     ev = evaluate_trade(ctx, values, give=["nylander", "misa"], get=["vejmelka"], dynasty_values=dyn,
                         lineup_fn=lineup_fn)
     assert ev.my_fill.cid == "imama"
-    assert 0.1 <= ev.delta_me <= 0.7 and ev.delta_me == pytest.approx(1.24 - 0.78)
+    assert 0.1 <= ev.delta_me <= 0.7 and ev.delta_me == pytest.approx(1.24 - 0.65)
 
 
 def test_fa_fill_takes_an_open_starting_slot_and_counts_when_he_starts():
@@ -1079,8 +1104,8 @@ def test_fa_fill_takes_an_open_starting_slot_and_counts_when_he_starts():
     ev = evaluate_trade(ctx, values, give=["blackwood", "saros"], get=["pastrnak"], dynasty_values=dyn,
                         lineup_fn=False)
     assert ev.my_fill.cid == "fa_g"
-    # G: 3.40 + 4.41 -> 2.50 + empty; F: Pastrnak 6.06 over Tippett 4.37
-    assert ev.delta_me == pytest.approx(2.50 - 3.40 - 4.41 + 6.06 - 4.37)
+    # G: 3.40 + 4.41 -> 2.50 + empty; F: Pastrnak 6.06 over Jarvis 4.50 (IR slot, the weakest F starter)
+    assert ev.delta_me == pytest.approx(2.50 - 3.40 - 4.41 + 6.06 - 4.50)
     # a 2-for-1 with no starting need picks up depth at the outgoing players' position
     ctx, values, dyn = fx_ctx(fas=(("fa_d", ["D"], 3.0), ("fa_f", ["F"], 1.0), ("fa_g", ["G"], 1.0)))
     ev = evaluate_trade(ctx, values, give=["byfield", "stenberg"], get=["eklund"], dynasty_values=dyn,
@@ -1148,3 +1173,33 @@ def test_delta_me_never_exceeds_what_the_trade_brings(seed):
                 assert ev.delta_me <= s_in - carried + best_fa + 1e-9
                 if bench == 0:
                     assert ev.delta_me <= s_in - s_out + best_fa + 1e-9
+
+
+def _hole_ctx():
+    """My D slot is empty (one D for two D slots) and my roster is full; a FA D can fill it."""
+    shape = {"F": 2, "D": 2, "BN": 1}
+    me = [("F", pl("f1", ["F"])), ("F", pl("f2", ["F"])), ("D", pl("d1", ["D"])),
+          ("BN", pl("f3", ["F"])), ("BN", pl("f4", ["F"]))]
+    them = [("F", pl("o_f1", ["F"])), ("F", pl("o_f2", ["F"])), ("D", pl("o_d1", ["D"])),
+            ("D", pl("o_d2", ["D"])), ("BN", pl("o_d3", ["D"]))]
+    fas = [pl("fa_d", ["D"])]
+    fpg = {"f1": 5.0, "f2": 4.0, "d1": 4.0, "f3": 3.0, "f4": 2.0, "o_f1": 4.5, "o_f2": 3.0, "o_d1": 4.5,
+           "o_d2": 4.0, "o_d3": 3.5, "fa_d": 3.5}
+    values = {p.cid: pv(p, fpg[p.cid]) for _, p in me + them} | {"fa_d": pv(fas[0], 3.5)}
+    ctx = LeagueContext(provider="test", league_id="1", season=2027, name="H",
+                        scoring=ScoringConfig(kind="points", weights={"G": 1.0}), roster_shape=shape,
+                        teams=[team("me", "Me", True, me), team("o", "O", False, them)],
+                        free_agents=fas, matchup_period=1, as_of=date(2026, 10, 1))
+    return ctx, values
+
+
+def test_trade_into_an_empty_slot_is_measured_against_the_waiver_fill():
+    ctx, values = _hole_ctx()
+    # bench F for their D 4.0: the D slot could be filled from waivers (fa_d 3.5, cutting bench f4),
+    # so the trade adds 4.0 - 3.5, not the whole 4.0
+    ev = evaluate_trade(ctx, values, give=["f3"], get=["o_d2"], team_id="o", lineup_fn=False)
+    assert ev.delta_me == pytest.approx(0.5)
+    assert ev.free_fill.cid == "fa_d"
+    # a trade that leaves the hole open is not charged for it: F 4.0 for F 4.5 is +0.5 either way
+    ev = evaluate_trade(ctx, values, give=["f2"], get=["o_f1"], team_id="o", lineup_fn=False)
+    assert ev.delta_me == pytest.approx(0.5)

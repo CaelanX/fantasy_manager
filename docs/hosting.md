@@ -10,6 +10,8 @@ You don't need to be a Linux expert. You'll copy and paste about a dozen command
 
 If you'd rather not expose anything to the internet, read [Tailscale instead of a public domain](#tailscale-instead-of-a-public-domain) first. It skips the domain, Caddy and the open ports.
 
+To host it for free, see [Free option: Google Cloud e2-micro + Tailscale](#free-option-google-cloud-e2-micro--tailscale).
+
 ## What it costs
 
 | Item | Typical price | Notes |
@@ -20,6 +22,7 @@ If you'd rather not expose anything to the internet, read [Tailscale instead of 
 | Provider backups (optional) | about 20% of the VPS price | Hetzner, DigitalOcean and Vultr all offer daily or weekly snapshots |
 | HTTPS certificate | free | Caddy gets and renews Let's Encrypt certificates itself |
 | Tailscale (alternative) | free for personal use | No domain needed |
+| Google Cloud e2-micro (alternative) | free tier | 1 GB RAM, US regions only; see [Free option](#free-option-google-cloud-e2-micro--tailscale) |
 
 Expect **about US$6-15 a month** in total. Prices change, so check the provider's page.
 
@@ -125,7 +128,7 @@ For a public repository, use `https://github.com/<you>/fantasy_manager.git` inst
 In **PowerShell**, in your project folder, pack the code without the virtualenv, data or secrets, then copy it up:
 
 ```powershell
-cd C:\code\fantasy_manager
+cd C:\code\personal\fantasy_manager
 tar --exclude=.venv --exclude=data --exclude=.env --exclude=__pycache__ -czf $env:TEMP\fm.tgz .
 scp $env:TEMP\fm.tgz root@203.0.113.25:/root/fm.tgz
 ```
@@ -174,7 +177,7 @@ The server needs the same settings as your PC: league ids, ESPN cookies, the Fan
 **Copy your existing file** (in **PowerShell**):
 
 ```powershell
-scp C:\code\fantasy_manager\.env root@203.0.113.25:/opt/fantasy_manager/.env
+scp C:\code\personal\fantasy_manager\.env root@203.0.113.25:/opt/fantasy_manager/.env
 ```
 
 **Or type it in** on the server:
@@ -367,6 +370,31 @@ For an alert when the site is down, point a free uptime checker (UptimeRobot, He
 7. Close the public ports if you opened them: `sudo ufw delete allow 80/tcp; sudo ufw delete allow 443`. You can even restrict SSH to Tailscale with `sudo ufw allow in on tailscale0 to any port 22` and `sudo ufw delete allow OpenSSH`, but only after confirming `ssh root@<server-name>` works over Tailscale.
 
 Don't use `tailscale funnel`: it publishes the site to the whole internet.
+
+## Free option: Google Cloud e2-micro + Tailscale
+
+Google Cloud's free tier includes one `e2-micro` VM (2 shared vCPUs, 1 GB RAM) and 30 GB of standard disk, at no charge, **only in `us-west1` (Oregon), `us-central1` (Iowa) and `us-east1` (South Carolina)**. A daily job and a dashboard for one person fit in it. With Tailscale there's no domain to buy either. Free-tier terms change, so check Google's free-tier page.
+
+1. **Create the VM.** Sign up at cloud.google.com (a card is required for verification) and create a project. Compute Engine > **Create instance**:
+   - **Region:** `us-west1` (closest to western Canada), `us-central1` or `us-east1`. Any other region is billed.
+   - **Machine type:** `e2-micro`.
+   - **Boot disk:** Ubuntu **24.04 LTS**, **Standard persistent disk**, 30 GB. The default type, *balanced*, is **not** free.
+   - Leave the HTTP/HTTPS firewall boxes unchecked; Tailscale doesn't need them.
+   - Before clicking **Create**, check the monthly estimate on the right. It should be $0 or close to it. If it isn't, the region or disk type is outside the free tier.
+2. **Connect.** Click **SSH** next to the VM in the console. It opens a terminal in your browser; no keys needed. Update the server and add swap, since 1 GB is tight for a full league load (see [Low memory](#low-memory-1-gb-servers)).
+3. **Install.** The repository is public, so clone it over HTTPS. Then run the installer without `DOMAIN`:
+
+   ```bash
+   sudo apt-get install -y git
+   sudo git clone https://github.com/CaelanX/fantasy_manager.git /opt/fantasy_manager
+   sudo TIMEZONE=America/Vancouver bash /opt/fantasy_manager/deploy/install.sh    # or America/Edmonton
+   ```
+
+4. **Settings.** Create `.env` as in [step 6](#6-create-env-on-the-server). Type it in with `nano`, or use the SSH window's **Upload file** button and `sudo mv` it into place. Keep `FANTRAX_COOKIE` set (see the [captcha caveat](#refreshing-the-fantrax-cookie-remotely)). To keep the model history you built locally, upload `data/harness.db` the same way, then `sudo mv ~/harness.db /opt/fantasy_manager/data/ && sudo chown fantasy:fantasy /opt/fantasy_manager/data/harness.db`.
+5. **Dashboard.** Follow steps 3-6 of [Tailscale instead of a public domain](#tailscale-instead-of-a-public-domain).
+6. **Check.** Run the daily job once ([step 8](#8-try-the-daily-job)).
+
+Upload and download files through the SSH window's menu instead of `scp`, or set up `gcloud compute ssh` / `gcloud compute scp` on your PC.
 
 ## Docker alternative
 

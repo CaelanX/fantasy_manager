@@ -124,10 +124,17 @@ def order_key(r: Recommendation) -> tuple[int, float, int]:
 
 
 def _dedupe_pickups(recs: list[Recommendation]) -> list[Recommendation]:
-    """One waiver rec per added player (the first: the rest-of-season run comes first)."""
+    """One waiver rec per added player (the first: the rest-of-season run comes first). The
+    injuries engine's "Hold X: swap IR slots" verdict is dropped when the lineup engine already
+    proposes that swap (IR_SWAP)."""
     seen: set[str] = set()
+    swapped = {p.name for r in recs if r.kind == "lineup" and any(x.code == "IR_SWAP" for x in r.reasons)
+               for p in r.subjects}
     out = []
     for r in recs:
+        if r.kind == "injury" and any(r.title.startswith(f"Hold {n} ") for n in swapped) \
+                and any(x.code == "HOLD_VERDICT" and x.text.startswith("Swapping IR slots") for x in r.reasons):
+            continue
         if r.kind == "waiver" and r.add:
             if r.add[0].cid in seen:
                 continue

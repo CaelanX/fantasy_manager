@@ -89,7 +89,6 @@ transaction counter (``ctx.moves_used_this_period``).
 """
 from __future__ import annotations
 
-import bisect
 import itertools
 import json
 import math
@@ -99,6 +98,9 @@ from functools import lru_cache
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from .strength import apply_ranks, apply_strength
+from .market import (CLEAR_FAVOR_PTS, FPTS_STAT, GROUPED_COMPONENTS, MARKET_MIN_REF,  # noqa: F401 (re-exported)
+                     MARKET_SOURCE_LABEL, MARKET_WEIGHTS, MarketPool, _group, _market_raw, market_check_reasons,
+                     market_value, percentile, trade_market_check)
 from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation, RosterSlot
 from ..valuation.replacement import eligible_slots
 from .base import (DEFAULT_GAMES_PER_WEEK, IR_SLOT_NAMES, POSITION_PLURAL, PROTECT_OVERRIDE, SEASON_GAMES,
@@ -122,9 +124,6 @@ SWEET_MIN_EDGE = 0.4         # ... while our model says I gain at least this (FP
 MARKET_PTS_TO_FPG = 0.05     # 10 market worth points ~ 0.5 FPG (sweet-spot penalty only)
 
 # -- market view and acceptance (a prior; calibrate_acceptance refits the logistic) ----------
-MARKET_WEIGHTS = {"adp": 2.0, "proj": 2.0, "owned": 1.0, "dyn": 2.0}   # % rostered saturates near 100
-GROUPED_COMPONENTS = frozenset({"proj", "dyn", "fpg"})   # ranked within goalies / skaters
-MARKET_MIN_REF = 10          # a component needs this many rostered players reporting it
 MARKET_CONVEXITY = 3.0       # market worth = 100 x (percentile / 100) ** 3 (see market_worth)
 DEPTH_WEIGHT = 0.5           # a package's 2nd+ player counts at this share of his worth
 ROSTER_SPOT_PENALTY = 3.0    # per player the counterparty must drop to make room
@@ -138,8 +137,6 @@ REBUILDER_VETERAN_MULT = 0.85  # dynasty: a rebuilder receiving only clearly old
 REBUILD_AGE_GAP = 3.0        # "clearly older": incoming mean age >= outgoing mean age + 3
 CALIBRATION_MIN_N = 20       # logged proposals needed before calibrate_acceptance refits
 PRESSURE_PTS = 8.0           # exploit: the deal relieves the counterparty's roster pressure
-MARKET_SOURCE_LABEL = {"adp": "ADP", "owned": "rostered %", "proj": "Fantrax projected FP/G",
-                       "dyn": "dynasty value", "fpg": "our FPG"}
 
 # -- enumeration, legacy display band, dynasty ------------------------------------------------
 FAIR_BAND = 0.12             # model-value gap shown as FAIR_PCT (no longer a filter)
@@ -350,112 +347,7 @@ def fairness(v_in: list[float], v_out: list[float], repl: float = 0.0) -> tuple[
 
 
 
-# -- market view -----------------------------------------------------------------------------
-
-FPTS_STAT = "FPTS"   # Fantrax's own fantasy points in its StatLines (providers.fantrax.FPTS_KEY)
-
-
-def _market_raw(p: Player, values: Mapping[str, Any],
-                dyn: Mapping[str, float] | None = None) -> dict[str, float]:
-    """Raw market signals for `p`, oriented so that higher = more valuable: ESPN ADP (negated),
-    % rostered, Fantrax's projected FP/G, dynasty value (dynasty leagues) and our season FPG
-    (fallback only)."""
-    out: dict[str, float] = {}
-    if p.adp is not None and p.adp > 0:
-        out["adp"] = -float(p.adp)
-    if p.pct_owned is not None:
-        out["owned"] = float(p.pct_owned)
-    proj = p.lines.get("projected")
-    if proj is not None and proj.gp > 0 and proj.stats.get(FPTS_STAT) is not None:
-        out["proj"] = float(proj.stats[FPTS_STAT]) / proj.gp
-    if dyn is not None and p.cid in dyn:
-        out["dyn"] = float(dyn[p.cid])
-    fpg = getattr(values.get(p.cid), "fpg_season", None)
-    if isinstance(fpg, (int, float)) and not isinstance(fpg, bool):
-        out["fpg"] = float(fpg)
-    return out
-
-
-def percentile(x: float, ref: Sequence[float]) -> float:
-    """Mid-rank percentile (0-100) of `x` within the sorted reference `ref` (ties share the
-    middle of their range; 50 when `ref` is empty)."""
-    if not ref:
-        return 50.0
-    lo, hi = bisect.bisect_left(ref, x), bisect.bisect_right(ref, x)
-    return 100.0 * (lo + 0.5 * (hi - lo)) / len(ref)
-
-
-def _group(k: str, p: Player) -> str:
-    """Reference group: per-game scoring components rank goalies and skaters separately
-    (goalies out-score skaters per game in many points leagues); ADP and % rostered are
-    already cross-position market prices."""
-    return ("G" if p.is_goalie else "S") if k in GROUPED_COMPONENTS else ""
-
-
-class MarketPool:
-    """How the league at large rates each player (0-100), independent of our model.
-
-    Reference pool: every rostered player in the league (the tradeable assets). Components, each
-    a percentile within the rostered players that report it (projected FP/G, dynasty value and
-    FPG: within the player's group, goalies or skaters) and used only when at least
-    MARKET_MIN_REF of them do: ESPN ADP (lower = better), % rostered (ESPN / Fantrax), Fantrax's
-    own projected FP/G, and in dynasty leagues our dynasty value as the stand-in for dynasty
-    consensus (no provider publishes dynasty ADP; % rostered and season projections ignore age).
-    market value = their MARKET_WEIGHTS-weighted mean. A player with none of them falls back to
-    the percentile of our season FPG (needs only two rostered players with a value); with
-    nothing at all, 0."""
-
-    def __init__(self, ctx: LeagueContext, values: Mapping[str, Any] | None = None,
-                 dynasty_values: Mapping[str, float] | None = None):
-        self.values: Mapping[str, Any] = values or {}
-        self.dyn = dict(dynasty_values) if (ctx.dynasty and dynasty_values) else None
-        rostered = {q.cid: q for t in ctx.teams for q in t.players}
-        acc: dict[tuple[str, str], list[float]] = {}
-        for p in rostered.values():
-            for k, v in _market_raw(p, self.values, self.dyn).items():
-                acc.setdefault((k, _group(k, p)), []).append(v)
-        self.ref: dict[tuple[str, str], list[float]] = {
-            key: sorted(xs) for key, xs in acc.items()
-            if len(xs) >= (MARKET_MIN_REF if key[0] in MARKET_WEIGHTS else 2)}
-        self._cache: dict[str, tuple[float, tuple[str, ...]]] = {}
-
-    def components(self, p: Player) -> dict[str, float]:
-        """{component: percentile} for every component `p` reports and the pool supports."""
-        out = {}
-        for k, v in _market_raw(p, self.values, self.dyn).items():
-            ref = self.ref.get((k, _group(k, p)))
-            if ref is not None:
-                out[k] = percentile(v, ref)
-        return out
-
-    def value_and_sources(self, p: Player) -> tuple[float, tuple[str, ...]]:
-        hit = self._cache.get(p.cid)
-        if hit is None:
-            comps = self.components(p)
-            market = {k: v for k, v in comps.items() if k in MARKET_WEIGHTS}
-            if market:
-                w = sum(MARKET_WEIGHTS[k] for k in market)
-                hit = (sum(MARKET_WEIGHTS[k] * v for k, v in market.items()) / w, tuple(sorted(market)))
-            elif "fpg" in comps:
-                hit = (comps["fpg"], ("fpg",))
-            else:
-                hit = (0.0, ())
-            self._cache[p.cid] = hit
-        return hit
-
-    def value(self, p: Player) -> float:
-        return self.value_and_sources(p)[0]
-
-    def sources(self, players: Iterable[Player]) -> list[str]:
-        """Components behind these players' values, in a fixed display order."""
-        used = {s for p in players for s in self.value_and_sources(p)[1]}
-        return [k for k in ("adp", "owned", "proj", "dyn", "fpg") if k in used]
-
-
-def market_value(player: Player, pool: MarketPool) -> float:
-    """0-100 market percentile of `player` within the league's rostered pool."""
-    return pool.value(player)
-
+# -- market view (MarketPool and helpers live in .market) ---------------------------------
 
 def market_worth(pct: float) -> float:
     """Market worth (0-100) of a player at market percentile `pct`: 100 x (pct/100)^MARKET_CONVEXITY.
@@ -697,10 +589,11 @@ class TradeEval:
     pressure_text: str | None = None      # exploit: the counterparty roster pressure this relieves
     rate: GameRate | None = None          # my starters' games per week / left (gain units)
     refined: bool = False                 # lineups re-solved exactly (``_TradeEngine.refine``)
-    me_after: list[Player] = field(default_factory=list, repr=False)
-    them_after: list[Player] = field(default_factory=list, repr=False)
+    me_after: list[list[Player]] = field(default_factory=list, repr=False)  # "after" rosters (_with_free_fill)
+    them_after: list[list[Player]] = field(default_factory=list, repr=False)
     me_base: list[list[Player]] = field(default_factory=list, repr=False)    # "before" rosters (_baselines)
     them_base: list[list[Player]] = field(default_factory=list, repr=False)
+    free_fill: Player | None = None       # FA my "before" uses to fill an empty starting slot (_free_fill)
 
     @property
     def need_bonus(self) -> float:
@@ -808,6 +701,7 @@ class _TradeEngine:
         self.lineup = _LineupEvaluator(values, ctx.roster_shape, fn)  # type: ignore[arg-type]
         self._starter_cache: dict[frozenset[str], frozenset[str]] = {}
         self._base_cache: dict[tuple[str, str], list[list[Player]]] = {}
+        self._free_cache: dict[frozenset[str], tuple[Player, list[Player]] | None] = {}
         cap = sum(int(n) for s, n in ctx.roster_shape.items() if s not in IR_SLOTS)
         self.sides: dict[str, _Side] = {}
         for t in ctx.teams:
@@ -816,7 +710,7 @@ class _TradeEngine:
             ir_cap = sum(int(n) for s, n in ctx.roster_shape.items() if s in IR_SLOTS)
             side = _Side(team=t, active=active, ir=ir, capacity=max(cap, len(active)),
                          free_ir=max(0, ir_cap - len(ir)))
-            side.weakest = self._weakest_slot(active)
+            side.weakest = self._weakest_slot(active + ir)
             side.top = sorted((p for p in active + ir if self.V.get(p.cid, 0.0) > 0),
                               key=lambda p: self.V[p.cid], reverse=True)[:TOP_N]
             self.sides[t.team_id] = side
@@ -885,28 +779,31 @@ class _TradeEngine:
                                                          for c in hit if c in self.values))
         return hit
 
-    def _choose_drops(self, players: list[Player], cands: list[Player], n: int) -> list[Player]:
+    def _choose_drops(self, players: list[Player], cands: list[Player], n: int,
+                      ir: Sequence[Player] = ()) -> list[Player]:
         """The ``n`` players a side cuts from ``players`` (only ``cands`` may go), one at a time:
         within the first drop tier (``_drop_tier``), the first in drop order outside the optimal
         starting lineup (cutting him costs the lineup nothing), else the starter whose loss costs
         the lineup least. A manager does not cut the backup goalie he now has to start (leaving
-        a G slot empty) to keep a bench skater."""
+        a G slot empty) to keep a bench skater. ``ir``: players in IR slots, never cut but part
+        of the lineup (their season value already counts the games they miss)."""
         drops: list[Player] = []
         cur = list(players)
         pool = self._drop_order(list(cands))
         tiers = {p.cid: self._drop_tier(p) for p in pool}
+        ir = list(ir)
         for _ in range(max(0, n)):
             if not pool:
                 break
             tier = tiers[pool[0].cid]
             group = [p for p in pool if tiers[p.cid] == tier]
-            starters = self._starters(cur)
+            starters = self._starters(cur + ir)
             bench = [p for p in group if p.cid not in starters]
             if bench:
                 pick = bench[0]
             else:
-                base = self.lineup.greedy(cur)
-                pick = min(group, key=lambda p: base - self.lineup.greedy([q for q in cur if q.cid != p.cid]))
+                base = self.lineup.greedy(cur + ir)
+                pick = min(group, key=lambda p: base - self.lineup.greedy([q for q in cur + ir if q.cid != p.cid]))
             drops.append(pick)
             pool = [p for p in pool if p.cid != pick.cid]
             cur = [p for p in cur if p.cid != pick.cid]
@@ -923,8 +820,11 @@ class _TradeEngine:
         limits = self.ctx.position_limits or {}
         counts = _position_counts(players + ir, limits) if limits else {}
 
+        present = {p.cid for p in players + ir}    # e.g. a FA this trade already picked up
+
         def legal(fa: Player) -> bool:
-            return not (limits and any(counts[k] + 1 > int(limits[k]) for k in limit_positions(fa, limits)))
+            return fa.cid not in present and not (
+                limits and any(counts[k] + 1 > int(limits[k]) for k in limit_positions(fa, limits)))
 
         cands: dict[str, Player] = {}
         for fas in self.fas_by_slot.values():
@@ -935,18 +835,19 @@ class _TradeEngine:
                 if legal(fa):
                     cands.setdefault(fa.cid, fa)
                     n += 1
-        starters = self._starters(players)
-        base = self.lineup.greedy(players)
+        lineup = players + ir          # IR-slot players start once back (season value counts the games missed)
+        starters = self._starters(lineup)
+        base = self.lineup.greedy(lineup)
         # adding one player to a full lineup swaps him for one starter: gain <= his FPG - the
         # weakest starter's (the lineup is a matroid basis), else <= his FPG
-        floor = min((self._fpg(p) for p in players if p.cid in starters), default=0.0) \
+        floor = min((self._fpg(p) for p in lineup if p.cid in starters), default=0.0) \
             if len(starters) >= self.n_slots else 0.0
         best: Player | None = None
         best_gain = 1e-9
         for fa in sorted(cands.values(), key=self._fpg, reverse=True):
             if self._fpg(fa) - floor <= best_gain + 1e-12:
                 break
-            gain = self.lineup.greedy(players + [fa]) - base
+            gain = self.lineup.greedy(lineup + [fa]) - base
             if gain > best_gain + 1e-12:
                 best, best_gain = fa, gain
         if best is not None:
@@ -963,22 +864,66 @@ class _TradeEngine:
         the trade has it pick up ``fill``, its current roster with that same pickup made without
         the trade (cutting whom ``_choose_drops`` would cut). A free agent who would start is an
         improvement the side can make today, so the trade is credited only with what it adds on
-        top of it (unmade lineup improvements are never credited to a trade)."""
-        rosters = [side.active]
+        top of it (unmade lineup improvements are never credited to a trade). Each roster
+        includes the side's IR-slot players (lineup pools, like ``evaluate``'s "after")."""
+        rosters = self._with_free_fill(side.active, side.ir, side.capacity)
         if fill is None or any(p.cid == fill.cid for p in side.active):
             return rosters
         key = (side.team.team_id, fill.cid)
         hit = self._base_cache.get(key)
         if hit is None:
-            hit = self._base_cache[key] = self._baselines_uncached(side, fill)
+            hit = self._base_cache[key] = rosters + self._baselines_uncached(side, fill)[1:]
         return hit
 
+    def _free_fill(self, active: list[Player], ir: list[Player], capacity: int
+                   ) -> tuple[Player, list[Player]] | None:
+        """(FA, active roster with him) when the lineup of ``active`` + ``ir`` leaves a starting
+        slot empty and a free agent can fill it today, cutting a bench player (``_choose_drops``)
+        when the roster is full; None otherwise. Cached by roster."""
+        key = frozenset(p.cid for p in active + ir)
+        if key in self._free_cache:
+            return self._free_cache[key]
+        hit = None
+        if len(self._starters(active + ir)) < self.n_slots:
+            fa = self._pick_fill(active, [], ir)
+            if fa is not None:
+                if len(active) < capacity:
+                    alt = active + [fa]
+                else:
+                    cut = self._choose_drops(active, active, 1, ir=ir)
+                    alt = [p for p in active if p.cid != cut[0].cid] + [fa] if cut else None
+                limits = self.ctx.position_limits or {}
+                if alt is not None and limits:
+                    before = _position_counts(active + ir, limits)
+                    after = _position_counts(alt + ir, limits)
+                    if any(after[k] > max(int(limits[k]), before[k]) for k in limits):
+                        alt = None
+                if alt is not None:
+                    hit = (fa, alt)
+        self._free_cache[key] = hit
+        return hit
+
+    def _with_free_fill(self, active: list[Player], ir: list[Player], capacity: int,
+                        side: _Side | None = None) -> list[list[Player]]:
+        """Lineup pools for a roster: as is and, when a starting slot is empty, with the free-agent
+        fill a manager can make today (``_free_fill``). Used for "before" and, when ``side``'s
+        roster already had that hole before the trade, for "after" too, so a trade is credited only
+        with what it adds over filling the slot from waivers (a hole the trade itself opens is
+        ``_settle_roster``'s FA fill, as before)."""
+        rosters = [active + ir]
+        if side is not None and self._free_fill(side.active, side.ir, side.capacity) is None:
+            return rosters
+        free = self._free_fill(active, ir, capacity)
+        if free is not None:
+            rosters.append(free[1] + ir)
+        return rosters
+
     def _baselines_uncached(self, side: _Side, fill: Player) -> list[list[Player]]:
-        rosters = [side.active]
+        rosters = [side.active + side.ir]
         if len(side.active) < side.capacity:
             alt = side.active + [fill]
         else:
-            cut = self._choose_drops(side.active, side.active, 1)
+            cut = self._choose_drops(side.active, side.active, 1, ir=side.ir)
             if not cut:
                 return rosters
             alt = [p for p in side.active if p.cid != cut[0].cid] + [fill]
@@ -988,12 +933,12 @@ class _TradeEngine:
             after = _position_counts(alt + side.ir, limits)
             if any(after[k] > max(int(limits[k]), before[k]) for k in limits):
                 return rosters
-        return [side.active, alt]
+        return [side.active + side.ir, alt + side.ir]
 
-    def _delta(self, after: list[Player], bases: list[list[Player]], exact: bool) -> float:
-        """optimal(after) - optimal(before) on the season horizon; before = the best of ``bases``."""
+    def _delta(self, afters: list[list[Player]], bases: list[list[Player]], exact: bool) -> float:
+        """optimal(after) - optimal(before) on the season horizon; each = the best of its rosters."""
         f = self.lineup if exact else self.lineup.greedy
-        return f(after) - max(f(r) for r in bases)
+        return max(f(r) for r in afters) - max(f(r) for r in bases)
 
     def _settle_roster(self, side: _Side, players: list[Player], incoming: list[Player],
                        outgoing: list[Player]
@@ -1044,7 +989,8 @@ class _TradeEngine:
                 over -= len(to_ir)
             moved = {p.cid for p in to_ir}
             kept = [p for p in players if p.cid not in moved]
-            size_drops = self._choose_drops(kept, [p for p in kept if p.cid not in inc], max(0, over))
+            size_drops = self._choose_drops(kept, [p for p in kept if p.cid not in inc], max(0, over),
+                                            ir=ir_left + to_ir)
             drops.extend(size_drops)
             gone = moved | {p.cid for p in size_drops}
             players = [p for p in players if p.cid not in gone]
@@ -1087,9 +1033,13 @@ class _TradeEngine:
         d_dyn = v_in - v_out - sum(self.V.get(p.cid, 0.0) for p in my_drops) \
             + (self.V.get(my_fill.cid, 0.0) if my_fill is not None else 0.0) - self.repl * net_added
         d_dyn_n = d_dyn / self.scale if self.mode is not None else 0.0
+        # lineup pools add the IR-slot players (season value already counts the games they miss),
+        # so trading away an injured or day-to-day player in IR is not free
+        me_ir_pool = [p for p in me.ir if p.cid not in give_ids] + my_ir
+        me_pool = self._with_free_fill(me_after, me_ir_pool, me.capacity, me)
         # cheap greedy screen of my side first
         me_base = self._baselines(me, my_fill)
-        d_me = self._delta(me_after, me_base, exact=False)
+        d_me = self._delta(me_pool, me_base, exact=False)
         if self.mode is None:
             mine_ok = d_me > MIN_GAIN_ME - SCREEN_MARGIN
         else:
@@ -1126,8 +1076,10 @@ class _TradeEngine:
             block.append(f"{fits[0].name} matches {them.team.name}'s trade-block wants ({', '.join(sorted(want))})")
         ok, why = roster_legal_after(me.team, self.ctx, add=list(get) + ([my_fill] if my_fill else []),
                                      drop=list(give) + my_drops, to_ir=my_ir)
+        them_pool = self._with_free_fill(them_after, [p for p in them.ir if p.cid not in get_ids] + their_ir,
+                                         them.capacity, them)
         them_base = self._baselines(them, their_fill)
-        d_them = self._delta(them_after, them_base, exact=False)
+        d_them = self._delta(them_pool, them_base, exact=False)
         ev = TradeEval(team=them.team, give=list(give), get=list(get), v_in=v_in, v_out=v_out,
                        fair=fair, fair_dev=dev, delta_me=d_me, delta_them=d_them, need_text=need_text,
                        my_drops=my_drops, their_drops=their_drops, my_fill=my_fill, their_fill=their_fill,
@@ -1135,8 +1087,10 @@ class _TradeEngine:
                        blocked=blocked, my_cap=my_cap, their_cap=their_cap,
                        block_text="; ".join(block) or None, my_illegal=None if ok else why,
                        pressure_text=pressure, rate=self.rate)
-        ev.me_after, ev.them_after = me_after, them_after
+        ev.me_after, ev.them_after = me_pool, them_pool
         ev.me_base, ev.them_base = me_base, them_base
+        free = self._free_fill(me.active, me.ir, me.capacity)
+        ev.free_fill = free[0] if free is not None else None
         ev.acceptance = self._accept(ev)
         if exact and (not screen or ev.near_plausible):
             self.refine(ev)
@@ -1192,7 +1146,7 @@ def market_label(perceived: float) -> str:
     """How a deal looks to the counterparty by market value."""
     if abs(perceived) <= 3.0:
         return "Looks even to them"
-    if perceived > 10.0:
+    if perceived > CLEAR_FAVOR_PTS:
         return "Looks clearly in their favor"
     if perceived > 0:
         return "Looks slightly in their favor"
@@ -1228,7 +1182,8 @@ def _roster_text(ev: TradeEval) -> str:
 DEFAULT_RATE = GameRate(DEFAULT_GAMES_PER_WEEK, float(SEASON_GAMES), "default")   # a TradeEval without a rate
 
 
-def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str) -> Recommendation:
+def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str,
+            market: MarketPool | None = None) -> Recommendation:
     def vl(ps: list[Player]) -> str:
         return ", ".join(f"{p.name} ({V.get(p.cid, 0.0):.2f})" for p in ps)
 
@@ -1278,7 +1233,10 @@ def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str) -> R
     reasons += [
         Reason(code="DELTA_ME", text=f"My lineup {ev.delta_me:+.2f} FPG ({source}"
                                      + (f"; before = my roster with the same pickup of {ev.my_fill.name}"
-                                        if ev.my_fill is not None and len(ev.me_base) > 1 else "") + ")",
+                                        if ev.my_fill is not None and len(ev.me_base) > 1 else "")
+                                     + (f"; before and after both fill your empty slot from waivers "
+                                        f"({ev.free_fill.name}) when that is better"
+                                        if ev.free_fill is not None else "") + ")",
                value=ev.delta_me, baseline=MIN_GAIN_ME),
         Reason(code="DELTA_THEM", text=f"{ev.team.name} lineup {ev.delta_them:+.2f} FPG (our model)",
                value=ev.delta_them),
@@ -1321,6 +1279,10 @@ def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str) -> R
     if ev.roto_adj:
         reasons.append(Reason(code="ROTO_BALANCE", text=f"Roto category balance {-ev.roto_adj:+.2f}",
                               value=-ev.roto_adj))
+    if market is not None:   # consensus check: display only
+        if acc is not None and (deal := trade_market_check(acc.perceived, ev.my_edge)) is not None:
+            reasons.append(deal)
+        reasons += market_check_reasons(market, [(p, "receive") for p in ev.get] + [(p, "send") for p in ev.give])
     return Recommendation(kind="trade", score=ev.score,
                           title=f"Trade {_names(ev.give)} to {ev.team.name} for {_names(ev.get)}",
                           add=list(ev.get), drop=list(ev.give), counterparty=ev.team.name,
@@ -1452,14 +1414,14 @@ def recommend_trades(ctx: LeagueContext, values: Mapping[str, Any],
     if future_only is not None:
         future.sort(key=lambda e: e.delta_dyn_n * e.p, reverse=True)
         for e in future[:limit]:
-            r = _to_rec(e, eng.V, eng.units, source)
+            r = _to_rec(e, eng.V, eng.units, source, eng.market)
             r.score = e.delta_dyn_n * e.p
             r.predicted_gain, r.gain_units = float(e.delta_dyn_n), "dynasty"
             future_only.append(r)
         apply_ranks(apply_strength(future_only))
     if sweet_spot is not None:
-        sweet_spot.extend(apply_ranks(apply_strength([_to_rec(e, eng.V, eng.units, source) for e in sweet])))
-    return apply_ranks(apply_strength([_to_rec(e, eng.V, eng.units, source) for e in chosen]))
+        sweet_spot.extend(apply_ranks(apply_strength([_to_rec(e, eng.V, eng.units, source, eng.market) for e in sweet])))
+    return apply_ranks(apply_strength([_to_rec(e, eng.V, eng.units, source, eng.market) for e in chosen]))
 
 
 # -- exploits: counterparties under roster pressure --------------------------------------------
@@ -1666,7 +1628,7 @@ def exploit_opportunities(ctx: LeagueContext, values: Mapping[str, Any],
     out: list[Recommendation] = []
     for ev in chosen:
         rel = rel_of[id(ev)]
-        r = _to_rec(ev, eng.V, eng.units, eng.lineup.source)
+        r = _to_rec(ev, eng.V, eng.units, eng.lineup.source, eng.market)
         r.reasons.insert(2, Reason(code="EXPLOIT",
                                    text=f"Exploit: {ev.team.name} has {'; '.join(pr.text for pr in rel)}",
                                    value=PRESSURE_PTS, baseline=float(len(rel))))

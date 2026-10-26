@@ -40,7 +40,7 @@ Realized gain (fantasy points over the window unless noted):
 
 ``hit`` is realized > 0 for every non-flag kind. ``predicted_pts`` converts the rec's
 ``predicted_gain`` into points over the window (``gain_pts_h``): ``week_pts`` scale by
-days / 7, ``day_pts`` count as is, per-game units (``season_fpg`` / ``lineup_fpg`` / ``dynasty``) multiply by the
+days / 7, ``day_pts`` and ``matchup_pts`` (the rest of a matchup, at most 7 days) count as is, per-game units (``season_fpg`` / ``lineup_fpg`` / ``dynasty``) multiply by the
 expected games (the add's ``games_next7`` / 7 per day that day, else ``GAMES_PER_DAY``).
 Episode origins: ``followed`` / ``partial`` / ``proposed``, ``ignored`` (expired) and ``open``;
 my moves without a rec are ``user_only``, with the model's own view of the move that day
@@ -312,7 +312,7 @@ def predicted_pts(gain: float | None, units: str | None, n_days: int, rate: floa
         return None
     if units == "week_pts":
         return float(gain) * n_days / 7.0
-    if units == "day_pts":
+    if units in ("day_pts", "matchup_pts"):   # points over a horizon inside the window: as is
         return float(gain)
     if units in ("season_fpg", "lineup_fpg", "dynasty"):
         return float(gain) * rate * n_days

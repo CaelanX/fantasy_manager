@@ -273,6 +273,7 @@ class Recommendation(BaseModel):
     # Explicit predicted gain (graded later by the harness). Units:
     #   week_pts   - projected fantasy points over the next ``horizon_days`` (7)
     #   day_pts    - projected fantasy points today (daily-lineup start/sit, horizon_days 1)
+    #   matchup_pts - projected fantasy points over the rest of the matchup (``horizon_days`` days)
     #   season_fpg - fantasy points per game (rest of season when horizon_days is None)
     #   lineup_fpg - change in my optimal starting lineup's summed FPG (trades)
     #   dynasty    - dynasty value (FPG-equivalent)
@@ -289,7 +290,7 @@ class Recommendation(BaseModel):
     kind_total: int | None = None
 
 
-GainUnits = Literal["week_pts", "day_pts", "season_fpg", "lineup_fpg", "dynasty"]
+GainUnits = Literal["week_pts", "day_pts", "matchup_pts", "season_fpg", "lineup_fpg", "dynasty"]
 ActivityAction = Literal["ADD", "DROP", "TRADE_IN", "TRADE_OUT", "IR", "ACTIVATE", "PROPOSED"]
 
 

@@ -112,20 +112,58 @@ def test_recommend_lineup_swaps_and_thresholds():
 
 
 def test_recommend_lineup_flags_injured_starter_and_healthy_ir():
-    hurt, bench, ir_ok = P("hurt", ["C"], status="out"), P("bench", ["LW"]), P("irok", ["C"])
+    # a suspended starter can't go to IR: bench him, and the activation needs a drop
+    hurt, bench, ir_ok = P("hurt", ["C"], status="suspended"), P("bench", ["LW"]), P("irok", ["C"])
     t = team([("C", hurt), ("BN", bench), ("IR", ir_ok)])
     shape = {"C": 1, "BN": 1, "IR": 1}
     vals = {"hurt": V(hurt, 0.0), "bench": V(bench, 2.0), "irok": V(ir_ok, 3.0)}
-    titles = [r.title for r in recommend_lineup(ctx_for(t, shape), vals)]
+    recs = recommend_lineup(ctx_for(t, shape), vals)
+    titles = [r.title for r in recs]
     assert any(t.startswith("Bench hurt") for t in titles)
     assert "Activate irok from IR (healthy)" in titles
+    act = next(r for r in recs if r.title.startswith("Activate"))
+    assert any(x.code == "ROSTER_FULL" for x in act.reasons)
     # the injured starter is paired with a valid replacement when one exists
     repl = P("repl", ["C"])
     t2 = team([("C", hurt), ("BN", repl)])
     vals2 = {"hurt": V(hurt, 0.0), "repl": V(repl, 2.0)}
     recs = recommend_lineup(ctx_for(t2, {"C": 1, "BN": 1}), vals2)
-    assert [r.title for r in recs] == ["Start repl over hurt (out)"]
+    assert [r.title for r in recs] == ["Start repl over hurt (suspended)"]
     assert any(x.code == "STATUS" for x in recs[0].reasons)
+
+
+def test_dtd_in_ir_and_injured_starter_become_one_swap():
+    hurt, bench, dtd = P("hurt", ["C"], status="ir"), P("bench", ["LW"]), P("dtd", ["C"], status="dtd")
+    t = team([("C", hurt), ("BN", bench), ("IR", dtd)])
+    vals = {"hurt": V(hurt, 0.0), "bench": V(bench, 2.0), "dtd": V(dtd, 3.0)}
+    recs = recommend_lineup(ctx_for(t, {"C": 1, "BN": 1, "IR": 1}), vals)
+    assert [r.title for r in recs] == ["Swap IR slots: activate dtd (dtd), move hurt (ir) to IR"]
+    assert [p.cid for p in recs[0].add] == ["dtd"] and [p.cid for p in recs[0].subjects] == ["hurt"]
+    assert any(x.code == "IR_SWAP" for x in recs[0].reasons)
+
+
+def test_free_ir_slot_leaves_the_ir_move_to_injuries():
+    # a second, free IR slot takes the injured starter ("Move to IR" from recommend.injuries)
+    hurt, bench, dtd = P("hurt", ["C"], status="ir"), P("bench", ["LW"]), P("dtd", ["C"], status="dtd")
+    t = team([("C", hurt), ("BN", bench), ("IR", dtd)])
+    vals = {"hurt": V(hurt, 0.0), "bench": V(bench, 2.0), "dtd": V(dtd, 3.0)}
+    titles = [r.title for r in recommend_lineup(ctx_for(t, {"C": 1, "BN": 1, "IR": 2}), vals)]
+    assert not any(t.startswith("Swap") for t in titles)
+    assert "Activate dtd from IR (dtd)" in titles
+
+
+def test_advise_drops_the_duplicate_swap_hold_verdict():
+    from fantasy_manager.models import Reason, Recommendation
+    from fantasy_manager.recommend.advise import _dedupe_pickups
+    hurt, dtd = P("hurt", ["C"], status="ir"), P("dtd", ["C"], status="dtd")
+    swap = Recommendation(kind="lineup", score=1.0, title="Swap IR slots: activate dtd (dtd), move hurt (ir) to IR",
+                          add=[dtd], subjects=[hurt], reasons=[Reason(code="IR_SWAP", text="x")])
+    hold = Recommendation(kind="injury", score=0.0, title="Hold hurt (back ~Nov 21): activate dtd (dtd) and move "
+                          "hurt into his IR slot",
+                          reasons=[Reason(code="HOLD_VERDICT", text="Swapping IR slots makes keeping hurt free")])
+    other = Recommendation(kind="injury", score=0.0, title="Hold other (back ~Nov 2): already in IR",
+                           reasons=[Reason(code="HOLD_VERDICT", text="Already in an IR slot")])
+    assert _dedupe_pickups([swap, hold, other]) == [swap, other]
 
 
 def test_solver_is_fast_on_full_roster():

@@ -173,7 +173,7 @@
 <li class="move" id="rec-{{ key }}">
   <span class="rank" aria-hidden="true">{{ rank }}</span>
   <div class="m-body">
-    <div class="m-kind"><span>{{ KIND_LABEL.get(r.kind, r.kind) }}</span>{% if r.counterparty and r.counterparty.strip() %}<span class="m-cp">&middot; with {{ r.counterparty.strip() }}</span>{% endif %}{% if st.rank_text %}<span class="m-rank">{{ st.rank_text }}</span>{% endif %}</div>
+    <div class="m-kind"><span>{{ KIND_LABEL.get(r.kind, r.kind) }}</span>{% if r.counterparty and r.counterparty.strip() %}<span class="m-cp">&middot; with {{ r.counterparty.strip() }}</span>{% endif %}{% set mk = market_info(r) %}{% if mk %}<span class="mk {{ 'mk-no' if mk.disagrees else 'mk-ok' }}" title="{{ mk.title }}">{{ mk.label }}</span>{% endif %}{% if st.rank_text %}<span class="m-rank">{{ st.rank_text }}</span>{% endif %}</div>
     <h3 class="do">{{ action }}</h3>
     {% set note = r|action_note %}{% if note %}<p class="m-title">{{ note }}</p>{% endif %}
     {{ gain_block(r, res) }}

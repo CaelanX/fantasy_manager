@@ -22,17 +22,17 @@ when repeated, so it is safe to rerun the task by hand after a failure; expect a
 1. Test the command by hand from the repo folder:
 
    ```powershell
-   cd C:\code\fantasy_manager
+   cd C:\code\personal\fantasy_manager
    .\.venv\Scripts\fm.exe report --notify
    ```
 
-2. Put `DISCORD_WEBHOOK_URL` and/or `SLACK_WEBHOOK_URL` in `C:\code\fantasy_manager\.env`.
+2. Put `DISCORD_WEBHOOK_URL` and/or `SLACK_WEBHOOK_URL` in `C:\code\personal\fantasy_manager\.env`.
    `OPENROUTER_API_KEY` is optional; it adds short explanations to each move.
 3. `.env` is read from the **current working directory**, so the scheduled task has to start in
-   `C:\code\fantasy_manager`. Both options below set that.
+   `C:\code\personal\fantasy_manager`. Both options below set that.
 
 The executable is the venv's console script:
-`C:\code\fantasy_manager\.venv\Scripts\fm.exe`. You don't need to activate the venv.
+`C:\code\personal\fantasy_manager\.venv\Scripts\fm.exe`. You don't need to activate the venv.
 
 ## Option A: PowerShell (recommended)
 
@@ -40,7 +40,7 @@ Run this in a normal (non-admin) PowerShell. It runs daily at 8:00 AM. If the PC
 off at that time, it runs as soon as it can.
 
 ```powershell
-$repo = "C:\code\fantasy_manager"
+$repo = "C:\code\personal\fantasy_manager"
 function FmStep($fmArgs, $log) {
     New-ScheduledTaskAction -Execute "$env:ComSpec" `
         -Argument "/c `"`"$repo\.venv\Scripts\fm.exe`" $fmArgs >> `"$repo\data\$log`" 2>&1`"" `
@@ -64,7 +64,7 @@ not stop the next one). To change an existing task, `Unregister-ScheduledTask` i
 below) and register it again.
 
 `cmd /c` is only there so stdout and stderr go to the log files in `data\`. Create the `data` folder
-first if it doesn't exist (`New-Item -ItemType Directory -Force C:\code\fantasy_manager\data`).
+first if it doesn't exist (`New-Item -ItemType Directory -Force C:\code\personal\fantasy_manager\data`).
 
 The task runs as you, and only while you're logged in. To also run it while you're logged out,
 add `-User "$env:USERDOMAIN\$env:USERNAME" -Password "<your Windows password>"` to
@@ -74,11 +74,11 @@ logged on or not*.
 ## Option B: `schtasks` with a wrapper script
 
 `schtasks` can't set a start-in folder, so use a small wrapper. Save this as
-`C:\code\fantasy_manager\run_report.cmd`:
+`C:\code\personal\fantasy_manager\run_report.cmd`:
 
 ```bat
 @echo off
-cd /d C:\code\fantasy_manager
+cd /d C:\code\personal\fantasy_manager
 if not exist data mkdir data
 ".venv\Scripts\fm.exe" auth fantrax --ping >> data\auth.log 2>&1
 ".venv\Scripts\fm.exe" backtest archive >> data\archive.log 2>&1
@@ -89,7 +89,7 @@ if not exist data mkdir data
 Then register it:
 
 ```bat
-schtasks /Create /TN "FantasyManagerDailyReport" /SC DAILY /ST 08:00 /TR "C:\code\fantasy_manager\run_report.cmd" /F
+schtasks /Create /TN "FantasyManagerDailyReport" /SC DAILY /ST 08:00 /TR "C:\code\personal\fantasy_manager\run_report.cmd" /F
 ```
 
 ## Second daily entry: the pre-game check at 17:00
@@ -99,7 +99,7 @@ the day, late scratches and injuries land, a call-up jumps onto a top line. The 
 see any of that, so register a second task at 17:00 local:
 
 ```powershell
-$repo = "C:\code\fantasy_manager"
+$repo = "C:\code\personal\fantasy_manager"
 $action = New-ScheduledTaskAction -Execute "$env:ComSpec" `
     -Argument "/c `"`"$repo\.venv\Scripts\fm.exe`" harness pregame --league both --notify --quiet-if-unchanged >> `"$repo\data\pregame.log`" 2>&1`"" `
     -WorkingDirectory $repo
@@ -116,13 +116,13 @@ useless. With the wrapper-script recipe (Option B), add a `run_pregame.cmd` next
 
 ```bat
 @echo off
-cd /d C:\code\fantasy_manager
+cd /d C:\code\personal\fantasy_manager
 if not exist data mkdir data
 ".venv\Scripts\fm.exe" harness pregame --league both --notify --quiet-if-unchanged >> data\pregame.log 2>&1
 ```
 
 ```bat
-schtasks /Create /TN "FantasyManagerPregame" /SC DAILY /ST 17:00 /TR "C:\code\fantasy_manager\run_pregame.cmd" /F
+schtasks /Create /TN "FantasyManagerPregame" /SC DAILY /ST 17:00 /TR "C:\code\personal\fantasy_manager\run_pregame.cmd" /F
 ```
 
 What it does (`fm harness pregame`, see `fantasy_manager/pregame.py`):
@@ -162,7 +162,7 @@ picked; the scheduler sets the actual time. On a Linux server, `deploy/install.s
 ```powershell
 Start-ScheduledTask -TaskName "FantasyManagerDailyReport"              # run now
 Get-ScheduledTaskInfo -TaskName "FantasyManagerDailyReport"            # LastRunTime / LastTaskResult (0 = OK)
-Get-Content C:\code\fantasy_manager\data\report.log -Tail 40           # recent output
+Get-Content C:\code\personal\fantasy_manager\data\report.log -Tail 40           # recent output
 Unregister-ScheduledTask -TaskName "FantasyManagerDailyReport" -Confirm:$false   # remove
 ```
 
