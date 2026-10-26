@@ -312,13 +312,19 @@ def _gain_cell(r: Recommendation) -> str:
     return gain_text(r)
 
 
+def _why(r: Recommendation, lines: list[str]) -> str:
+    """The Why cell: the rec's headline (bold) first, then its reasons."""
+    head = [f"[bold]{escape(r.headline)}[/]"] if r.headline else []
+    return "\n".join(head + [x for x in lines if x != r.headline])
+
+
 def _rec_table(recs: list[Recommendation], title: str) -> Table:
     t = Table(title=title, show_lines=True)
     for c, j in (("#", "right"), ("Recommendation", "left"), ("Strength", "right"), ("Gain", "right"),
                  ("Why", "left")):
         t.add_column(c, justify=j)
     for i, r in enumerate(recs, 1):
-        why = "\n".join(x.text for x in r.reasons if x.code != "RAW_SCORE")
+        why = _why(r, [x.text for x in r.reasons if x.code != "RAW_SCORE"])
         if r.narrative:
             why = f"[italic]{escape(r.narrative)}[/]\n{why}"
         t.add_row(_rank_cell(r, i), r.title, _strength_cell(r), _gain_cell(r), why)
@@ -380,6 +386,15 @@ def _print_fit(lc: LeagueContext, provider: Any, as_json: bool) -> None:
     _footer(lc)
 
 
+def _stat_limits_line(lc: LeagueContext) -> str:
+    """Games-played caps / goalie minimums: what the league sets, or that it sets none."""
+    if lc.stat_limits is None:
+        return "Games-played limits: unknown (the provider did not report them)"
+    if not lc.stat_limits:
+        return "Games-played limits: none (no position GP caps or goalie minimum)"
+    return "Games-played limits: " + "; ".join(lc.stat_limits) + " (shown only: fm does not enforce them yet)"
+
+
 def _moves_line(lc: LeagueContext) -> str:
     """"Moves: 2 per matchup period (1 used, 1 left, resets Mon Oct 5)" / "Moves: unlimited"."""
     from .recommend.base import moves_text
@@ -436,7 +451,7 @@ def settings(ctx: typer.Context,
                "teams": [{"team_id": t.team_id, "name": t.name, "record": t.record, "mine": t.owner_is_me}
                          for t in lc.teams],
                "free_agents_loaded": len(lc.free_agents), "provider_settings": extra,
-               "moves": _moves_json(lc),
+               "moves": _moves_json(lc), "stat_limits": lc.stat_limits,
                "params_source": _params_source(), "warnings": lc.warnings})
         return
     console.print(f"[bold]{lc.name}[/]  ({lc.provider} league {lc.league_id}, season {lc.season})")
@@ -458,6 +473,7 @@ def settings(ctx: typer.Context,
     console.print("Roster: " + "  ".join(f"{s}x{n}" for s, n in shape))
     from .recommend.base import position_limits_text
     console.print("Roster maximums: " + (position_limits_text(lc) or "none reported by the provider"))
+    console.print(escape(_stat_limits_line(lc)))
     console.print(escape(_moves_line(lc)))
     console.print(f"My team: [bold green]{my.name if my else '?'}[/]")
     tt = Table(title="Teams")
@@ -479,6 +495,83 @@ def settings(ctx: typer.Context,
     _footer(lc)
 
 
+def _picks_by_holder(lc: LeagueContext, values: dict[str, PlayerValue], dyn: dict[str, Any] | None
+                     ) -> dict[str, list[Any]]:
+    """Draft picks by holder team id with their values ({} outside dynasty leagues with pick data)."""
+    if dyn is None or not lc.draft_picks:
+        return {}
+    try:
+        from .valuation.picks import picks_by_holder, value_picks
+        return picks_by_holder(value_picks(lc, values, dyn))
+    except Exception as e:  # optional column: never sink the command
+        lc.warnings.append(f"Draft pick values failed: {e}")
+        return {}
+
+
+def _pick_json(a: Any) -> dict[str, Any]:
+    return {"year": a.year, "round": a.round, "holder": a.holder, "original": a.original,
+            "original_name": a.original_name, "expected_slot": round(a.expected_slot, 2),
+            "overall": round(a.overall, 1), "value": round(a.value, 2), "net": round(a.net, 2),
+            "years_ahead": a.years_ahead, "inferred": a.inferred}
+
+
+@app.command()
+def picks(ctx: typer.Context,
+          league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+          mode: Optional[ModeName] = _mode_opt(),
+          json_out: bool = typer.Option(False, "--json")) -> None:
+    """Every team's draft picks with their dynasty value (dynasty leagues with pick data, Fantrax)."""
+    league_name, as_json = _opts(ctx, league, json_out)
+    lc, values, dyn = _load(league_name, mode=_mode_val(mode))
+    by_holder = _picks_by_holder(lc, values, dyn)
+    names = {t.team_id: t.name for t in lc.teams}
+    me = lc.my_team.team_id
+    if as_json:
+        _dump({"teams": [{"team": names.get(tid, tid), "team_id": tid, "me": tid == me,
+                          "total": round(sum(a.value for a in ps), 2), "picks": [_pick_json(a) for a in ps]}
+                         for tid, ps in by_holder.items()],
+               "errors": lc.warnings})
+        return
+    if not by_holder:
+        console.print("No draft pick data: picks are valued in dynasty leagues whose provider reports them (Fantrax).")
+        _footer(lc)
+        return
+    order = sorted(by_holder, key=lambda tid: -sum(a.value for a in by_holder[tid]))
+    summary = Table(title="Draft capital by team")
+    for c, j in (("Team", "left"), ("Picks", "right"), ("Total value", "right"), ("Total net", "right"),
+                 ("Best pick", "left")):
+        summary.add_column(c, justify=j)
+    for tid in order:
+        ps = by_holder[tid]
+        best = max(ps, key=lambda a: a.value)
+        summary.add_row(names.get(tid, tid) + (" (me)" if tid == me else ""), str(len(ps)),
+                        f"{sum(a.value for a in ps):.1f}", f"{sum(a.net for a in ps):.1f}",
+                        f"{escape(best.short(tid))} {best.value:.1f}")
+    console.print(summary)
+    for tid in [me] + [t for t in order if t != me]:
+        ps = sorted(by_holder.get(tid, []), key=lambda a: (a.year, a.round))
+        if not ps:
+            continue
+        tbl = Table(title=names.get(tid, tid) + (" (me)" if tid == me else ""))
+        for c, j in (("Pick", "left"), ("Exp. slot", "right"), ("Overall", "right"), ("Value", "right"),
+                     ("Net", "right")):
+            tbl.add_column(c, justify=j)
+        for a in ps:
+            tbl.add_row(escape(a.short(tid)) + (" *" if a.inferred else ""), f"{a.expected_slot:.1f}",
+                        f"{a.overall:.0f}", f"{a.value:.1f}", f"{a.net:.1f}")
+        console.print(tbl)
+    if any(a.inferred for ps in by_holder.values() for a in ps):
+        console.print("[dim]* holder inferred: Fantrax did not report that team's picks, so it is assumed to hold "
+                      "its own[/]")
+    console.print("[dim]Expected slot: reverse standings (next draft: this season's lineup strength blended with "
+                  "the record so far; later drafts: dynasty strength, pulled toward the middle). Value: the "
+                  "dynasty value of the league's prospect at that overall rank x 0.75, x 0.8 per year ahead. "
+                  "Net: over the roster spot the draftee will take (what trades charge per added player); "
+                  "trades count picks at net for you and at full value for the other manager. "
+                  "Model-only: no consensus source for pick values.[/]")
+    _footer(lc)
+
+
 @app.command()
 def roster(ctx: typer.Context,
            all_teams: bool = typer.Option(False, "--all-teams", help="Show every team, not just mine."),
@@ -490,11 +583,15 @@ def roster(ctx: typer.Context,
     league_name, as_json = _opts(ctx, league, json_out)
     lc, values, dyn = _load(league_name, deep, mode=_mode_val(mode))
     teams = lc.teams if all_teams else [lc.my_team]
+    by_holder = _picks_by_holder(lc, values, dyn)
     if as_json:
         _dump([{"team": t.name, "slots": [{"slot": s.slot, "starting": s.starting,
                                           "value": values[s.player.cid].model_dump(mode="json"),
                                           "dynasty": _dyn_json((dyn or {}).get(s.player.cid))}
-                                         for s in t.slots if s.player]} for t in teams])
+                                         for s in t.slots if s.player],
+                 "empty_starting": [s.slot for s in t.slots if s.player is None and s.starting],
+                 **({"draft_picks": [_pick_json(a) for a in by_holder.get(t.team_id, [])]} if by_holder else {})}
+                for t in teams])
         return
     for team in teams:
         tbl = Table(title=f"{team.name}" + (" (me)" if team.owner_is_me else ""))
@@ -519,7 +616,20 @@ def roster(ctx: typer.Context,
             if dyn is not None:
                 row.append(_fmt(_dyn_value(dyn.get(p.cid))))
             tbl.add_row(*row)
+        # an empty starting slot is part of the lineup as set (it scores nothing), so show it
+        for s in sorted((s for s in team.slots if s.player is None and s.starting),
+                        key=lambda s: SLOT_ORDER.get(s.slot, 99)):
+            tbl.add_row(s.slot, "[bold](empty starting slot)[/]", *["-"] * (len(cols) - 2))
         console.print(tbl)
+        if (mine := by_holder.get(team.team_id)):
+            total = sum(a.value for a in mine)
+            console.print(f"Draft picks ({len(mine)}, dynasty value {total:.1f}, "
+                          f"{sum(a.net for a in mine):.1f} net of roster spots): "
+                          + ", ".join(f"{escape(a.short(team.team_id))} {a.value:.1f}"
+                                      for a in sorted(mine, key=lambda a: (a.year, a.round))))
+    if by_holder:
+        console.print("[dim]Pick values: expected slot from standings / roster strength, worth that rank of "
+                      "the league's prospects less a draft-class discount (`fm picks`)[/]")
     repl = replacement_for(lc, values)
     console.print("Replacement FPG: " + "  ".join(f"{s} {v:.2f}" for s, v in repl.items()))
     console.print(f"[dim]* prospect: age <= {PROSPECT_MAX_AGE} and fewer than {PROSPECT_MAX_GP} NHL games[/]")
@@ -582,7 +692,7 @@ def waivers(ctx: typer.Context,
             drop = ir_move or "(no drop: open roster spot)"
         else:
             drop = f"{d.name} ({_pos(d)})\n{values[d.cid].fpg_for(h):.2f} FPG"
-        why = "\n".join(x.text for x in r.reasons if x.code not in ("FPG_ADD", "FPG_DROP"))
+        why = _why(r, [x.text for x in r.reasons if x.code not in ("FPG_ADD", "FPG_DROP")])
         tbl.add_row(_rank_cell(r, i), add, drop, _gain_cell(r), _strength_cell(r), why)
     console.print(tbl)
     _print_protected(blocked)
@@ -819,9 +929,12 @@ def sync(ctx: typer.Context,
     if refresh or not (review or confirm):
         cache = _cache()
         if refresh:
+            from .providers import clear_league_cache
+
             cache.clear()
+            clear_league_cache("fantrax", get_settings(), cache)   # its own file cache, not in cache.db
             if not as_json:
-                console.print("HTTP cache cleared.")
+                console.print("HTTP and Fantrax caches cleared.")
         lc, values, _ = _load(league_name, deep, cache)
         players = lc.all_players()
         out["sync"] = {"players": len(players), "with_nhl_id": sum(1 for p in players if p.nhl_id is not None),
@@ -960,21 +1073,15 @@ def _llm_client() -> Any:
 
 
 def _fetch_news(cache: HttpCache, errors: list[str]) -> list[Any]:
-    """All news sources through the HTTP cache (RSS TTL). A failing source becomes a warning.
-    (fetch_all_news only logs failures, so the per-source fetchers are called here.)"""
+    """All news sources through the HTTP cache (RSS TTL), merged into the 30-day news store:
+    fresh + stored items, newest first. A failing source becomes a warning."""
     from .providers.enrich import make_fetch_text
-    from .providers.news import fetch_espn_news, fetch_rotowire
+    from .providers.news import fetch_news
 
-    fetch = make_fetch_text(cache)
-    items: list[Any] = []
-    for label, fn in (("RotoWire news", fetch_rotowire), ("ESPN news", fetch_espn_news)):
-        try:
-            items.extend(fn(fetch))
-        except Exception as e:
-            reason = "offline and not cached" if isinstance(e, CacheMiss) else _short_err(e)
-            errors.append(f"{label} unavailable ({reason})")
-    epoch = datetime.min.replace(tzinfo=timezone.utc)
-    items.sort(key=lambda n: n.published or epoch, reverse=True)
+    items, failed = fetch_news(make_fetch_text(cache), get_settings().fm_data_dir)
+    for label, e in failed:
+        reason = "offline and not cached" if isinstance(e, CacheMiss) else _short_err(e)
+        errors.append(f"{label} unavailable ({reason})")
     return items
 
 
@@ -1027,6 +1134,9 @@ def trades(ctx: typer.Context,
            mode: Optional[ModeName] = _mode_opt(),
            exploit_limit: int = typer.Option(8, "--exploits", help="Max exploit trades (teams under roster "
                                                                      "pressure); 0 = skip."),
+           need: bool = typer.Option(False, "--need", help="Trade finder by need: deals that fill your weakest "
+                                                            "slots with partners heading the other way, each "
+                                                            "with a pitch to send."),
            json_out: bool = typer.Option(False, "--json")) -> None:
     """Trade proposals ranked by expected value: your lineup gain x the chance they accept
     (judged by market value: ADP / % rostered). Plus the sweet spot: deals the market calls fair
@@ -1038,6 +1148,9 @@ def trades(ctx: typer.Context,
     lc, errors = d.lc, d.errors
     wants = _trade_wants(lc, d.provider)
     offered = _trade_offered(d.provider)
+    if need:
+        _need_trades_out(d, wants, offered, limit, as_json)
+        return
     future: list[Recommendation] = []
     sweet: list[Recommendation] = []
     recs = _safe(errors, "trades", recommend_trades, lc, d.values, dynasty_values=d.dyn,
@@ -1073,6 +1186,38 @@ def trades(ctx: typer.Context,
             f"{next((t.name for t in lc.teams if t.team_id == k), k)}: {', '.join(sorted(v))}"
             for k, v in wants.items()) + "[/]")
     _print_future(future)
+    _footer(lc, errors)
+
+
+def _need_trades_out(d: Loaded, wants: Any, offered: Any, limit: int, as_json: bool) -> None:
+    """`fm trades --need`: my needs, then the need trades with a pitch per deal."""
+    from .analysis.outlook import build_outlook, recommendation_text
+    from .recommend.trades import find_needs, pitch_of, recommend_need_trades
+
+    lc, errors = d.lc, d.errors
+    outlook = _safe(errors, "outlook", build_outlook, lc, d.values, d.dyn, d.provider, default=None)
+    needs = _safe(errors, "needs", find_needs, lc, d.values, outlook, d.dyn, default=[]) or []
+    recs = _safe(errors, "need trades", recommend_need_trades, lc, d.values, dynasty_values=d.dyn,
+                 outlook=outlook, limit=limit, wants=wants, offered=offered, needs=needs, default=[]) or []
+    if as_json:
+        _json_out({"needs": [{"slot": n.slot, "gap": None if n.gap == float("-inf") else n.gap, "text": n.text,
+                              "long_term": n.long_term} for n in needs],
+                   "direction": getattr(outlook, "recommended", None),
+                   "need_trades": _recs_json(recs)}, lc, errors)
+        return
+    if outlook is not None:
+        console.print(f"Direction: {escape(recommendation_text(outlook))}")
+    console.print("Your needs: " + ("; ".join(escape(n.text) + (" (long term)" if n.long_term else "")
+                                              for n in needs) or "none found"))
+    if not recs:
+        console.print("No trade fills those needs with a gain for you and at least a 25% chance of being accepted.")
+        _footer(lc, errors)
+        return
+    console.print(_trade_table("Trades for your needs (ranked by EV; partners heading the other way and star "
+                               "consolidation first)", recs))
+    console.print("[bold]Pitches[/] (copy, edit, send)")
+    for i, r in enumerate(recs, 1):
+        console.print(f"  {i}. {escape(pitch_of(r) or '')}")
     _footer(lc, errors)
 
 
@@ -1118,7 +1263,7 @@ def _trade_table(title: str, recs: list[Recommendation], sweet: bool = False) ->
     """One row per trade: your gain, the market view, acceptance, EV, strength and the why."""
     tbl = Table(title=title, show_lines=True)
     for c, j in (("#", "right"), ("With", "left"), ("Give", "left"), ("Get", "left"), ("You gain", "right"),
-                 ("Market", "right"), ("Accept", "right"), ("EV", "right"), ("Strength", "right"),
+                 ("Market", "right"), ("Accept", "right"), ("Score", "right"), ("Strength", "right"),
                  ("Why", "left")):
         tbl.add_column(c, justify=j)
     for i, r in enumerate(recs, 1):
@@ -1128,18 +1273,19 @@ def _trade_table(title: str, recs: list[Recommendation], sweet: bool = False) ->
         perceived, p = _reason_val(r, "MARKET_VIEW"), _reason_val(r, "P_ACCEPT")
         mv = _reason(r, "MARKET_VIEW")
         label = mv.text.split(" by market value")[0].replace("Looks ", "").replace(" to them", "") if mv else ""
-        ev = edge * p if edge is not None and p is not None else None
-        codes = ("THEIR_NEED", "TRADE_BLOCK", "ROSTER_CONSEQUENCE", "POSITION_CAP", "WIN_NOW_COST",
-                 "ROTO_BALANCE", "MOVE_BUDGET")
+        ev = r.score if edge is not None and p is not None else None   # EV less the market overpay cost
+        codes = ("NEED_MATCH", "STAR_CONSOLIDATION", "COMPLEMENT", "PICK_IN", "PICK_OUT", "THEIR_NEED",
+                 "TRADE_BLOCK", "ROSTER_CONSEQUENCE", "POSITION_CAP", "WIN_NOW_COST", "ROTO_BALANCE", "MOVE_BUDGET")
         why = [x.text for x in r.reasons if x.code in codes]
         if not sweet and _reason(r, "SWEET_SPOT") is not None:
             why.insert(0, "Sweet spot")
+        give = [f"{x.name} ({_pos(x)})" for x in r.drop] + ["+ draft pick" for x in r.reasons if x.code == "PICK_OUT"]
+        get = [f"{x.name} ({_pos(x)})" for x in r.add] + ["+ draft pick" for x in r.reasons if x.code == "PICK_IN"]
         tbl.add_row(str(i) if sweet else _rank_cell(r, i), r.counterparty or "-",
-                    "\n".join(f"{x.name} ({_pos(x)})" for x in r.drop),
-                    "\n".join(f"{x.name} ({_pos(x)})" for x in r.add), gain,
+                    "\n".join(give), "\n".join(get), gain,
                     "-" if perceived is None else f"{perceived:+.1f}\n{label}",
                     "-" if p is None else f"{p:.0%}", _fmt(ev, signed=True), _strength_cell(r),
-                    "\n".join(why) or "-")
+                    _why(r, why) or "-")
     return tbl
 
 
@@ -1185,7 +1331,7 @@ def flags(ctx: typer.Context,
             form = _reason_val(r, "FORM_RATIO")
             tbl.add_row(str(i), f"{p.name} ({_pos(p)}, {p.team or '-'})", r.counterparty or "me",
                         "-" if form is None else f"{form:.2f}x", _strength_cell(r),
-                        "\n".join(x.text for x in r.reasons if x.code != "FORM_RATIO"))
+                        _why(r, [x.text for x in r.reasons if x.code != "FORM_RATIO"]))
         console.print(tbl)
     if not deep and not recs:
         console.print("[dim]Flags need last-15-day splits; ESPN provides them, other leagues need --deep.[/]")
@@ -1215,8 +1361,12 @@ def advise_cmd(ctx: typer.Context,
         history.close()
     if explain:
         _explain(recs, d, errors, notes=notes)
+    from .harness.track import TrackBook, as_json as track_json, rec_record, record_text
+
+    book = _safe(errors, "track record", TrackBook.load, get_settings().fm_data_dir, lc.provider,
+                 default=None) or TrackBook(league=lc.provider)
     if as_json:
-        _json_out({"recommendations": _recs_json(recs), "notes": notes}, lc, errors)
+        _json_out({"recommendations": _recs_json(recs), "notes": notes, "track_record": track_json(book)}, lc, errors)
         return
     if not recs:
         console.print("[green]Nothing to do right now.[/]")
@@ -1225,6 +1375,12 @@ def advise_cmd(ctx: typer.Context,
     if recs:
         console.print("[dim]Strength is absolute (0-10 from the predicted gain on fixed per-kind scales); "
                       "# is the rank within the kind.[/]")
+        shown = {}
+        for r in recs:      # one line per kind / subkind present, in list order
+            tr = rec_record(book, r)
+            shown.setdefault((tr["kind"], tr["subkind"]), record_text(tr))
+        for text in shown.values():
+            console.print(f"[dim]{text}[/]")
     for n in notes:
         console.print(f"[dim]{n}[/]")
     _footer(lc, errors)
@@ -1417,9 +1573,80 @@ def lines_cmd(ctx: typer.Context,
     _footer(lc, d.errors)
 
 
+def _goalie_week_out(d: Loaded, as_json: bool) -> None:
+    """``fm goalies --week``: the goalie start plan (analysis.goalie_plan)."""
+    from .analysis.goalie_plan import goalie_week
+
+    lc, errors = d.lc, d.errors
+    gw = _safe(errors, "goalie plan", goalie_week, lc, d.values, data_dir=get_settings().fm_data_dir,
+               dynasty_values=d.dyn)
+    if gw is None:
+        if as_json:
+            _json_out({"goalie_week": None}, lc, errors)
+        else:
+            _footer(lc, errors)
+        return
+    if as_json:
+        data = gw.model_dump(mode="json", exclude={"streams"})
+        for key in ("mine", "free_agents"):
+            for r, raw in zip(getattr(gw, key), data[key]):
+                raw["exp_total"], raw["starts"] = round(r.exp_total, 2), round(r.starts, 2)
+        data["exp_total"] = round(gw.exp_total, 2)
+        data["streams"] = _recs_json(gw.streams)
+        _json_out({"goalie_week": data}, lc, errors)
+        return
+    span = f"{gw.days[0]:%a %b %d} - {gw.days[-1]:%a %b %d}" if gw.days else "no days left"
+    for label, rows in (("My goalies", gw.mine), ("Best free-agent goalies", gw.free_agents)):
+        if not rows:
+            continue
+        t = Table(title=f"{label}, rest of the matchup ({span})")
+        for c, j in (("Goalie", "left"), ("Day", "left"), ("Opp", "left"), ("Start", "right"),
+                     ("Why", "left"), ("Win", "right"), ("Opp goals", "right"), ("Pts if starts", "right"),
+                     ("Exp pts", "right")):
+            t.add_column(c, justify=j)
+        for r in rows:
+            head = f"{escape(r.name)} ({r.team or 'FA'})" + (f" [red]{r.status}[/]" if r.status != "healthy" else "")
+            if not r.games:
+                t.add_row(head, "-", "-", "-", "no games left he can play", "-", "-", "-", "0.0")
+            for k, g in enumerate(r.games):
+                t.add_row(head if k == 0 else "", f"{g.day:%a %d}", g.opponent, f"{g.start_prob:.0%}",
+                          g.start_source, f"{g.win_prob:.0%}" if g.win_prob is not None else "-",
+                          f"{g.opp_goals:.2f}" if g.opp_goals is not None else "-",
+                          f"{g.pts_if_starts:.1f}", f"{g.exp_pts:.1f}")
+            if r.games:
+                t.add_row("", "", "", f"[bold]{r.starts:.1f}[/]", "expected starts", "", "", "",
+                          f"[bold]{r.exp_total:.1f}[/]")
+        console.print(t)
+    names = {r.cid: r.name for r in gw.mine}
+    pt = Table(title=f"Who to start ({gw.g_slots} G slot{'s' if gw.g_slots != 1 else ''})")
+    for c in ("Day", "Start", "Sit (game, no slot)", "Open G slots"):
+        pt.add_column(c)
+    for day in gw.plan:
+        def fmt(cid: str) -> str:
+            g = next(x for x in gw.row(cid).games if x.day == day.day)
+            return f"{escape(names[cid])} {g.exp_pts:.1f} ({g.start_prob:.0%})"
+        pt.add_row(f"{day.day:%a %b %d}", ", ".join(fmt(c) for c in day.start) or "-",
+                   ", ".join(fmt(c) for c in day.sit) or "-",
+                   f"[yellow]{day.open_slots}[/]" if day.open_slots else "0")
+    console.print(pt)
+    console.print(f"Expected goalie points from your G slots: [bold]{gw.exp_total:.1f}[/]")
+    stream_nights = [f"{x.day:%a}" for x in gw.plan if x.open_slots]
+    if gw.streams:
+        console.print(_rec_table(gw.streams, "Goalie streams for this matchup"))
+    elif stream_nights:
+        console.print(f"[dim]Open G slots on {', '.join(stream_nights)}, but no free-agent goalie clears the "
+                      "pickup threshold (moves left / gain).[/]")
+    for n in gw.notes:
+        console.print(f"[dim]{escape(n)}[/]")
+    _footer(lc, errors)
+
+
 @app.command("goalies")
 def goalies_cmd(ctx: typer.Context,
                 league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+                week: bool = typer.Option(False, "--week", help="Goalie start plan for the rest of the matchup: "
+                                          "start probability, matchup and expected points per game, who to "
+                                          "start each day, streaming goalies."),
                 json_out: bool = typer.Option(False, "--json")) -> None:
     """Tonight's starting goalies (Daily Faceoff, cached 3h) and whether my goalies start."""
     from .matching.normalize import normalize_name, normalize_team
@@ -1427,6 +1654,9 @@ def goalies_cmd(ctx: typer.Context,
     league_name, as_json = _opts(ctx, league, json_out)
     d = _load_all(league_name)
     lc, errors = d.lc, d.errors
+    if week:
+        _goalie_week_out(d, as_json)
+        return
     starts = _safe(errors, "Daily Faceoff starting goalies", _dfo_client(d.cache).starting_goalies, lc.as_of,
                    default=[]) or []
     mine = [p for p in lc.my_team.players if p.is_goalie]
@@ -1558,6 +1788,15 @@ def ask_cmd(ctx: typer.Context,
     _footer(lc, errors)
 
 
+def _plan_lines(d: Loaded, recs: list[Recommendation]) -> list[str] | None:
+    """The digest's lead block: the weekly plan summary (None outside daily-lineup leagues)."""
+    from .recommend.plan import build_week_plan, plan_summary
+
+    wp = build_week_plan(d.lc, d.values, dynasty_values=d.dyn, recs=list(recs), provider=d.provider,
+                         data_dir=get_settings().fm_data_dir)
+    return plan_summary(wp, d.lc.as_of) or None
+
+
 @app.command()
 def report(ctx: typer.Context,
            out: Optional[Path] = typer.Option(None, "--out", "-o",
@@ -1594,7 +1833,8 @@ def report(ctx: typer.Context,
     by_cid = _match_news(items, lc.all_players(), errors)
     digest = build_digest(lc, d.values, recs, by_cid,
                           model_headline=model_headline(settings_.fm_data_dir, lc.provider),
-                          model_health=model_health(settings_.fm_data_dir, lc.provider))
+                          model_health=model_health(settings_.fm_data_dir, lc.provider),
+                          week_plan=_safe(errors, "weekly plan", _plan_lines, d, recs, default=None))
     out_dir = out or (Path(settings_.fm_data_dir) / "reports")
     try:
         md_path, html_path = write_digest(digest, out_dir)
@@ -1952,6 +2192,113 @@ def schedule_cmd(ctx: typer.Context,
     _footer(lc)
 
 
+def _playoff_player_table(title: str, rows: list[Any], periods: list[Any], kind: str) -> Table:
+    tbl = Table(title=title)
+    for c in ("Player", "Pos", "NHL", *(["Team"] if kind == "trade" else []),
+              *[f"P{p.number}" for p in periods], "GP", "Off", "vs avg", "Per GP",
+              *(["Starts"] if kind == "hold" else []), "Lost" if kind == "sell" else "Playoff pts"):
+        tbl.add_column(c, justify="left" if c in ("Player", "Pos", "NHL", "Team") else "right")
+    for r in rows:
+        last = _fmt(r.cost) if kind == "sell" else f"{r.points:+.1f}"
+        tbl.add_row(escape(r.name) + ("" if r.status == "healthy" else f" [dim]({r.status})[/]"), r.pos,
+                    r.team or "-", *([escape(r.owner or "-")] if kind == "trade" else []),
+                    *[str(g) for g in r.games], str(r.total), str(r.offnights), f"{r.vs_avg:+.1f}",
+                    f"{r.per_game:.2f}", *([str(r.starts or 0)] if kind == "hold" else []), last)
+    return tbl
+
+
+@app.command("playoffs")
+def playoffs_cmd(ctx: typer.Context,
+                 limit: int = typer.Option(10, "--limit", help="Players per list."),
+                 league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+                 json_out: bool = typer.Option(False, "--json")) -> None:
+    """Fantasy-playoff planner: your roster's playoff games and projected points vs the league,
+    players to hold, sell (weak playoff schedule) and acquire before the trade deadline."""
+    from .analysis.playoffs import playoff_plan
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    d = _load_all(league_name)
+    lc = d.lc
+    p = playoff_plan(lc, d.values, d.provider, limit=limit)
+    if as_json:
+        _dump({**p.model_dump(mode="json"), "meta": _meta(lc)})
+        return
+    if p.periods:
+        console.print(f"[bold]Fantasy playoffs[/]: periods {', '.join(str(x.number) for x in p.periods)} "
+                      f"({p.periods[0].start:%b %d} - {p.periods[-1].end:%b %d}, {p.days} days; {escape(p.source)})")
+    if p.deadline is not None:
+        left = p.days_to_deadline or 0
+        when = f"{left} days left" if left > 0 else ("today" if left == 0 else "passed")
+        console.print(f"Trade deadline: [bold]{p.deadline:%a %b %d, %Y}[/] ({when}; {escape(p.deadline_source or '')})")
+    else:
+        console.print(f"[dim]Trade deadline: {escape(p.deadline_source or 'not found in the league settings')}.[/]")
+    if p.my_team:
+        console.print(f"{escape(p.my_team)}: [bold]{p.my_points:.1f}[/] projected playoff pts "
+                      f"(league average {p.league_avg_points:.1f}; rank {p.rank} of {p.n_teams}). "
+                      f"Average NHL team: {p.avg_team_games:.1f} games.")
+        if p.groups:
+            console.print("Playoff starts by position (yours / league average): " + ", ".join(
+                f"{g.group} {g.mine:.0f} / {g.league_avg:.1f}" for g in p.groups))
+    for title, rows, kind in (("Hold: your playoff contributors", p.hold[:limit], "hold"),
+                              ("Sell: weak playoff schedules", p.sell, "sell"),
+                              ("Acquire: free agents", p.acquire_fa, "fa"),
+                              ("Acquire before the deadline: other teams' players", p.acquire_trade, "trade")):
+        if rows:
+            console.print(_playoff_player_table(title, rows, p.periods, kind))
+    if not p.sell:
+        console.print("[dim]Sell: none of your players has a playoff schedule "
+                      "2+ games below the average NHL team.[/]")
+    console.print("[dim]Playoff pts: the best lineup each playoff day with healthy per-game values; "
+                  "for acquisitions, what he adds to your lineup (no drop).[/]")
+    for n in p.notes:
+        console.print(f"[dim]{escape(n)}[/]")
+    _footer(lc)
+
+
+@app.command("outlook")
+def outlook_cmd(ctx: typer.Context,
+                league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+                json_out: bool = typer.Option(False, "--json")) -> None:
+    """Contention window: every team's lineup strength now and over the next seasons, playoff odds,
+    and whether to contend, stay balanced or rebuild (never changes your mode), with sell / buy lists."""
+    from .analysis.outlook import FUTURE_YEARS, build_outlook, outlook_json, recommendation_text
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    d = _load_all(league_name)
+    lc = d.lc
+    o = build_outlook(lc, d.values, d.dyn, d.provider)
+    if as_json:
+        _json_out({"outlook": outlook_json(o)}, lc, d.errors)
+        return
+    console.print(f"[bold]Outlook[/]: {escape(recommendation_text(o))}")
+    for r in o.reasons:
+        console.print(f"  - {escape(r)}")
+    tbl = Table(title="League outlook (best lineup per game; playoff odds approximate)")
+    cols = [("Team", "left"), ("Record", "right"), ("Now", "right"), ("#", "right")]
+    if o.dynasty:
+        cols += [(f"+{y}y", "right") for y in range(1, FUTURE_YEARS + 1)] + [("Future #", "right")]
+    cols += [("Playoffs", "right"), ("Direction", "left")]
+    for c, j in cols:
+        tbl.add_column(c, justify=j)
+    for r in o.teams:
+        name = f"[bold]{escape(r.team.name)}[/] (me)" if r.mine else escape(r.team.name)
+        row = [name, "-".join(map(str, r.record)) if r.record else "-", f"{r.now:.1f}", str(r.now_rank)]
+        if o.dynasty:
+            row += [f"{x:.1f}" for x in r.future] + [str(r.future_rank or "-")]
+        row += ["-" if r.playoff_odds is None else f"{r.playoff_odds:.0%}", r.label]
+        tbl.add_row(*row)
+    console.print(tbl)
+    for title, rows in (("Sell", o.sell), ("Buy", o.buy)):
+        if rows:
+            console.print(f"[bold]{title}[/] ({o.recommended})")
+            for a in rows:
+                owner = f" ({escape(a.owner)})" if a.owner else ""
+                console.print(f"  - {escape(a.player.name)}{owner}: {escape(a.why)}")
+    for n in o.notes:
+        console.print(f"[dim]{escape(n)}[/]")
+    _footer(lc, d.errors)
+
+
 @app.command("matchup")
 def matchup_cmd(ctx: typer.Context,
                 seed: Optional[int] = typer.Option(None, "--seed", help="Random seed for the win-probability draws."),
@@ -2004,6 +2351,142 @@ def matchup_cmd(ctx: typer.Context,
     console.print(f"[dim]Lineups: {escape(m.lineup_basis)}; scores: {escape(m.source)}.[/]")
     for w in m.warnings:
         console.print(f"[dim yellow]! {escape(w)}[/]")
+    _footer(lc)
+
+
+def _pct(p: float | None) -> str:
+    return "-" if p is None else f"{p:.0%}"
+
+
+def _pp(delta: float | None) -> str:
+    """A win-probability change in percentage points."""
+    return "-" if delta is None else f"{delta * 100:+.0f}%"
+
+
+@app.command("plan")
+def plan_cmd(ctx: typer.Context,
+             no_archive: bool = typer.Option(False, "--no-archive", help="Don't save the plan for grading."),
+             league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+             json_out: bool = typer.Option(False, "--json")) -> None:
+    """This week's action plan: today's moves, which pickups to make on which day within your moves
+    left, the lineup for each remaining day, and the points / win probability each step adds."""
+    from .recommend.plan import archive_plan, build_week_plan
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    d = _load_all(league_name)
+    lc = d.lc
+    history = _history()
+    try:
+        p = build_week_plan(lc, d.values, dynasty_values=d.dyn, provider=d.provider, history=history,
+                            data_dir=get_settings().fm_data_dir)
+    finally:
+        history.close()
+    if not no_archive:
+        archive_plan(p, get_settings().fm_data_dir, lc.league_id)
+    if as_json:
+        _dump({**p.to_json(), "meta": _meta(lc)})
+        return
+    when = f"{p.start:%a %b %d} - {p.end:%a %b %d}, " if p.start and p.end else ""
+    console.print(f"[bold]{escape(p.my_team)}[/] vs [bold]{escape(p.opponent or 'unknown opponent')}[/]"
+                  f" - {when}{p.days_left} days left")
+    if not p.available:
+        for n in p.notes:
+            console.print(f"- {escape(n)}")
+        _footer(lc)
+        return
+    moves = "unlimited" if p.moves_left is None else str(p.moves_left)
+    console.print(f"Score {p.my_so_far:.1f} - {p.their_so_far:.1f} · projected "
+                  f"{p.my_so_far + p.proj_plan:.1f} - {p.their_so_far + p.their_remaining:.1f} with the plan · "
+                  f"moves left {moves}" + (f" · stance {p.stance}" if p.stance else ""))
+    console.print(f"Win probability: [bold]{_pct(p.win_as_set)}[/] with quick lineup each day -> "
+                  f"[bold]{_pct(p.win_plan)}[/] with the plan")
+    steps = Table(title="Plan steps beyond quick lineup (points over the rest of the matchup)")
+    for c, j in (("#", "right"), ("When", "left"), ("Do this", "left"), ("Pts", "right"), ("Win", "right"),
+                 ("Why", "left")):
+        steps.add_column(c, justify=j)
+    n = 0
+    for a in p.today:
+        n += 1
+        gain = "-" if a.gain is None else (f"{a.gain:+.1f}" if a.gain_units == "matchup_pts"
+                                           else f"{a.gain:+.2f} ({a.gain_units or ''})")
+        steps.add_row(str(n), "Today", escape(a.title), gain, "-", escape(a.headline or ""))
+    for m in p.moves:
+        n += 1
+        what = ("Claim " if m.claim else "Add ") + m.add.name + (f", drop {m.drop.name}" if m.drop else "") \
+            + (f", {m.to_ir.name} to IR" if m.to_ir else "")
+        when = f"{m.day:%a}" + ("" if m.effective == m.day else f" (counts {m.effective:%a})")
+        why = (m.note + " · " if m.note else "") + m.headline + (f" · {m.timing}" if m.timing else "") \
+            + (f" · {m.market}" if m.market else "")
+        why += "".join(f" · {r}" for r in m.reasons[:1])
+        steps.add_row(str(n), when, escape(what), f"+{m.gain_pts:.1f}", _pp(m.win_delta), escape(why))
+    if n:
+        console.print(steps)
+    else:
+        console.print("Quick lineup each day is all this week needs.")
+    days = Table(title="Day by day (press quick lineup each day; extra steps below)")
+    for c, j in (("Day", "left"), ("Plan", "left"), ("Proj", "right"), ("Quick lineup", "right")):
+        days.add_column(c, justify=j)
+    for line in p.days:
+        days.add_row(f"{line.day:%a %b %d}", escape(line.text), _fmt(line.pts_plan), _fmt(line.pts_as_set))
+    console.print(days)
+    console.print(f"Plan total: [bold]{p.proj_plan:.1f}[/] pts remaining vs {p.proj_as_set:.1f} with quick lineup "
+                  f"([bold]{p.proj_plan - p.proj_as_set:+.1f}[/] from the moves)")
+    for w in p.net_week:
+        console.print(escape(w))
+    for w in p.watch:
+        console.print(f"[dim]Watch: {escape(w)}[/]")
+    for w in p.claim_watch:
+        console.print(f"[dim]Watch: {escape(w)} - see fm claims[/]")
+    for note in p.notes:
+        console.print(f"[dim]{escape(note)}[/]")
+    _footer(lc)
+
+
+@app.command("claims")
+def claims_cmd(ctx: typer.Context,
+               n: int = typer.Option(5, "-n", help="Claims to list (also capped by the moves left)."),
+               league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+               json_out: bool = typer.Option(False, "--json")) -> None:
+    """Claims to place now, in order: who to add, the drop that keeps the roster legal when each
+    claim processes, when he clears and counts, his lineup games, and a FAAB bid if the league uses one."""
+    from .recommend.claims import plan_claims
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    d = _load_all(league_name)
+    lc = d.lc
+    cp = plan_claims(lc, d.values, dynasty_values=d.dyn, provider=d.provider, limit=n)
+    if as_json:
+        _dump({**cp.model_dump(mode="json"), "meta": _meta(lc)})
+        return
+    for line in cp.rules:
+        console.print(f"[dim]{escape(line)}[/]")
+    head = f"Moves left: {'unlimited' if cp.moves_left is None else cp.moves_left}"
+    console.print(head + (f" · your waiver priority {cp.priority}" if cp.priority else ""))
+    if cp.claims:
+        t = Table(title="Claims to place (in this order)")
+        cols = [("#", "right"), ("Add", "left"), ("Drop", "left"), ("Type", "left"), ("Counts from", "left"),
+                ("Lineup games", "left"), ("Gain", "right"), ("Why", "left")]
+        if any(c.bid is not None for c in cp.claims):
+            cols.insert(7, ("Bid", "right"))
+        for c, j in cols:
+            t.add_column(c, justify=j)
+        for c in cp.claims:
+            kind = (f"claim, clears {c.clears:%a}" if c.kind == "claim" and c.clears else c.kind) \
+                + (" · this matchup" if c.horizon == "matchup" else "")
+            drop = c.drop.name if c.drop else (f"{c.to_ir.name} to IR" if c.to_ir else "open spot")
+            games = ", ".join(f"{g:%a}" for g in c.games) or "-"
+            gain = "-" if c.gain is None else (f"+{c.gain:.1f} pts" if c.gain_units == "matchup_pts"
+                                               else f"+{c.gain:.2f} FPG" if c.gain_units == "season_fpg"
+                                               else f"+{c.gain:.1f} ({c.gain_units})")
+            row = [str(c.order), escape(f"{c.add.name} ({c.add.team or 'FA'})"), escape(drop), kind,
+                   f"{c.effective:%a %b} {c.effective.day}", f"{games} ({c.games_7d} games in 7 days)", gain,
+                   escape(c.headline)]
+            if any(x.bid is not None for x in cp.claims):
+                row.insert(7, "-" if c.bid is None else f"${c.bid:g}")
+            t.add_row(*row)
+        console.print(t)
+    for note in cp.notes:
+        console.print(f"[dim]{escape(note)}[/]")
     _footer(lc)
 
 

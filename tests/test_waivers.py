@@ -529,7 +529,7 @@ def test_matchup_pickup_gain_is_the_matchup_points_not_a_weekly_rate():
     pts = next(x for x in r.reasons if x.code == "MATCHUP_GAIN").value
     assert r.gain_units == "matchup_pts" and r.predicted_gain == pytest.approx(pts)
     assert r.horizon_days == 7                                       # plan days Oct 1-7
-    assert gain_text(r) == f"{pts:+.1f} pts (7d)"
+    assert gain_text(r) == f"{pts:+.1f} pts (7d left)"
 
 
 def test_matchup_pickup_drops_least_rest_of_season_value_not_an_injured_starter():
@@ -609,3 +609,16 @@ def test_empty_starting_slot_is_filled_by_dropping_a_bench_player_of_any_positio
     r = recommend_waivers(ctx, values, dynasty_values={"fa_d": 9.0, "bench_lw": 10.0, "my_c": 20.0})[0]
     assert [p.cid for p in r.drop] == ["bench_lw"] and "DYNASTY_COST" in {x.code for x in r.reasons}
     assert recommend_waivers(ctx, values, dynasty_values={"fa_d": 8.0, "bench_lw": 10.0, "my_c": 20.0}) == []
+
+
+def test_excluded_drop_falls_through_to_the_next_candidate():
+    """A caller-excluded drop (e.g. an injured player the hold verdict keeps) is skipped inside drop
+    selection, so the pickup uses the next legal drop instead of disappearing."""
+    fa = mk("fa_c", ["C"], 1.0, gp=20)
+    hurt = mk("hurt_c", ["C"], 0.05, status="out")
+    meh = mk("meh_c", ["C"], 0.2)
+    ctx = league([fa], [("C", meh), ("BN", hurt)])
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    assert recommend_waivers(ctx, values)[0].drop[0].cid == "hurt_c"
+    (r,) = recommend_waivers(ctx, values, exclude_drops={"hurt_c"})
+    assert r.add[0].cid == "fa_c" and r.drop[0].cid == "meh_c"

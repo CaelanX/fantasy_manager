@@ -13,6 +13,11 @@
 {% for b in row.badges or [] %}<span class="ub{% if b.startswith('PP') %} ub-pp{% endif %}"{% if row.line_change %} title="Change: {{ row.line_change }}"{% endif %}>{{ b }}</span>{% endfor %}
 {%- endmacro %}
 
+{# NHL team with its colour chip ("EDM" with an orange square). #}
+{% macro team_chip(abbr) -%}
+{% if abbr %}{% set c = team_color(abbr) %}<span class="team"><i{% if c %} style="--c: {{ c }}"{% endif %} aria-hidden="true"></i>{{ abbr }}</span>{% else %}-{% endif %}
+{%- endmacro %}
+
 {% macro prospect_mark(flag) -%}
 {% if flag %}<span class="pm" title="Prospect" aria-hidden="true">*</span><span class="sr-only">, prospect</span>{% endif %}
 {%- endmacro %}
@@ -83,7 +88,7 @@
     {% if net %}<th scope="col" class="n">Net <span class="sr-only">(in minus out)</span></th>{% endif %}
   </tr></thead>
   <tbody>
-    <tr><th scope="row">Pos &middot; NHL</th>{% for c in cmp.cols %}<td class="n">{{ c.row.pos }} &middot; {{ c.row.team }}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
+    <tr><th scope="row">Pos &middot; NHL</th>{% for c in cmp.cols %}<td class="n">{{ c.row.pos }} {{ team_chip(c.row.team) }}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
     <tr><th scope="row">Age</th>{% for c in cmp.cols %}<td class="n">{{ c.row.age|int if c.row.age is not none else '-' }}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
     <tr><th scope="row">Status</th>{% for c in cmp.cols %}<td class="n st-cell">{{ pill(c.row.status) }}{% if c.row.note %}<small class="note-s" title="{{ c.row.note }}">{{ c.row.note|truncate(70) }}</small>{% endif %}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
     <tr><th scope="row">GP season</th>{% for c in cmp.cols %}<td class="n">{{ c.row.gp }}</td>{% endfor %}{% if net %}<td></td>{% endif %}</tr>
@@ -143,7 +148,7 @@
   <tbody>
     {% for x in rows %}
     <tr>
-      <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}<small>{{ x.pos }} &middot; {{ x.team }}</small></th>
+      <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}<small>{{ x.pos }} {{ team_chip(x.team) }}</small></th>
       {% if owner %}<td data-label="Fantasy team">{{ x.owner or '-' }}</td>{% endif %}
       {% if slot %}<td data-label="Slot" class="slot">{{ x.slot or '-' }}</td>{% endif %}
       <td data-label="Status" class="wrap">{{ pill(x.status) }}{% if note and x.note %}<small class="note-s">{{ x.note|truncate(110) }}</small>{% endif %}</td>
@@ -175,10 +180,14 @@
   <div class="m-body">
     <div class="m-kind"><span>{{ KIND_LABEL.get(r.kind, r.kind) }}</span>{% if r.counterparty and r.counterparty.strip() %}<span class="m-cp">&middot; with {{ r.counterparty.strip() }}</span>{% endif %}{% set mk = market_info(r) %}{% if mk %}<span class="mk {{ 'mk-no' if mk.disagrees else 'mk-ok' }}" title="{{ mk.title }}">{{ mk.label }}</span>{% endif %}{% if st.rank_text %}<span class="m-rank">{{ st.rank_text }}</span>{% endif %}</div>
     <h3 class="do">{{ action }}</h3>
+    {% if r.headline %}<p class="m-head">{{ r.headline }}</p>{% endif %}
     {% set note = r|action_note %}{% if note %}<p class="m-title">{{ note }}</p>{% endif %}
     {{ gain_block(r, res) }}
+    {% set tr = track_info(r, league) %}<p class="track{{ ' track-wait' if not tr.enough }}">{{ tr.text }}</p>
     {% set cmp = compare(res, r) %}
-    {% if cmp.cols %}{{ compare_table(cmp, league) }}{% endif %}
+    {% if cmp.cols %}
+    <details class="cmp-d"><summary class="ghost-btn">Compare players</summary>{{ compare_table(cmp, league) }}</details>
+    {% endif %}
     {% if r.narrative %}<p class="narr">{{ r.narrative }}</p>{% endif %}
     <div id="explain-{{ key }}" class="explain-slot">
       {% set ex = res.explanations.get(key) if res.explanations is defined else none %}

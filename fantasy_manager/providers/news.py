@@ -1,13 +1,21 @@
-"""Player news from RSS feeds (RotoWire player blurbs, ESPN NHL headlines)."""
+"""Player news from RSS feeds (RotoWire player blurbs, ESPN NHL headlines).
+
+The feeds only carry the latest few dozen items (a few hours of news), so every fetch goes
+through :func:`fetch_news`, which merges the fresh items into a 30-day store
+(``<fm_data_dir>/news_items.json``) and returns fresh + stored items. Every consumer (``fm news``,
+the digest, LLM narration / ``fm ask``, the dashboard, rookie role signals) reads news this way.
+"""
 
 from __future__ import annotations
 
 import html
+import json
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
-from typing import Callable
+from pathlib import Path
+from typing import Any, Callable, Iterable, Mapping
 
 import feedparser
 import httpx
@@ -203,6 +211,141 @@ def fetch_all_news(fetch_text: FetchText | None = None) -> list[NewsItem]:
             items.extend(fn(fetch_text))
         except Exception as exc:  # network / parse failure in one feed shouldn't sink the rest
             log.warning("news source %s failed: %s", fn.__name__, exc)
-    epoch = datetime.min.replace(tzinfo=timezone.utc)
-    items.sort(key=lambda n: n.published or epoch, reverse=True)
-    return items
+    return _newest_first(items)
+
+
+# --------------------------------------------------------------------------- 30-day store
+
+STORE_NAME = "news_items.json"
+LEGACY_STORE_NAME = "news_role_items.json"   # rookie role-signal items only (before the shared store)
+STORE_MAX_AGE_DAYS = 30
+STORE_MAX_ITEMS = 5000                       # ~30 days of both feeds fetched several times a day
+_EPOCH = datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _newest_first(items: Iterable[NewsItem]) -> list[NewsItem]:
+    return sorted(items, key=lambda n: n.published or _EPOCH, reverse=True)
+
+
+def item_key(it: NewsItem) -> str:
+    """Dedupe key: the feed guid, else source + headline + publish time."""
+    return it.id or f"{it.source}|{it.headline}|{it.published.isoformat() if it.published else ''}"
+
+
+def _ref_time(as_of: date | datetime | None) -> datetime:
+    """Reference time for the age cut-off: now, or the end of day ``as_of`` (UTC)."""
+    if as_of is None:
+        return datetime.now(timezone.utc)
+    if isinstance(as_of, datetime):
+        return as_of if as_of.tzinfo else as_of.replace(tzinfo=timezone.utc)
+    return datetime(as_of.year, as_of.month, as_of.day, tzinfo=timezone.utc) + timedelta(days=1)
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _write_store(store_dir: Path, raw: dict[str, Any]) -> bool:
+    path = store_dir / STORE_NAME
+    try:
+        store_dir.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(raw, indent=1, sort_keys=True), encoding="utf-8")
+        tmp.replace(path)
+        return True
+    except OSError as e:
+        log.info("news store not saved: %s", e)
+        return False
+
+
+def _load_raw(store_dir: Path) -> dict[str, Any]:
+    """The store's {key: stored item}, with the old rookie-signal item file merged in once (it is
+    deleted only after the merged store has been written, so nothing is lost)."""
+    raw = _read_json(store_dir / STORE_NAME)
+    legacy = store_dir / LEGACY_STORE_NAME
+    if legacy.exists():
+        for key, d in _read_json(legacy).items():
+            raw.setdefault(key, d)
+        if _write_store(store_dir, raw):
+            try:
+                legacy.unlink()
+            except OSError:
+                pass
+    return raw
+
+
+def _seen(d: Mapping[str, Any]) -> datetime | None:
+    """When a stored item was published, else first stored (undated items age out from then)."""
+    for k in ("published", "seen"):
+        v = d.get(k)
+        if v:
+            try:
+                dt = datetime.fromisoformat(str(v))
+            except ValueError:
+                continue
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return None
+
+
+def _prune(raw: dict[str, Any], ref: datetime) -> dict[str, Any]:
+    cutoff = ref - timedelta(days=STORE_MAX_AGE_DAYS)
+    keep = [(k, d) for k, d in raw.items() if isinstance(d, dict) and (_seen(d) or ref) >= cutoff]
+    keep.sort(key=lambda kv: _seen(kv[1]) or _EPOCH, reverse=True)
+    return dict(keep[:STORE_MAX_ITEMS])
+
+
+def _items(raw: Mapping[str, Any]) -> list[NewsItem]:
+    out = []
+    for d in raw.values():
+        try:
+            out.append(NewsItem.model_validate(d))
+        except Exception:
+            continue
+    return out
+
+
+def stored_news(store_dir: str | Path | None, as_of: date | datetime | None = None) -> list[NewsItem]:
+    """Items in the store no older than STORE_MAX_AGE_DAYS before ``as_of`` (default now), newest first."""
+    if store_dir is None:
+        return []
+    return _newest_first(_items(_prune(_load_raw(Path(store_dir)), _ref_time(as_of))))
+
+
+def store_news(store_dir: str | Path | None, items: Iterable[NewsItem],
+               as_of: date | datetime | None = None) -> list[NewsItem]:
+    """Merge ``items`` into the store (a fresh copy replaces a stored one with the same key), prune
+    it to the last STORE_MAX_AGE_DAYS / STORE_MAX_ITEMS, save it, and return every stored item no
+    older than that before ``as_of``, newest first. Without ``store_dir``: just ``items``."""
+    items = list(items)
+    if store_dir is None:
+        return _newest_first({item_key(it): it for it in items}.values())
+    path = Path(store_dir)
+    raw = _load_raw(path)
+    now = datetime.now(timezone.utc).isoformat()
+    for it in items:
+        key = item_key(it)
+        d = it.model_dump(mode="json")
+        d["seen"] = (raw.get(key) or {}).get("seen") or now
+        raw[key] = d
+    raw = _prune(raw, datetime.now(timezone.utc))
+    _write_store(path, raw)
+    return _newest_first(_items(_prune(raw, _ref_time(as_of))))
+
+
+def fetch_news(fetch_text: FetchText | None, store_dir: str | Path | None,
+               as_of: date | datetime | None = None) -> tuple[list[NewsItem], list[tuple[str, Exception]]]:
+    """Fetch every source, merge the fresh items into the 30-day store and return
+    (fresh + stored items newest first, [(source label, error)] for sources that failed). A failed
+    or offline source still leaves the stored items."""
+    fresh: list[NewsItem] = []
+    failed: list[tuple[str, Exception]] = []
+    for label, fn in (("RotoWire news", fetch_rotowire), ("ESPN news", fetch_espn_news)):
+        try:
+            fresh.extend(fn(fetch_text))
+        except Exception as e:  # one feed (or offline cache miss) must not sink the rest
+            failed.append((label, e))
+    return store_news(store_dir, fresh, as_of), failed

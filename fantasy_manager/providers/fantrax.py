@@ -51,6 +51,10 @@ from .base import ProviderError
 
 FXPA_URL = "https://www.fantrax.com/fxpa/req"
 FANTRAX_TTL = 15 * 60
+# Requests that carry lineups (getTeamRosterInfo): short, so a lineup set on fantrax.com shows up on the next run
+LINEUP_TTL = 2 * 60
+LINEUP_METHODS = frozenset({"getTeamRosterInfo"})
+CACHE_DIR_NAME = "fantrax_cache"
 BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
 FA_PAGE_SIZE = 200
@@ -281,6 +285,18 @@ def _msg_block(league_id: str, method: str, data: Mapping[str, Any]) -> dict[str
     return Method(method, **dict(data)).msg_block(league_id)
 
 
+def clear_cache(data_dir: str | Path) -> int:
+    """Delete every cached Fantrax response under ``<data_dir>/fantrax_cache``; returns how many."""
+    n = 0
+    for f in (Path(data_dir) / CACHE_DIR_NAME).glob("*.json"):
+        try:
+            f.unlink()
+            n += 1
+        except OSError:
+            pass
+    return n
+
+
 def _raise_page_error(page_error: Mapping[str, Any]) -> None:
     from fantraxapi.exceptions import FantraxException, NotLoggedIn, NotMemberOfLeague
 
@@ -316,10 +332,11 @@ class FxpaClient:
     def _cached_post(self, msgs: list[dict], fresh: bool = False) -> dict:
         key = self._key(msgs)
         path = self.cache_dir / f"{key}.json" if self.cache_dir else None
+        ttl = min(self.ttl, LINEUP_TTL) if any(m.get("method") in LINEUP_METHODS for m in msgs) else self.ttl
         if path is not None and path.is_file() and not (fresh and not self.offline):
             try:
                 entry = json.loads(path.read_text(encoding="utf-8"))
-                if self.offline or time.time() - float(entry["fetched_at"]) < self.ttl:
+                if self.offline or time.time() - float(entry["fetched_at"]) < ttl:
                     return entry["body"]
             except (ValueError, KeyError, OSError):
                 pass
@@ -349,7 +366,7 @@ class FxpaClient:
         from fantraxapi.exceptions import FantraxException
 
         payload = {"msgs": msgs, "uiv": 3, "refUrl": f"https://www.fantrax.com/fantasy/league/{self.league_id}",
-                   "dt": 0, "at": 0, "av": "0.0", "tz": "UTC"}
+                   "dt": 0, "at": 0, "av": "0.0", "tz": local_tz_name()}
         self.requests_made += 1
         resp = self.session.post(FXPA_URL, params={"leagueId": self.league_id}, json=payload, timeout=30)
         status = getattr(resp, "status_code", 200)
@@ -374,6 +391,37 @@ class FxpaClient:
             from fantraxapi.exceptions import FantraxException
             raise FantraxException(f"expected {len(msgs)} responses, got {len(out)}")
         return out
+
+
+def local_tz_name(now: datetime | None = None) -> str:
+    """Time zone sent with every Fantrax request (``tz``): Fantrax answers "today" (lineups,
+    scoring period) in that zone, so it must match the local date the tool uses (``date.today()``).
+    FM_TZ, else TZ from the process environment (docker-compose sets TZ), else the system zone (/etc/timezone or the /etc/localtime link, as set by
+    deploy/install.sh), else the current UTC offset as ``Etc/GMT+N`` (sign inverted, POSIX style;
+    whole hours only, else "UTC")."""
+    import os
+
+    for var in ("FM_TZ", "TZ"):
+        name = (os.environ.get(var) or "").strip()
+        if "/" in name or name == "UTC":
+            return name
+    try:
+        name = Path("/etc/timezone").read_text(encoding="utf-8").strip()
+        if "/" in name:
+            return name
+    except OSError:
+        pass
+    try:
+        link = str(Path("/etc/localtime").resolve())
+        if "zoneinfo/" in link:
+            return link.split("zoneinfo/", 1)[1]
+    except OSError:
+        pass
+    offset = (now or datetime.now().astimezone()).utcoffset() or timedelta(0)
+    minutes = int(offset.total_seconds() // 60)
+    if minutes == 0 or minutes % 60:
+        return "UTC"
+    return f"Etc/GMT{-minutes // 60:+d}"
 
 
 # -- pure parsing helpers ---------------------------------------------------
@@ -1154,6 +1202,22 @@ def rules_position_limits(rules: LeagueRules | None) -> dict[str, int]:
     return out
 
 
+_STAT_LIMIT_RE = re.compile(r"games? played|\bgp\b|goalie.*(minimum|min\b|start)|(minimum|min\b).*goalie", re.I)
+
+
+def rules_stat_limits(rules: LeagueRules | None) -> list[str] | None:
+    """Games-played caps / goalie minimums stated on the Rules page ("Label: value" texts);
+    None when the Rules page could not be read. Values "Not Used" / "No" / blank are skipped."""
+    if rules is None or rules.empty:
+        return None
+    out: list[str] = []
+    for sect in rules.settings.values():
+        for k, v in sect.items():
+            if _STAT_LIMIT_RE.search(k) and v.strip().lower() not in ("", "not used", "no", "none"):
+                out.append(f"{k}: {v}")
+    return out
+
+
 def rules_max_roster(rules: LeagueRules | None) -> int | None:
     """"Maximum Total Players" (active + reserve; Fantrax counts IR and minors separately)."""
     n = rules.get_int("Maximum Total Players") if rules is not None else None
@@ -1432,6 +1496,7 @@ class FantraxProvider:
         self._client: FxpaClient | None = None
         self.rules: LeagueRules | None = None          # parsed Rules page (getLeagueRulesOld)
         self.draft_picks: dict[int, list[dict[str, Any]]] = {}  # my picks by year
+        self.team_draft_picks: dict[str, dict[int, list[dict[str, Any]]]] = {}  # every team's, by team id
         self.config_mae: float = float("nan")          # FANTRAX_POINTS vs Fantrax FPts
         self.config_checked: int = 0
         self._codes: dict[str, dict[str, str]] = {}    # split -> timeframe request params
@@ -1460,7 +1525,7 @@ class FantraxProvider:
                     session = build_session({})
             else:
                 session = self.auth.ensure_session()
-        cache_dir = Path(s.fm_data_dir) / "fantrax_cache"
+        cache_dir = Path(s.fm_data_dir) / CACHE_DIR_NAME
         self._client = FxpaClient(str(s.fantrax_league_id), session, cache_dir, offline=self.offline,
                                   relogin=None if self.offline else self._relogin)
         return self._client
@@ -1610,6 +1675,7 @@ class FantraxProvider:
             roster_shape=self._roster_shape(slot_counts),
             position_limits=rules_position_limits(self.rules),
             max_roster_size=rules_max_roster(self.rules),
+            stat_limits=rules_stat_limits(self.rules),
             teams=teams,
             free_agents=free_agents,
             matchup_period=None,
@@ -1618,6 +1684,7 @@ class FantraxProvider:
             dynasty_mode=getattr(s, "fantrax_mode", None) or "balanced",
             lineup_lock=self.lineup_lock,
             as_of=self.today or date.today(),
+            draft_picks={**self.team_draft_picks, **({my_id: self.draft_picks} if self.draft_picks else {})},
         )
         self._apply_budget(my_id)
         return self._ctx
@@ -1674,14 +1741,23 @@ class FantraxProvider:
         views = [(split, self._codes[split]) for split in SPLIT_TIMEFRAMES if split in self._codes]
         if not views:
             raw = self._call(*[("getTeamRosterInfo", {**base, "teamId": tid}) for tid in team_ids])
+            self._record_draft_picks(team_ids, raw)
             return [parse_roster(r, positions) for r in raw]
         per_team: list[list[ParsedRoster]] = [[] for _ in team_ids]
         for i, (split, params) in enumerate(views):
             calls = [("getTeamRosterInfo", {**base, "teamId": tid, **params}) for tid in team_ids]
             raw = self._call(*calls) if i == 0 else self._try(f"Fantrax {split} roster stats", *calls)
+            if i == 0:
+                self._record_draft_picks(team_ids, raw)
             for j, r in enumerate(raw or []):
                 per_team[j].append(parse_roster(r, positions, self._codes))
         return [merge_rosters(prs) for prs in per_team]
+
+    def _record_draft_picks(self, team_ids: list[str], raw: list[dict] | None) -> None:
+        """Each team's draft picks from its roster response (draftPicksData), by team id."""
+        for tid, r in zip(team_ids, raw or []):
+            if isinstance(r, Mapping) and (picks := parse_draft_picks(r)):
+                self.team_draft_picks[tid] = picks
 
     def _roster_shape(self, slot_counts: Mapping[str, int]) -> dict[str, int]:
         """Starting slots from my roster, bench/IR/minors from status limits; the Rules page

@@ -97,6 +97,13 @@ def _daily_league(lg: str, settings: Any, ledger: Any, today: date, since: date,
             _, rst = archive_recommendations(recs, ctx.provider, settings.fm_data_dir, as_of=ctx.as_of,
                                              league_id=ctx.league_id)
             out["archive"] = f"projections {pst}, recs {rst} ({len(recs)} recs)"
+            try:  # the weekly plan's predicted totals, graded against the final matchup score
+                from .recommend.plan import archive_plan, build_week_plan
+
+                wp = build_week_plan(ctx, values, recs=list(recs), provider=provider, data_dir=settings.fm_data_dir)
+                out["archive"] += f", plan {archive_plan(wp, settings.fm_data_dir, ctx.league_id) or 'n/a'}"
+            except Exception as e:  # noqa: BLE001 - the plan archive is optional
+                out["warnings"].append(f"weekly plan not archived: {e}")
         elif archive:
             out["archive"] = "already archived today" if ctx is not None or _archived(settings.fm_data_dir, lg, today) \
                 else "not archived (league unavailable)"
@@ -224,6 +231,35 @@ def _lines_line(ln: dict[str, Any]) -> str:
         return f"[yellow]lines {ln['day']}: {escape(ln['error'])}[/]"
     extra = f" ({ln.get('teams', 0)} teams, {ln.get('starts', 0)} goalie reports)" if "teams" in ln else ""
     return f"lines {ln['day']}: Daily Faceoff snapshot {ln.get('snapshot')}{extra}"
+
+
+def _news_step(settings: Any) -> dict[str, Any]:
+    """Fetch RotoWire / ESPN news into the 30-day store (``<fm_data_dir>/news_items.json``) so a
+    scheduled server keeps every item, not only the few hours each feed carries. Never raises."""
+    from .providers.enrich import make_fetch_text
+    from .providers.news import fetch_news
+
+    out: dict[str, Any] = {}
+    try:
+        cache = _cache(settings)
+        try:
+            items, failed = fetch_news(make_fetch_text(cache), settings.fm_data_dir)
+        finally:
+            cache.close()
+        dated = [it.published for it in items if it.published]
+        out.update(stored=len(items), oldest=min(dated).isoformat() if dated else None,
+                   failed=[f"{label}: {type(e).__name__}" for label, e in failed])
+    except Exception as e:  # noqa: BLE001 - news is context only
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
+def _news_line(nw: dict[str, Any]) -> str:
+    if nw.get("error"):
+        return f"[yellow]news: {escape(nw['error'])}[/]"
+    since = f" since {str(nw['oldest'])[:10]}" if nw.get("oldest") else ""
+    failed = f" [yellow](unavailable: {escape(', '.join(nw['failed']))})[/]" if nw.get("failed") else ""
+    return f"news: {nw.get('stored', 0)} items stored{since}{failed}"
 
 
 def _odds_step(settings: Any, today: date, client: Any = None) -> dict[str, Any]:
@@ -356,6 +392,7 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
             r.pop("_schedule", None)
         deployment = _deployment_step(ledger, settings, rday, schedule)
         lines = _lines_step(settings, today)
+        news = _news_step(settings)
         odds = _odds_step(settings, today)
         odds["games"] = len(odds.get("games") or [])
         graded = None
@@ -364,7 +401,7 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
         refit = _daily_refit(ledger, settings, today)
         notified = _notify_failures(settings, [(r["league"], r["skipped"]) for r in results if r.get("skipped")])
         summary = {"leagues": results, "realized": realized, "deployment": deployment, "lines": lines,
-                   "odds": odds, "grade": graded, "refit": refit, "failure_notify": notified,
+                   "news": news, "odds": odds, "grade": graded, "refit": refit, "failure_notify": notified,
                    "seconds": round(time.perf_counter() - t0, 1)}
         failed = [r["league"] for r in results if r.get("skipped")]
         record_run(ledger, "daily", league, today, summary, "partial" if failed or "error" in realized else "ok")
@@ -399,6 +436,7 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
         console.print(f"NHL results {rl['day']}: {rl.get('players', 0)} players{note}")
     console.print(_deployment_line(summary["deployment"]))
     console.print(_lines_line(summary["lines"]))
+    console.print(_news_line(summary["news"]))
     console.print(_odds_line(summary["odds"]))
     for res_line in summary.get("failure_notify") or []:
         console.print(f"[yellow]league failure notification: {escape(res_line)}[/]")
@@ -432,6 +470,7 @@ def pregame_cmd(league: str = typer.Option("both", "--league", "-l", help="espn 
     settings = _settings()
     results: list[Any] = []
     failures: list[tuple[str, Any]] = []
+    news = _news_step(settings)
     for i, lg in enumerate(_leagues(league)):
         cache = _cache(settings)
         try:
@@ -447,7 +486,7 @@ def pregame_cmd(league: str = typer.Option("both", "--league", "-l", help="espn 
         typer.echo(json.dumps({"leagues": [r.to_dict() for r in results],
                                "failures": [{"league": lg, "error": f"{type(e).__name__}: {e}",
                                              "message": failure_message(lg, e)} for lg, e in failures],
-                               "failure_notify": fail_notify}, indent=2, default=str))
+                               "failure_notify": fail_notify, "news": news}, indent=2, default=str))
     else:
         for r in results:
             base = (f"vs {r.baseline} snapshot {str(r.baseline_at or '')[11:16]}" if r.baseline
@@ -468,6 +507,7 @@ def pregame_cmd(league: str = typer.Option("both", "--league", "-l", help="espn 
             console.print(f"[yellow]{lg}: {escape(failure_message(lg, e))}[/]")
         for x in fail_notify or []:
             console.print(f"[yellow]league failure notification: {escape(x)}[/]")
+        console.print(_news_line(news))
     if failures or any_failed(sent):
         raise typer.Exit(1)
 

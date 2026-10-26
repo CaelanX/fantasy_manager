@@ -787,3 +787,18 @@ def test_parse_player_pool_waiver_status_vs_free_agent():
     assert by["fantrax:f1"].waiver_until is None and by["fantrax:p4"].waiver_until is None
     same_day, _, _ = parse_player_pool(data, today=date(2026, 10, 7))
     assert same_day[1].waiver_until == date(2026, 10, 7)
+
+
+def test_rules_stat_limits_reports_gp_caps_and_goalie_minimums():
+    from fantasy_manager.providers.fantrax import LeagueRules, rules_stat_limits
+
+    # the live league's Rules page has no games-played rules
+    live = LeagueRules(settings={"Restrictions": {"Minimum Total Players": "0", "Maximum Active Players": "12"},
+                                 "Claims/Drops": {"Max # of claims per week": "3"}})
+    assert rules_stat_limits(live) == []
+    capped = LeagueRules(settings={"Restrictions": {"Max Games Played (G)": "82",
+                                                    "Minimum goalie games per week": "2",
+                                                    "Max Games Played (F)": "Not Used"}})
+    assert rules_stat_limits(capped) == ["Max Games Played (G): 82", "Minimum goalie games per week: 2"]
+    assert rules_stat_limits(None) is None and rules_stat_limits(LeagueRules()) is None
+

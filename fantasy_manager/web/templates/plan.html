@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{# One scheduled add / claim. Moves that share a chain (rent a player, then swap him out) are
+   grouped visually: the list item carries the chain id and the role tag. #}
+{% macro move_card(mv, show_day, prev=none, nxt=none) -%}
+{% set cont = mv.chain is not none and prev is not none and prev.chain == mv.chain %}
+{% set more = mv.chain is not none and nxt is not none and nxt.chain == mv.chain %}
+<li class="act act-move{% if mv.chain is not none %} in-chain{% endif %}{% if cont %} chain-cont{% endif %}{% if more %} chain-more{% endif %}"{% if mv.chain is not none %} data-chain="{{ mv.chain }}"{% endif %}>
+  {% if show_day %}<p class="act-day"><b>{{ mv.day.strftime('%a') }}</b>{% if mv.effective != mv.day %}<span>counts {{ mv.effective.strftime('%a') }}</span>{% endif %}</p>{% endif %}
+  <div class="act-main">
+    {% if mv.note %}<p class="act-note">{% if mv.role %}<span class="role role-{{ mv.role }}">{{ {'rental': 'Rental', 'swap': 'Swap'}.get(mv.role, mv.role) }}</span>{% endif %}{{ mv.note }}</p>{% endif %}
+    <p class="act-do">{{ 'Claim' if mv.claim else 'Add' }} {{ mv.add.name }}{% if mv.drop %}, drop {{ mv.drop.name }}{% elif mv.to_ir %}, {{ mv.to_ir.name }} to IR{% endif %}</p>
+    <p class="act-why">{{ mv.headline }}</p>
+    {% if mv.timing %}<p class="act-when">{{ mv.timing }}</p>{% endif %}
+    {% if (not show_day and mv.effective != mv.day) or mv.market or mv.win_delta is not none %}
+    <p class="act-tags">{% if not show_day and mv.effective != mv.day %}<span class="tag">counts {{ mv.effective.strftime('%a') }}</span>{% endif %}{% if mv.market %}<span class="mk {{ 'mk-ok' if mv.market == 'market agrees' else 'mk-no' }}">{{ mv.market|capitalize }}</span>{% endif %}{% if mv.win_delta is not none %}<span class="tag">{{ '%+d'|format((mv.win_delta * 100)|round|int) }}% win chance</span>{% endif %}</p>
+    {% endif %}
+    {% for r in mv.reasons %}<p class="note">{{ r }}</p>{% endfor %}
+  </div>
+  <p class="act-pts"><b>+{{ mv.gain_pts|n1 }}</b><span>pts</span></p>
+</li>
+{%- endmacro %}
+{% block heading %}
+{% set stance_text = {'chase': "You're behind: chase games and variance.", 'protect': "You're ahead: keep it simple and hold a move for injuries.", 'even': "It's close: take every edge."} %}
+<section class="board" aria-labelledby="h-board">
+  <p class="board-meta">{% if plan.start and plan.end %}{{ plan.start.strftime('%a %b %d').replace(' 0', ' ') }} to {{ plan.end.strftime('%a %b %d').replace(' 0', ' ') }}, {% endif %}{{ plan.days_left }} day{{ '' if plan.days_left == 1 else 's' }} left</p>
+  <h1 id="h-board" class="board-teams">
+    <span class="bt bt-me">{{ plan.my_team }}</span>
+    {% if plan.opponent %}<span class="bt-vs">vs</span><span class="bt bt-them">{{ plan.opponent }}</span>{% endif %}
+  </h1>
+  {% if plan.available %}
+  <div class="board-score" aria-label="Score {{ plan.my_so_far|n1 }} to {{ plan.their_so_far|n1 }}">
+    <div class="bs bs-me"><b>{{ plan.my_so_far|n1 }}</b><span>projected {{ (plan.my_so_far + plan.proj_plan)|n1 }} with the plan</span></div>
+    {% if plan.opponent %}<div class="bs bs-them"><b>{{ plan.their_so_far|n1 }}</b><span>projected {{ (plan.their_so_far + plan.their_remaining)|n1 }}</span></div>{% endif %}
+  </div>
+  {% if win_plan is not none %}
+  {% set win_base = win_as_set if win_as_set is not none else win_lineup %}
+  <div class="rink">
+    <p class="rink-cap">Chance to win the week</p>
+    <div class="rink-track" role="img" aria-label="Win chance {{ win_base }}% with quick lineup, {{ win_plan }}% with the plan">
+      <i class="rink-fill" style="width: {{ win_plan }}%"></i>
+      <i class="rink-red" aria-hidden="true"></i>
+      {% if win_base is not none %}<i class="rink-pt pt-set" style="left: {{ win_base }}%" aria-hidden="true"></i>{% endif %}
+      <i class="rink-pt pt-plan" style="left: {{ win_plan }}%" aria-hidden="true"></i>
+    </div>
+    <dl class="rink-key">
+      <div class="k-set"><dt>With quick lineup</dt><dd>{{ '-' if win_base is none else win_base ~ '%' }}</dd></div>
+      <div class="k-plan"><dt>With the plan</dt><dd>{{ win_plan }}%</dd></div>
+    </dl>
+  </div>
+  {% endif %}
+  <p class="board-foot">{% if plan.stance in stance_text %}{{ stance_text[plan.stance] }} {% endif %}{% if plan.moves_left is none %}No move limit.{% else %}{{ plan.moves_left }} move{{ '' if plan.moves_left == 1 else 's' }} left this week.{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}
+{% block content %}
+{% if not plan.available %}
+<p class="lede">{% for n in plan.notes %}{{ n }} {% endfor %}</p>
+{% else %}
+{% set today_day = plan.days[0].day if plan.days else none %}
+{% set today_line = plan.days[0] if plan.days else none %}
+<section class="today" aria-labelledby="h-today">
+  <h2 id="h-today">Today{% if today_day %} <span class="aside">{{ today_day.strftime('%A %b %d').replace(' 0', ' ') }}</span>{% endif %}</h2>
+  {% if plan.today or today_moves %}
+  <ol class="acts">
+    {% for a in plan.today %}
+    <li class="act">
+      <div class="act-main">
+        <p class="act-do">{{ a.title }}</p>
+        {% if a.headline %}<p class="act-why">{{ a.headline }}</p>{% endif %}
+      </div>
+      {% if a.gain is not none %}<p class="act-pts"><b>{{ a.gain|n1(True) }}</b><span>{{ 'pts' if a.gain_units == 'matchup_pts' else '' }}</span></p>{% endif %}
+    </li>
+    {% endfor %}
+    {% for mv in today_moves %}{{ move_card(mv, False, loop.previtem if not loop.first else none, loop.nextitem if not loop.last else none) }}{% endfor %}
+  </ol>
+  {% else %}
+  <p class="calm">No moves today.</p>
+  {% endif %}
+  <p class="daily-note">
+    {%- if today_line is none or today_line.quick_ok %}Press <b>Quick Lineup</b>: it gets today right.
+    {%- else %}Press <b>Quick Lineup</b>, then fix {{ today_line.ins|length or today_line.outs|length }} start{{ '' if (today_line.ins|length or today_line.outs|length) == 1 else 's' }} it gets wrong (below).{% endif -%}
+  </p>
+</section>
+
+{% if later_moves %}
+<section aria-labelledby="h-later">
+  <h2 id="h-later">Later this week</h2>
+  <ol class="acts acts-later">
+    {% for mv in later_moves %}{{ move_card(mv, True, loop.previtem if not loop.first else none, loop.nextitem if not loop.last else none) }}{% endfor %}
+  </ol>
+</section>
+{% endif %}
+
+<section aria-labelledby="h-days">
+  <h2 id="h-days">Day by day <span class="aside">projected points: plan, then quick lineup</span></h2>
+  <ol class="days">
+    {% for d in plan.days %}
+    {% set n_fix = d.ins|length %}
+    <li class="day{% if d.day == today_day %} is-today{% endif %}{% if d.quick_ok and not d.moves %} is-ok{% endif %}">
+      <details{% if d.day == today_day and not (d.quick_ok and not d.moves) %} open{% endif %}>
+        <summary>
+          <span class="d-name">{{ d.day.strftime('%a') }}</span>
+          <span class="d-date">{{ d.day.strftime('%b %d').replace(' 0', ' ') }}</span>
+          <span class="d-sum">
+            {%- if d.moves %}{% for mv in d.moves %}{{ 'Claim' if mv.claim else 'Add' }} {{ mv.add.name|last }}{% if not loop.last %}, {% endif %}{% endfor %}{% if not d.quick_ok %}, {% endif %}{% endif -%}
+            {%- if not d.quick_ok %}Fix {{ n_fix or d.outs|length }} start{{ '' if (n_fix or d.outs|length) == 1 else 's' }}{% elif not d.moves %}Quick lineup is fine{% endif -%}
+            {%- if d.pregame %} <span class="tag tag-g">goalies at 5 pm</span>{% endif -%}
+          </span>
+          <span class="d-pts"><b>{{ d.pts_plan|n1 }}</b><small>{{ d.pts_as_set|n1 }}</small></span>
+        </summary>
+        <div class="d-body">
+          {% for mv in d.moves %}<p><b>{{ 'Claim' if mv.claim else 'Add' }} {{ mv.add.name }}</b>{% if mv.drop %}, drop {{ mv.drop.name }}{% endif %}</p>{% endfor %}
+          {% if d.ins %}<p class="d-k">Start instead of quick lineup</p><ul>{% for x in d.ins %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+          {% if d.outs %}<p class="d-k">Bench</p><ul>{% for x in d.outs %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+          {% if d.goalies %}<p class="d-k">Goalies</p><ul>{% for x in d.goalies %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+          {% if d.quick_ok and not d.moves %}<p class="muted">Quick lineup is fine.</p>{% endif %}
+          {% if d.note %}<p class="muted">{{ d.note }}</p>{% endif %}
+        </div>
+      </details>
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="plan-total">Plan total <b>{{ plan.proj_plan|n1 }}</b> pts remaining vs {{ plan.proj_as_set|n1 }} with quick lineup alone: <b class="pos">{{ (plan.proj_plan - plan.proj_as_set)|n1(True) }}</b> from the moves.</p>
+  {% if plan.net_week %}<ul class="net-week">{% for x in plan.net_week %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+</section>
+
+{% if plan.watch or plan.claim_watch %}
+<section aria-labelledby="h-watch">
+  <h2 id="h-watch">Watch</h2>
+  <ul class="advice">{% for w in plan.watch %}<li>{{ w }}</li>{% endfor %}
+    {% for w in plan.claim_watch %}<li>{{ w }} <a href="/recommendations?league={{ league }}#claims">Claims to place</a></li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% endif %}
+{% if plan.notes and plan.available %}<p class="foot-note">{% for n in plan.notes %}{{ n }} {% endfor %}</p>{% endif %}
+<p class="foot-note">Points are real matchup points over the remaining days, compared with pressing Quick Lineup every day (bench games count 0). Win chance simulates both teams' remaining games with the same draws for both numbers.</p>
+{% endblock %}

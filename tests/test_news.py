@@ -1,5 +1,7 @@
-from datetime import datetime, timezone
+import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -93,6 +95,93 @@ def test_tagging_keywords():
     # IR must be a standalone uppercase token, not part of a word
     assert "ir" not in tag_text("Their first win", "their")
     assert tag_text("", None) == []
+
+
+def _item(i, hours_ago=1, **kw):
+    published = datetime.now(timezone.utc) - timedelta(hours=hours_ago) if hours_ago is not None else None
+    base = dict(source="rotowire", id=f"n{i}", player_name=f"Player {i}", headline=f"Headline {i}",
+                published=published)
+    base.update(kw)
+    return news.NewsItem(**base)
+
+
+def test_store_keeps_items_across_fetches_and_dedupes(tmp_path):
+    first = news.store_news(tmp_path, [_item(1, hours_ago=1), _item(2, hours_ago=2)])
+    assert [i.id for i in first] == ["n1", "n2"]
+    # a later fetch no longer carries n1 / n2 (the feed moved on) but they stay in the store;
+    # an item seen again (same id, edited blurb) replaces the stored copy instead of duplicating it
+    second = news.store_news(tmp_path, [_item(3, hours_ago=0), _item(2, hours_ago=2, blurb="updated")])
+    assert [i.id for i in second] == ["n3", "n1", "n2"]
+    assert next(i for i in second if i.id == "n2").blurb == "updated"
+    # items without a guid dedupe on source + headline + publish time
+    same = _item(4, id=None)
+    assert len([i for i in news.store_news(tmp_path, [same, same.model_copy()]) if i.id is None]) == 1
+    assert {i.id for i in news.stored_news(tmp_path)} == {"n1", "n2", "n3", None}
+
+
+def test_store_prunes_after_30_days_and_caps(tmp_path, monkeypatch):
+    old = _item(1, hours_ago=24 * (news.STORE_MAX_AGE_DAYS + 1))
+    kept = news.store_news(tmp_path, [old, _item(2)])
+    assert [i.id for i in kept] == ["n2"]
+    assert "n1" not in json.loads((tmp_path / news.STORE_NAME).read_text(encoding="utf-8"))
+    monkeypatch.setattr(news, "STORE_MAX_ITEMS", 3)
+    news.store_news(tmp_path, [_item(i, hours_ago=i) for i in range(10, 20)])
+    assert [i.id for i in news.stored_news(tmp_path)] == ["n2", "n10", "n11"]     # newest 3
+
+
+def test_undated_items_age_out_from_first_seen(tmp_path):
+    news.store_news(tmp_path, [_item(1, hours_ago=None)])
+    raw = json.loads((tmp_path / news.STORE_NAME).read_text(encoding="utf-8"))
+    raw["n1"]["seen"] = (datetime.now(timezone.utc) - timedelta(days=news.STORE_MAX_AGE_DAYS + 2)).isoformat()
+    (tmp_path / news.STORE_NAME).write_text(json.dumps(raw), encoding="utf-8")
+    assert news.store_news(tmp_path, []) == []
+
+
+def test_legacy_role_item_file_is_migrated(tmp_path):
+    legacy = {"old1": _item("old1", id="old1").model_dump(mode="json")}
+    (tmp_path / news.LEGACY_STORE_NAME).write_text(json.dumps(legacy), encoding="utf-8")
+    items = news.stored_news(tmp_path)
+    assert [i.id for i in items] == ["old1"]
+    assert not (tmp_path / news.LEGACY_STORE_NAME).exists()
+    assert "old1" in json.loads((tmp_path / news.STORE_NAME).read_text(encoding="utf-8"))
+
+
+def _fake_feeds(monkeypatch):
+    monkeypatch.setattr(news, "fetch_rotowire", lambda fetch=None: [_item(10, hours_ago=0)])
+    monkeypatch.setattr(news, "fetch_espn_news", lambda fetch=None: [_item(11, hours_ago=0.5, source="espn",
+                                                                             player_name=None)])
+
+
+def _offline(url, params=None):
+    raise RuntimeError("offline")
+
+
+def test_fetch_news_returns_fresh_plus_stored_and_survives_failures(tmp_path, monkeypatch):
+    news.store_news(tmp_path, [_item(1, hours_ago=48)])
+    with monkeypatch.context() as m:
+        _fake_feeds(m)
+        items, failed = news.fetch_news(None, tmp_path)
+    assert failed == [] and [i.id for i in items] == ["n10", "n11", "n1"]
+    items, failed = news.fetch_news(_offline, tmp_path)
+    assert [label for label, _ in failed] == ["RotoWire news", "ESPN news"]
+    assert [i.id for i in items] == ["n10", "n11", "n1"]     # stored news still comes back offline
+    assert news.fetch_news(_offline, None)[0] == []          # no store: nothing to fall back on
+
+
+def test_rookie_enrich_and_cli_read_the_store(tmp_path, monkeypatch):
+    from fantasy_manager import cli
+    from fantasy_manager.providers import rookie_enrich
+
+    news.store_news(tmp_path, [_item(1, headline="Skating on top line")])
+    warnings: list[str] = []
+    got = rookie_enrich.fetch_news(_offline, warnings, store_dir=tmp_path)
+    assert [i.id for i in got] == ["n1"] and len(warnings) == 2
+    monkeypatch.setattr(cli, "get_settings", lambda: SimpleNamespace(fm_data_dir=tmp_path))
+    monkeypatch.setattr("fantasy_manager.providers.enrich.make_fetch_text", lambda cache: None)
+    _fake_feeds(monkeypatch)
+    errors: list[str] = []
+    items = cli._fetch_news(None, errors)
+    assert errors == [] and [i.id for i in items] == ["n10", "n11", "n1"]
 
 
 def test_title_without_colon():

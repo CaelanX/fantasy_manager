@@ -67,10 +67,16 @@ def test_market_disagrees_flags():
     assert market_disagrees(rec) is False
     rec.reasons.append(Reason(code="MARKET_CHECK", text="", value=-30.0))
     assert market_disagrees(rec) is True
+    # MARKET_VIEW is the acceptance input (it includes need / block bonuses): alone it flags nothing
     trade = Recommendation(kind="trade", score=1.0, title="t", reasons=[
         Reason(code="MARKET_VIEW", text="", value=17.5), Reason(code="MARKET_CHECK", text="", value=2.0)])
+    assert market_disagrees(trade) is False
+    deal = trade_market_check(17.5, 0.99, ["x_d: line / PP role"])    # market value handed over: 17.5 worth pts
+    assert deal.text.startswith("Model disagrees with market: you overpay by market value (+18 worth pts")
+    assert "worth it only if you trust the model's edge of +0.99 (drivers: x_d: line / PP role)" in deal.text
+    trade.reasons.append(deal)
     assert market_disagrees(trade) is True                       # clearly in their favour by market value
-    assert trade_market_check(17.5, 0.99).text.startswith("Model disagrees with market")
+    assert "projection only" in trade_market_check(17.5, 0.99).text
     assert trade_market_check(2.0, 0.99) is None and trade_market_check(17.5, -0.1) is None
 
 

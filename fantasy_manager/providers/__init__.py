@@ -29,4 +29,21 @@ def get_provider(name: str, settings: Any, cache: Any) -> LeagueProvider:
     raise ProviderError(f"unknown league provider {name!r}; expected one of {', '.join(PROVIDERS)}")
 
 
-__all__ = ["get_provider", "ProviderError", "ProviderUnavailable", "LeagueProvider", "PROVIDERS"]
+def clear_league_cache(name: str, settings: Any, cache: Any) -> int:
+    """Drop every cached response that holds ``name``'s league state (rosters / lineups, settings,
+    free agents), so the next load reads the league live. NHL / news caches are left alone.
+    Returns how many entries were removed."""
+    name = (name or "").lower()
+    if name == "espn":
+        from .espn import ESPN_HOST
+
+        return cache.clear(url_contains=ESPN_HOST)
+    if name == "fantrax":
+        from .fantrax import clear_cache
+
+        return clear_cache(settings.fm_data_dir)
+    return 0
+
+
+__all__ = ["get_provider", "clear_league_cache", "ProviderError", "ProviderUnavailable", "LeagueProvider",
+           "PROVIDERS"]

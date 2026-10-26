@@ -10,7 +10,9 @@
    provider gave none
 4. persist a daily snapshot (``<fm_data_dir>/lines/lines-YYYY-MM-DD.json``) and set
    ``Player.line_change`` against the most recent earlier snapshot: "PP2 -> PP1",
-   "F3 -> F1", "G2 -> G1", "F2 -> IR", "scratched", "new to lineup"
+   "F3 -> F1", "G2 -> G1", "F2 -> IR", "scratched", "new to lineup"; and ``Player.usual_line`` /
+   ``usual_pp_unit``, his most common line / PP unit in the earlier snapshots of the last 30 days
+   (:func:`usual_roles`; ``valuation.roles`` values a change against it)
 5. goalies: ``confirmed_start`` True for the named starter (Confirmed / Likely / Expected),
    False for his team's other goalies, None when unknown; ``start_source`` says who reported
    it and when, e.g. "DFO Confirmed: Jeremy Swayman starts NYR@BOS (Jack Studley, Sep 29
@@ -21,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections import Counter
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -40,6 +43,7 @@ SOURCE = "dfo"
 LINES_DIR = "lines"
 _FILE_RE = re.compile(r"^lines-(\d{4}-\d{2}-\d{2})\.json$")
 NO_PP = "no PP"
+USUAL_WINDOW_DAYS = 30       # snapshots behind Player.usual_line / usual_pp_unit
 
 
 # --------------------------------------------------------------------------- snapshots
@@ -88,6 +92,28 @@ class LineSnapshotStore:
                 if snap is not None:
                     return d, snap
         return None
+
+
+def usual_roles(store: LineSnapshotStore, day: date, window_days: int = USUAL_WINDOW_DAYS
+                ) -> dict[int, tuple[str, str | None]]:
+    """{nhl id: (usual line, usual PP unit or None)}: the most common line and PP unit over the
+    snapshots strictly before ``day`` within ``window_days`` (ties: the most recent wins)."""
+    seen: dict[int, tuple[Counter, Counter]] = {}
+    for d in reversed(store.dates()):             # newest first: on a tie the newest role wins below
+        if not (0 < (day - d).days <= window_days):
+            continue
+        snap = store.load(d) or {}
+        for rec in (snap.get("players") or {}).values():
+            nid, line = rec.get("nhl_id"), rec.get("line")
+            if nid is None or not line or line == "g":
+                continue
+            lines, pps = seen.setdefault(int(nid), (Counter(), Counter()))
+            lines[line] += 1
+            pps[rec.get("pp_unit") or ""] += 1
+    def top(c: Counter) -> str:
+        best = max(c.values())
+        return next(k for k in c if c[k] == best)   # insertion order = newest snapshot first
+    return {nid: (top(lines), top(pps) or None) for nid, (lines, pps) in seen.items()}
 
 
 def _player_key(lp: LinePlayer, team: str) -> str:
@@ -353,6 +379,13 @@ def enrich_lines(ctx: LeagueContext, cache: Any, crosswalk: Crosswalk | None, as
     for p in players:
         if p.nhl_id is not None:
             by_nhl.setdefault(p.nhl_id, []).append(p)
+    if store is not None:
+        try:
+            for nid, (line, pp) in usual_roles(store, day).items():
+                for p in by_nhl.get(nid, []):
+                    p.usual_line, p.usual_pp_unit = line, pp
+        except Exception as e:
+            res.warnings.append(f"usual lines from snapshots failed ({_short(e)})")
     for team, tl in lines.items():
         for lp in tl.players:
             nid = dfo_to_nhl.get(str(lp.dfo_id)) if lp.dfo_id is not None else None
@@ -418,4 +451,4 @@ def enrich_lines(ctx: LeagueContext, cache: Any, crosswalk: Crosswalk | None, as
 
 
 __all__ = ["LineSnapshotStore", "LinesResult", "build_snapshot", "diff_snapshots", "enrich_lines",
-           "start_source_text", "team_meta_for"]
+           "start_source_text", "team_meta_for", "usual_roles"]

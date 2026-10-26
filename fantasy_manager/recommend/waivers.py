@@ -79,7 +79,7 @@ model percentile, ``market.market_check_reason``; display only). Free agents wit
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Mapping
+from typing import Any, Collection, Mapping
 
 from ..matching.normalize import normalize_team
 from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation, RosterSlot
@@ -183,9 +183,11 @@ def _plan_team(team: FantasyTeam, add: Player, drop: Player | None, to_ir: Playe
 
 def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit: int = 10,
                       horizon: Horizon = "season", dynasty_values: Mapping[str, Any] | None = None,
-                      debug: list[dict[str, Any]] | None = None, stream: bool = False) -> list[Recommendation]:
+                      debug: list[dict[str, Any]] | None = None, stream: bool = False,
+                      exclude_drops: Collection[str] = ()) -> list[Recommendation]:
     """Ranked waiver pickups. `debug` (a list) collects drops that prospect protection, the
     churn guard or a position cap blocked: {"add", "drop", "reason", "add_value", "drop_value"}.
+    `exclude_drops` (cids) are never the drop; the next legal candidate is used instead.
     [] when the league's move limit is used up for this period."""
     if move_scarcity_threshold(ctx, injury_replacement=True) is None:
         return []   # no moves left this period (base.no_moves_text says when they resume)
@@ -198,7 +200,8 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
     open_spots = open_roster_spots(team, ctx.roster_shape)
     ir_move = to_ir[0] if to_ir and not open_spots else None
     moving = {p.cid for p in to_ir}
-    mine = [p for p in droppable_players(team) if p.cid in values and p.cid not in moving]
+    mine = [p for p in droppable_players(team) if p.cid in values and p.cid not in moving
+            and p.cid not in exclude_drops]
     slots = starting_slots(ctx.roster_shape)
     active = droppable_players(team)
     base_lineup: dict[str | None, tuple[float, set[str]]] = {}   # IR-move player (or None) -> optimal lineup without the FA
@@ -502,7 +505,8 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
 
 
 def recommend_matchup_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit: int = 5,
-                              dynasty_values: Mapping[str, Any] | None = None) -> list[Recommendation]:
+                              dynasty_values: Mapping[str, Any] | None = None,
+                              exclude_drops: Collection[str] = ()) -> list[Recommendation]:
     """Pickups for the rest of this matchup (week horizon, best lineup each day) in daily-lineup
     leagues; [] elsewhere. Titles end "for this matchup" (``advise`` runs it after the
     rest-of-season pickups)."""
@@ -510,7 +514,8 @@ def recommend_matchup_waivers(ctx: LeagueContext, values: dict[str, PlayerValue]
 
     if not ctx.schedule or _lock(ctx) != "daily":
         return []
-    recs = recommend_waivers(ctx, values, limit=limit, horizon="week", dynasty_values=dynasty_values, stream=True)
+    recs = recommend_waivers(ctx, values, limit=limit, horizon="week", dynasty_values=dynasty_values, stream=True,
+                             exclude_drops=exclude_drops)
     return [r.model_copy(update={"title": f"{r.title} for this matchup"}) for r in recs]
 
 

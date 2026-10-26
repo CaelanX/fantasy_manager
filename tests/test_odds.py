@@ -252,6 +252,7 @@ def _cli(monkeypatch, tmp_path, fetch, key=KEY):
     # online settings: keep the Daily Faceoff snapshot step off the network
     monkeypatch.setattr(cli_harness, "_lines_step", lambda settings, today, client=None: {"day": str(today),
                                                                                           "snapshot": "test"})
+    monkeypatch.setattr(cli_harness, "_news_step", lambda settings: {"stored": 0})
     return cli_harness
 
 

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import move_list, pill, news_item, reasons_table, prospect_mark with context %}
+{% from "_macros.html" import move_list, pill, news_item, reasons_table, prospect_mark, team_chip with context %}
 {% block heading %}
 <p class="sc dateline">{% if team %}{{ team.name }} &middot; slot {{ slot }}{% else %}Free agent{% endif %}{% if p.pct_owned is not none %} &middot; {{ p.pct_owned|n1 }}% rostered{% endif %}</p>
 <h1>{{ p.name }}{{ prospect_mark(row.prospect) }}</h1>
-<p class="sub">{{ pill(p.status) }} &middot; {{ p|pos }} &middot; {{ p.team or 'no NHL team' }}{% if row.age is not none %} &middot; age {{ row.age|n1 }}{% endif %}{% if p.career_gp is not none %} &middot; {{ p.career_gp }} NHL games{% endif %}{% if p.draft_year %} &middot; drafted {{ p.draft_year }}{% if p.draft_overall %} #{{ p.draft_overall }} overall{% elif p.draft_round %} round {{ p.draft_round }}{% endif %}{% endif %}{% if row.prospect %} &middot; prospect{% endif %}</p>
+<p class="sub">{{ pill(p.status) }} &middot; {{ p|pos }} &middot; {% if p.team %}{{ team_chip(p.team) }}{% else %}no NHL team{% endif %}{% if row.age is not none %} &middot; age {{ row.age|n1 }}{% endif %}{% if p.career_gp is not none %} &middot; {{ p.career_gp }} NHL games{% endif %}{% if p.draft_year %} &middot; drafted {{ p.draft_year }}{% if p.draft_overall %} #{{ p.draft_overall }} overall{% elif p.draft_round %} round {{ p.draft_round }}{% endif %}{% endif %}{% if row.prospect %} &middot; prospect{% endif %}</p>
 {% if p.status_note %}<p class="note">{{ p.status_note }}</p>{% endif %}
 {% endblock %}
 {% block content %}

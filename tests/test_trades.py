@@ -592,14 +592,75 @@ def test_ev_ranking_prefers_a_likely_small_win_over_an_unlikely_big_one(monkeypa
     assert small.p == pytest.approx(0.9) and 0.25 <= big.p < 0.26
     assert small.accepted and big.accepted
     assert small.ev > big.ev and big.delta_me > small.delta_me
+    # with the market cost off, EV alone ranks the likely small win first
+    monkeypatch.setattr(tr, "OVERPAY_COST_FPG", 0.0)
+    monkeypatch.setattr(tr, "OVERPAY_MIN_EDGE", 0.0)
     recs = recommend_trades(ctx, values, lineup_fn=False, limit=20, max_per_team=20, max_per_given=20,
                             sweet_spot=[])
     titles = [r.title for r in recs]
     i_small, i_big = titles.index("Trade m_c2 to Team X for x_lw"), titles.index("Trade m_c2 to Team X for x_d")
     assert i_small < i_big and recs[i_big].predicted_gain > recs[i_small].predicted_gain
+    # by default the small win is a clear market overpay (+20 worth pts to them) with a modest edge: not listed
+    monkeypatch.undo()
+    patch_market(monkeypatch, {"m_c2": 50.0, "x_lw": 30.0, "x_d": 64.8})
+    assert small.clear_overpay and small.my_edge < tr.OVERPAY_MIN_EDGE and not small.listable
+    titles = [r.title for r in recommend_trades(ctx, values, lineup_fn=False, limit=20, max_per_team=20,
+                                                max_per_given=20, sweet_spot=[])]
+    assert "Trade m_c2 to Team X for x_lw" not in titles and "Trade m_c2 to Team X for x_d" in titles
     # below the plausibility floor the big deal is not proposed at all
     patch_market(monkeypatch, {"m_c2": 50.0, "x_lw": 30.0, "x_d": 66.0})
     assert not evaluate_trade(ctx, values, give=["m_c2"], get=["x_d"], lineup_fn=False).accepted
+
+
+def test_market_overpay_ranks_below_a_fair_deal_with_the_same_gain(monkeypatch):
+    ctx, values = ev_ctx()
+    values["x_d"] = pv(values["x_d"].player, 1.1)       # D 0.5 -> 1.1: +0.6, the same gain as x_lw at LW
+    # x_lw: they get 50, give 41 -> 9 worth pts handed over (4 beyond the free band); x_d: even
+    patch_market(monkeypatch, {"m_c2": 50.0, "x_lw": 41.0, "x_d": 50.0})
+    over = evaluate_trade(ctx, values, give=["m_c2"], get=["x_lw"], lineup_fn=False)
+    fair = evaluate_trade(ctx, values, give=["m_c2"], get=["x_d"], lineup_fn=False)
+    assert over.my_edge == pytest.approx(fair.my_edge) == pytest.approx(0.6)
+    assert over.market_overpay == pytest.approx(9.0) and fair.market_overpay == pytest.approx(0.0)
+    assert over.ev > fair.ev                                  # EV alone prefers the overpay (likelier yes)
+    assert over.overpay_cost == pytest.approx(tr.OVERPAY_COST_FPG * (9.0 - tr.OVERPAY_FREE_PTS))
+    assert over.score < fair.score and over.listable          # not a clear overpay: shown, but lower
+    titles = [r.title for r in recommend_trades(ctx, values, lineup_fn=False, limit=20, max_per_team=20,
+                                                max_per_given=20, sweet_spot=[])]
+    assert titles.index("Trade m_c2 to Team X for x_d") < titles.index("Trade m_c2 to Team X for x_lw")
+    rec = next(r for r in recommend_trades(ctx, values, lineup_fn=False, limit=20, max_per_team=20,
+                                           max_per_given=20, sweet_spot=[]) if r.title.endswith("x_lw"))
+    cost = next(x for x in rec.reasons if x.code == "MARKET_COST")
+    assert cost.value == pytest.approx(-over.overpay_cost) and "9 market worth pts" in cost.text
+
+
+def test_large_gain_overpay_is_listed_with_a_warning(monkeypatch):
+    ctx, values = ev_ctx()
+    values["x_d"] = pv(values["x_d"].player, 3.5)       # D 0.5 -> 3.5: +3.0 for me
+    patch_market(monkeypatch, {"m_c2": 50.0, "x_lw": 50.0, "x_d": 30.0})   # +20 worth pts to them
+    ev = evaluate_trade(ctx, values, give=["m_c2"], get=["x_d"], lineup_fn=False)
+    assert ev.clear_overpay and ev.my_edge >= tr.OVERPAY_MIN_EDGE and ev.listable and ev.score > 0
+    rec = next(r for r in recommend_trades(ctx, values, lineup_fn=False, limit=20, sweet_spot=[])
+               if r.title == "Trade m_c2 to Team X for x_d")
+    warn = next(x for x in rec.reasons if x.code == "MARKET_CHECK" and x.value is None)
+    assert "you overpay by market value (+20 worth pts to them)" in warn.text
+    assert "worth it only if you trust the model's edge of +3.00" in warn.text and "drivers:" in warn.text
+    assert rec.headline.endswith("· market says you overpay")
+    # the same deal with a modest edge is not listed at all
+    values["x_d"] = pv(values["x_d"].player, 1.1)
+    titles = [r.title for r in recommend_trades(ctx, values, lineup_fn=False, limit=20, sweet_spot=[])]
+    assert "Trade m_c2 to Team X for x_d" not in titles
+
+
+def test_trade_headline_uses_the_tables_lineup_gain():
+    from fantasy_manager.recommend.headline import headline_for
+
+    r = Recommendation(kind="trade", score=1.0, title="t", reasons=[
+        Reason(code="MY_EDGE", text="", value=1.95), Reason(code="P_ACCEPT", text="", value=0.7),
+        Reason(code="DELTA_ME", text="", value=0.98)])
+    h = headline_for(r)
+    assert h.startswith("Your lineup gains +0.98 FPG (+1.95 with long-term value); ~70% they accept")
+    r.reasons[0] = Reason(code="MY_EDGE", text="", value=0.98)       # no dynasty blend: one number
+    assert headline_for(r).startswith("Your lineup gains +0.98 FPG; ~70%")
 
 
 def test_min_gain_is_point_three(monkeypatch):
@@ -980,6 +1041,7 @@ def test_exploit_takes_the_surplus_goalie_and_respects_legality(monkeypatch):
 
 def test_exploit_skips_fa_pickups_without_moves_left(monkeypatch):
     patch_market(monkeypatch, {})
+    monkeypatch.setattr(tr, "OVERPAY_COST_FPG", 0.0)   # rank by EV: this tests the move budget, not the market cost
     ctx, values = exploit_ctx()
     fa = pl("fa_lw", ["LW"])
     values["fa_lw"] = pv(fa, 1.9)

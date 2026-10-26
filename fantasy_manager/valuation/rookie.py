@@ -64,6 +64,7 @@ from ..models import Player, Reason
 from ..providers.nhl import NHLE_FACTORS, LeagueSeason
 from ..providers.preseason_enrich import is_unproven as _preseason_is_unproven
 from .params import age_factor
+from .roles import DEPTH_PENALTY, ROLE_BOOST, ROLE_MINOR_BOOST, SCRATCH_MULT, TOP_KINDS, role_multiplier  # noqa: F401
 
 # vote weights, in effective games
 W_BASELINE = 40.0
@@ -92,13 +93,9 @@ OFFENSIVE = ("G", "A", "PTS", "PPG", "PPA", "PPP", "SHG", "SHA", "SHP", "GWG", "
 SIGNAL_MAX_AGE_DAYS = 21
 SIGNAL_MIN_CONF = 0.6
 SIGNAL_MIN_CONF_LLM = 0.7        # LLM labels need more confidence (they come from the ambiguous blurbs)
-ROLE_BOOST = 1.15
-ROLE_MINOR_BOOST = 1.05
-DEPTH_PENALTY = 0.92
 GP_CONFIRMED, GP_TOP10_ON_TEAM, GP_ON_TEAM, GP_NO_TEAM = 1.0, 0.9, 0.75, 0.3
 GP_TOP_ROLE = 0.95
 GP_AHL, GP_JUNIOR = 0.05, 0.02
-SCRATCH_MULT = 0.85
 PROJ_FULL_GP = 75.0
 PROJ_GP_WEIGHT = 0.5             # weight of the projection's GP share in the games share...
 PROJ_GP_WEIGHT_CONFIRMED = 0.25  # ...once he is confirmed in the lineup (the roster doubt it priced is resolved)
@@ -464,16 +461,8 @@ def rookie_value(player: Player, prior: RookiePrior | None, provider_projection:
     news = usable_news(news_signals or [], as_of)
     used = dfo + news
     est.signals = [{k: (v.isoformat() if isinstance(v, (date, datetime)) else v) for k, v in d.items()} for d in used]
-    pos_top = [d for d in used if d["kind"] in ("top_line", "pp1", "first_line_pairing") and d["direction"] > 0]
-    pos_minor = [d for d in used if d["kind"] in ("pp2", "extended_role") and d["direction"] > 0]
-    depth = [d for d in used if d["kind"] == "top_line" and d["direction"] < 0]
-    mult = 1.0
-    if pos_top:
-        mult = ROLE_BOOST
-    elif pos_minor:
-        mult = ROLE_MINOR_BOOST
-    elif depth:
-        mult = DEPTH_PENALTY
+    pos_top = [d for d in used if d["kind"] in TOP_KINDS and d["direction"] > 0]
+    mult, why = role_multiplier(used)          # valuation.roles: the tiers shared with established players
     for d in dfo:
         reasons.append(Reason(code="ROLE_DFO", text=f"{d['quote']} ({d['kind'].replace('_', ' ')}, "
                                                     f"{'+' if d['direction'] > 0 else '-'})",
@@ -484,7 +473,6 @@ def rookie_value(player: Player, prior: RookiePrior | None, provider_projection:
                               value=float(d["direction"]), baseline=float(d["confidence"])))
     if mult != 1.0 and rates:
         rates = _scale(rates, mult)
-        why = pos_top or pos_minor or depth
         reasons.append(Reason(code="ROLE_BOOST" if mult > 1 else "ROLE_DEPTH",
                               text=f"Role x{mult:.2f} on scoring rates ({why[0]['kind'].replace('_', ' ')} from "
                                    f"{why[0].get('source') or 'news'})", value=mult, baseline=1.0))

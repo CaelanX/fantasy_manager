@@ -344,6 +344,44 @@ def market_info(r: Recommendation) -> dict[str, Any] | None:
             "title": " | ".join(checks)}
 
 
+TRACK_TTL = 300.0           # seconds a league's track record is reused between page renders
+_TRACK_BOOKS: dict[tuple[str, str], tuple[float, Any]] = {}
+
+
+def track_book(league: str) -> Any:
+    """The league's ``harness.track.TrackBook`` (graded outcomes), reloaded every TRACK_TTL seconds."""
+    import time
+
+    from ..config import get_settings
+    from ..harness.track import TrackBook
+
+    data_dir = str(get_settings().fm_data_dir)
+    key, now = (data_dir, league), time.monotonic()
+    hit = _TRACK_BOOKS.get(key)
+    if hit is None or now - hit[0] > TRACK_TTL:
+        try:
+            book = TrackBook.load(data_dir, league)
+        except Exception:  # the record is context, never a reason for a page to fail
+            book = TrackBook(league=league)
+        hit = _TRACK_BOOKS[key] = (now, book)
+    return hit[1]
+
+
+def track_info(r: Recommendation, league: str) -> dict[str, Any]:
+    """{"text", "enough"}: how moves like ``r`` turned out (``harness.track``)."""
+    from ..harness.track import rec_record, record_text
+
+    tr = rec_record(track_book(league), r)
+    return {"text": record_text(tr), "enough": bool(tr.get("enough"))}
+
+
+def track_strip(league: str) -> list[dict[str, Any]]:
+    """Per-kind summary for the overview's "Model track record" strip (``harness.track.strip``)."""
+    from ..harness.track import strip
+
+    return strip(track_book(league))
+
+
 def trade_info(r: Recommendation) -> dict[str, Any] | None:
     """A trade's acceptance view (recommend.trades): acceptance probability, expected value
     (my edge x p), the market view in percentile points (+ = in their favour) and whether it is
@@ -391,6 +429,89 @@ def exploits(res: Any, limit: int = 8) -> list[dict[str, Any]]:
         return [{"rec": r, "text": exploit_text(r), "trade": trade_info(r)} for r in recs]
 
     return _memo(res, f"exploits:{limit}", build)
+
+
+def outlook_section(res: Any, provider: Any = None) -> Any:
+    """``analysis.outlook.build_outlook`` on the loaded result (memoised), or None when it fails
+    (a warning is added to ``res.warnings`` once)."""
+    def build() -> Any:
+        from ..analysis.outlook import build_outlook
+
+        try:
+            return build_outlook(res.ctx, res.values, getattr(res, "dynasty", None), provider)
+        except Exception as e:  # display-only: never break the page
+            warnings = getattr(res, "warnings", None)
+            if isinstance(warnings, list):
+                warnings.append(f"Outlook unavailable: {type(e).__name__}: {e}")
+            return None
+
+    return _memo(res, "outlook", build)
+
+
+def need_trades(res: Any, limit: int = 5) -> list[dict[str, Any]]:
+    """The Moves page's "Trades for your needs" section: ``recommend.trades.recommend_need_trades``
+    (memoised), one dict per deal: {"rec", "need" (NEED_MATCH text), "pitch", "trade"
+    (``trade_info``)}. Empty when it fails (a warning is added once)."""
+    def build() -> list[dict[str, Any]]:
+        from ..recommend.trades import pitch_of, recommend_need_trades
+
+        try:
+            recs = recommend_need_trades(res.ctx, res.values, dynasty_values=getattr(res, "dynasty", None),
+                                         outlook=outlook_section(res), limit=limit)
+        except Exception as e:  # display-only: never break the page
+            warnings = getattr(res, "warnings", None)
+            if isinstance(warnings, list):
+                warnings.append(f"Need trades unavailable: {type(e).__name__}: {e}")
+            return []
+        return [{"rec": r, "need": (x.text if (x := _reason(r, "NEED_MATCH")) is not None else None),
+                 "star": _reason(r, "STAR_CONSOLIDATION") is not None, "pitch": pitch_of(r),
+                 "trade": trade_info(r)} for r in recs]
+
+    return _memo(res, f"need_trades:{limit}", build)
+
+
+def claim_plan(res: Any, provider: Any = None) -> Any:
+    """``recommend.claims.plan_claims`` on the loaded result (memoised), or None when it fails
+    (a warning is added to ``res.warnings`` once). Shared by the Moves page and /api/claims.json."""
+    def build() -> Any:
+        from ..recommend.claims import plan_claims
+
+        try:
+            return plan_claims(res.ctx, res.values, dynasty_values=getattr(res, "dynasty", None), provider=provider)
+        except Exception as e:  # display-only: never break the page
+            warnings = getattr(res, "warnings", None)
+            if isinstance(warnings, list):
+                warnings.append(f"Claims unavailable: {type(e).__name__}: {e}")
+            return None
+
+    return _memo(res, "claims", build)
+
+
+def claims_section(res: Any, provider: Any = None) -> dict[str, Any] | None:
+    """The Moves page's "Claims to place" section: the claim plan's rows ready for the template
+    (claim order, add/drop, type with clear date, first day it counts, lineup nights, gain, headline,
+    market badge, FAAB bid) plus the rules, priority and notes for the empty state. None on failure."""
+    cp = claim_plan(res, provider)
+    if cp is None:
+        return None
+    rows = []
+    for c in cp.claims:
+        if c.gain is None:
+            gain = None
+        elif c.gain_units == "matchup_pts":
+            gain = f"+{c.gain:.1f} pts"
+        elif c.gain_units == "season_fpg":
+            gain = f"+{c.gain:.2f} FPG"
+        else:
+            gain = f"+{c.gain:.1f}"
+        rows.append({"order": c.order, "add": c.add, "drop": c.drop, "to_ir": c.to_ir,
+                     "type": (f"claim, clears {c.clears:%a}" if c.kind == "claim" and c.clears else c.kind),
+                     "matchup": c.horizon == "matchup", "effective": c.effective, "games": c.games,
+                     "games_text": ", ".join(f"{g:%a}" for g in c.games),
+                     "games_7d": c.games_7d, "gain": gain, "headline": c.headline, "market": c.market,
+                     "bid": c.bid})
+    return {"rows": rows, "rules": cp.rules, "priority": cp.priority, "moves_left": cp.moves_left,
+            "notes": cp.notes, "has_bid": any(c.bid is not None for c in cp.claims)}
 
 
 def strength_info(r: Recommendation, recs: Iterable[Recommendation] = ()) -> dict[str, Any]:
@@ -556,6 +677,23 @@ def standings(res: Any) -> list[dict[str, Any]]:
     return _memo(res, "standings", build)
 
 
+def draft_picks(res: Any, team: FantasyTeam | None) -> list[dict[str, Any]]:
+    """``team``'s draft picks with their dynasty value (dynasty leagues with pick data), by year
+    and round; [] otherwise."""
+    if team is None or res.dynasty is None or not res.ctx.draft_picks:
+        return []
+
+    def build() -> dict[str, list[Any]]:
+        from ..valuation.picks import picks_by_holder, value_picks
+        try:
+            return picks_by_holder(value_picks(res.ctx, res.values, res.dynasty))
+        except Exception:  # noqa: BLE001 - an optional section
+            return {}
+    held = sorted(_memo(res, "draft_picks", build).get(team.team_id, []), key=lambda a: (a.year, a.round))
+    return [{"label": a.short(team.team_id), "slot": a.expected_slot, "overall": a.overall, "value": a.value,
+             "net": a.net, "inferred": a.inferred} for a in held]
+
+
 def free_agents(res: Any, limit: int = 15) -> list[dict[str, Any]]:
     fas = sorted(res.ctx.free_agents, key=lambda p: -(_num(getattr(res.values.get(p.cid), "vorp", None)) or -99.0))
     return [player_row(res, p, owner="FA") for p in fas[:limit]]
@@ -661,9 +799,19 @@ def schedule_page(res: Any, week: str | None = None, provider: Any = None, limit
             return None
 
     po = _memo(res, "sched:playoffs", playoffs)
+
+    def roster_plan() -> Any:
+        from ..analysis.playoffs import playoff_plan
+        try:
+            return playoff_plan(ctx, res.values, provider, weeks=po, limit=5) if po is not None else None
+        except Exception as e:  # optional, like the table above
+            notes.append(f"Playoff roster planner unavailable: {e}")
+            return None
+
+    pplan = _memo(res, "sched:playoff_plan", roster_plan)
     grid = _memo(res, "sched:season", lambda: season_grid(ctx))
     week_idx = grid.week_index(start) if grid.weeks else None
-    return {"view": view, "plan": plan, "playoffs": po, "grid": grid, "start": start,
+    return {"view": view, "plan": plan, "playoffs": po, "pplan": pplan, "grid": grid, "start": start,
             "prev": start - timedelta(days=7), "next": start + timedelta(days=7),
             "this_week": default_week(ctx), "week_idx": week_idx, "notes": notes,
             "has_schedule": bool(ctx.schedule)}
@@ -695,4 +843,73 @@ def matchup_page(res: Any, provider: Any = None) -> dict[str, Any]:
     gaps = [{"group": g.group, "mine": g.mine, "theirs": g.theirs, "gap": g.gap,
              "width": round(min(50.0, abs(g.gap) / top * 50.0), 1), "side": "pos" if g.gap >= 0 else "neg"}
             for g in m.gap_by_position.values()]
-    return {"m": m, "pct": pct, "gaps": gaps}
+    return {"m": m, "pct": pct, "gaps": gaps, "goalies": goalie_section(res)}
+
+
+def plan_page(res: Any, provider: Any = None) -> dict[str, Any]:
+    """/plan (the real server's home page): the weekly action plan, built on the cached result's
+    advice (today's lineup / injury items) and the memoised matchup preview."""
+    from ..analysis.matchup import current_matchup
+    from ..recommend.plan import build_week_plan
+
+    def build() -> Any:
+        try:
+            m = _memo(res, "matchup", lambda: current_matchup(res.ctx, provider, res.values))
+        except Exception:  # noqa: BLE001 - the plan works without the opponent
+            m = None
+        return build_week_plan(res.ctx, res.values, dynasty_values=res.dynasty, recs=list(res.recs),
+                               matchup=m, provider=provider)
+
+    p = _memo(res, "plan", build)
+    pct = (lambda x: None if x is None else round(x * 100))
+    today = p.days[0].day if p.days else None
+    return {"plan": p, "win_as_set": pct(p.win_as_set), "win_lineup": pct(p.win_lineup), "win_plan": pct(p.win_plan),
+            "today_moves": [m for m in p.moves if m.day == today],
+            "later_moves": [m for m in p.moves if m.day != today]}
+
+
+# NHL team primary colours for the small team chips (presentation only). Keys are normalised
+# abbreviations; ESPN / Fantrax variants map onto them in team_color().
+TEAM_COLOR = {
+    "ANA": "#F47A38", "BOS": "#FFB81C", "BUF": "#003087", "CGY": "#C8102E", "CAR": "#CE1126", "CHI": "#CF0A2C",
+    "COL": "#6F263D", "CBJ": "#002654", "DAL": "#006847", "DET": "#CE1126", "EDM": "#FF4C00", "FLA": "#C8102E",
+    "LAK": "#111111", "MIN": "#154734", "MTL": "#AF1E2D", "NSH": "#FFB81C", "NJD": "#CE1126", "NYI": "#00539B",
+    "NYR": "#0038A8", "OTT": "#C52032", "PHI": "#F74902", "PIT": "#FCB514", "SJS": "#006D75", "SEA": "#99D9D9",
+    "STL": "#002F87", "TBL": "#002868", "TOR": "#00205B", "UTA": "#71AFE5", "VAN": "#00205B", "VGK": "#B4975A",
+    "WSH": "#C8102E", "WPG": "#041E42",
+}
+_TEAM_ALIASES = {"LA": "LAK", "NJ": "NJD", "SJ": "SJS", "TB": "TBL", "UTAH": "UTA", "UTH": "UTA", "WAS": "WSH",
+                 "MON": "MTL", "NAS": "NSH", "CLB": "CBJ", "VEG": "VGK", "WIN": "WPG", "CAL": "CGY"}
+
+
+def team_color(abbr: Any) -> str | None:
+    """Primary colour for an NHL team abbreviation (any provider's spelling), else None."""
+    if not abbr:
+        return None
+    key = str(abbr).strip().upper()
+    return TEAM_COLOR.get(_TEAM_ALIASES.get(key, key))
+
+
+def goalie_section(res: Any) -> dict[str, Any] | None:
+    """The matchup page's goalie plan (analysis.goalie_plan, no streaming search): per day who
+    to start in the G slots, open slots, and the best free-agent goalies. None on failure."""
+    from ..analysis.goalie_plan import goalie_week
+
+    try:
+        gw = _memo(res, "goalie_week", lambda: goalie_week(res.ctx, res.values, streams=False))
+    except Exception:  # noqa: BLE001 - optional section; the rest of the page still renders
+        return None
+    if not gw.days:
+        return None
+    by = {r.cid: r for r in gw.mine}
+
+    def who(cid: str, day: Any) -> dict[str, Any]:
+        g = next(x for x in by[cid].games if x.day == day)
+        return {"name": by[cid].name, "prob": round(g.start_prob * 100), "pts": g.exp_pts, "opp": g.opponent,
+                "why": g.start_source}
+    days = [{"day": d.day, "start": [who(c, d.day) for c in d.start], "sit": [who(c, d.day) for c in d.sit],
+             "open": d.open_slots} for d in gw.plan]
+    fas = [{"name": r.name, "team": r.team, "games": len(r.games), "starts": round(r.starts, 1),
+            "pts": round(r.exp_total, 1)} for r in gw.free_agents]
+    return {"days": days, "total": round(gw.exp_total, 1), "free_agents": fas, "notes": gw.notes,
+            "g_slots": gw.g_slots}

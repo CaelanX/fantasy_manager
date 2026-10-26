@@ -98,6 +98,7 @@ def settings(tmp_path, **kw):
 
 def run(tmp_path, league_kw, goalie_list, now=AFTERNOON, **kw):
     ctx, values = make_league(**league_kw)
+    kw.setdefault("planner", lambda *a: None)      # these tests diff changes; the plan lead has its own tests
     return pregame.run_pregame("espn", settings(tmp_path), None, as_of=DAY, now=now,
                                loader=lambda lg, s, c: (ctx, values, []), dfo_client=FakeDfo(goalie_list),
                                injuries_fetch=no_injuries, **kw)
@@ -418,7 +419,7 @@ def test_opponent_goalies_merge_into_one_phone_line(tmp_path):
                               loader=lambda lg, s, c: (ctx, values, []),
                               dfo_client=FakeDfo(starts(FLA=("Sergei Bobrovsky", "Confirmed"),
                                                         BOS=("Jeremy Swayman", "Confirmed"))),
-                              injuries_fetch=no_injuries)
+                              injuries_fetch=no_injuries, planner=lambda *a: None)
     opp = [c for c in res.changes if c.scope == "opponent"]
     assert len(opp) == 2 and all(c.short for c in opp)            # typed data keeps one change per goalie
     assert "Confirmed vs your skaters: Swayman (BOS), Bobrovsky (FLA)." in res.summary_text
@@ -445,3 +446,78 @@ def test_quiet_if_unchanged_still_posts_when_todays_lineup_is_unset():
                                                               "optimal_total": 1.0, "current_total": 0.0, "text": "start A for B"}})
     today = res.lineup_recs.get("today") or {}
     assert bool(today) and not today.get("set", True)
+
+# ------------------------------------------------------------------------------ week plan lead
+
+def _plan(**kw):
+    from fantasy_manager.recommend.plan import PlanAction, PlanDayLine, PlanMove, WeekPlan
+
+    walman, ekblad = P(20, "Jake Walman", ["D"], "EDM"), P(21, "Aaron Ekblad", ["D"], "FLA")
+    return WeekPlan(league="espn", my_team="Mine", opponent="Them",
+                    moves=[PlanMove(day=DAY, effective=DAY, add=walman, drop=ekblad,
+                                    headline="Jake Walman starts 4 nights for you")],
+                    today=[PlanAction(kind="lineup", title="Swap IR slots: activate Hyman, move Marchand to IR",
+                                      headline="Hyman is back; Marchand takes his IR slot")],
+                    days=[PlanDayLine(day=DAY, ins=["Nylander (for Stenberg, no game)"])], **kw)
+
+
+def test_checklist_orders_moves_ir_then_lineup_and_caps_at_three():
+    from fantasy_manager.recommend.plan import today_checklist
+
+    acts = today_checklist(_plan(), DAY)
+    assert acts == ["Add Jake Walman, drop Aaron Ekblad: Jake Walman starts 4 nights for you",
+                    "Swap IR slots: activate Hyman, move Marchand to IR: Hyman is back; Marchand takes his IR slot",
+                    "After quick lineup, start Nylander (for Stenberg, no game)"]
+    assert today_checklist(_plan(), date(2026, 9, 30)) == [
+        "Swap IR slots: activate Hyman, move Marchand to IR: Hyman is back; Marchand takes his IR slot"]
+    assert len(today_checklist(_plan(), DAY, limit=2)) == 2
+
+
+def test_plan_summary_leads_with_win_probability_and_moves_left():
+    from fantasy_manager.recommend.plan import plan_summary
+
+    lines = plan_summary(_plan(win_as_set=0.31, win_plan=0.71, proj_plan=111.8, proj_as_set=91.0, moves_left=2), DAY)
+    assert lines[0] == ("This week vs Them: win 31% with quick lineup -> 71% with the plan "
+                        "(111.8 pts remaining vs 91.0 with quick lineup; moves left 2)")
+    assert lines[1] == "Quick lineup each day; also do:"
+    assert lines[2].startswith("Today: Add Jake Walman") and len(lines) == 5
+    quiet = _plan(win_as_set=0.5, win_plan=0.5, moves_left=2)
+    quiet.moves, quiet.today, quiet.days = [], [], []
+    assert plan_summary(quiet, DAY)[1:] == ["Today: quick lineup is enough"]
+
+
+def test_pregame_post_leads_with_before_puck_drop(tmp_path):
+    calls = []
+
+    def notifier(s, title, lines):
+        calls.append(lines)
+        return ["discord: sent 1 message(s)"]
+
+    morning(tmp_path)
+    res = run(tmp_path, {}, starts(), notify=True, quiet_if_unchanged=True, notifier=notifier,
+              planner=lambda *a: _plan())
+    assert res.nothing_changed                       # nothing changed since the morning...
+    assert calls and calls[0][0] == pregame.CHECKLIST_HEAD   # ...but an add today is still posted
+    assert calls[0][1].startswith("Add Jake Walman") and len(res.today_actions) == 3
+    assert res.summary_text.startswith("Before puck drop: quick lineup, and also: Add Jake Walman")
+
+
+def test_pregame_quiet_when_plan_has_no_add_today(tmp_path):
+    calls = []
+    morning(tmp_path)
+    plan = _plan()
+    plan.moves = []
+    res = run(tmp_path, {}, starts(), notify=True, quiet_if_unchanged=True,
+              notifier=lambda s, t, lines: calls.append(lines) or ["ok"], planner=lambda *a: plan)
+    assert res.today_actions and res.notify is None and calls == []
+
+
+def test_pregame_summary_does_not_say_lineup_set_when_the_plan_has_moves_today(tmp_path):
+    """The checklist lists an add and a start that depends on it: the summary must not end with
+    "No lineup changes needed" / "Lineup set"."""
+    morning(tmp_path)
+    res = run(tmp_path, {}, starts(), notify=False, planner=lambda *a: _plan())
+    assert res.today_actions
+    assert res.lineup_recs["today"]["text"] == pregame.PLAN_REST      # today's lineup was already "set"
+    assert "No lineup changes needed" not in res.summary_text and "Lineup set" not in res.summary_text
+    assert "Lineup set" not in " ".join(res.notify_lines())

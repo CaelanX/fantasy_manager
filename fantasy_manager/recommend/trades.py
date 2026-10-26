@@ -28,7 +28,17 @@ it, big enough to be worth sending. So a proposal is scored from both sides (doc
              contender gets no help this season or a rebuilder gets only older players. The
              mapping is a prior: ``calibrate_acceptance`` refits it from the harness ledger once
              enough proposals are logged.
-* EV         my edge x p_accept; proposals are ranked by EV (``Recommendation.score``).
+* EV         my edge x p_accept.
+* score      EV - OVERPAY_COST_FPG x max(0, overpay - OVERPAY_FREE_PTS), where overpay = market
+             worth they get - market worth they give (``Acceptance.gets - gives``: the market value I
+             hand over, without the need / block / pressure bonuses that only make them likelier to
+             say yes). Proposals are ranked by score (``Recommendation.score``). EV alone favours deals
+             the market calls lopsided in THEIR favour (that is when acceptance is highest), and
+             market value given away is real: it is what I could get in another trade. So a deal the
+             market calls fair or in my favour outranks an overpay with a similar edge, and a clear
+             overpay (overpay > CLEAR_FAVOR_PTS) is listed only when my edge >= OVERPAY_MIN_EDGE,
+             with a deal-level MARKET_CHECK warning that names the model's drivers. A deal whose
+             score is <= 0 after the market cost is not listed (``TradeEval.listable``).
 
 Hard filters: my edge > MIN_GAIN_ME (0.3), p_accept >= MIN_P_ACCEPT (0.25), both rosters legal
 after the trade, and no forced drop of a protected prospect. The old fairness band on our own
@@ -92,15 +102,15 @@ from __future__ import annotations
 import itertools
 import json
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import timedelta
 from functools import lru_cache
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from .strength import apply_ranks, apply_strength
 from .market import (CLEAR_FAVOR_PTS, FPTS_STAT, GROUPED_COMPONENTS, MARKET_MIN_REF,  # noqa: F401 (re-exported)
-                     MARKET_SOURCE_LABEL, MARKET_WEIGHTS, MarketPool, _group, _market_raw, market_check_reasons,
-                     market_value, percentile, trade_market_check)
+                     MARKET_SOURCE_LABEL, MARKET_WEIGHTS, MarketPool, _group, _market_raw, deal_drivers,
+                     market_check_reasons, market_value, percentile, trade_market_check)
 from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation, RosterSlot
 from ..valuation.replacement import eligible_slots
 from .base import (DEFAULT_GAMES_PER_WEEK, IR_SLOT_NAMES, POSITION_PLURAL, PROTECT_OVERRIDE, SEASON_GAMES,
@@ -121,7 +131,10 @@ MAX_PER_RECEIVED = 2         # ... and per player I would receive
 SWEET_SPOT_N = 5
 SWEET_MAX_PERCEIVED = 5.0    # market calls it fair: |perceived| <= 5 worth points
 SWEET_MIN_EDGE = 0.4         # ... while our model says I gain at least this (FPG)
-MARKET_PTS_TO_FPG = 0.05     # 10 market worth points ~ 0.5 FPG (sweet-spot penalty only)
+MARKET_PTS_TO_FPG = 0.05     # 10 market worth points ~ 0.5 FPG (sweet-spot penalty)
+OVERPAY_FREE_PTS = SWEET_MAX_PERCEIVED   # market worth I may hand over before it costs ranking score
+OVERPAY_COST_FPG = MARKET_PTS_TO_FPG     # ... each further worth point costs this much score (FPG)
+OVERPAY_MIN_EDGE = 1.0       # a clear overpay (> CLEAR_FAVOR_PTS worth pts to them) is listed only with this edge
 
 # -- market view and acceptance (a prior; calibrate_acceptance refits the logistic) ----------
 MARKET_CONVEXITY = 3.0       # market worth = 100 x (percentile / 100) ** 3 (see market_worth)
@@ -137,6 +150,12 @@ REBUILDER_VETERAN_MULT = 0.85  # dynasty: a rebuilder receiving only clearly old
 REBUILD_AGE_GAP = 3.0        # "clearly older": incoming mean age >= outgoing mean age + 3
 CALIBRATION_MIN_N = 20       # logged proposals needed before calibrate_acceptance refits
 PRESSURE_PTS = 8.0           # exploit: the deal relieves the counterparty's roster pressure
+
+# -- draft picks (dynasty leagues with pick data; valuation.picks) ----------------------------
+PICK_REBUILDER_MULT = 1.2    # a rebuilding team prizes picks: their market worth to it
+PICK_CONTENDER_MULT = 0.8    # ... a contender less
+PICK_ASK_MIN = CLEAR_FAVOR_PTS   # ask for one of their picks back when the deal is this far in their favour
+PICK_TRIES_PER_TEAM = 6      # deals per counterparty tried with a pick added in
 
 # -- enumeration, legacy display band, dynasty ------------------------------------------------
 FAIR_BAND = 0.12             # model-value gap shown as FAIR_PCT (no longer a filter)
@@ -360,6 +379,17 @@ def market_worth(pct: float) -> float:
     return 100.0 * x ** MARKET_CONVEXITY
 
 
+def pick_worth(market: MarketPool, pick: Any, standing: str | None = None) -> float:
+    """Market worth of a draft pick to a counterparty with ``standing``: no provider publishes a
+    consensus pick value, so it is our pick value's percentile among the rostered players'
+    dynasty values (model-only, ``market.pick_percentile``), x PICK_REBUILDER_MULT for a
+    rebuilding team and PICK_CONTENDER_MULT for a contender."""
+    from .market import pick_percentile
+
+    mult = {"rebuilder": PICK_REBUILDER_MULT, "contender": PICK_CONTENDER_MULT}.get(standing or "", 1.0)
+    return market_worth(pick_percentile(market, float(pick.value))) * mult
+
+
 def package_value(worths: Iterable[float]) -> float:
     """Market worth of a package: the best player in full, each further one at DEPTH_WEIGHT
     (two mid-round players are not a star)."""
@@ -443,8 +473,13 @@ def p_accept(deal: "TradeEval", their_team: FantasyTeam, ctx: LeagueContext, mar
     comes from them), judged by market value rather than our model (module docstring)."""
     market = market or MarketPool(ctx, {})
     params = params or DEFAULT_ACCEPT
-    gets = package_value(market_worth(market.value(p)) for p in deal.give)
-    gives = package_value(market_worth(market.value(p)) for p in deal.get)
+    give_picks, get_picks = getattr(deal, "give_picks", []), getattr(deal, "get_picks", [])
+    st_them = (standing if standing is not None else team_standing(ctx)).get(their_team.team_id) \
+        if (give_picks or get_picks) else None
+    gets = package_value([market_worth(market.value(p)) for p in deal.give]
+                         + [pick_worth(market, a, st_them) for a in give_picks])
+    gives = package_value([market_worth(market.value(p)) for p in deal.get]
+                          + [pick_worth(market, a, st_them) for a in get_picks])
     perceived = gets - gives
     notes: list[str] = []
     if deal.their_drops:
@@ -594,6 +629,8 @@ class TradeEval:
     me_base: list[list[Player]] = field(default_factory=list, repr=False)    # "before" rosters (_baselines)
     them_base: list[list[Player]] = field(default_factory=list, repr=False)
     free_fill: Player | None = None       # FA my "before" uses to fill an empty starting slot (_free_fill)
+    give_picks: list[Any] = field(default_factory=list)   # my draft picks sent (valuation.picks.PickAsset)
+    get_picks: list[Any] = field(default_factory=list)    # their draft picks received
 
     @property
     def need_bonus(self) -> float:
@@ -624,8 +661,27 @@ class TradeEval:
         return self.my_edge * self.p
 
     @property
+    def market_overpay(self) -> float:
+        """Market worth points I hand over (they get - they give; bonuses excluded)."""
+        acc = self.acceptance
+        return acc.gets - acc.gives if acc is not None else 0.0
+
+    @property
+    def overpay_cost(self) -> float:
+        return OVERPAY_COST_FPG * max(0.0, self.market_overpay - OVERPAY_FREE_PTS)
+
+    @property
+    def clear_overpay(self) -> bool:
+        return self.market_overpay > CLEAR_FAVOR_PTS
+
+    @property
+    def listable(self) -> bool:
+        """Worth showing after the market cost (score > 0); a clear overpay also needs a large edge."""
+        return self.score > 0 and (not self.clear_overpay or self.my_edge >= OVERPAY_MIN_EDGE - 1e-9)
+
+    @property
     def score(self) -> float:
-        return self.ev
+        return self.ev - self.overpay_cost
 
     @property
     def sweet_spot_score(self) -> float:
@@ -697,6 +753,13 @@ class _TradeEngine:
         self.params = accept_params or DEFAULT_ACCEPT
         self.standing = team_standing(ctx)
         self.rate = game_rate(ctx)
+        self.picks: dict[str, list[Any]] = {}     # holder team id -> PickAsset list (dynasty + pick data only)
+        if self.units == "dynasty" and ctx.draft_picks:
+            try:
+                from ..valuation.picks import picks_by_holder, value_picks
+                self.picks = picks_by_holder(value_picks(ctx, values, self.V))
+            except Exception as e:  # noqa: BLE001 - picks are an optional add-in
+                ctx.warnings.append(f"Draft pick values unavailable: {type(e).__name__}: {e}")
         fn = _optimal_lineup if lineup_fn is None else (lineup_fn or None)
         self.lineup = _LineupEvaluator(values, ctx.roster_shape, fn)  # type: ignore[arg-type]
         self._starter_cache: dict[frozenset[str], frozenset[str]] = {}
@@ -1118,6 +1181,39 @@ class _TradeEngine:
             ev.acceptance = self._accept(ev)
         return ev
 
+    def with_pick(self, ev: TradeEval) -> TradeEval | None:
+        """``ev`` with one draft pick added to balance it: when the market calls it far in their
+        favour (perceived > PICK_ASK_MIN) the pick of theirs that gives the best EV while they
+        still plausibly accept; when they would refuse it (p_accept < MIN_P_ACCEPT), my cheapest
+        pick that makes it acceptable. A pick counts in my dynasty change at its ``net`` value
+        (over the roster spot the draftee takes) and in their view at its full value
+        (``pick_worth``). The variant must be accepted and beat ``ev``'s EV (or rescue a deal
+        ``ev`` could not make). None when no pick helps."""
+        if (self.mode is None or not self.picks or ev.screened or ev.acceptance is None
+                or ev.give_picks or ev.get_picks):
+            return None
+        mine = self.ctx.my_team.team_id
+        if ev.perceived > PICK_ASK_MIN:
+            side, options = "get", self.picks.get(ev.team.team_id, [])
+        elif ev.p < MIN_P_ACCEPT:
+            # cheapest to me (net of the roster spot) first; among equals, the one they value most
+            side, options = "give", sorted(self.picks.get(mine, []), key=lambda a: (a.net, -a.value))
+        else:
+            return None
+        best: TradeEval | None = None
+        for a in options:
+            var = replace(ev, give_picks=[a] if side == "give" else [], get_picks=[a] if side == "get" else [])
+            var.delta_dyn = ev.delta_dyn + (a.net if side == "get" else -a.net)
+            var.delta_dyn_n = var.delta_dyn / self.scale
+            var.acceptance = self._accept(var)
+            if not var.accepted or (ev.accepted and var.ev <= ev.ev):
+                continue
+            if side == "give":
+                return var                  # the cheapest pick that makes the deal
+            if best is None or var.ev > best.ev:
+                best = var
+        return best
+
     def candidates(self, team_id: str) -> list[tuple[list[Player], list[Player], float]]:
         """(give, get, market base in their favour) for every 1-for-1 / 2-for-1 / 1-for-2 whose
         market packages could still reach p_accept >= MIN_P_ACCEPT with every bonus and that do
@@ -1199,10 +1295,17 @@ def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str,
     reasons = [Reason(code="MY_EDGE", text=edge_txt, value=ev.my_edge, baseline=MIN_GAIN_ME)]
     if acc is not None:
         src = "/".join(MARKET_SOURCE_LABEL[s] for s in acc.sources) or "no market data"
+        # label = market value moved (they get - give); value stays the acceptance input (harness calibration)
         reasons.append(Reason(code="MARKET_VIEW",
-                              text=f"{market_label(acc.perceived)} by market value ({src}); acceptance "
-                                   f"{_pct_text(acc.p)}",
+                              text=f"{market_label(ev.market_overpay)} by market value ({src}, "
+                                   f"{ev.market_overpay:+.0f} worth pts to them); acceptance {_pct_text(acc.p)}",
                               value=acc.perceived, baseline=acc.base))
+        if ev.overpay_cost > 0:
+            reasons.append(Reason(code="MARKET_COST",
+                                  text=f"You hand over {ev.market_overpay:.0f} market worth pts ({OVERPAY_FREE_PTS:g} "
+                                       f"free): ranked {ev.overpay_cost:.2f} lower, since that value could buy "
+                                       f"something in another trade",
+                                  value=-ev.overpay_cost, baseline=ev.market_overpay))
     if ev.need_text:
         reasons.append(Reason(code="THEIR_NEED", text=ev.need_text, value=NEED_PTS))
     if ev.block_text:
@@ -1220,7 +1323,8 @@ def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str,
                               text=f"Acceptance {acc.p:.0%} ({acc.params.source} logistic: they get "
                                    f"{acc.gets:.0f}, give {acc.gives:.0f} market pts"
                                    + (f"; {how}" if how else "") + f" -> {acc.perceived:+.1f} pts). "
-                                   f"EV = {ev.my_edge:+.2f} x {acc.p:.2f} = {ev.ev:+.2f}",
+                                   f"EV = {ev.my_edge:+.2f} x {acc.p:.2f} = {ev.ev:+.2f}"
+                                   + (f"; score {ev.score:+.2f} after the market cost" if ev.overpay_cost > 0 else ""),
                               value=acc.p, baseline=acc.p_raw))
     src_txt = "your starters' NHL schedule" if rate.source == "schedule" else (
         "season over" if rate.source == "season over" else "no schedule loaded: league-average default")
@@ -1279,12 +1383,31 @@ def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str,
     if ev.roto_adj:
         reasons.append(Reason(code="ROTO_BALANCE", text=f"Roto category balance {-ev.roto_adj:+.2f}",
                               value=-ev.roto_adj))
+    for a in ev.get_picks:
+        reasons.append(Reason(code="PICK_IN",
+                              text=f"Ask for {ev.team.name}'s {a.short(ev.team.team_id)} pick (dynasty value "
+                                   f"{a.value:.1f}, {a.net:.1f} net of its roster spot; expected slot "
+                                   f"{a.expected_slot:.0f}): the deal is far in their favour by market value, so a "
+                                   f"pick back evens it",
+                              value=a.net, baseline=a.value))
+    for a in ev.give_picks:
+        reasons.append(Reason(code="PICK_OUT",
+                              text=f"Add your {a.short(a.holder)} pick (dynasty value {a.value:.1f}, costs you "
+                                   f"{a.net:.1f} net of its roster spot; expected slot {a.expected_slot:.0f}): "
+                                   f"without it they would likely refuse",
+                              value=-a.net, baseline=a.value))
     if market is not None:   # consensus check: display only
-        if acc is not None and (deal := trade_market_check(acc.perceived, ev.my_edge)) is not None:
+        if acc is not None and (deal := trade_market_check(ev.market_overpay, ev.my_edge,
+                                                           deal_drivers(market, ev.get, ev.give))) is not None:
             reasons.append(deal)
         reasons += market_check_reasons(market, [(p, "receive") for p in ev.get] + [(p, "send") for p in ev.give])
+        from .market import pick_check_reason
+        reasons += [pick_check_reason(a, "receive", ev.team.team_id) for a in ev.get_picks]
+        reasons += [pick_check_reason(a, "send", a.holder) for a in ev.give_picks]
+    give_txt = " + ".join([p.name for p in ev.give] + [f"your {a.short(a.holder)} pick" for a in ev.give_picks])
+    get_txt = " + ".join([p.name for p in ev.get] + [f"their {a.short(ev.team.team_id)} pick" for a in ev.get_picks])
     return Recommendation(kind="trade", score=ev.score,
-                          title=f"Trade {_names(ev.give)} to {ev.team.name} for {_names(ev.get)}",
+                          title=f"Trade {give_txt} to {ev.team.name} for {get_txt}",
                           add=list(ev.get), drop=list(ev.give), counterparty=ev.team.name,
                           reasons=reasons, predicted_gain=float(ev.delta_me), gain_units="lineup_fpg",
                           horizon_days=None)
@@ -1341,7 +1464,7 @@ def recommend_trades(ctx: LeagueContext, values: Mapping[str, Any],
                      offered: Mapping[str, set[str]] | None = None,
                      accept_params: AcceptParams | None = None,
                      max_per_given: int = MAX_PER_GIVEN) -> list[Recommendation]:
-    """Trade proposals ranked by EV = my edge x p_accept (module docstring), at most
+    """Trade proposals ranked by score = EV less the market overpay cost (module docstring), at most
     `max_per_team` per counterparty and `max_per_given` per player given away (and per player
     received).
 
@@ -1364,6 +1487,7 @@ def recommend_trades(ctx: LeagueContext, values: Mapping[str, Any],
         seen: set[tuple[frozenset[str], frozenset[str]]] = set()
         team_evals: list[TradeEval] = []
         near: list[TradeEval] = []
+        refused: list[TradeEval] = []      # good for me but they would say no: a pick may rescue them
         for give, get, _ in eng.candidates(t.team_id):
             key = (frozenset(p.cid for p in give), frozenset(p.cid for p in get))
             if key in seen:
@@ -1372,6 +1496,8 @@ def recommend_trades(ctx: LeagueContext, values: Mapping[str, Any],
             ev = eng.evaluate(t.team_id, give, get, exact=False)
             if ev.near_plausible:
                 near.append(ev)
+            elif eng.picks and not ev.screened and ev.blocked is None and ev.my_illegal is None:
+                refused.append(ev)
         # the exact solver only runs where it can change what is shown: the best candidates by
         # (greedy) EV, by sweet-spot score and, in contend mode, by future value
         refine = sorted(near, key=lambda e: e.score, reverse=True)[:REFINE_PER_TEAM]
@@ -1389,10 +1515,26 @@ def recommend_trades(ctx: LeagueContext, values: Mapping[str, Any],
                 team_evals.append(ev)
             elif future_only is not None and ev.accepted_future:
                 future.append(ev)
+        if eng.picks:   # draft picks as add-ins: ask for one back from overpays, sweeten refusals
+            asks = sorted((e for e in team_evals if e.perceived > PICK_ASK_MIN), key=lambda e: e.score,
+                          reverse=True)[:PICK_TRIES_PER_TEAM]
+            sweeten = sorted(refused, key=lambda e: e.my_edge, reverse=True)[:PICK_TRIES_PER_TEAM]
+            for e in asks + sweeten:
+                eng.refine(e)
+                var = eng.with_pick(e)
+                if var is None:
+                    continue
+                at = next((i for i, x in enumerate(team_evals) if x is e), None)
+                if at is not None:
+                    team_evals[at] = var
+                else:
+                    team_evals.append(var)
         # a 2-for-1 that merely pads an accepted 1-for-1 (same core, no better EV) is redundant
         singles = {(frozenset(p.cid for p in e.give), frozenset(p.cid for p in e.get)): e.score
                    for e in team_evals if len(e.give) == 1 and len(e.get) == 1}
         for e in team_evals:
+            if not e.listable:   # a clear market overpay needs a large edge (module docstring)
+                continue
             if len(e.give) + len(e.get) > 2:
                 cores = [(frozenset({g.cid}), frozenset({r.cid})) for g in e.give for r in e.get]
                 if any(singles.get(c, -math.inf) >= e.score for c in cores):
@@ -1642,3 +1784,264 @@ def exploit_opportunities(ctx: LeagueContext, values: Mapping[str, Any],
 def exploit_text(r: Recommendation) -> str | None:
     """The EXPLOIT reason's text ("Exploit: Team X has ...") of an exploit rec, else None."""
     return next((x.text for x in r.reasons if x.code == "EXPLOIT"), None)
+
+
+# -- trade finder by need (``fm trades --need``) ------------------------------------------------
+
+NEED_SLOTS = 2               # my weakest starting slot types targeted
+NEED_GET_N = 6               # their players per team tried at my need slots
+NEED_PER_TEAM = 2
+COMPLEMENT_MULT = 1.15       # ranking only: a partner heading the other way (contender <-> rebuilder)
+STAR_MULT = 1.10             # ranking only: 2-for-1 where I get the best player in the deal
+LONG_TERM_BOTTOM = 1 / 3     # a position group whose future value ranks in the league's bottom third
+_STANDING_DIR = {"contender": "contend", "rebuilder": "rebuild"}
+_GROUP_SLOTS = {"G": ("G",), "D": ("D",), "F": ("F", "C", "LW", "RW", "UTIL")}
+
+
+@dataclass
+class Need:
+    """A starting slot type I should trade for: ``gap`` = my starters' mean VORP there minus the
+    league median (-inf: an empty slot); ``long_term`` = from future value (dynasty)."""
+    slot: str
+    gap: float
+    text: str
+    long_term: bool = False
+
+
+def _slot_vorps(players: list[Player], values: Mapping[str, Any], shape: Mapping[str, int]) -> dict[str, float]:
+    """slot type -> mean VORP of the starters there (-inf when a slot of that type is empty)."""
+    assign = _greedy_assignment(players, values, shape, LINEUP_HORIZON)
+    out: dict[str, float] = {}
+    for slot in dict.fromkeys(_starting_slots(shape)):
+        if slot == "UTIL":
+            continue
+        cids = assign.get(slot, [])
+        if len(cids) < int(shape.get(slot, 0)):
+            out[slot] = -math.inf
+        else:
+            vs = [float(values[c].vorp) for c in cids if c in values]
+            out[slot] = sum(vs) / len(vs) if vs else -math.inf
+    return out
+
+
+def find_needs(ctx: LeagueContext, values: Mapping[str, Any], outlook: Any = None,
+               dynasty_values: Mapping[str, Any] | None = None) -> list[Need]:
+    """My weakest starting slot types this season (vs the league median, at most NEED_SLOTS) and,
+    in dynasty leagues heading to rebuild / balanced, the position group whose future value ranks
+    in the league's bottom third."""
+    per_team = {t.team_id: _slot_vorps(t.players, values, ctx.roster_shape) for t in ctx.teams}
+    mine = per_team.get(ctx.my_team.team_id, {})
+    needs: list[Need] = []
+    for slot, v in mine.items():
+        med = _median(x.get(slot, -math.inf) for x in per_team.values())
+        med = med if med is not None else 0.0
+        gap = v - med
+        if v == -math.inf:
+            text = f"an empty {slot} slot"
+        else:
+            text = f"{slot}: your starters' VORP {v:+.2f} vs the league median {med:+.2f}"
+        needs.append(Need(slot, gap, text))
+    needs.sort(key=lambda n: n.gap)
+    out = [n for n in needs if n.gap < 0][:NEED_SLOTS] or needs[:1]
+    direction = getattr(outlook, "recommended", None) or (getattr(ctx, "dynasty_mode", None) if ctx.dynasty else None)
+    if ctx.dynasty and dynasty_values and direction in ("rebuild", "balanced"):
+        try:
+            from ..analysis.outlook import future_values
+            from ..valuation.dynasty import position_group
+        except Exception:  # pragma: no cover - optional
+            return out
+        totals: dict[str, dict[str, float]] = {}
+        for t in ctx.teams:
+            for p in t.players:
+                f = future_values(p, ctx, values, dynasty_values)
+                g = position_group(p)
+                totals.setdefault(g, {}).setdefault(t.team_id, 0.0)
+                totals[g][t.team_id] += sum(f) / len(f)
+        for g, by_team in totals.items():
+            ranked = sorted(by_team, key=lambda tid: -by_team[tid])
+            me_id = ctx.my_team.team_id
+            if me_id not in ranked or ranked.index(me_id) < len(ranked) * (1 - LONG_TERM_BOTTOM):
+                continue
+            slot = next((s for s in _GROUP_SLOTS[g] if s in ctx.roster_shape), None)
+            if slot is None or any(n.slot == slot for n in out):
+                continue
+            out.append(Need(slot, -1.0, f"{g} long term: your future value ranks #{ranked.index(me_id) + 1} of "
+                                        f"{len(ranked)}", long_term=True))
+    return out
+
+
+def _direction(team_id: str, outlook: Any, standing: Mapping[str, str]) -> str | None:
+    d = outlook.direction(team_id) if outlook is not None else None
+    return d or _STANDING_DIR.get(standing.get(team_id, ""))
+
+
+def _complementary(a: str | None, b: str | None) -> bool:
+    win, later = {"contend", "contender"}, {"rebuild", "pretender"}
+    return bool(a and b and ((a in win and b in later) or (a in later and b in win)))
+
+
+def pitch_text(ev: TradeEval, need: Need | None, mine_dir: str | None, their_dir: str | None,
+               ctx: LeagueContext, values: Mapping[str, Any], dynasty_values: Mapping[str, Any] | None) -> str:
+    """A short message to send the other manager: the offer, why it helps them (their direction,
+    their weakest slot) and, briefly, what I am after. It never quotes our model's edge."""
+    give = " + ".join([p.name for p in ev.give] + [f"my {a.short(a.holder)} pick" for a in ev.give_picks])
+    get = " + ".join([p.name for p in ev.get] + [f"your {a.short(ev.team.team_id)} pick" for a in ev.get_picks])
+    def fpg(p: Player) -> float:
+        return float(getattr(values.get(p.cid), "fpg_season", 0.0) or 0.0)
+
+    lead = max(ev.give, key=fpg, default=None)
+    parts = [f"Hi {ev.team.name}, I'd send {give} for {get}."]
+    if their_dir in ("contend", "contender") and lead is not None and ev.delta_them > 0:
+        parts.append(f"You're in the race this season: {lead.name} ({fpg(lead):.1f} pts/game) makes your lineup "
+                     f"better right now.")
+    elif their_dir in ("rebuild", "pretender") and ev.give:
+        young = min(ev.give, key=lambda p: player_age(p, ctx, dynasty_values) or 99.0)
+        age = player_age(young, ctx, dynasty_values)
+        parts.append(f"You're building for later: {young.name}"
+                     + (f" is {age:.0f} and" if age is not None else "") + " fits your timeline.")
+    elif len(ev.give) > len(ev.get) and ev.give:
+        parts.append(f"Two everyday players for one: {' and '.join(p.name for p in ev.give)} give you depth across "
+                     f"your lineup.")
+    elif len(ev.give) < len(ev.get) and lead is not None:
+        parts.append(f"You get the best player in the deal ({lead.name}) and a free roster spot.")
+    elif lead is not None:
+        parts.append(f"{lead.name} has been good for {fpg(lead):.1f} pts/game.")
+    if ev.need_text:
+        slot = ev.need_text.split("weakest slot ", 1)[-1].split(" ", 1)[0] if "weakest slot " in ev.need_text else None
+        fits = next((p for p in ev.give if slot and _eligible(tuple(p.positions), slot)), lead)
+        if fits is not None and slot:
+            parts.append(f"{fits.name} slots right into your weakest spot ({slot}).")
+    if ev.give_picks:
+        parts.append("The pick is there to make it worth your while.")
+    if need is not None:
+        what = "an empty spot" if need.gap == -math.inf else "a hole"
+        when = " for the next few seasons" if need.long_term else ""
+        if mine_dir in ("contend", "contender"):
+            parts.append(f"I'm going for it this season and have {what} at {need.slot}.")
+        elif mine_dir == "rebuild":
+            parts.append(f"I'm building for the next few seasons and want to shore up {need.slot}.")
+        else:
+            parts.append(f"I'm looking to shore up {need.slot}{when}.")
+    return " ".join(parts)
+
+
+def recommend_need_trades(ctx: LeagueContext, values: Mapping[str, Any],
+                          dynasty_values: Mapping[str, Any] | None = None, outlook: Any = None,
+                          limit: int = 5, per_team: int = NEED_PER_TEAM,
+                          wants: Mapping[str, set[str]] | None = None,
+                          offered: Mapping[str, set[str]] | None = None,
+                          lineup_fn: LineupFn | None | bool = None,
+                          accept_params: AcceptParams | None = None,
+                          needs: list[Need] | None = None) -> list[Recommendation]:
+    """Trades aimed at my needs (``find_needs``): from every other team, the players eligible at a
+    need slot who beat my current starters there, against my top players: 1-for-1, 2-for-1 (I give
+    two) and 1-for-2, plus a draft pick to even overpays / rescue refusals, all scored by the
+    regular evaluator (same filters as ``recommend_trades``). Ranking = score (EV less the market
+    overpay cost) x COMPLEMENT_MULT when the partner heads the other way (``outlook`` directions,
+    else standings) x STAR_MULT for a star consolidation (2-for-1, I get the best player). Each rec
+    carries NEED_MATCH, PITCH (a message to send) and, when they apply, COMPLEMENT and
+    STAR_CONSOLIDATION reasons; ``score`` stays the plain trade score."""
+    needs = needs if needs is not None else find_needs(ctx, values, outlook, dynasty_values)
+    if not needs:
+        return []
+    eng = _TradeEngine(ctx, values, dynasty_values, wants, lineup_fn, offered, accept_params)
+    me = eng.sides[ctx.my_team.team_id]
+    mine_slot = _slot_vorps(me.active + me.ir, values, ctx.roster_shape)
+    mine_dir = getattr(outlook, "recommended", None) or (ctx.dynasty_mode if ctx.dynasty else None)
+    floor = eng.params.perceived_for(MIN_P_ACCEPT) - NEED_PTS - BLOCK_PTS
+
+    def vorp(p: Player) -> float:
+        return float(getattr(values.get(p.cid), "vorp", 0.0) or 0.0)
+
+    def fills(p: Player) -> Need | None:
+        for n in needs:
+            if _eligible(tuple(p.positions), n.slot) and p.status not in (*INJURED_STATUSES, "suspended") \
+                    and (n.long_term or vorp(p) > mine_slot.get(n.slot, -math.inf)):
+                return n
+        return None
+
+    picked: list[tuple[float, TradeEval, Need]] = []
+    for t in ctx.teams:
+        if t.team_id == me.team.team_id:
+            continue
+        side = eng.sides[t.team_id]
+        gets = sorted((p for p in side.active + side.ir if eng.V.get(p.cid, 0.0) > 0 and fills(p) is not None),
+                      key=lambda p: eng.V[p.cid], reverse=True)[:NEED_GET_N]
+        if not gets:
+            continue
+        theirs = list({p.cid: p for p in [*gets, *side.top]}.values())
+        shapes: list[tuple[tuple[Player, ...], tuple[Player, ...]]] = [((a,), (b,)) for a in me.top for b in gets]
+        shapes += [(pair, (b,)) for pair in itertools.combinations(me.top, 2) for b in gets]
+        shapes += [((a,), pair) for a in me.top for pair in itertools.combinations(theirs, 2)
+                   if any(p.cid in {g.cid for g in gets} for p in pair)]
+        cands = []
+        for give, get in shapes:
+            base = eng._pkg(give) - eng._pkg(get)
+            if floor - 1e-9 <= base <= OVERPAY_CAP + 1e-9:
+                cands.append((give, get, base))
+        cands.sort(key=lambda c: (len(c[0]) + len(c[1]), abs(c[2])))
+        near: list[TradeEval] = []
+        refused: list[TradeEval] = []
+        for give, get, _ in cands[:MAX_EVALS_PER_TEAM]:
+            ev = eng.evaluate(t.team_id, list(give), list(get), exact=False)
+            if ev.near_plausible:
+                near.append(ev)
+            elif eng.picks and not ev.screened and ev.blocked is None and ev.my_illegal is None:
+                refused.append(ev)
+        near.sort(key=lambda e: e.score, reverse=True)
+        for ev in near[:REFINE_PER_TEAM]:
+            eng.refine(ev)
+        ok = [e for e in near if (e.refined or not eng.lineup.exact) and e.accepted]
+        if eng.picks:
+            tries = sorted((e for e in ok if e.perceived > PICK_ASK_MIN), key=lambda e: e.score, reverse=True)
+            tries += sorted(refused, key=lambda e: e.my_edge, reverse=True)
+            for e in tries[:PICK_TRIES_PER_TEAM]:
+                eng.refine(e)
+                var = eng.with_pick(e)
+                if var is not None:
+                    ok = [var if x is e else x for x in ok] if any(x is e for x in ok) else ok + [var]
+        their_dir = _direction(t.team_id, outlook, eng.standing)
+        comp = _complementary(mine_dir, their_dir)
+        team_rows = []
+        for e in ok:
+            if not e.listable:
+                continue
+            need = next((n for p in e.get if (n := fills(p)) is not None), None)
+            if need is None:
+                continue
+            star = len(e.give) >= 2 and len(e.get) == 1 \
+                and eng.V.get(e.get[0].cid, 0.0) > max(eng.V.get(p.cid, 0.0) for p in e.give)
+            rank = e.score * (COMPLEMENT_MULT if comp else 1.0) * (STAR_MULT if star else 1.0)
+            team_rows.append((rank, e, need))
+        team_rows.sort(key=lambda x: -x[0])
+        picked += team_rows[:per_team]
+    picked.sort(key=lambda x: -x[0])
+    by_ev = {id(e): (rank, need) for rank, e, need in picked}
+    chosen = diverse([e for _, e, _ in picked], limit, per_team)
+    out: list[Recommendation] = []
+    for e in chosen:
+        _, need = by_ev[id(e)]
+        their_dir = _direction(e.team.team_id, outlook, eng.standing)
+        r = _to_rec(e, eng.V, eng.units, eng.lineup.source, eng.market)
+        incoming = next((p for p in e.get if _eligible(tuple(p.positions), need.slot)), e.get[0])
+        extra = [Reason(code="NEED_MATCH", text=f"Fills your need at {need.slot}: {incoming.name} ({need.text})",
+                        value=None if need.gap == -math.inf else need.gap)]
+        if _complementary(mine_dir, their_dir):
+            extra.append(Reason(code="COMPLEMENT",
+                                text=f"{e.team.name} is heading the other way ({their_dir} vs your {mine_dir}): "
+                                     f"you value these players differently, which makes a deal easier"))
+        if len(e.give) >= 2 and len(e.get) == 1 \
+                and eng.V.get(e.get[0].cid, 0.0) > max(eng.V.get(p.cid, 0.0) for p in e.give):
+            extra.append(Reason(code="STAR_CONSOLIDATION",
+                                text=f"Star consolidation: you get the best player in the deal ({e.get[0].name}) "
+                                     f"and free a roster spot; trade calculators tend to undervalue the star side "
+                                     f"of a 2-for-1"))
+        extra.append(Reason(code="PITCH", text=pitch_text(e, need, mine_dir, their_dir, ctx, values, dynasty_values)))
+        r.reasons[2:2] = extra
+        out.append(r)
+    return apply_ranks(apply_strength(out))
+
+
+def pitch_of(r: Recommendation) -> str | None:
+    """The PITCH reason's text of a need trade, else None."""
+    return next((x.text for x in r.reasons if x.code == "PITCH"), None)

@@ -205,18 +205,28 @@ def week_start_share(share: float, dates: Iterable[date], start: date, days: int
     third goalie (share < 0.25) or a window without games."""
     ds = set(dates)
     games = games_in_next(ds, start, days)
-    if games <= 0:
+    if games <= 0 or share < BACKUP_MIN_SHARE:
         return share
+    p1, p2 = night_start_probs(share, b2b_p, season_b2b_frac)
+    b = second_nights(ds, start, days)
+    return ((games - b) * p1 + b * p2) / games
+
+
+def night_start_probs(share: float, b2b_p: float = B2B_SECOND_NIGHT_P,
+                      season_b2b_frac: float = SEASON_B2B_FRAC) -> tuple[float, float]:
+    """(P(start) on an ordinary night, P(start) on a back-to-back's second night) for a goalie
+    with season start ``share``: the #1 (share >= 0.5) starts a second night with ``b2b_p``, the
+    backup (share >= 0.25) with ``1 - b2b_p``, and the ordinary nights absorb the rest so the
+    season share is kept. A third goalie keeps ``share`` on every night."""
     if share >= STARTER_SHARE:
         p2 = b2b_p
     elif share >= BACKUP_MIN_SHARE:
         p2 = 1.0 - b2b_p
     else:
-        return share
-    b = second_nights(ds, start, days)
+        return share, share
     f = min(max(season_b2b_frac, 0.0), 0.9)
     p1 = min(1.0, max(0.0, (share - f * p2) / (1.0 - f)))
-    return ((games - b) * p1 + b * p2) / games
+    return p1, p2
 
 
 def schedule_factor(player: Player, schedule: Mapping[str, list[date]], games_per_day: Mapping[date, int],

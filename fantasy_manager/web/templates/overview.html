@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import move_list, kind_chips, pill, plink, games_cell, player_table, prospect_mark, unit_badges with context %}
+{% from "_macros.html" import move_list, kind_chips, pill, plink, games_cell, player_table, prospect_mark, unit_badges, team_chip with context %}
 {% block heading %}
 <p class="sc dateline">{{ now.strftime('%A, %B %d, %Y').replace(' 0', ' ') }} &middot; {{ res.ctx.name }} ({{ 'ESPN' if res.ctx.provider == 'espn' else res.ctx.provider|capitalize }})</p>
 <h1>{{ team.name if team else res.ctx.name }}</h1>
@@ -16,6 +16,26 @@
   <h2 id="h-mu">This week's matchup <a href="/matchup?league={{ league }}">Preview &rarr;</a></h2>
   <p class="strip-line"><b>{{ m.my_team }}</b> {{ m.my_projected_total|n1 }} &ndash; {{ m.their_projected_total|n1 }} <b>{{ m.opponent_team }}</b>
     <small>projected{% if m.days_left is not none %} &middot; {{ m.days_left }} days left{% endif %}{% if matchup.pct is not none %} &middot; win probability {{ matchup.pct }}%{% endif %}{% if m.stance %} &middot; {{ m.stance }}{% endif %}</small></p>
+</section>
+{% endif %}
+
+{% set track = track_strip(league) %}
+<section id="track-strip" class="strip" aria-labelledby="h-track">
+  <h2 id="h-track">Model track record <a href="/health?league={{ league }}">Health &rarr;</a></h2>
+  <p class="strip-line">{% for t in track %}<span class="track-k{{ '' if t.enough else ' track-wait' }}"><b>{{ t.label|capitalize }}</b> {{ t.text }}</span>{% if not loop.last %} &middot; {% endif %}{% endfor %}
+    {% if not track|selectattr('enough')|list %}<br><small>Building history: a rate shows once {{ track[0].min_n if track else 20 }} moves of a kind have been graded (the daily harness run grades them).</small>{% endif %}</p>
+</section>
+
+{% if outlook and outlook.me %}{% set me = outlook.me %}
+<section id="outlook" class="strip" aria-labelledby="h-outlook">
+  <h2 id="h-outlook">Outlook <span class="aside">{% if outlook.dynasty %}recommended: <b>{{ outlook.recommended }}</b>{% if outlook.current %} (currently {{ outlook.current }}){% endif %}{% else %}<b>{{ outlook.recommended }}</b>{% endif %}</span></h2>
+  <p class="strip-line">Playoff odds about <b>{{ ((me.playoff_odds or 0) * 100)|round|int }}%</b> &middot; lineup #{{ me.now_rank }} of {{ outlook.teams|length }} now{% if me.future_rank %} &middot; #{{ me.future_rank }} over the next seasons{% endif %}</p>
+  <ul class="why">
+    {% for r in outlook.reasons %}<li>{{ r }}</li>{% endfor %}
+    {% for a in outlook.sell %}<li><b>Sell</b> {{ a.player.name }}: {{ a.why }}</li>{% endfor %}
+    {% for a in outlook.buy %}<li><b>Buy</b> {{ a.player.name }} <span class="muted">({{ a.owner }})</span>: {{ a.why }}</li>{% endfor %}
+  </ul>
+  <p class="foot-note">{{ outlook.notes|join(' ') }}{% if outlook.dynasty %} The mode is never changed for you: use the Mode toggle.{% endif %}</p>
 </section>
 {% endif %}
 
@@ -48,7 +68,7 @@
     <tbody>
       {% for x in week.rows %}
       <tr{% if x.change %} class="chg"{% endif %}>
-        <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}{{ unit_badges(x) }}<small>{{ x.pos }} &middot; {{ x.team }} &middot; {{ pill(x.status) }}</small></th>
+        <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}{{ unit_badges(x) }}<small>{{ x.pos }} {{ team_chip(x.team) }} {{ pill(x.status) }}</small></th>
         <td data-label="Now" class="slot">{{ x.slot }}</td>
         <td data-label="{{ 'Today' if week.daily else 'Optimal' }}" class="slot">{% if x.no_game %}<span class="muted">no game</span>{% else %}{{ x.opt_slot or ('IR' if x.slot == 'IR' else 'BN') }}{% if x.locked %} <small class="muted">locked</small>{% endif %}{% endif %}</td>
         <td data-label="Games next 7">{{ games_cell(x) }}</td>

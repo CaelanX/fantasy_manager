@@ -58,7 +58,7 @@ def test_pages_redirect_to_login(app, loader, path):
 
 
 @pytest.mark.parametrize("method,path", [
-    ("get", "/api/recs.json"), ("get", "/api/roster.json"), ("get", "/api/health.json"),
+    ("get", "/api/recs.json"), ("get", "/api/claims.json"), ("get", "/api/roster.json"), ("get", "/api/health.json"),
     ("get", "/api/mode.json"), ("post", "/explain"), ("post", "/mode"), ("post", "/refresh"),
     ("post", "/params/rollback")])
 def test_api_and_actions_need_login(app, loader, method, path):
