@@ -4,27 +4,45 @@ The IR move itself is free (ESPN counts acquisitions, not IR moves), but the rep
 one move: it is only proposed while the league's move limit has one left (an injury replacement
 clears the last move, see ``base.move_scarcity_threshold``), with a MOVE_BUDGET reason; with none
 left the IR move is still proposed with a NO_MOVES note. Activating a player from IR never drops a
-player I added in the last 7 days unless he is out / IR / suspended (churn guard)."""
+player I added in the last 7 days unless he is out / IR / suspended (churn guard).
+
+Hold or cut (``hold_or_cut``): for each player of mine who is out / IR / LTIR / suspended, is it better
+to keep him through the absence or drop him for the best free agent at a shared slot? Over the rest
+of the season (R games), holding is worth his healthy season value per game x the games after his
+estimated return (R - missed), cutting is worth the free agent's season value x R. Holding is free
+when he sits in an IR slot or an IR slot is open for him (verdict HOLD, nothing to compare); then
+the IR-move rec carries a HOLD_VERDICT reason. Otherwise he blocks an active spot and the verdict is
+CUT only when the cut beats holding by CUT_EDGE (CUT_EDGE_GUESSED when the return date is assumed,
+not read from a note: a guessed absence leans toward keeping a high producer), with the break-even
+("cut only if he misses more than ~N games"). Dynasty leagues never cut a protected player or one
+worth more than DYNASTY_MIN_RATIO x the replacement long-term. A cut uses an add (MOVE_BUDGET)."""
 from __future__ import annotations
 
 import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 from pydantic import BaseModel
 
+from ..matching.normalize import normalize_team
 from ..models import LeagueContext, Player, Reason, Recommendation
-from ..valuation.adjust import Horizon
+from ..valuation.adjust import Horizon, _games_remaining, season_availability
 from ..valuation.valuate import PlayerValue
-from .base import (CHURN_EXEMPT_STATUSES, cap_text, capped_positions, churn_text, droppable_players,
-                   moves_budget_reason, moves_left, no_moves_text, position_room, recently_added, shares_slot)
+from .base import (CHURN_EXEMPT_STATUSES, IR_SLOT_NAMES, cap_text, capped_positions, churn_text, droppable_players,
+                   dynasty_map, moves_budget_reason, moves_left, no_moves_text, player_age, position_room,
+                   protection_reason, recently_added, roster_legal_after, shares_slot)
 from .strength import IR_FLOOR, apply_ranks, apply_strength
-from .waivers import recommend_waivers
+from .waivers import DYNASTY_MIN_RATIO, recommend_waivers
 
 SEVERITY = {"unknown": 0, "healthy": 0, "dtd": 1, "suspended": 2, "out": 2, "ir": 3, "ltir": 4}
 IR_ELIGIBLE = ("ir", "ltir", "out")
+HOLD_CUT_STATUSES = ("out", "ir", "ltir", "suspended")
+# a cut must beat holding by this share of the hold points (more when the return date is a guess)
+CUT_EDGE = 0.10
+CUT_EDGE_GUESSED = 0.25
+HOLD_STRENGTH = 1.0          # a hold verdict is advice not to act: shown, never ranked above real moves
 
 
 def severity(status: str) -> int:
@@ -127,9 +145,135 @@ def _add_gain(add: Player, values: Mapping[str, PlayerValue], horizon: Horizon
     return float(av.fpg_for(horizon)), "season_fpg", 7 if horizon == "week" else None
 
 
+class Absence(BaseModel):
+    """How long `p` is out over the rest of the season and what he is worth when back."""
+    remaining: float             # his team's games left
+    missed: float
+    healthy_fpg: float           # season value per game once healthy (start share / games share kept)
+    back: str                    # "back ~Nov 21" / "return unknown"
+    source: str
+    guessed: bool                # the length is assumed (no timetable in the note)
+
+    @property
+    def hold_pts(self) -> float:
+        return self.healthy_fpg * max(0.0, self.remaining - self.missed)
+
+
+def absence(ctx: LeagueContext, p: Player, pv: PlayerValue) -> Absence:
+    team_dates = ctx.schedule.get(normalize_team(p.team) or "", [])
+    a_season, est = season_availability(p.status, p.status_note, ctx.as_of, team_dates, ctx.season_start)
+    healthy = pv.fpg_season / a_season if a_season > 0 else pv.fpg
+    if est is None:      # nothing to read: the flat multiplier, i.e. a guess
+        remaining = _games_remaining(ctx.as_of, team_dates, ctx.season_start)
+        return Absence(remaining=remaining, missed=remaining * (1.0 - a_season), healthy_fpg=healthy,
+                       back="return unknown", source=f"no timetable, flat {p.status} value x{a_season:.2f}",
+                       guessed=True)
+    ret = est.return_date
+    back = f"back ~{ret:%b} {ret.day}" if ret is not None else "out for the season"
+    return Absence(remaining=est.games_remaining, missed=est.games_missed, healthy_fpg=healthy, back=back,
+                   source=est.source, guessed="assumed" in est.source)
+
+
+def _replacement(ctx: LeagueContext, values: Mapping[str, PlayerValue], p: Player) -> Player | None:
+    """Best free agent (season value) on an NHL team who can take `p`'s roster spot."""
+    team = ctx.my_team
+    pool = [fa for fa in ctx.free_agents
+            if fa.cid in values and normalize_team(fa.team) and shares_slot(fa, p)
+            and fa.status in ("healthy", "unknown", "dtd")
+            and roster_legal_after(team, ctx, add=[fa], drop=[p])[0]]
+    return max(pool, key=lambda fa: values[fa.cid].fpg_season, default=None)
+
+
+def _hold_rec(p: Player, ab: Absence, title: str, reasons: list[Reason]) -> Recommendation:
+    return Recommendation(kind="injury", score=0.0, title=title, subjects=[], strength=HOLD_STRENGTH,
+                          reasons=[Reason(code="RETURN_ESTIMATE",
+                                          text=f"{p.name}: {ab.back}, ~{ab.missed:.0f} of {ab.remaining:.0f} games "
+                                               f"missed ({ab.source}" + (", a guess)" if ab.guessed else ")"),
+                                          value=round(ab.missed, 1), baseline=round(ab.remaining, 1))] + reasons)
+
+
+def hold_or_cut(ctx: LeagueContext, values: Mapping[str, PlayerValue], players: Iterable[Player],
+                in_ir: Iterable[Player] = (), dynasty_values: Mapping[str, Any] | None = None
+                ) -> list[Recommendation]:
+    """Hold-or-cut verdicts (module docstring) for `players` (injured, blocking an active spot) and
+    `in_ir` (injured, already in an IR slot: holding is free)."""
+    recs: list[Recommendation] = []
+    for p in in_ir:
+        pv = values.get(p.cid)
+        if pv is None:
+            continue
+        ab = absence(ctx, p, pv)
+        recs.append(_hold_rec(p, ab, f"Hold {p.name} in IR ({ab.back}): it costs no roster spot",
+                              [Reason(code="HOLD_VERDICT", text=f"{p.name} sits in an IR slot, so keeping him "
+                                      f"costs nothing; ~{ab.hold_pts:.0f} pts after his return",
+                                      value=round(ab.hold_pts, 1))]))
+    dyn = dynasty_map(ctx, values, dynasty_values)
+    for p in players:
+        pv = values.get(p.cid)
+        fa = _replacement(ctx, values, p)
+        if pv is None or fa is None:
+            continue
+        ab = absence(ctx, p, pv)
+        r = values[fa.cid].fpg_season
+        hold, cut = ab.hold_pts, r * ab.remaining
+        edge = CUT_EDGE_GUESSED if ab.guessed else CUT_EDGE
+        # games missed at which cutting starts to win by `edge`: h (R - n)(1 + edge) = r R
+        h = ab.healthy_fpg
+        breakeven = ab.remaining - r * ab.remaining / (h * (1.0 + edge)) if h > 0 else 0.0
+        reasons = [
+            Reason(code="HOLD_PTS", text=f"Hold: {h:.2f} FPG x {max(0.0, ab.remaining - ab.missed):.0f} games after "
+                   f"his return = {hold:.0f} pts (his roster spot is dead until then: no IR slot free)",
+                   value=round(hold, 1)),
+            Reason(code="CUT_PTS", text=f"Cut: {fa.name} ({'/'.join(x for x in fa.positions if x != 'F')}, "
+                   f"{fa.team}) {r:.2f} FPG x {ab.remaining:.0f} games = {cut:.0f} pts", value=round(cut, 1)),
+            Reason(code="BREAK_EVEN",
+                   text=(f"Cut only if he misses more than ~{breakeven:.0f} games" if 0 < breakeven < ab.remaining
+                         else f"{fa.name} out-produces him even healthy: cut" if breakeven <= 0
+                         else f"Holding wins however long he is out"), value=round(breakeven, 1),
+                   baseline=round(ab.missed, 1)),
+        ]
+        protect = None
+        if dyn is not None:
+            d_p, d_fa = dyn.get(p.cid, 0.0), dyn.get(fa.cid, 0.0)
+            why = protection_reason(p, player_age(p, ctx, dynasty_values))
+            if why:
+                protect = f"protected dynasty asset ({why})"
+            elif d_p > DYNASTY_MIN_RATIO * d_fa:
+                protect = f"long-term value {d_p:.1f} vs {fa.name} {d_fa:.1f}"
+            reasons.append(Reason(code="DYNASTY_COST", text=f"Dynasty value {p.name} {d_p:.1f} vs {fa.name} "
+                                  f"{d_fa:.1f}" + (f": cutting gives up {d_p - d_fa:.1f}" if d_p > d_fa else ""),
+                                  value=d_fa - d_p, baseline=d_p))
+        if cut <= hold * (1.0 + edge) or protect is not None:
+            if protect is not None and cut > hold * (1.0 + edge):
+                why_hold = f"keep him: {protect}"
+            elif cut > hold:
+                why_hold = (f"close call, cutting for {fa.name} gains only {cut - hold:.0f} pts "
+                            f"(under the {edge:.0%} margin{' for a guessed return' if ab.guessed else ''})")
+            else:
+                why_hold = f"{hold - cut:+.0f} pts vs cutting for {fa.name}"
+            title = f"Hold {p.name} through his injury ({ab.back}): {why_hold}"
+            recs.append(_hold_rec(p, ab, title, reasons))
+            continue
+        if (budget := moves_budget_reason(ctx)) is not None:
+            reasons.append(budget)
+        if moves_left(ctx) == 0:
+            reasons.append(Reason(code="NO_MOVES", text=no_moves_text(ctx) + ": make the cut when moves reset",
+                                  value=0.0))
+        gain = (cut - hold) / ab.remaining if ab.remaining > 0 else 0.0
+        recs.append(Recommendation(
+            kind="injury", score=gain + 0.5, title=f"Cut {p.name}, add {fa.name}: {cut - hold:+.0f} pts rest of season",
+            add=[fa], drop=[p], predicted_gain=gain, gain_units="season_fpg",
+            reasons=[Reason(code="RETURN_ESTIMATE",
+                            text=f"{p.name}: {ab.back}, ~{ab.missed:.0f} of {ab.remaining:.0f} games missed "
+                                 f"({ab.source}" + (", a guess)" if ab.guessed else ")"),
+                            value=round(ab.missed, 1), baseline=round(ab.remaining, 1))] + reasons))
+    return recs
+
+
 def recommend_injuries(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                        history: Mapping[str, StatusSnapshot] | StatusHistory | None,
-                       horizon: Horizon = "week") -> list[Recommendation]:
+                       horizon: Horizon = "week",
+                       dynasty_values: Mapping[str, Any] | None = None) -> list[Recommendation]:
     """Worsened statuses since the last snapshot, IR moves (+ best add) and IR activations.
 
     ``history`` is a StatusHistory (its latest snapshot is read, not written) or a mapping
@@ -205,7 +349,33 @@ def recommend_injuries(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                              predicted_gain=gain, gain_units=units, horizon_days=days)
         if wrec is not None and wrec.strength is not None:
             rec.strength = round(max(IR_FLOOR, wrec.strength), 2)   # inherit the waiver add's strength
+        if (pv := values.get(p.cid)) is not None:
+            ab = absence(ctx, p, pv)
+            rec.reasons.append(Reason(code="HOLD_VERDICT",
+                                      text=f"Hold, don't cut: with an IR slot free keeping {p.name} costs no roster "
+                                           f"spot ({ab.back}, ~{ab.hold_pts:.0f} pts after his return)",
+                                      value=round(ab.hold_pts, 1)))
         recs.append(rec)
+
+    # 2b. hold or cut: injured players with no free IR slot, and those already in one
+    moving = {p.cid for p in candidates[:free_ir]}
+    blocking = [s.player for s in team.slots if s.player is not None and s.slot not in IR_SLOT_NAMES
+                and s.player.status in HOLD_CUT_STATUSES and s.player.cid not in moving]
+    stashed = [s.player for s in team.slots if s.player is not None and s.slot in IR_SLOT_NAMES
+               and s.player.status in HOLD_CUT_STATUSES]
+    # an IR slot held by a healthy / day-to-day player can be swapped: holding is free there too
+    swappable = [s.player for s in team.slots if s.player is not None and s.slot in IR_SLOT_NAMES
+                 and s.player.status in ("healthy", "dtd")]
+    blocking.sort(key=lambda p: -(values[p.cid].fpg if p.cid in values else 0.0))
+    for p, back in zip(blocking, swappable):
+        if (pv := values.get(p.cid)) is None:
+            continue
+        ab = absence(ctx, p, pv)
+        recs.append(_hold_rec(p, ab, f"Hold {p.name} ({ab.back}): activate {back.name} ({back.status}) and move "
+                                     f"{p.name} into his IR slot",
+                              [Reason(code="HOLD_VERDICT", text=f"Swapping IR slots makes keeping {p.name} free; "
+                                      f"~{ab.hold_pts:.0f} pts after his return", value=round(ab.hold_pts, 1))]))
+    recs.extend(hold_or_cut(ctx, values, blocking[len(swappable):], stashed, dynasty_values))
 
     # 3. activate healthy players from IR
     droppable = [d for d in droppable_players(team) if d.cid in values]

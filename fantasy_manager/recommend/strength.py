@@ -6,7 +6,8 @@
 below, 0 at no gain, capped at 10):
 
 * waiver / FPG gains (season_fpg): 0.3 -> 3, 1.0 -> 6, 2.0 -> 9, 3.0 -> 10
-* week points (week_pts, lineup and week-horizon waivers): 1 -> 3, 3 -> 6, 6 -> 9, 8 -> 10
+* week points (week_pts, lineup and week-horizon waivers; matchup_pts, the points left in this
+  matchup): 1 -> 3, 3 -> 6, 6 -> 9, 8 -> 10
 * trades: expected value EV = my edge (MY_EDGE reason; the dynasty Δ for future-only recs)
   x acceptance probability (P_ACCEPT reason), see recommend.trades: 0.15 -> 3, 0.35 -> 6
   (a +0.5 FPG deal at p = 0.7), 0.6 -> 8, 1.0 -> 10. Trade recs without P_ACCEPT (older
@@ -63,7 +64,7 @@ def rec_confidence(rec: Recommendation) -> float:
 
 
 def _gain_strength(gain: float, units: str | None) -> float:
-    if units == "week_pts":
+    if units in ("week_pts", "matchup_pts"):
         return interp(gain, WEEK_SCALE)
     if units in ("lineup_fpg", "dynasty"):
         return interp(gain, TRADE_SCALE)
@@ -135,12 +136,14 @@ def apply_ranks(recs: Iterable[Recommendation]) -> list[Recommendation]:
 
 
 def gain_text(rec: Recommendation) -> str:
-    """'+0.95 FPG', '+3.2 pts/wk', '+0.80 lineup FPG', '+1.10 dyn' or '-'."""
+    """'+0.95 FPG', '+3.2 pts/wk', '+1.5 pts (3d)', '+0.80 lineup FPG', '+1.10 dyn' or '-'."""
     g = rec.predicted_gain
     if g is None:
         return "-"
     unit = {"week_pts": "pts/wk", "season_fpg": "FPG", "lineup_fpg": "lineup FPG", "dynasty": "dyn"}.get(
         rec.gain_units or "", "")
+    if rec.gain_units == "matchup_pts":
+        return f"{g:+.1f} pts" + (f" ({rec.horizon_days}d)" if rec.horizon_days else "")
     if rec.gain_units == "season_fpg" and rec.horizon_days == 7:
         unit = "FPG (wk)"
     if rec.gain_units == "season_fpg" and rec.kind in ("sell_high", "buy_low"):

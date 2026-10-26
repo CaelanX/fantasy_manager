@@ -126,6 +126,10 @@ a.chip-f:hover { border-color: var(--ink-3); color: var(--ink); }
 .m-kind { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: .7rem; font-weight: 700;
   letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
 .m-kind .m-cp { color: var(--ink-3); letter-spacing: .02em; text-transform: none; font-weight: 500; font-size: .8rem; }
+.m-kind .mk { letter-spacing: .02em; text-transform: none; font-weight: 600; font-size: .75rem; padding: 1px 7px;
+  border-radius: 999px; white-space: nowrap; }
+.m-kind .mk-ok { color: var(--good); background: var(--good-wash); }
+.m-kind .mk-no { color: var(--warn); background: var(--warn-wash); }
 .m-kind .m-rank { margin-left: auto; color: var(--ink-3); letter-spacing: .02em; text-transform: none; font-weight: 500;
   font-size: .8rem; }
 /* the "what to do" line: the primary line of each move. Text, never a control. */

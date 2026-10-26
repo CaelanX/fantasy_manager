@@ -464,7 +464,7 @@ def test_waiver_player_week_gain_counts_only_games_after_clear_date():
     claim = next(x for x in waiv.reasons if x.code == "WAIVER_CLAIM")
     assert "on waivers until Mon: claim, won't be available before then" in claim.text
     assert claim.value == 1 and claim.baseline == 4
-    assert free.gain_units == "week_pts"
+    assert free.gain_units == "matchup_pts"
     # daily lineups: the 3 games before the clear date (Oct 1, 3, 5) are lost, each at his per-game value
     assert free.predicted_gain - waiv.predicted_gain == pytest.approx(3 * per_game_value(values["fa_c"]))
 
@@ -493,7 +493,7 @@ def test_waiver_player_filling_empty_slot_gains_only_games_after_clear_date():
     # only Oct 7 counts in the Oct 1-7 matchup days; FPG units: / EDM's 4 games in those days
     assert codes["MATCHUP_GAIN"].value == pytest.approx(per_game_value(values["fa_d"]))
     assert codes["VORP_DELTA"].value == pytest.approx(codes["MATCHUP_GAIN"].value / 4)
-    assert r.predicted_gain == pytest.approx(codes["MATCHUP_GAIN"].value)   # 7 plan days: a 7-day rate as is
+    assert r.predicted_gain == pytest.approx(codes["MATCHUP_GAIN"].value)   # the matchup points as is
 
 
 def test_matchup_waivers_only_in_daily_lineup_leagues():
@@ -507,6 +507,57 @@ def test_matchup_waivers_only_in_daily_lineup_leagues():
     assert any(x.code == "MATCHUP_GAIN" for x in recs[0].reasons)
     weekly = ctx.model_copy(update={"provider": "fantrax", "lineup_lock": "weekly"})
     assert recommend_matchup_waivers(weekly, values) == []
+
+
+def _stream_league(fa, mine, shape):
+    from datetime import timedelta
+
+    ctx = league([fa], mine, shape=shape)
+    days = [date(2026, 10, 1) + timedelta(days=2 * i) for i in range(80)]   # a season: IR ~30 days is a share
+    ctx.schedule = {"EDM": days}
+    ctx.games_per_day = {d: 4 for d in days}
+    return ctx
+
+
+def test_matchup_pickup_gain_is_the_matchup_points_not_a_weekly_rate():
+    from fantasy_manager.recommend.strength import gain_text
+    from fantasy_manager.recommend.waivers import recommend_matchup_waivers
+
+    ctx = _sched_league(mk("fa_c", ["C"], 3.0, gp=20), mk("my_c", ["C"], 0.2))
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    (r,) = recommend_matchup_waivers(ctx, values)
+    pts = next(x for x in r.reasons if x.code == "MATCHUP_GAIN").value
+    assert r.gain_units == "matchup_pts" and r.predicted_gain == pytest.approx(pts)
+    assert r.horizon_days == 7                                       # plan days Oct 1-7
+    assert gain_text(r) == f"{pts:+.1f} pts (7d)"
+
+
+def test_matchup_pickup_drops_least_rest_of_season_value_not_an_injured_starter():
+    """Bug 2: an injured player (0 this week) with real season value is not the stream drop."""
+    from fantasy_manager.recommend.waivers import recommend_matchup_waivers
+
+    fa = mk("fa_c", ["C"], 1.0, gp=20)
+    weak = mk("weak_c", ["C"], 0.5, gp=5)
+    hurt = mk("hurt_c", ["C"], 2.0, gp=5, status="ir")               # IR, no timetable: ~30 days out
+    ctx = _stream_league(fa, [("C", weak), ("BN", hurt)], shape={"C": 1, "BN": 1})
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    assert values["hurt_c"].fpg_week < values["weak_c"].fpg_week
+    assert values["hurt_c"].fpg_season > values["weak_c"].fpg_season
+    (r,) = recommend_matchup_waivers(ctx, values)
+    assert r.drop[0].cid == "weak_c"
+    cost = next(x for x in r.reasons if x.code == "SEASON_COST")
+    assert cost.text.startswith("Rest of season: fa_c") and "an upgrade" in cost.text
+
+
+def test_matchup_pickup_never_cuts_a_much_better_rest_of_season_player():
+    from fantasy_manager.recommend.waivers import recommend_matchup_waivers
+
+    fa = mk("fa_c", ["C"], 1.0, gp=20)
+    star = mk("star_c", ["C"], 3.0, gp=5, status="ir")               # the only droppable C, hurt this week
+    ctx = _stream_league(fa, [("C", star)], shape={"C": 1})
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    assert values["fa_c"].fpg_season < 0.75 * values["star_c"].fpg_season
+    assert recommend_matchup_waivers(ctx, values) == []
 
 
 def test_confidence_counts_prior_nhl_seasons_not_just_this_one():
@@ -540,3 +591,21 @@ def test_matchup_pickups_allow_a_small_stated_dynasty_cost():
     cost = next(x for x in stream[0].reasons if x.code == "DYNASTY_COST")
     assert "costs 1.0, 10% of my_c's value" in cost.text
     assert run("rebuild")[0] == []                                  # rebuild: no long-term cost allowed
+
+
+def test_empty_starting_slot_is_filled_by_dropping_a_bench_player_of_any_position():
+    fa_d = mk("fa_d", ["D"], 0.4, gp=20)
+    my_c, bench_lw = mk("my_c", ["C"], 0.5), mk("bench_lw", ["LW"], 0.6)    # no LW slot: never starts
+    ctx = league([fa_d], [("C", my_c), ("BN", bench_lw)], shape={"C": 1, "D": 1, "BN": 1, "IR": 1})
+    ctx.max_roster_size = 2                                                   # full: the add needs a drop
+    values = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    r = recommend_waivers(ctx, values)[0]
+    assert r.title == "Add fa_d, drop bench_lw"
+    delta = next(x for x in r.reasons if x.code == "VORP_DELTA")
+    assert delta.value == pytest.approx(values["fa_d"].fpg)                 # the whole slot, nobody benched
+    assert "fills empty D slot" in delta.text and "drop bench LW bench_lw" in delta.text
+    # dynasty: a small, stated long-term cost is allowed for a season-long starting slot (balanced 15%)
+    ctx.dynasty, ctx.dynasty_mode = True, "balanced"
+    r = recommend_waivers(ctx, values, dynasty_values={"fa_d": 9.0, "bench_lw": 10.0, "my_c": 20.0})[0]
+    assert [p.cid for p in r.drop] == ["bench_lw"] and "DYNASTY_COST" in {x.code for x in r.reasons}
+    assert recommend_waivers(ctx, values, dynasty_values={"fa_d": 8.0, "bench_lw": 10.0, "my_c": 20.0}) == []

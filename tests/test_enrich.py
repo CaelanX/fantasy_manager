@@ -214,6 +214,7 @@ def test_ttl_routing_and_tracker():
     assert ttl_for("https://api-web.nhle.com/v1/club-schedule-season/EDM/20262027")[1] == enrich.TTL_SCHEDULE
     assert ttl_for("https://api-web.nhle.com/v1/schedule/2026-09-28")[1] == enrich.TTL_SCHEDULE
     assert ttl_for("https://api-web.nhle.com/v1/roster/EDM/20262027")[1] == enrich.TTL_ROSTER
+    assert enrich.TTL_ROSTER <= 24 * enrich.HOUR    # in-season goalie trades / call-ups
     assert ttl_for(enrich.INJURIES_URL)[1] == enrich.TTL_INJURIES
     assert ttl_for("https://www.rotowire.com/rss/news.php?sport=NHL")[1] == enrich.TTL_RSS
 

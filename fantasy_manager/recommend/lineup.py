@@ -41,6 +41,7 @@ MIN_GAIN_ABS = 0.5
 MIN_GAIN_REL = 0.08
 STABILITY_BONUS = 1e-6       # tie-break toward current starters
 UNAVAILABLE = ("out", "ir", "ltir", "suspended")
+IR_STASHABLE = ("ir", "ltir", "out")   # = injuries.IR_ELIGIBLE (not imported: injuries -> waivers -> lineup)
 # Start probability for today's game from a Daily Faceoff report: (starter, other goalie).
 START_PROB_CONFIRMED = (1.0, 0.0)
 START_PROB_LIKELY = (0.8, 0.2)
@@ -487,11 +488,41 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                                    reasons=reasons, predicted_gain=float(gain), gain_units=units,
                                    horizon_days=days))
 
+    # IR swaps: a healthy / dtd player in an IR slot comes out and an injured active player takes
+    # his slot (players covered by a free IR slot get "Move to IR" from recommend.injuries instead)
+    free_ir = max(0, int(ctx.roster_shape.get("IR", 0))
+                  - sum(1 for s in team.slots if s.slot == "IR" and s.player is not None))
+    fpg = lambda p: values[p.cid].fpg if p.cid in values else 0.0  # noqa: E731
+    stash = sorted((s.player for s in team.slots if s.player is not None and s.slot != "IR"
+                    and s.player.status in IR_STASHABLE), key=lambda p: -fpg(p))[free_ir:]
+    back = sorted((s.player for s in team.slots if s.player is not None and s.slot == "IR"
+                   and s.player.status in ("healthy", "dtd")), key=lambda p: -fpg(p))
+    swaps = {b.cid: x for b, x in zip(back, stash)}
+    swapped = {x.cid for x in swaps.values()}
+    full = sum(1 for s in team.slots if s.player is not None and s.slot != "IR") >= \
+        sum(int(n) for k, n in ctx.roster_shape.items() if k != "IR")
     for s in team.slots:
         p = s.player
         if p is None:
             continue
         pv = values.get(p.cid)
+        if p.cid in swapped:
+            continue                                  # leaves the lineup through the swap below
+        if s.slot == "IR" and p.cid in swaps:
+            x = swaps[p.cid]
+            recs.append(Recommendation(
+                kind="lineup", score=pv.fpg_season if pv else 0.0,
+                title=f"Swap IR slots: activate {p.name} ({p.status}), move {x.name} ({x.status}) to IR",
+                add=[p], subjects=[x],
+                predicted_gain=_value(pv, horizon) if pv else None,
+                gain_units=_gain_units([p], values, horizon)[0] if pv else None,
+                horizon_days=_gain_units([p], values, horizon)[1] if pv else None,
+                reasons=[Reason(code="IR_SWAP", text=f"{p.name} is {p.status} but sits in an IR slot, {x.name} is "
+                                f"{x.status} on the active roster: swapping them needs no drop"),
+                         Reason(code="STATUS", text=f"{x.name} is {x.status}"
+                                + (f" ({x.status_note})" if x.status_note else ""))]
+                + _week_reasons(p, pv, horizon)[:1]))
+            continue
         if s.starting and p.status in UNAVAILABLE and p.cid not in {r.drop[0].cid for r in recs if r.drop}:
             recs.append(Recommendation(
                 kind="lineup", score=pv.fpg if pv else 0.0,
@@ -508,6 +539,8 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                 horizon_days=_gain_units([p], values, horizon)[1] if pv else None,
                 reasons=[Reason(code="STATUS", text=f"{p.name} is {p.status} but sits in an IR slot"
                                 + (f" ({p.status_note})" if p.status_note else ""))]
+                + ([Reason(code="ROSTER_FULL", text=f"Roster is full: activating {p.name} needs a drop "
+                           "(or another player moved to IR)")] if full else [])
                 + _week_reasons(p, pv, horizon)[:1]))
         elif s.slot == "IR" and plan is not None and pv is not None and pv.return_date is not None \
                 and plan.days[0].day < pv.return_date <= plan.days[-1].day:

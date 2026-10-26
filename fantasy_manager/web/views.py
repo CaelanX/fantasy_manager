@@ -23,7 +23,7 @@ MOVE_LABEL = {"waiver": ("Add", "Drop"), "injury": ("Add", "Drop"), "trade": ("G
               "alert": ("Add", "Drop")}
 KIND_PLURAL = {"injury": "injury moves", "lineup": "lineup moves", "waiver": "waivers", "trade": "trades",
                "sell_high": "sell-high flags", "buy_low": "buy-low flags", "alert": "alerts"}
-GAIN_UNITS = {"week_pts": "pts/wk", "season_fpg": "FPG", "lineup_fpg": "lineup FPG", "dynasty": "dynasty value"}
+GAIN_UNITS = {"week_pts": "pts/wk", "matchup_pts": "pts","season_fpg": "FPG", "lineup_fpg": "lineup FPG", "dynasty": "dynasty value"}
 SPLIT_ORDER = ("season", "last30", "last15", "last7", "prior", "prior2", "prior3", "projected")
 SPLIT_LABEL = {"season": "Season", "last7": "Last 7 days", "last15": "Last 15 days", "last30": "Last 30 days",
                "projected": "Projected", "prior": "Prior season", "prior2": "2 seasons ago",
@@ -301,7 +301,7 @@ def gain_info(r: Recommendation, res: Any = None) -> dict[str, Any] | None:
         unit = GAIN_UNITS.get(units, units or "")
         horizon = horizon_label(getattr(r, "horizon_days", None))
         if (mg := _reason(r, "MATCHUP_GAIN")) is not None and _num(mg.value) is not None:
-            # this-matchup pickup: show the matchup points, not the 7-day rate the harness grades
+            # this-matchup pickup: the matchup points over the rest of the matchup
             value, unit, horizon = _num(mg.value), "pts", "rest of this matchup"
         if horizon is None:  # the model's contract: no horizon_days = rest of season
             horizon = {"season_fpg": "rest of season", "lineup_fpg": "rest of season",
@@ -329,6 +329,19 @@ def gain_info(r: Recommendation, res: Any = None) -> dict[str, Any] | None:
         return None
     return {"value": value, "unit": unit, "horizon": horizon, "confidence": conf, "confidence_label": conf_label,
             "dynasty": dyn, "trade": trade_info(r)}
+
+
+def market_info(r: Recommendation) -> dict[str, Any] | None:
+    """The consensus-check badge: {"disagrees": bool, "label", "title" (the checks' text)}, or None
+    when the move carries no MARKET_CHECK (``recommend.market.market_disagrees``)."""
+    from ..recommend.market import market_disagrees
+
+    flag = market_disagrees(r)
+    if flag is None:
+        return None
+    checks = [x.text for x in r.reasons if x.code == "MARKET_CHECK"]
+    return {"disagrees": flag, "label": "model disagrees with market" if flag else "market agrees",
+            "title": " | ".join(checks)}
 
 
 def trade_info(r: Recommendation) -> dict[str, Any] | None:

@@ -125,3 +125,100 @@ def test_ir_chain_add_respects_goalie_cap():
     assert r.title == "Move hurt_g to IR" and r.add == []
     cap = next(x for x in r.reasons if x.code == "POSITION_CAP")
     assert "G limit 3" in cap.text
+
+
+# -- hold or cut ------------------------------------------------------------------------------
+
+def verdicts(ctx, vals, **kw):
+    return [r for r in recommend_injuries(ctx, vals, {}, **kw) if r.title.startswith(("Hold", "Cut"))]
+
+
+def test_hold_a_star_through_a_short_injury():
+    star = mk("star", ["C"], 1.5, status="out")
+    star.status_note = "Upper Body: out (est. return 2026-10-20)"
+    fa = mk("fa", ["C"], 0.6)
+    ctx = ctx_for([("C", star)], [fa], {"C": 1})      # no IR slot: he blocks the active spot
+    vals = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    [r] = verdicts(ctx, vals)
+    assert r.title.startswith("Hold star through his injury (back ~Oct 20)") and r.add == r.drop == []
+    assert r.strength == 1.0
+    codes = {x.code: x for x in r.reasons}
+    assert codes["HOLD_PTS"].value > codes["CUT_PTS"].value
+    assert "Cut only if he misses more than" in codes["BREAK_EVEN"].text
+
+
+def test_cut_a_marginal_player_out_long_term():
+    meh = mk("meh", ["C"], 0.5, status="ir")
+    meh.status_note = "Knee: out (est. return 2027-03-01)"
+    fa = mk("fa", ["C"], 0.6)
+    ctx = ctx_for([("C", meh)], [fa], {"C": 1})
+    vals = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    [r] = verdicts(ctx, vals)
+    assert r.title.startswith("Cut meh, add fa:")
+    assert [p.cid for p in r.add] == ["fa"] and [p.cid for p in r.drop] == ["meh"]
+    assert r.gain_units == "season_fpg" and r.predicted_gain > 0
+    codes = {x.code: x for x in r.reasons}
+    assert codes["CUT_PTS"].value > codes["HOLD_PTS"].value
+
+
+def test_free_ir_slot_means_hold_without_a_verdict_rec():
+    meh = mk("meh", ["C"], 0.5, status="ir")
+    meh.status_note = "Knee: out (est. return 2027-03-01)"
+    fa = mk("fa", ["C"], 0.6)
+    ctx = ctx_for([("C", meh)], [fa], {"C": 1, "BN": 1, "IR": 1})
+    vals = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    recs = recommend_injuries(ctx, vals, {})
+    assert not [r for r in recs if r.title.startswith(("Hold", "Cut"))]
+    move = next(r for r in recs if r.title.startswith("Move meh to IR"))
+    assert any(x.code == "HOLD_VERDICT" for x in move.reasons)
+    # already in an IR slot: holding is free, said as a low-strength hold
+    stashed = ctx_for([("IR", meh), ("C", mk("c", ["C"], 0.4))], [fa], {"C": 1, "IR": 1})
+    vals = valuate_league(stashed, PointsScoring({"G": 1.0}))
+    [r] = verdicts(stashed, vals)
+    assert r.title.startswith("Hold meh in IR") and r.strength == 1.0
+
+
+def test_dynasty_never_cuts_a_protected_player():
+    kid = mk("kid", ["C"], 0.5, status="ir")
+    kid.status_note = "Knee: out (est. return 2027-03-01)"
+    kid.birth_date, kid.draft_overall = date(2006, 1, 1), 3
+    fa = mk("fa", ["C"], 0.6)
+    ctx = ctx_for([("C", kid)], [fa], {"C": 1})
+    ctx.dynasty = True
+    vals = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    [r] = verdicts(ctx, vals, dynasty_values={"kid": 9.0, "fa": 3.0})
+    assert r.title.startswith("Hold kid") and "protected dynasty asset" in r.title
+    assert any(x.code == "DYNASTY_COST" for x in r.reasons)
+
+
+def test_guessed_return_needs_a_bigger_edge_to_cut():
+    p = mk("p", ["C"], 1.0, status="ir")       # IR without a timetable: 30 days assumed
+    fa = mk("fa", ["C"], 0.6)
+    ctx = ctx_for([("C", p)], [fa], {"C": 1})
+    vals = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    [r] = verdicts(ctx, vals)
+    est = next(x for x in r.reasons if x.code == "RETURN_ESTIMATE")
+    assert "a guess" in est.text
+    assert r.title.startswith("Hold p")
+
+
+def test_replacement_must_have_an_nhl_team():
+    meh = mk("meh", ["C"], 0.5, status="ir")
+    meh.status_note = "Knee: out (est. return 2027-03-01)"
+    unsigned, fa = mk("unsigned", ["C"], 2.0), mk("fa", ["C"], 0.6)
+    unsigned.team = None
+    ctx = ctx_for([("C", meh)], [unsigned, fa], {"C": 1})
+    vals = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    [r] = verdicts(ctx, vals)
+    assert [p.cid for p in r.add] == ["fa"]
+
+
+def test_ir_slot_held_by_a_dtd_player_is_a_swap_not_a_cut():
+    meh = mk("meh", ["C"], 0.5, status="ir")
+    meh.status_note = "Knee: out (est. return 2027-03-01)"
+    dtd = mk("dtd", ["LW"], 0.8, status="dtd")
+    fa = mk("fa", ["C"], 0.6)
+    ctx = ctx_for([("C", meh), ("IR", dtd)], [fa], {"C": 1, "IR": 1})
+    vals = valuate_league(ctx, PointsScoring({"G": 1.0}))
+    [r] = verdicts(ctx, vals)
+    assert r.title.startswith("Hold meh") and "activate dtd (dtd)" in r.title and r.add == r.drop == []

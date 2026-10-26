@@ -387,7 +387,7 @@ def projection_rows(fpg_obs: Sequence[ProjObs], wk_obs: Sequence[WeekObs], week:
 # --------------------------------------------------------------------------- recommendation quality
 
 def primary_window(kind: str, units: str | None) -> str:
-    if kind == "lineup" or units == "week_pts":
+    if kind == "lineup" or units in ("week_pts", "matchup_pts"):
         return "7d"
     return "28d"
 
