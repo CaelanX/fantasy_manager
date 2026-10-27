@@ -2035,6 +2035,23 @@ def web(ctx: typer.Context,
         _fail(str(e))
 
 
+@app.command("web-export")
+def web_export(out: Path = typer.Option(Path("site"), "--out", "-o", help="Folder to write (emptied first)."),
+               limit: int = typer.Option(2500, "--limit", help="Most pages to write.")) -> None:
+    """Write a read-only static snapshot of the dashboard (both leagues) for static hosting.
+    The files hold league data in clear text: encrypt them before publishing (docs/hosting.md)."""
+    try:
+        from .web.export import export_site
+    except ImportError:
+        _fail(WEB_HINT)
+    res = export_site(out, limit=limit)
+    typer.echo(f"{res.pages} pages written to {out}" + (" (page limit reached)" if res.truncated else ""))
+    for e in res.errors[:20]:
+        typer.echo(f"  {e}", err=True)
+    if res.pages == 0:
+        raise typer.Exit(1)
+
+
 # -- schedule grid / streaming planner and matchup preview (analysis/) ----------
 
 def _parse_day(text: Optional[str]) -> Any:

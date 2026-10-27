@@ -10,7 +10,7 @@ You don't need to be a Linux expert. You'll copy and paste about a dozen command
 
 If you'd rather not expose anything to the internet, read [Tailscale instead of a public domain](#tailscale-instead-of-a-public-domain) first. It skips the domain, Caddy and the open ports.
 
-To host it for free, see [Free option: Google Cloud e2-micro + Tailscale](#free-option-google-cloud-e2-micro--tailscale).
+To host it for free with no card at all, see [Free option: GitHub Actions + Pages (no card)](#free-option-github-actions--pages-no-card). It publishes a read-only dashboard. For the full interactive one for free, see [Free option: Google Cloud e2-micro + Tailscale](#free-option-google-cloud-e2-micro--tailscale) (needs a card for verification).
 
 ## What it costs
 
@@ -370,6 +370,48 @@ For an alert when the site is down, point a free uptime checker (UptimeRobot, He
 7. Close the public ports if you opened them: `sudo ufw delete allow 80/tcp; sudo ufw delete allow 443`. You can even restrict SSH to Tailscale with `sudo ufw allow in on tailscale0 to any port 22` and `sudo ufw delete allow OpenSSH`, but only after confirming `ssh root@<server-name>` works over Tailscale.
 
 Don't use `tailscale funnel`: it publishes the site to the whole internet.
+
+## Free option: GitHub Actions + Pages (no card)
+
+GitHub runs the jobs on its own computers and hosts the dashboard, for free, with nothing but the GitHub account that already holds this repository. No server, no domain, no card. `.github/workflows/hosted.yml` runs:
+
+| When (UTC) | Toronto, summer / winter | What |
+|---|---|---|
+| 11:30 | 7:30 / 6:30 AM | the daily job (`deploy/daily.sh`: Fantrax ping, archive, `fm harness daily`, `fm report --notify`) |
+| 21:00 | 5:00 / 4:00 PM | the pre-game check (`deploy/daily.sh pregame`) |
+| 15:00, 18:00, 00:00, 03:00 | through the day and evening | a dashboard refresh |
+
+Every run publishes a fresh snapshot of the dashboard to `https://<your-github-name>.github.io/fantasy_manager/`. You can also start a run any time: **Actions > hosted > Run workflow**.
+
+What you give up compared with a server:
+
+- **The dashboard is a read-only snapshot.** `fm web-export` renders every page (plan, overview, rosters, moves, news, schedule, matchup, health, player pages) to plain files. The buttons that need a server are hidden: Refresh, the dynasty mode toggle, **Did it**, Explain and Rollback. Your moves are still tracked: the harness reads them from the league transaction logs. Change the dynasty mode with `fm mode` on your PC, then copy the new `data/prefs.json` up with the seeding step below, or leave it at the default.
+- **The pages are public files, encrypted.** The repository is public, so the dashboard is encrypted in the browser with your password ([StatiCrypt](https://github.com/robinmoisson/staticrypt), AES with PBKDF2). Anyone can download the encrypted files and try passwords offline, so use a long passphrase (four or five random words). Tick **Remember me** on your phone so you type it once a month. To lock a device out, open any page with `#staticrypt_logout` at the end of the address.
+- **Timing is approximate.** GitHub may start a scheduled run late when it is busy, sometimes by up to an hour, which can push the pre-game check close to the first puck drop.
+- **The data lives in the repository, encrypted.** Between runs the data folder (tracker history, archives, prefs, plan memory; not the HTTP cache) is kept as one AES-256 encrypted file on the `fm-data` branch (`deploy/gh-data.sh`). Each run replaces it, so the repository does not grow.
+- **Inactive repositories pause.** GitHub disables scheduled workflows in a public repository after 60 days without any commit. The data branch does not count, so if you get the email, click **Enable workflow** under **Actions**.
+- **League sites may refuse GitHub's servers.** ESPN or Fantrax could block requests from data-center addresses. If the daily job's Fantrax or ESPN step fails every run while it works on your PC, this option will not work for that league.
+
+### Setup
+
+1. **Make two passphrases.** One for the dashboard (`FM_SITE_PASSWORD`) and one that encrypts the data (`FM_DATA_KEY`). Keep both in your password manager. Losing `FM_DATA_KEY` loses the stored history.
+2. **Add the repository secrets.** On GitHub: the repository's **Settings > Secrets and variables > Actions > New repository secret**:
+   - `FM_ENV`: the whole contents of your `.env` file (league ids, ESPN cookies, `FANTRAX_COOKIE`, webhooks, `OPENROUTER_API_KEY`, ...). Paste it as it is.
+   - `FM_DATA_KEY`: the data passphrase.
+   - `FM_SITE_PASSWORD`: the dashboard passphrase.
+3. **Turn on Pages.** **Settings > Pages > Build and deployment > Source: GitHub Actions.**
+4. **Seed the data from your PC** (optional, keeps the history you already have). In Git Bash, in the repository folder:
+
+   ```bash
+   FM_DATA_KEY='<the same data passphrase>' bash deploy/gh-data.sh push
+   ```
+
+   Without this the first run starts with an empty history.
+5. **Run it once.** **Actions > hosted > Run workflow**, job `daily`. It takes a few minutes. When it is green, open the address on the run's summary page, enter the dashboard passphrase and tick **Remember me**.
+
+Stop running the daily job on your PC once this works: both would write their own history. To move back to your PC, pull the data down first: `FM_DATA_KEY='...' bash deploy/gh-data.sh pull` (it unpacks into `data/`).
+
+**When the Fantrax cookie expires**, copy the new one into your local `.env` as usual, then paste the whole `.env` into the `FM_ENV` secret again.
 
 ## Free option: Google Cloud e2-micro + Tailscale
 
