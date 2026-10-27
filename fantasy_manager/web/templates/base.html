@@ -2,26 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0c1a2b">
 <title>{{ title }}{% if res %} - {{ res.ctx.name }}{% endif %} | Fantasy Manager</title>
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body hx-boost="true">
 <a class="skip" href="#main">Skip to content</a>
-<header class="wrap">
-  <div class="mast">
-    <a class="brand" href="/?league={{ league }}">Fantasy Manager <span>/ hockey</span></a>
+{% set sections = [(PLAN_HREF, "This week"), (OVERVIEW_HREF, "Overview"), ("/roster", "Roster"), ("/recommendations", "Moves"), ("/matchup", "Matchup"), ("/schedule", "Schedule"), ("/news", "News"), ("/health", "Health")] %}
+{% macro is_here(href, label) -%}{{ 'y' if path == href or (path == "/plan" and label == "This week") or (path == "/overview" and label == "Overview") else '' }}{%- endmacro %}
+<header class="topbar">
+  <div class="wrap mast">
+    <a class="brand" href="/?league={{ league }}"><span class="brand-mark" aria-hidden="true"></span>Fantasy Manager</a>
     <nav class="tabs" aria-label="Sections">
-      {% set sections = [("/", "Overview"), ("/roster", "Roster"), ("/recommendations", "Moves"), ("/matchup", "Matchup"), ("/schedule", "Schedule"), ("/news", "News"), ("/health", "Health")] %}
       {% for href, label in sections %}
-      <a href="{{ href }}?league={{ league }}"{% if path == href %} aria-current="page"{% endif %}>{{ label }}</a>
+      <a href="{{ href }}?league={{ league }}"{% if is_here(href, label) %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}
     </nav>
     <nav class="leagues" aria-label="League">
       {% for lg in LEAGUES %}
-      <a href="{{ switch_path }}?league={{ lg }}"{% if lg == league %} aria-current="page"{% endif %}>{{ lg|upper }}</a>
+      <a href="{{ switch_path }}?league={{ lg }}"{% if lg == league %} aria-current="page"{% endif %}>{{ {'espn': 'ESPN', 'fantrax': 'Fantrax'}.get(lg, lg) }}</a>
       {% endfor %}
     </nav>
   </div>
@@ -96,5 +98,21 @@
     </div>
   </div>
 </footer>
+{# Phone: a bottom tab bar with the four daily destinations; the rest sit under "More". #}
+<nav class="tabbar" aria-label="Sections (phone)">
+  {% set primary = [(PLAN_HREF, "This week", "wk"), ("/recommendations", "Moves", "mv"), ("/roster", "Roster", "ro"), ("/matchup", "Matchup", "mu")] %}
+  {% for href, label, icon in primary %}
+  <a href="{{ href }}?league={{ league }}" class="tb tb-{{ icon }}"{% if is_here(href, label) %} aria-current="page"{% endif %}><span class="tb-i" aria-hidden="true"></span>{{ label }}</a>
+  {% endfor %}
+  {% set more_here = path in ("/overview", "/schedule", "/news", "/health") or (path == "/" and HOME != "plan") %}
+  <details class="tb-more">
+    <summary class="tb tb-mo"{% if more_here %} aria-current="page"{% endif %}><span class="tb-i" aria-hidden="true"></span>More</summary>
+    <div class="tb-sheet">
+      {% for href, label in [(OVERVIEW_HREF, "Overview"), ("/schedule", "Schedule"), ("/news", "News"), ("/health", "Model health")] %}
+      <a href="{{ href }}?league={{ league }}"{% if is_here(href, label) or (label == 'Model health' and path == '/health') %} aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </div>
+  </details>
+</nav>
 </body>
 </html>

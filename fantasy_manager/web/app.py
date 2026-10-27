@@ -152,11 +152,14 @@ def _dynasty(ctx: LeagueContext, values: Mapping[str, Any], provider: Any) -> di
 
 
 def _news(ctx: LeagueContext, cache: Any) -> dict[str, list[Any]]:
+    from ..config import get_settings
     from ..providers.enrich import make_fetch_text
-    from ..providers.news import fetch_all_news
+    from ..providers.news import fetch_news
     from ..report.news_match import match_news_to_players
 
-    items = fetch_all_news(make_fetch_text(cache))
+    items, failed = fetch_news(make_fetch_text(cache), get_settings().fm_data_dir)
+    for label, e in failed:
+        log.warning("news source %s failed: %s", label, e)
     return match_news_to_players(items, ctx.all_players())
 
 
@@ -477,6 +480,8 @@ def action_line(r: Recommendation) -> str:
             return f"Activate {_short_names(add)[0]} from IR"
         if add:
             ins, outs = _short_names(add, drop), _short_names(drop, add)
+            if outs and title.endswith(" has no game)"):     # a one-day swap, not a verdict on him
+                return f"Start {' + '.join(ins)} in {' + '.join(outs)}'s slot today"
             return f"Start {' + '.join(ins)}" + (f" over {' + '.join(outs)}" if outs else "")
     if r.kind == "trade" and add and drop:
         return f"Propose: {' + '.join(_short_names(drop, add))} for {' + '.join(_short_names(add, drop))}"
@@ -785,11 +790,13 @@ EXPLAIN_FAILED = ("Explanation unavailable right now (free model rate-limited); 
 
 def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                clock: Callable[[], float] = time.monotonic, default_league: str = "espn",
-               llm: Callable[[], Any] | None = None, auth: web_auth.AuthConfig | None = None) -> FastAPI:
+               llm: Callable[[], Any] | None = None, auth: web_auth.AuthConfig | None = None,
+               home: str = "overview") -> FastAPI:
     """Build the dashboard app. ``loader(league) -> LoadResult`` defaults to the live pipeline;
     ``llm()`` returns the client for on-demand explanations (defaults to ``default_llm``);
     ``auth`` is the access policy (``auth.auth_from_settings()`` for the real server; None = no
-    checks, as in the tests)."""
+    checks, as in the tests). ``home`` is what "/" shows: "plan" (the weekly plan; the real server)
+    or "overview" (the default); /plan and /overview always work."""
     from ..prefs import DYNASTY_MODE_KEY, DYNASTY_MODES, mode_source_label, normalize_mode, set_pref
 
     app = FastAPI(title="Fantasy Manager", docs_url=None, redoc_url=None)
@@ -815,6 +822,10 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                        limits_text=views.limits_text, exploits=views.exploits)
     env.globals.update(moves_text=_moves_footer)
     env.globals.update(sources_text=_sources_footer)
+    env.globals.update(track_info=views.track_info, track_strip=views.track_strip)
+    env.globals.update(need_trades=views.need_trades, team_color=views.team_color)
+    env.globals.update(HOME=home, OVERVIEW_HREF="/overview" if home == "plan" else "/",
+                       PLAN_HREF="/" if home == "plan" else "/plan")
     if auth is not None:
         web_auth.install(app, auth, templates)
     make_llm = llm or default_llm
@@ -836,8 +847,8 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
 
     def render(request: Request, name: str, league: str, status_code: int = 200, **ctx: Any) -> HTMLResponse:
         path = request.url.path
-        switch_path = path if path in ("/", "/roster", "/recommendations", "/news", "/health",
-                                         "/schedule", "/matchup") else "/"
+        switch_path = path if path in ("/", "/plan", "/overview", "/roster", "/recommendations", "/news",
+                                         "/health", "/schedule", "/matchup") else "/"
         query = [(k, v) for k, v in request.query_params.multi_items() if k != "msg"]
         here = path + (f"?{urlencode(query)}" if query else "")
         cur_mode, cur_source = current_mode()
@@ -855,9 +866,10 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
             and not ctx.get("no_mode")
         base["data_mode"] = (res.mode if res is not None and res.mode else cur_mode)
         base["data_mode_source"] = (res.mode_source if res is not None and res.mode else cur_source)
-        base["flash"] = _mode_flash(request.query_params.get("msg"), res)
-        if base["flash"] is None:
-            base["flash"], base["flash_warn"] = _rollback_flash(request.query_params.get("msg"))
+        if base.get("flash") is None:          # a page may bring its own banner ("Did it" on /plan)
+            base["flash"] = _mode_flash(request.query_params.get("msg"), res)
+            if base["flash"] is None:
+                base["flash"], base["flash_warn"] = _rollback_flash(request.query_params.get("msg"))
         if "llm_ok" not in base:
             base["llm_ok"] = llm_available() if name in ("overview.html", "recommendations.html",
                                                          "player.html") else False
@@ -901,6 +913,33 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         return {"status": "ok", "cached": {lg: cache.age(lg) is not None for lg in LEAGUES}}
 
     @app.get("/", response_class=HTMLResponse)
+    def home_page(request: Request, league: str = LeagueQ, kind: str = "all"):
+        return plan(request, league) if home == "plan" else overview(request, league, kind)
+
+    @app.get("/plan", response_class=HTMLResponse)
+    def plan(request: Request, league: str = LeagueQ):
+        res = load_or_error(request, league)
+        if isinstance(res, Response):
+            return res
+        try:
+            page = views.plan_page(res, views.provider_for(loader, league))
+        except Exception as e:  # the plan is best effort; every other page still works
+            log.exception("weekly plan for %s failed", league)
+            return render(request, "error.html", league, status_code=500, res=res, title="Plan unavailable",
+                          error=f"{type(e).__name__}: {e}")
+        q = request.query_params
+        if q.get("msg") == "moved":       # back from "Did it": verify the move from the fresh data
+            from ..config import get_settings
+            from ..recommend.plan_memory import moved_banner
+
+            text, warn, again = moved_banner(get_settings().fm_data_dir, league, q.get("since"), res.ctx,
+                                             (q.get("label") or "")[:120], retry=q.get("retry") == "1")
+            page.update(flash=text, flash_warn=warn,
+                        moved_retry={"since": q.get("since") or "", "label": (q.get("label") or "")[:120]}
+                        if again else None)
+        return render(request, "plan.html", league, res=res, title="This week", no_mode=True, **page)
+
+    @app.get("/overview", response_class=HTMLResponse)
     def overview(request: Request, league: str = LeagueQ, kind: str = "all"):
         res = load_or_error(request, league)
         if isinstance(res, Response):
@@ -930,7 +969,8 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                       news=news[:4], total=len(res.recs), week=views.week_panel(res, team),
                       standings=views.standings(res), free_agents=views.free_agents(res),
                       league_injuries=views.league_injuries(res),
-                      matchup=views.matchup_strip(res, views.provider_for(loader, league)), title="Overview")
+                      matchup=views.matchup_strip(res, views.provider_for(loader, league)),
+                      outlook=views.outlook_section(res, views.provider_for(loader, league)), title="Overview")
 
     @app.get("/roster", response_class=HTMLResponse)
     def roster(request: Request, league: str = LeagueQ, team: str | None = None, view: str = "fantasy"):
@@ -959,7 +999,9 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
             ("Starting", lambda r: r["starting"] and r["slot"] != "IR"),
             ("Bench", lambda r: not r["starting"] and r["slot"] != "IR"),
             ("Injured reserve", lambda r: r["slot"] == "IR"))]
+        empty_starting = [s.slot for s in (chosen.slots if chosen else []) if s.player is None and s.starting]
         return render(request, "roster.html", league, res=res, team=chosen, slots=slots, view=view,
+                      empty_starting=empty_starting, picks=views.draft_picks(res, chosen),
                       groups=[g for g in groups if g[1]], any_prospect=any(r["prospect"] for r in rows),
                       skaters=[r for r in rows if not r["goalie"]], goalies=[r for r in rows if r["goalie"]],
                       week=week, has_proj=has_proj, has_dyn=res.dynasty is not None,
@@ -984,10 +1026,12 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
             recs = [r for r in recs if (g := views.gain_info(r, res)) is not None and g["value"] >= floor]
         extra = urlencode([(k, v) for k, v in (("min_gain", min_gain if floor is not None else None),
                                                  ("pos", pos)) if v])
+        claims = views.claims_section(res, views.provider_for(loader, league)) \
+            if kind in ("all", "waiver") else None
         return render(request, "recommendations.html", league, res=res, kind=kind, recs=recs,
                       counts=kind_counts(res.recs), total=len(res.recs), min_gain=floor, pos=pos,
                       filter_qs=("&" + extra) if extra else "", filtered=bool(pos or floor is not None),
-                      title="Moves")
+                      claims=claims, title="Moves")
 
     @app.get("/news", response_class=HTMLResponse)
     def news(request: Request, league: str = LeagueQ):
@@ -1115,6 +1159,14 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         recs = _filter_recs(res.recs, normalize_kind(kind))
         return {"meta": _meta(res), "recommendations": [r.model_dump(mode="json") for r in recs]}
 
+    @app.get("/api/claims.json")
+    def api_claims(league: str = LeagueQ):
+        res = json_load(league)
+        if isinstance(res, Response):
+            return res
+        cp = views.claim_plan(res, views.provider_for(loader, league))
+        return {"meta": _meta(res), "claims": cp.model_dump(mode="json") if cp is not None else None}
+
     @app.get("/api/roster.json")
     def api_roster(league: str = LeagueQ, team: str | None = None):
         res = json_load(league)
@@ -1145,6 +1197,25 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         except Exception:
             pass
 
+    def clear_league_data(league: str) -> None:
+        """Drop the provider's cached league responses (lineups etc.) so the reload reads the
+        league live, not the up-to-2-minute-old copy."""
+        try:
+            from ..cache import HttpCache
+            from ..config import get_settings
+            from ..providers import clear_league_cache
+
+            s = get_settings()
+            if s.fm_offline:
+                return          # offline the cache is the only copy
+            http = HttpCache(s.fm_data_dir)
+            try:
+                clear_league_cache(league, s, http)
+            finally:
+                http.close()
+        except Exception:  # noqa: BLE001 - a refresh must never fail on cache cleanup
+            log.warning("could not clear the %s league cache", league, exc_info=True)
+
     @app.post("/refresh")
     def refresh(league: str = LeagueQ, next: str = "/"):
         try:  # pick up a promoted / rolled-back harness params version (fm harness refit / rollback)
@@ -1153,12 +1224,44 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
             vparams.reload()
         except Exception:
             pass
+        clear_settings()
+        clear_league_data(league)
         cache.clear(league)
         invalidate = getattr(loader, "invalidate", None)
         if callable(invalidate):
             invalidate(league)
-        clear_settings()
         return RedirectResponse(safe_next(next, league), status_code=303)
+
+    @app.post("/moved")
+    async def moved(request: Request):
+        """"Did it" / "I made a move" (form fields or query params: league, since, label, retry):
+        clear the league's cached data like /refresh, then show /plan with a banner that checks the
+        move against the plan snapshot shown when the button was pressed (``since``)."""
+        fields = dict(request.query_params)
+        body = await request.body()
+        if body:
+            fields.update(parse_qsl(body.decode("utf-8", "replace"), keep_blank_values=True))
+        league = fields.get("league") or default_league
+        if league not in LEAGUES:
+            return JSONResponse({"detail": f"league must be one of {', '.join(LEAGUES)}"}, status_code=422)
+        since = fields.get("since") or ""
+        if not since:
+            from ..config import get_settings
+            from ..recommend.plan_memory import latest_snapshot
+
+            since = (latest_snapshot(get_settings().fm_data_dir, league) or {}).get("created") or ""
+        clear_settings()
+        clear_league_data(league)
+        cache.clear(league)
+        invalidate = getattr(loader, "invalidate", None)
+        if callable(invalidate):
+            invalidate(league)
+        extra = {"msg": "moved", "since": since[:40]}
+        if fields.get("label"):
+            extra["label"] = fields["label"][:120]
+        if fields.get("retry") == "1":
+            extra["retry"] = "1"
+        return RedirectResponse(safe_next("/plan", league, **extra), status_code=303)
 
     @app.post("/mode")
     async def set_mode(request: Request):
@@ -1279,7 +1382,7 @@ def run(host: str = "127.0.0.1", port: int = 8765, league: str = "espn") -> None
 
     policy = web_auth.auth_from_settings()
     web_auth.check_bind(host, bool(policy.password), policy.allow_insecure)
-    web = create_app(default_league=league, auth=policy)
+    web = create_app(default_league=league, auth=policy, home="plan")
     print(f"Fantasy Manager dashboard: http://{host}:{port}/?league={league}"
           + ("  (password required)" if policy.password else "") + "  (Ctrl+C to stop)")
     uvicorn.run(web, host=host, port=port, log_level="info", proxy_headers=True,
@@ -1296,7 +1399,7 @@ def _server_policy() -> web_auth.AuthConfig:
 
 # Module-level app for `uvicorn fantasy_manager.web.app:app` (the systemd service), with the
 # access policy from .env / the environment. Building it never touches the network or writes files.
-app = create_app(auth=_server_policy())
+app = create_app(auth=_server_policy(), home="plan")
 
 __all__ = ["BaseLoad", "LoadResult", "PipelineLoader", "ResultCache", "action_line", "app", "create_app",
            "current_mode", "default_loader", "finish", "load_base", "overview_summary", "run", "safe_next"]

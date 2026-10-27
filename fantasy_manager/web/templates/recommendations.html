@@ -29,6 +29,31 @@
   <p class="empty">{% if filtered %}No moves match these filters.{% else %}No moves of this type right now.{% endif %}</p>
   {% endif %}
 </section>
+{% if claims is not none and kind in ('all', 'waiver') %}
+<section id="claims" aria-labelledby="h-claims">
+  <h2 id="h-claims">Claims to place <span class="aside">{{ claims.rows|length }} &middot; moves left {{ 'unlimited' if claims.moves_left is none else claims.moves_left }}{% if claims.priority %} &middot; waiver priority {{ claims.priority }}{% endif %}</span></h2>
+  {% if claims.rows %}
+  <p class="sub">Place them in this order: each drop is chosen with the earlier claims already processed, so your roster stays legal at every step.</p>
+  <ol class="claims">
+    {% for c in claims.rows %}
+    <li class="claim">
+      <p class="claim-do"><b>Add {{ c.add.name }}</b> <span class="muted">({{ c.add.team or 'FA' }})</span>{% if c.drop %}, drop {{ c.drop.name }}{% elif c.to_ir %}, {{ c.to_ir.name }} to IR{% else %}, open spot{% endif %}
+        {% if c.gain %}<span class="plan-gain pos">{{ c.gain }}</span>{% endif %}
+        {% if c.market %}<span class="mk {{ 'mk-ok' if c.market == 'market agrees' else 'mk-no' }}">{{ c.market }}</span>{% endif %}</p>
+      <p class="claim-meta"><span class="tag">{{ c.type }}{% if c.matchup %} &middot; this matchup{% endif %}</span>
+        counts from {{ c.effective.strftime('%a %b %d').replace(' 0', ' ') }}
+        &middot; lineup nights {{ c.games_text or 'none this matchup' }}
+        &middot; {{ c.games_7d }} games in 7 days{% if c.bid is not none %} &middot; bid <b>${{ '%g'|format(c.bid) }}</b>{% endif %}</p>
+      {% if c.headline %}<p class="plan-why">{{ c.headline }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="empty">{% for n in claims.notes %}{{ n }} {% endfor %}{% if not claims.notes %}No claims worth a move right now.{% endif %}</p>
+  {% endif %}
+  {% if claims.rules %}<details class="rules"><summary>League claim rules</summary><ul>{% for r in claims.rules %}<li>{{ r }}</li>{% endfor %}</ul></details>{% endif %}
+</section>
+{% endif %}
 {% if kind in ('all', 'trade') %}
 {% set sweet = [] %}
 {% for r in res.recs if r.kind == 'trade' %}{% set g = gain_info(r, res) %}{% if g and g.trade and g.trade.sweet and sweet|length < 5 %}{% set _ = sweet.append((r, g.trade)) %}{% endif %}{% endfor %}
@@ -41,6 +66,21 @@
     <li><b>{{ r|action }}</b>{% if r.counterparty %} <span class="muted">with {{ r.counterparty.strip() }}</span>{% endif %}:
       {{ r.reasons|selectattr('code', 'equalto', 'MY_EDGE')|map(attribute='text')|first|default('') }};
       {{ t.market_text or '' }}{% if t.ev is not none %} &middot; expected value {{ t.ev|num(2, True) }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% set nt = need_trades(res) if need_trades is defined else [] %}
+{% if nt %}
+<section id="need-trades" aria-labelledby="h-need">
+  <h2 id="h-need">Trades for your needs <span class="aside">{{ nt|length }}</span></h2>
+  <p class="sub">Deals that fill your weakest starting slots (or a long-term hole), with partners heading the other way first. Each comes with a short pitch to send; the numbers stay with you.</p>
+  <ul class="why">
+    {% for e in nt %}{% set r = e.rec %}{% set t = e.trade %}
+    <li><b>{{ r|action }}</b>{% if r.counterparty %} <span class="muted">with {{ r.counterparty.strip() }}</span>{% endif %}{% if e.star %} <span class="pill">star consolidation</span>{% endif %}<br>
+      {% if e.need %}{{ e.need }}<br>{% endif %}
+      {% if t %}You gain {{ t.gain_text or '' }} &middot; acceptance {{ t.p_text }}{% if t.ev is not none %} &middot; expected value {{ t.ev|num(2, True) }}{% endif %}{% if t.market_text %} &middot; {{ t.market_text }}{% endif %}<br>{% endif %}
+      {% if e.pitch %}<blockquote class="pitch">{{ e.pitch }}</blockquote>{% endif %}</li>
     {% endfor %}
   </ul>
 </section>

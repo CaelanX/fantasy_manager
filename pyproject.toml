@@ -36,5 +36,6 @@ include = ["fantasy_manager*"]
 testpaths = ["tests"]
 
 [tool.setuptools.package-data]
-fantasy_manager = ["web/templates/*.html", "web/static/*.css", "valuation/fitted_params.json",
+fantasy_manager = ["web/templates/*.html", "web/static/*.css", "web/static/*.js", "web/static/fonts/*.woff2",
+                    "web/static/fonts/OFL.txt", "valuation/fitted_params.json",
                     "valuation/nhle_factors.json"]

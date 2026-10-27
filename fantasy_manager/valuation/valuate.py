@@ -59,6 +59,14 @@ AHL demotion or a return to junior sends it to ~0) and the week value (``fpg_wee
 the games share). ``fpg`` stays the healthy per-game value. ``PlayerValue.rookie`` keeps
 the estimate for the player page and ``valuation.dynasty`` (excluded from dumps). Established
 players are untouched, and ``player_rates`` (the harness replay) never uses the rookie model.
+
+Role changes for everyone else (``valuation.roles``): an established skater whose Daily Faceoff
+line / PP unit today (or recent news where Daily Faceoff doesn't list him) is above or below his
+usual role gets tier(now) / tier(usual) on his offensive rates; ``fpg`` and the week value keep all
+of it, ``fpg_season`` half of the change (reasons ROLE_BOOST / ROLE_DEPTH), and a healthy player
+dropped from the lineup after a scratch x0.85 on the week value (ROLE_SCRATCH). Goalie job news
+moves a projected / stat-line start share part of the way to 0.70 / 0.30 / 0.50 (START_NEWS); never
+a ledger share (START_ACTUAL).
 """
 from __future__ import annotations
 
@@ -79,6 +87,7 @@ from .blend import (PRIOR_SPLITS, baseline_k, blend_preseason, blend_rates, blen
 from .params import age_factor
 from .replacement import DEFAULT_SLOTS, ROSTERED_FALLBACK_PCT, best_slot, replacement_with_fallback, vorp
 from .regression import K_GOALS, shrink_goals
+from .roles import goalie_news_share, role_change
 from .schedule import (ROSTER_ONLY_SHARE, context_window, proj_week, schedule_factor, start_share, start_share_parts,
                        teammate_shares)
 
@@ -384,6 +393,36 @@ def _rookie_lookup(ctx: LeagueContext) -> dict[str, dict[str, Any]]:
     return out
 
 
+def _news_signals(ctx: LeagueContext) -> dict[str, list[Any]]:
+    """cid -> news role signals registered by the enrich rookie step for every league player
+    ({} on error): established skaters' role changes and goalie job news (``valuation.roles``)."""
+    try:
+        from ..providers.rookie_enrich import signals_for
+    except Exception:  # an optional signal must never break valuation
+        return {}
+    out: dict[str, list[Any]] = {}
+    for p in ctx.all_players():
+        try:
+            sigs = signals_for(p)
+        except Exception:
+            continue
+        if sigs:
+            out[p.cid] = list(sigs)
+    return out
+
+
+def _is_unproven(p: Player) -> bool:
+    from .rookie import is_unproven
+
+    return is_unproven(p)
+
+
+def _scale_offense(rates: Mapping[str, float], mult: float) -> dict[str, float]:
+    from .rookie import _scale
+
+    return _scale(rates, mult)
+
+
 def _preseason_reason(line: Any, w: float, before: dict[str, float] | None, after: dict[str, float],
                       season_gp: int, scoring: ScoringSystem) -> Reason:
     """Reason PRESEASON: the preseason line and what the blend did (value = PTS/GP, baseline = GP)."""
@@ -540,6 +579,9 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
     teammates = _teammate_shares(ctx, team_gp, window)
     preseason = _preseason_lookup(ctx)
     rookies = _rookie_lookup(ctx)
+    news = _news_signals(ctx)
+    pp_teams = {normalize_team(p.team) for p in players if p.pp_unit}
+    lineup_teams = {normalize_team(p.team) for p in players if p.line}
     for p in players:
         rk = rookies.get(p.cid)
         if rk is not None:
@@ -547,6 +589,14 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
         rates, reasons = _rates_for(p, means, scoring, season_age(p, ctx.as_of), preseason=preseason.get(p.cid),
                                     rookie=rk)
         est = rk.get("estimate") if rk else None
+        role = None
+        if rk is None and not p.is_goalie and rates and not _is_unproven(p):
+            team = normalize_team(p.team)
+            role = role_change(p, news.get(p.cid, []), ctx.as_of, team_pp_listed=team in pp_teams,
+                               team_lineup_listed=team in lineup_teams)
+            if role is not None:
+                rates = _scale_offense(rates, role.mult)
+                reasons.extend(role.reasons)
         fpg = scoring.value(rates) if rates else 0.0
         a_season, ret_est = season_availability(p.status, p.status_note, ctx.as_of,
                                                 ctx.schedule.get(normalize_team(p.team) or "", []), ctx.season_start)
@@ -600,6 +650,13 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                                f"k={ss_k:g} toward {ss_prior:.0%}): "
                                                f"season value {fpg * a_season:.2f} -> {fpg * a_season * share:.2f} FPG",
                                           value=share, baseline=ss_prior))
+            if share_parts.get("share_source") != "actual":     # ledger starts beat news
+                new_share, why = goalie_news_share(share, news.get(p.cid, []), ctx.as_of)
+                if why is not None:
+                    if season_value is not None and share > 0:
+                        season_value *= new_share / share
+                    share = new_share
+                    reasons.append(why)
         share_week = share_season = share
         tm = teammates.get(p.cid) if p.is_goalie else None
         if tm is not None:
@@ -610,6 +667,8 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
             reasons.append(Reason(code="TEAMMATE_OUT", text=tm.text(p), value=round(share_week, 4),
                                   baseline=round(share, 4)))
         gp_share = week_share = 1.0
+        if role is not None:            # a role change: the week keeps all of it, the season part of it
+            gp_share, week_share = role.season_mult / role.mult, role.week_extra
         if est is not None:
             gp_share, week_share = float(est.gp_expectation), float(est.week_share)
             if gp_share < 1.0 or week_share < 1.0:
@@ -641,7 +700,8 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                   text=f"{sf.games} games {window.label()}{pre}, {sf.offnight} on off-nights"
                                        f" (avg team {window.avg_team_games:.1f})",
                                   value=float(sf.games), baseline=window.avg_team_games))
-            rk_week = f" (x{week_share:.2f} rookie games share)" if week_share < 1.0 else ""
+            rk_week = (f" (x{week_share:.2f} {'rookie games share' if est is not None else 'after a scratch'})"
+                       if week_share < 1.0 else "")
             pv.reasons.append(Reason(code="PROJ_WEEK", text=f"Projected {pw:.1f} pts over {window.label()}{rk_week}",
                                   value=pw))
         partial[p.cid] = pv

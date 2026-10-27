@@ -95,3 +95,14 @@ def test_future_only_trade_strength_uses_the_dynasty_gain():
     r = trade(0.4, 0.5, units="dynasty")
     r.reasons[0] = Reason(code="MY_EDGE", text="", value=-0.9)          # this season's edge is negative
     assert strength_for(r) == pytest.approx(interp(0.2 * 0.995, TRADE_EV_SCALE), abs=0.05)
+
+
+def test_matchup_points_label_says_days_left_not_a_weekly_rate():
+    from fantasy_manager.models import Recommendation
+    from fantasy_manager.recommend.strength import gain_text
+
+    r = Recommendation(kind="waiver", score=1.0, title="x", predicted_gain=3.1, gain_units="matchup_pts",
+                       horizon_days=6)
+    assert gain_text(r) == "+3.1 pts (6d left)"
+    assert gain_text(r.model_copy(update={"horizon_days": None})) == "+3.1 pts (this matchup)"
+

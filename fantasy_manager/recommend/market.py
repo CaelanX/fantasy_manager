@@ -32,6 +32,7 @@ CLEAR_FAVOR_PTS = 10.0       # a trade this many market worth points in their fa
 # PlayerValue reason codes that move our value away from consensus, as reader-facing drivers
 DRIVER_LABELS = {
     "ROLE_DFO": "line / PP role", "ROLE_NEWS": "role news", "ROLE_BOOST": "line / PP role",
+    "ROLE_DEPTH": "line / PP role", "ROLE_SCRATCH": "scratched", "START_NEWS": "goalie news",
     "ROOKIE_BLEND": "rookie model", "NHLE": "rookie model", "PEDIGREE_PRIOR": "rookie model",
     "GP_EXPECTATION": "expected games", "ROOKIE_GAMES": "expected games",
     "RETURN_ESTIMATE": "injury return estimate", "START_SHARE": "goalie start share",
@@ -200,24 +201,55 @@ def market_check_reasons(pool: MarketPool, players: Iterable[tuple[Player, str]]
     return [r for p, role in players if (r := market_check_reason(p, pool, role)) is not None]
 
 
+def pick_percentile(pool: MarketPool, value: float) -> float:
+    """Percentile of a draft pick's dynasty value among the rostered skaters' dynasty values:
+    a model-only market stand-in (no provider publishes consensus pick values); 50 without a
+    dynasty reference."""
+    ref = pool.ref.get(("dyn", "S"))
+    return percentile(value, ref) if ref else 50.0
+
+
+def pick_check_reason(pick: Any, role: str, holder_id: str | None = None) -> Reason:
+    """MARKET_CHECK for a draft pick a trade moves: always model-only (value None, so it never
+    counts as an agreement or a disagreement in ``market_disagrees``)."""
+    return Reason(code="MARKET_CHECK",
+                  text=f"Market check ({role}) {pick.short(holder_id)} pick: model-only value {pick.value:.1f} "
+                       f"({pick.net:.1f} net of its roster spot; expected slot {pick.expected_slot:.0f}); "
+                       f"no consensus source for draft picks",
+                  value=None, baseline=None)
+
+
 def market_disagrees(rec: Recommendation) -> bool | None:
     """True when any MARKET_CHECK on ``rec`` is a disagreement (|gap| >= DISAGREE_GAP) or the
-    trade looks clearly in the counterparty's favour by market value; False when checks exist and
-    all agree; None without any market check."""
+    deal-level overpay check (``trade_market_check``: value None, baseline = worth points to them)
+    is present; False when checks exist and all agree; None without any market check."""
     checks = [r for r in rec.reasons if r.code == "MARKET_CHECK"]
     if not checks:
         return None
-    view = next((r.value for r in rec.reasons if r.code == "MARKET_VIEW"), None)
-    return (view is not None and view > CLEAR_FAVOR_PTS) or any(
-        r.value is not None and abs(r.value) >= DISAGREE_GAP for r in checks)
+    return any((r.value is None and r.baseline is not None and r.baseline > CLEAR_FAVOR_PTS)
+               or (r.value is not None and abs(r.value) >= DISAGREE_GAP) for r in checks)
 
 
-def trade_market_check(perceived: float, my_edge: float) -> Reason | None:
+def deal_drivers(pool: MarketPool, get: Iterable[Player], give: Iterable[Player]) -> list[str]:
+    """Why the model likes a trade the market does not: the drivers of players I receive whom the
+    model rates above the market and of players I send whom it rates below."""
+    out: list[str] = []
+    for ps, sign in ((get, 1.0), (give, -1.0)):
+        for p in ps:
+            cons, model = pool.consensus(p), pool.model_percentile(p)
+            if cons is not None and model is not None and sign * (model - cons[0]) >= DISAGREE_GAP:
+                out += [f"{p.name}: {d}" for d in drivers(p, pool.values.get(p.cid))] or \
+                    [f"{p.name}: projection only"]
+    return list(dict.fromkeys(out))[:3]
+
+
+def trade_market_check(overpay: float, my_edge: float, why: list[str] | None = None) -> Reason | None:
     """Deal-level MARKET_CHECK when the market calls a trade clearly in the counterparty's favour
-    (perceived > CLEAR_FAVOR_PTS worth points) while our model has me gaining."""
-    if perceived <= CLEAR_FAVOR_PTS or my_edge <= 0:
+    (overpay > CLEAR_FAVOR_PTS market worth points handed over) while our model has me gaining."""
+    if overpay <= CLEAR_FAVOR_PTS or my_edge <= 0:
         return None
     return Reason(code="MARKET_CHECK",
-                  text=f"Model disagrees with market: by market value you overpay ({perceived:+.0f} worth pts "
-                       f"to them) while our model has you gaining {my_edge:+.2f}; check the player checks below",
-                  value=None, baseline=perceived)
+                  text=f"Model disagrees with market: you overpay by market value ({overpay:+.0f} worth pts to "
+                       f"them); worth it only if you trust the model's edge of {my_edge:+.2f} (drivers: "
+                       f"{'; '.join(why) if why else 'projection only, no specific signal'})",
+                  value=None, baseline=overpay)

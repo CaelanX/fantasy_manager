@@ -9,7 +9,7 @@
    HTTP cache, at most ``limit`` (200) uncached pages per run (the rest fill in on later runs).
 2. News role signals (``providers.news_roles.extract_role_signals``) over the RotoWire / ESPN
    items (``news``, or fetched here through the cache: the same 30-minute RSS entries the news
-   commands read), mapped to league players with ``report.news_match``: a RotoWire item goes to its
+   commands read), plus the 30-day news store (``providers.news.store_news``), mapped to league players with ``report.news_match``: a RotoWire item goes to its
    named player; an ESPN headline only when it names exactly one league player. The optional LLM
    pass runs when ``llm`` is available (cache ``<fm_data_dir>/news_roles.json``).
 
@@ -24,7 +24,7 @@ import logging
 from typing import Any, Callable, Iterable, Mapping
 
 from ..models import LeagueContext, Player
-from .news import NewsItem
+from .news import NewsItem, store_news
 from .news_roles import RoleSignal, extract_role_signals
 from .nhl import LeagueSeason, NhlClient, parse_season_totals
 from .preseason_enrich import is_unproven
@@ -132,78 +132,16 @@ def attach_signals(ctx: LeagueContext, news: Iterable[NewsItem], signals: Iterab
     return len(out)
 
 
-def fetch_news(fetch_text: Callable[[str, "dict | None"], str], warnings: list[str] | None = None) -> list[NewsItem]:
-    """RotoWire + ESPN items through ``fetch_text`` (a failing source becomes a warning)."""
-    from .news import fetch_espn_news, fetch_rotowire
+def fetch_news(fetch_text: Callable[[str, "dict | None"], str], warnings: list[str] | None = None,
+               store_dir: Any = None, as_of: Any = None) -> list[NewsItem]:
+    """RotoWire + ESPN items through ``fetch_text`` plus the 30-day news store
+    (``providers.news.fetch_news``; a failing source becomes a warning)."""
+    from .news import fetch_news as fetch_and_store
 
-    items: list[NewsItem] = []
-    for label, fn in (("RotoWire news", fetch_rotowire), ("ESPN news", fetch_espn_news)):
-        try:
-            items.extend(fn(fetch_text))
-        except Exception as e:
-            if warnings is not None:
-                warnings.append(f"Rookie role signals: {label} unavailable ({type(e).__name__})")
+    items, failed = fetch_and_store(fetch_text, store_dir, as_of)
+    if warnings is not None:
+        warnings.extend(f"Rookie role signals: {label} unavailable ({type(e).__name__})" for label, e in failed)
     return items
-
-
-ITEMS_NAME = "news_role_items.json"
-ITEMS_MAX_AGE_DAYS = 30
-ITEMS_MAX = 500
-
-
-def remembered_items(store_dir: Any, as_of: Any = None) -> list[NewsItem]:
-    """News items that produced role signals on earlier runs (``<store_dir>/news_role_items.json``,
-    <= 30 days old): the RSS feeds only carry the latest few dozen items, so a "named to the
-    opening-night roster" blurb would otherwise be forgotten within hours."""
-    import json
-    from datetime import datetime, timedelta, timezone
-    from pathlib import Path
-
-    if store_dir is None:
-        return []
-    try:
-        raw = json.loads((Path(store_dir) / ITEMS_NAME).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return []
-    ref = datetime.now(timezone.utc) if as_of is None else         datetime(as_of.year, as_of.month, as_of.day, tzinfo=timezone.utc) + timedelta(days=1)
-    out = []
-    for d in raw.values() if isinstance(raw, dict) else []:
-        try:
-            it = NewsItem.model_validate(d)
-        except Exception:
-            continue
-        if it.published is not None and (ref - it.published).days > ITEMS_MAX_AGE_DAYS:
-            continue
-        out.append(it)
-    return out
-
-
-def remember_items(store_dir: Any, items: Iterable[NewsItem]) -> None:
-    """Merge ``items`` into ``<store_dir>/news_role_items.json`` (newest ITEMS_MAX kept)."""
-    import json
-    from datetime import datetime, timezone
-    from pathlib import Path
-
-    if store_dir is None:
-        return
-    path = Path(store_dir) / ITEMS_NAME
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        raw = raw if isinstance(raw, dict) else {}
-    except (OSError, ValueError):
-        raw = {}
-    for it in items:
-        if it.id:
-            raw[it.id] = it.model_dump(mode="json")
-    epoch = datetime.min.replace(tzinfo=timezone.utc).isoformat()
-    keep = sorted(raw.items(), key=lambda kv: str(kv[1].get("published") or epoch), reverse=True)[:ITEMS_MAX]
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(dict(keep), indent=1, sort_keys=True), encoding="utf-8")
-        tmp.replace(path)
-    except OSError as e:
-        log.info("news role items not saved: %s", e)
 
 
 def enrich_rookies(ctx: LeagueContext, client: NhlClient | None, *, landings: Mapping[int, Any] | None = None,
@@ -214,16 +152,13 @@ def enrich_rookies(ctx: LeagueContext, client: NhlClient | None, *, landings: Ma
     res: dict[str, Any] = load_histories(ctx, client, landings, limit=limit, is_cached=is_cached,
                                          fetch_missing=fetch_missing)
     if news is None and fetch_text is not None:
-        news = fetch_news(fetch_text, ctx.warnings)
-    fresh = list(news or [])
-    seen = {it.id for it in fresh if it.id}
-    news = fresh + [it for it in remembered_items(store_dir, ctx.as_of) if it.id not in seen]
+        news = fetch_news(fetch_text, ctx.warnings, store_dir, ctx.as_of)       # fresh + 30-day store
+    else:
+        news = store_news(store_dir, news or [], ctx.as_of)
     signals: list[RoleSignal] = []
     if news:
         signals = extract_role_signals(news, llm=llm, store_dir=store_dir)
         res["signal_players"] = attach_signals(ctx, news, signals)
-        with_signals = {s.item_id for s in signals}
-        remember_items(store_dir, [it for it in fresh if it.id in with_signals])
     res["news"] = len(news or [])
     res["signals"] = len(signals)
     res["llm"] = sum(1 for s in signals if s.origin == "llm")

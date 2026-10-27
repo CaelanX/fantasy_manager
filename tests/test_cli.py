@@ -54,6 +54,24 @@ def test_commands_with_fake_provider(monkeypatch, tmp_path):
     assert recs[0]["add"][0]["cid"] == "fa_c" and recs[0]["drop"][0]["cid"] == "my_c"
 
 
+def test_roster_shows_empty_starting_slot(monkeypatch, tmp_path):
+    from fantasy_manager.models import RosterSlot
+
+    _patch(monkeypatch, tmp_path)
+
+    def with_hole(self):
+        ctx = _fake_ctx()
+        ctx.my_team.slots.append(RosterSlot(slot="LW", player=None, starting=True))
+        return ctx
+
+    monkeypatch.setattr(espn.EspnProvider, "load", with_hole)
+    res = runner.invoke(cli.app, ["roster"])
+    assert res.exit_code == 0, res.output
+    assert "(empty starting slot)" in res.output
+    res = runner.invoke(cli.app, ["--json", "roster"])
+    assert json.loads(res.output)[0]["empty_starting"] == ["LW"]
+
+
 def test_fantrax_unavailable_is_friendly(monkeypatch, tmp_path):
     _patch(monkeypatch, tmp_path)
     monkeypatch.setitem(sys.modules, "fantasy_manager.providers.fantrax", None)  # import -> ImportError
@@ -605,3 +623,16 @@ def test_saved_mode_reaches_commands_and_mode_option_does_not_persist(monkeypatc
     data = json.loads(runner.invoke(cli.app, ["--json", "--league", "fantrax", "settings"]).output)
     assert (data["dynasty_mode"], data["dynasty_mode_source"]) == ("rebuild", "prefs")
     assert runner.invoke(cli.app, ["--league", "fantrax", "roster", "--mode", "tank"]).exit_code == 2
+
+
+def test_settings_line_for_games_played_limits():
+    from types import SimpleNamespace
+
+    from fantasy_manager.cli import _stat_limits_line
+
+    assert _stat_limits_line(SimpleNamespace(stat_limits=[])) == \
+        "Games-played limits: none (no position GP caps or goalie minimum)"
+    assert _stat_limits_line(SimpleNamespace(stat_limits=None)).startswith("Games-played limits: unknown")
+    assert _stat_limits_line(SimpleNamespace(stat_limits=["G: limit 82 (stat 32)"])) == \
+        "Games-played limits: G: limit 82 (stat 32) (shown only: fm does not enforce them yet)"
+

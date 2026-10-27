@@ -8,7 +8,7 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from fantasy_manager.models import Reason, StatLine  # noqa: E402
+from fantasy_manager.models import Reason, RosterSlot, StatLine  # noqa: E402
 from fantasy_manager.providers.base import ProviderError  # noqa: E402
 from fantasy_manager.providers.news import NewsItem  # noqa: E402
 from fantasy_manager.valuation.valuate import PlayerValue  # noqa: E402
@@ -98,6 +98,118 @@ def test_roster_page(client):
     assert 'data-label="Lineup &Delta;"' in h and "Games next 7" in h
     other = client.get("/roster?team=2").text
     assert "Connor McDavid" in other and "Cale Makar" in other
+    assert "empty starting slot" not in h
+
+
+def test_roster_page_shows_empty_starting_slot():
+    res = make_result()
+    mine = next(t for t in res.ctx.teams if t.owner_is_me)
+    mine.slots.append(RosterSlot(slot="F", player=None, starting=True))
+    h = TestClient(create_app(lambda league: res)).get("/roster?league=espn").text
+    assert "1 empty starting slot</b> (F)" in h
+
+
+def test_overview_outlook_and_need_trades_sections(monkeypatch):
+    from types import SimpleNamespace
+
+    from fantasy_manager.analysis.outlook import Outlook, TeamOutlook
+    from fantasy_manager.models import Reason, Recommendation
+    from fantasy_manager.web import views
+
+    res = make_result()
+    mine = next(t for t in res.ctx.teams if t.owner_is_me)
+    me = TeamOutlook(team=mine, record=(2, 2, 0), win_pct=0.5, now=50.0, future=[49.0], now_rank=3,
+                     future_rank=5, playoff_odds=0.42, label="balanced")
+    sell = SimpleNamespace(player=mine.players[0], owner=None, why="sell while his value is high")
+    o = Outlook(teams=[me], me=me, dynasty=True, recommended="rebuild", current="balanced",
+                reasons=["Playoff odds this season about 42%"], sell=[sell], notes=["approximate"])
+    monkeypatch.setattr(views, "outlook_section", lambda res, provider=None: o)
+    pitch = Recommendation(kind="trade", score=1.0, title="Trade A to B for C", counterparty="B",
+                           reasons=[Reason(code="NEED_MATCH", text="Fills your need at D"),
+                                    Reason(code="PITCH", text="Hi B, I'd send A for C.")])
+    monkeypatch.setattr(views, "need_trades", lambda res, limit=5: [
+        {"rec": pitch, "need": "Fills your need at D", "star": True, "pitch": "Hi B, I'd send A for C.", "trade": None}])
+    app = TestClient(create_app(lambda league: res))
+    h = app.get("/").text
+    assert 'id="outlook"' in h and "recommended: <b>rebuild</b> (currently balanced)" in h
+    assert "Playoff odds about <b>42%</b>" in h and "sell while his value is high" in h
+    h = app.get("/recommendations").text
+    assert 'id="need-trades"' in h and "Hi B, I&#39;d send A for C." in h and "star consolidation" in h
+
+
+def _claim_plan(res, **kw):
+    from datetime import date
+
+    from fantasy_manager.recommend.claims import ClaimItem, ClaimPlan
+
+    by = {p.cid: p for p in res.ctx.all_players()}
+    items = [ClaimItem(order=1, kind="claim", horizon="season", add=by["a"], drop=by["g"],
+                       clears=date(2026, 10, 28), effective=date(2026, 10, 29),
+                       games=[date(2026, 10, 29), date(2026, 10, 31)], games_7d=3, gain=0.82,
+                       gain_units="season_fpg", headline="A clear upgrade at C", market="market agrees", bid=12.0),
+             ClaimItem(order=2, kind="free agent", horizon="matchup", add=by["x"], effective=date(2026, 10, 27),
+                       games=[], gain=3.1, gain_units="matchup_pts", headline="Fills Tuesday",
+                       market="model disagrees with market")]
+    return ClaimPlan(league="espn", rules=["Waivers: rolling (waiver priority)"], priority="7 of 14",
+                     moves_left=2, claims=items, **kw)
+
+
+def test_moves_page_claims_section(monkeypatch):
+    from fantasy_manager.web import views
+
+    res = make_result()
+    monkeypatch.setattr(views, "claim_plan", lambda r, provider=None: _claim_plan(res))
+    c = TestClient(create_app(lambda league: res))
+    h = c.get("/recommendations").text
+    sec = h.split('id="claims"')[1].split("</section>")[0]
+    assert "Claims to place" in sec and "moves left 2" in sec and "waiver priority 7 of 14" in sec
+    assert sec.index("Tim Stützle") < sec.index("Connor McDavid")          # claim order kept
+    assert "claim, clears Wed" in sec and "counts from Thu Oct 29" in sec and "lineup nights Thu, Sat" in sec
+    assert "+0.82 FPG" in sec and "+3.1 pts" in sec and "bid <b>$12</b>" in sec
+    assert "mk-ok" in sec and "model disagrees with market" in sec and "A clear upgrade at C" in sec
+    assert "none this matchup" in sec and "this matchup" in sec            # stream with no lineup nights
+    assert "Waivers: rolling (waiver priority)" in sec                    # league rules
+    assert 'id="claims"' in c.get("/recommendations?kind=waiver").text
+    assert 'id="claims"' not in c.get("/recommendations?kind=trade").text
+
+
+def test_moves_page_claims_empty_state(monkeypatch):
+    from fantasy_manager.web import views
+
+    res = make_result()
+    empty = _claim_plan(res).model_copy(update={"claims": [], "moves_left": 0, "notes": [
+        "No moves left this week (2/2 used); waiver suggestions resume Mon Nov 2: no claims until the limit resets."]})
+    monkeypatch.setattr(views, "claim_plan", lambda r, provider=None: empty)
+    h = TestClient(create_app(lambda league: res)).get("/recommendations").text
+    sec = h.split('id="claims"')[1].split("</section>")[0]
+    assert 'class="empty"' in sec and "waiver suggestions resume Mon Nov 2" in sec
+    monkeypatch.setattr(views, "claim_plan", lambda r, provider=None: _claim_plan(res).model_copy(
+        update={"claims": []}))
+    sec = TestClient(create_app(lambda league: res)).get("/recommendations").text.split('id="claims"')[1]
+    assert "No claims worth a move right now." in sec.split("</section>")[0]
+
+
+def test_plan_watch_links_to_claims(monkeypatch):
+    from fantasy_manager.recommend import plan as plan_mod
+    from fantasy_manager.recommend.plan import WeekPlan
+
+    wp = WeekPlan(league="espn", my_team="My Team", opponent="Them",
+                  claim_watch=["Claim Tim Stützle (on waivers until Wed), drop Linus Ullmark: a clear upgrade"])
+    monkeypatch.setattr(plan_mod, "build_week_plan", lambda *a, **k: wp)
+    h = TestClient(create_app(lambda league: make_result(league))).get("/plan?league=espn").text
+    watch = h.split('id="h-watch"')[1].split("</section>")[0]
+    assert "Claim Tim Stützle (on waivers until Wed)" in watch and "see fm claims" not in watch
+    assert 'href="/recommendations?league=espn#claims"' in watch
+
+
+def test_api_claims_json(monkeypatch):
+    from fantasy_manager.web import views
+
+    res = make_result()
+    monkeypatch.setattr(views, "claim_plan", lambda r, provider=None: _claim_plan(res))
+    j = TestClient(create_app(lambda league: res)).get("/api/claims.json").json()
+    assert j["meta"]["provider"] == "espn"
+    assert [c["order"] for c in j["claims"]["claims"]] == [1, 2] and j["claims"]["claims"][0]["bid"] == 12.0
 
 
 def test_recommendations_filter(client):
@@ -1086,3 +1198,26 @@ def test_week_panel_never_sits_a_player_without_a_game_today():
     row = next(r for r in panel["rows"] if r["p"].cid == starter.cid)
     assert row["no_game"] and row["change"] is None
     assert all(r["change"] != "sit" or not r["no_game"] for r in panel["rows"])
+
+
+def test_headline_leads_the_card_and_lineup_comparison_is_collapsed():
+    class HeadlineLoader(CountingLoader):
+        def __call__(self, league):
+            res = rich_result(league)
+            by = {p.cid: p for p in res.ctx.all_players()}
+            res.recs = [r.model_copy(update={"headline": f"Deciding reason for {r.kind}"}) for r in res.recs]
+            res.recs.append(Recommendation(kind="lineup", score=2.0, headline="Tkachuk has no game today; One has a game",
+                                           title="Start Free Agent One in Brady Tkachuk's slot today (Brady Tkachuk has no game)",
+                                           add=[by["f1"]], drop=[by["b"]]))
+            return res
+
+    c = TestClient(create_app(HeadlineLoader(), llm=lambda: StubLLM(available=False)))
+    item = c.get("/recommendations?kind=waiver").text.split('<li class="move"')[1]
+    assert item.index('<p class="m-head">Deciding reason for waiver</p>') < item.index('class="m-metrics"')
+    # every comparison is folded behind "Compare players" (the headline and gain lead the card)
+    assert '<details class="cmp-d"><summary class="ghost-btn">Compare players</summary>' in item
+    assert '<table class="r cmp">' in item and item.index('class="m-metrics"') < item.index('class="cmp-d"')
+    lineup = [x for x in c.get("/recommendations?kind=lineup").text.split('<li class="move"')[1:]
+              if "has no game today" in x][0]
+    assert '<details class="cmp-d"><summary class="ghost-btn">Compare players</summary>' in lineup
+    assert "Start One in Tkachuk&#39;s slot today" in lineup

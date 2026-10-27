@@ -29,10 +29,11 @@ from typing import Callable, Mapping, NamedTuple
 
 from ..analysis.schedule_grid import per_game_value
 from ..matching.normalize import normalize_team
-from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation
+from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation, RosterSlot
 from ..valuation.adjust import Horizon
 from ..valuation.replacement import eligible_slots
 from ..valuation.valuate import PlayerValue
+from .headline import day_swap_headline
 from .strength import apply_ranks, apply_strength
 
 SLOT_ORDER = ("C", "LW", "RW", "F", "D", "UTIL", "G")
@@ -478,12 +479,22 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
             if c.incoming in starters:
                 reasons.append(Reason(code="LINEUP_MOVE", text=f"{by_cid[c.incoming].name} moves to {c.slot}"
                                       + (f" (replacing {by_cid[c.outgoing].name})" if c.outgoing else "")))
+        headline = None
         if plan is None:
             units, days = _gain_units([x for x in (pin, pout) if x is not None] or moved, values, horizon)
+            title = _chain_title(chain, by_cid)
         else:
             units, days = "day_pts", 1
-        title = _chain_title(chain, by_cid) + ("" if plan is None else " today")
-        recs.append(Recommendation(kind="lineup", score=gain, title=title,
+            day0 = plan.days[0]
+            idle = pout is not None and pout.cid not in day0.playing
+            if len(chain) == 1 and pin is not None and idle:
+                title = f"Start {pin.name} in {pout.name}'s slot today ({pout.name} has no game)"
+            else:
+                title = _chain_title(chain, by_cid) + " today"
+            opp = ((ctx.opponents or {}).get(normalize_team(pin.team) or "") or {}).get(day0.day) if pin else None
+            headline = day_swap_headline(pin, pout, vc(pin.cid) if pin else 0.0, v_out, not idle,
+                                         chain[0].slot, opp)
+        recs.append(Recommendation(kind="lineup", score=gain, title=title, headline=headline or None,
                                    add=[pin] if pin else [], drop=[pout] if pout else [], subjects=moved,
                                    reasons=reasons, predicted_gain=float(gain), gain_units=units,
                                    horizon_days=days))
@@ -501,6 +512,23 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
     swapped = {x.cid for x in swaps.values()}
     full = sum(1 for s in team.slots if s.player is not None and s.slot != "IR") >= \
         sum(int(n) for k, n in ctx.roster_shape.items() if k != "IR")
+
+    def activation_gain(p: Player, pv: PlayerValue | None, to_ir: Player | None
+                        ) -> tuple[float | None, str | None, int | None]:
+        """(gain, units, days): daily lineups -> the matchup points the best daily lineup gains
+        with ``p`` active (and ``to_ir`` in his IR slot); else his week value."""
+        if pv is None:
+            return None, None, None
+        if plan is not None:
+            moved = [RosterSlot(slot="BN", player=s.player, starting=False) if s.player is p
+                     else RosterSlot(slot="IR", player=s.player, starting=False) if s.player is to_ir
+                     else s for s in team.slots]
+            after = daily_plan(ctx, team.model_copy(update={"slots": moved}), values)
+            if after is not None:
+                return round(after.optimal - plan.optimal, 2), "matchup_pts", len(plan.days)
+        units, days = _gain_units([p], values, horizon)
+        return _value(pv, horizon), units, days
+
     for s in team.slots:
         p = s.player
         if p is None:
@@ -510,13 +538,12 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
             continue                                  # leaves the lineup through the swap below
         if s.slot == "IR" and p.cid in swaps:
             x = swaps[p.cid]
+            gain, units, days = activation_gain(p, pv, x)
             recs.append(Recommendation(
                 kind="lineup", score=pv.fpg_season if pv else 0.0,
                 title=f"Swap IR slots: activate {p.name} ({p.status}), move {x.name} ({x.status}) to IR",
                 add=[p], subjects=[x],
-                predicted_gain=_value(pv, horizon) if pv else None,
-                gain_units=_gain_units([p], values, horizon)[0] if pv else None,
-                horizon_days=_gain_units([p], values, horizon)[1] if pv else None,
+                predicted_gain=gain, gain_units=units, horizon_days=days,
                 reasons=[Reason(code="IR_SWAP", text=f"{p.name} is {p.status} but sits in an IR slot, {x.name} is "
                                 f"{x.status} on the active roster: swapping them needs no drop"),
                          Reason(code="STATUS", text=f"{x.name} is {x.status}"
@@ -531,12 +558,11 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
                                 + (f" ({p.status_note})" if p.status_note else ""))]
                 + _week_reasons(p, pv, horizon)[:1]))
         elif s.slot == "IR" and p.status in ("healthy", "dtd"):
+            gain, units, days = activation_gain(p, pv, None)
             recs.append(Recommendation(
                 kind="lineup", score=pv.fpg_season if pv else 0.0,
                 title=f"Activate {p.name} from IR ({p.status})", add=[p],
-                predicted_gain=_value(pv, horizon) if pv else None,
-                gain_units=_gain_units([p], values, horizon)[0] if pv else None,
-                horizon_days=_gain_units([p], values, horizon)[1] if pv else None,
+                predicted_gain=gain, gain_units=units, horizon_days=days,
                 reasons=[Reason(code="STATUS", text=f"{p.name} is {p.status} but sits in an IR slot"
                                 + (f" ({p.status_note})" if p.status_note else ""))]
                 + ([Reason(code="ROSTER_FULL", text=f"Roster is full: activating {p.name} needs a drop "

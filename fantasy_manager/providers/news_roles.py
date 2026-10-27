@@ -51,8 +51,13 @@ injury                    -1   "day-to-day", "week-to-week", "injured reserve", 
                                year-to-year": a figure of speech, not an injury)
 injury                    +1   "activated from injured reserve", "cleared to play"
 starter                   +1   "gets the nod", "named the starter", "start in goal", "guard the
-                               home crease", "defend the road net", "starting job"
+                               home crease", "defend the road net" (one game)
 starter                   -1   "backup role", "serve as the backup"
+goalie_role               +1   "won the starting job", "took over the No. 1 role", "clear-cut No. 1",
+                               "workhorse", "starting job", "No. 1 goalie" (the job, not one game)
+goalie_role               -1   "lost the starting job", "lost his net", "relegated to backup"
+goalie_split              +1   "1A", "tandem", "platoon", "time-share", "split the starts / crease"
+                               (+1 = a split is reported; it pulls both goalies toward half)
 ========================  ===  ==============================================================
 
 Modifiers (same sentence, just before the match): a negation ("not", "n't", "no longer",
@@ -82,7 +87,7 @@ from .news import NewsItem
 log = logging.getLogger(__name__)
 
 KINDS = ("top_line", "pp1", "pp2", "nhl_roster", "ahl_demotion", "junior_return", "scratched", "injury",
-         "extended_role", "first_line_pairing", "starter")
+         "extended_role", "first_line_pairing", "starter", "goalie_role", "goalie_split")
 POSITIVE_ROLE_KINDS = ("top_line", "pp1", "nhl_roster")        # the "rookie role signal" alerts
 STORE_NAME = "news_roles.json"
 LLM_BATCH = 25
@@ -202,10 +207,25 @@ ROLE_RULES: tuple[Rule, ...] = (
     Rule("starter", 1, 0.75, _r(r"\b(?:gets?|got|getting|receives?)\s+the\s+(?:starting\s+)?nod\b|"
                                 r"\b(?:named|will\s+be|expected\s+to\s+be|slated\s+to\s+be)\s+the\s+"
                                 r"(?:opening[- ]night\s+)?starter\b|\bstart(?:s|ing)?\s+(?:in\s+goal|in\s+net|between\s+the\s+pipes)\b|"
-                                r"\bstarting\s+(?:job|role|gig)\b|\b(?:guard|defend|tend|protect)\s+the\s+(?:home\s+|road\s+|visiting\s+)?"
+                                r"\b(?:guard|defend|tend|protect)\s+the\s+(?:home\s+|road\s+|visiting\s+)?"
                                 r"(?:crease|net|cage|goal)\b|\bstart\s+(?:the\s+)?(?:opener|season\s+opener)\b"), "starter"),
     Rule("starter", -1, 0.5, _r(r"\b(?:backup|back-up|no\.\s*2)\s+(?:role|duties|goalie|netminder|job)\b|"
                                 r"\bserve\s+as\s+(?:the\s+)?(?:backup|back-up)\b"), "backup"),
+    # goalie role (the job, not one game): feeds the start-share estimate (valuation.roles)
+    Rule("goalie_role", 1, 0.75, _r(r"\b(?:won|wins|earned|earns|claimed|claims|seized|seizes|secured|secures|grabbed|"
+                                    r"locked\s+down|took\s+over|taken\s+over|taking\s+over|takes\s+over|assumed|assumes)\s+"
+                                    r"(?:the\s+)?(?:starting|no\.\s*1|number[- ]one|top)\s+(?:job|role|gig|duties)\b|"
+                                    r"\b(?:clear-cut|undisputed|bona\s+fide)\s+(?:no\.\s*1|number[- ]one|starter)\b|"
+                                    r"\bworkhorse\b"), "won the starting job"),
+    Rule("goalie_role", 1, 0.6, _r(r"\bstarting\s+(?:job|role|gig)\b|\b(?:no\.\s*1|number[- ]one)\s+"
+                                   r"(?:goalie|netminder|goaltender)\b"), "starting job"),
+    Rule("goalie_role", -1, 0.75, _r(r"\b(?:lost|loses|losing)\s+(?:his|the)\s+(?:grip\s+on\s+the\s+)?"
+                                     r"(?:starting\s+|no\.\s*1\s+)?(?:job|gig|crease|net|role)\b|"
+                                     r"\b(?:relegated|demoted|pushed|bumped)\s+to\s+(?:a\s+|the\s+)?(?:backup|back-up|no\.\s*2)\b"),
+         "lost the starting job"),
+    Rule("goalie_split", 1, 0.65, _r(r"\b1A\b|\btandem\b|\bplatoon\b|\btime[- ]?share\b|"
+                                     r"\b(?:split|splitting|share|sharing)\s+(?:the\s+)?(?:starts|duties|workload|crease|"
+                                     r"net|cage|goaltending)\b"), "tandem / split starts"),
 )
 
 # Figures of speech that look like an injury / role but are not.
@@ -343,7 +363,9 @@ LLM_SYSTEM = (
     "For each blurb id return zero or more signals. Allowed kinds: " + ", ".join(KINDS) + ". "
     "direction: 1 = better role / more NHL games (top line, first power-play unit, made the NHL roster, "
     "back in the lineup, starter), -1 = worse (demoted to the AHL, returned to junior or Europe, scratched, "
-    "injured, off the top line), 0 = unclear. confidence: 0 to 1. quote: an EXACT substring (at most 160 "
+    "injured, off the top line), 0 = unclear. starter is one game; goalie_role is the goalie's job over "
+    "time (1 = won or holds the starting job, -1 = lost it); goalie_split is 1 when a tandem / split of "
+    "starts is reported. confidence: 0 to 1. quote: an EXACT substring (at most 160 "
     "characters) of that blurb that supports the label. Rumours, questions and speculation get "
     "direction 0 or no signal. A signal describes the blurb's subject player only.\n"
     'Answer as JSON: {"results": [{"id": "b1", "signals": [{"kind": "...", "direction": 1, '

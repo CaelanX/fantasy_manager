@@ -173,7 +173,7 @@ def _md_data_health(data: DataHealth) -> list[str]:
 
 def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
               generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None,
-              data: DataHealth | None = None) -> str:
+              data: DataHealth | None = None, plan: Sequence[str] | None = None) -> str:
     md = [f"# Fantasy digest - {ctx.name}", "",
           f"*{ctx.provider} league {ctx.league_id} - team {ctx.my_team.name} - "
           f"generated {generated_at:%Y-%m-%d %H:%M}*", ""]
@@ -181,6 +181,8 @@ def _markdown(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts
         md += _md_data_health(data)
     if _model_line(model):
         md += [f"*{_model_line(model)}*", ""]
+    if plan:
+        md += ["## This week", "", f"**{plan[0]}**", ""] + [f"- {line}" for line in plan[1:]] + [""]
     md += ["## Headline", ""]
     md += [_md_headline(r, i) for i, r in enumerate(ranked[:3], 1)] or ["No moves recommended today."]
     md += ["", "## Injury alerts", ""]
@@ -281,7 +283,7 @@ def _html_data_health(data: DataHealth) -> str:
 
 def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
           generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None,
-          data: DataHealth | None = None) -> str:
+          data: DataHealth | None = None, plan: Sequence[str] | None = None) -> str:
     b: list[str] = [
         f"<h1>Fantasy digest - {_e(ctx.name)}</h1>",
         f'<div class="meta">{_e(ctx.provider)} league {_e(ctx.league_id)} - team {_e(ctx.my_team.name)}'
@@ -291,6 +293,10 @@ def _html(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, ne
         b.append(_html_data_health(data))
     if _model_line(model):
         b.append(f'<div class="meta model">{_e(_model_line(model))}</div>')
+    if plan:
+        b.append("<h2>This week</h2>")
+        b.append(f'<div class="card"><h3>{_e(plan[0])}</h3><ul>'
+                 + "".join(f"<li>{_e(line)}</li>" for line in plan[1:]) + "</ul></div>")
     b.append("<h2>Headline</h2>")
     if ranked:
         b.append('<ol class="head">')
@@ -348,7 +354,7 @@ SUMMARY_PROBLEM_LINES = 4
 
 def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts, news_rows,
              generated_at: datetime, model: str | None = None, health: Sequence[str] | None = None,
-             data: DataHealth | None = None) -> str:
+             data: DataHealth | None = None, plan: Sequence[str] | None = None) -> str:
     lines: list[str] = []
     if data is not None and _problems(data):  # lead with the failures: phones preview the first lines
         lines.append(data.headline or "")
@@ -357,6 +363,7 @@ def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts,
         if len(data.problem_lines) > len(shown):
             lines.append(f"- ... and {len(data.problem_lines) - len(shown)} more (see the digest)")
     lines.append(f"Fantasy digest: {ctx.name} ({generated_at:%Y-%m-%d})")
+    lines += list(plan or [])          # the week plan leads: win prob, moves left, today's actions
     if _model_line(model):
         lines.append(_model_line(model))
     if ranked:
@@ -390,7 +397,7 @@ def _summary(ctx: LeagueContext, ranked: list[Recommendation], inj_recs, alerts,
 def build_digest(ctx: LeagueContext, values: Mapping[str, Any], recs: list[Recommendation],
                  news_by_cid: Mapping[str, list[NewsItem]] | None,
                  generated_at: datetime | None = None, model_headline: str | None = None,
-                 model_health: Sequence[str] | None = None) -> Digest:
+                 model_health: Sequence[str] | None = None, week_plan: Sequence[str] | None = None) -> Digest:
     """Render the daily digest. ``values`` maps cid -> PlayerValue (only ``fpg`` is read).
     ``model_headline`` is the harness line (``harness.metrics.headline``); None hides it.
     ``model_health`` is the 3-line "Model health" block (``harness.health.health_block``) for the
@@ -412,8 +419,9 @@ def build_digest(ctx: LeagueContext, values: Mapping[str, Any], recs: list[Recom
     except Exception:  # the digest never breaks on its health block
         data = None
     args = (ctx, ranked, inj_recs, alerts, news_rows, generated_at, model_headline, health)
-    return Digest(markdown=_markdown(*args, data=data), html=_html(*args, data=data),
-                  summary=_summary(*args, data=data), generated_at=generated_at, health=data,
+    plan = list(week_plan) if week_plan else None
+    return Digest(markdown=_markdown(*args, data=data, plan=plan), html=_html(*args, data=data, plan=plan),
+                  summary=_summary(*args, data=data, plan=plan), generated_at=generated_at, health=data,
                   alert=bool(data is not None and should_alert(data)), league=getattr(ctx, 'provider', None))
 
 

@@ -89,6 +89,10 @@ class Player(BaseModel):
     pp_unit: str | None = None              # pp1, pp2 or None
     pk_unit: str | None = None
     line_change: str | None = None          # human-readable change vs previous snapshot, e.g. "PP2 -> PP1"
+    # His usual Daily Faceoff role: the most common line / PP unit in the earlier snapshots (last 30
+    # days). None = no history; with a usual line, usual_pp_unit None means usually off the PP.
+    usual_line: str | None = None
+    usual_pp_unit: str | None = None
     confirmed_start: bool | None = None     # goalies: confirmed/likely starter today (None = unknown)
     start_source: str | None = None         # who confirmed it and when
     # Luck / regression inputs (MoneyPuck)
@@ -180,6 +184,10 @@ class LeagueContext(BaseModel):
     # non-IR lineupSlotCounts; Fantrax: the Rules page "Total Max" column and "Maximum Total Players".
     position_limits: dict[str, int] = Field(default_factory=dict)
     max_roster_size: int | None = None
+    # Games-played caps / goalie minimums as the league states them (ESPN
+    # rosterSettings.lineupSlotStatLimits, Fantrax Rules page). [] = checked, none set;
+    # None = the provider could not tell. fm reports them but does not enforce them.
+    stat_limits: list[str] | None = None
     free_agents: list[Player]
     matchup_period: int | None
     dynasty: bool = False
@@ -231,6 +239,8 @@ class LeagueContext(BaseModel):
     period_end: date | None = None
     recent_adds: dict[str, date] = Field(default_factory=dict)
     faab_remaining: float | None = None
+    # Draft picks each team holds (Fantrax): team_id -> {draft year: [{"round", "original_owner"}]}
+    draft_picks: dict[str, dict[int, list[dict[str, Any]]]] = Field(default_factory=dict)
     # Human-readable data freshness notes and non-fatal warnings per source.
     source_notes: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -270,6 +280,8 @@ class Recommendation(BaseModel):
     counterparty: str | None = None
     reasons: list[Reason] = Field(default_factory=list)
     narrative: str | None = None
+    # The deciding reason in one plain sentence, shown before the numbers (recommend.headline).
+    headline: str | None = None
     # Explicit predicted gain (graded later by the harness). Units:
     #   week_pts   - projected fantasy points over the next ``horizon_days`` (7)
     #   day_pts    - projected fantasy points today (daily-lineup start/sit, horizon_days 1)

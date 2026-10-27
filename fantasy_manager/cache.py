@@ -97,10 +97,16 @@ class HttpCache:
             )
             self._db.commit()
 
-    def clear(self) -> None:
+    def clear(self, url_contains: str | None = None) -> int:
+        """Delete cached responses (only those whose URL contains ``url_contains`` when given);
+        returns how many."""
         with self._lock:
-            self._db.execute("DELETE FROM http_cache")
+            if url_contains is None:
+                n = self._db.execute("DELETE FROM http_cache").rowcount
+            else:
+                n = self._db.execute("DELETE FROM http_cache WHERE instr(url, ?) > 0", (url_contains,)).rowcount
             self._db.commit()
+        return n
 
     # -- fetching ----------------------------------------------------------
     def fetch(self, url: str, params: Mapping[str, Any] | None = None,

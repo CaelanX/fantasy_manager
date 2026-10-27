@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import pill, plink with context %}
+{% from "_macros.html" import pill, plink, team_chip with context %}
 {% block heading %}
 <p class="sc dateline">{{ res.ctx.name }} &middot; NHL schedule</p>
 <h1>Week of {{ view.start.strftime('%b %d').replace(' 0', ' ') }}</h1>
@@ -70,7 +70,7 @@
         <tbody>
           {% for t in targets %}
           <tr>
-            <th scope="row" class="pname" data-label="Player">{{ plink(t, league) }}<small>{{ t.pos }} &middot; {{ t.team }}{% if t.status != 'healthy' %} &middot; {{ pill(t.status) }}{% endif %}{% if t.needs_drop %} &middot; <span class="cap-note">{{ t.needs_drop }}</span>{% endif %}</small></th>
+            <th scope="row" class="pname" data-label="Player">{{ plink(t, league) }}<small>{{ t.pos }} {{ team_chip(t.team) }}{% if t.status != 'healthy' %} &middot; {{ pill(t.status) }}{% endif %}{% if t.needs_drop %} &middot; <span class="cap-note">{{ t.needs_drop }}</span>{% endif %}</small></th>
             <td data-label="Games" class="n">{{ t.games }}</td>
             <td data-label="Off-nights" class="n">{{ t.offnights }}</td>
             <td data-label="FP/G" class="n">{{ t.per_game|n1 }}</td>
@@ -111,6 +111,36 @@
 
 <section id="playoffs" aria-labelledby="h-po">
   <h2 id="h-po">Fantasy playoffs {% if playoffs and playoffs.periods %}<span class="aside">periods {{ playoffs.periods|map(attribute='number')|join(', ') }} &middot; {{ playoffs.periods[0].start.strftime('%b %d').replace(' 0', ' ') }} &ndash; {{ playoffs.periods[-1].end.strftime('%b %d').replace(' 0', ' ') }} &middot; {{ playoffs.source }}</span>{% endif %}</h2>
+  {% if pplan and pplan.my_team %}
+  <div class="po-plan">
+    <p><b>{{ pplan.my_team }}</b>: {{ '%.1f'|format(pplan.my_points) }} projected playoff pts
+      (league average {{ '%.1f'|format(pplan.league_avg_points) }}; rank {{ pplan.rank }} of {{ pplan.n_teams }}).
+      {% if pplan.deadline %}Trade deadline {{ pplan.deadline.strftime('%b %d').replace(' 0', ' ') }}
+      ({% if pplan.days_to_deadline > 0 %}{{ pplan.days_to_deadline }} days left{% elif pplan.days_to_deadline == 0 %}today{% else %}passed{% endif %}).
+      {% elif pplan.deadline_source %}Trade deadline: {{ pplan.deadline_source }}.{% endif %}</p>
+    {% if pplan.groups %}<p class="foot-note">Playoff starts (yours / league avg):
+      {% for g in pplan.groups %}{{ g.group }} {{ '%.0f'|format(g.mine) }} / {{ '%.1f'|format(g.league_avg) }}{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>{% endif %}
+    {% for title, rows, kind in [('Hold', pplan.hold[:5], 'hold'), ('Sell (weak playoff schedule)', pplan.sell, 'sell'),
+                                 ('Acquire: free agents', pplan.acquire_fa, 'fa'), ('Acquire before the deadline', pplan.acquire_trade, 'trade')] %}
+    {% if rows %}
+    <h3>{{ title }}</h3>
+    <div class="tbl"><table class="r stack">
+      <thead><tr><th scope="col">Player</th><th scope="col">NHL</th>{% if kind == 'trade' %}<th scope="col">Team</th>{% endif %}
+        <th scope="col" class="n">GP</th><th scope="col" class="n">Off</th><th scope="col" class="n">vs avg</th>
+        <th scope="col" class="n">{{ 'Lost' if kind == 'sell' else 'Playoff pts' }}</th></tr></thead>
+      <tbody>{% for r in rows %}
+        <tr><th scope="row" data-label="Player">{{ r.name }} <small>{{ r.pos }}</small></th>
+          <td data-label="NHL">{{ r.team or '-' }}</td>{% if kind == 'trade' %}<td data-label="Team">{{ r.owner or '-' }}</td>{% endif %}
+          <td data-label="Games" class="n">{{ r.total }}</td><td data-label="Off-night" class="n">{{ r.offnights }}</td>
+          <td data-label="vs average" class="n">{{ '%+.1f'|format(r.vs_avg) }}</td>
+          <td data-label="{{ 'Lost' if kind == 'sell' else 'Playoff pts' }}" class="n">{{ '%.1f'|format(r.cost or 0) if kind == 'sell' else '%+.1f'|format(r.points) }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+    {% endfor %}
+    <p class="foot-note">Playoff pts: best lineup each playoff day at healthy per-game values; acquisitions show what he adds to your lineup (no drop). Full lists: <code>fm playoffs</code>.</p>
+  </div>
+  {% endif %}
   {% if playoffs and playoffs.teams %}
   <div class="tbl"><table class="r stack po-t">
     <caption class="sr-only">Games per NHL team in the fantasy playoffs</caption>

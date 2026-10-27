@@ -52,6 +52,10 @@ INJURED = ("dtd", "out", "ir", "ltir", "suspended")
 UNAVAILABLE = ("out", "ir", "ltir", "suspended")
 DTD_AVAILABILITY = 0.75
 NO_CHANGES = "Pre-game: no changes. Lineup set."
+CHECKLIST_HEAD = "Before puck drop: quick lineup, and also:"
+# with plan actions today, "lineup set" would contradict them
+NO_CHANGES_PLAN = "Pre-game: no changes since this morning."
+PLAN_REST = "Otherwise the lineup is set"
 
 ChangeKind = Literal["goalie_confirmed", "my_player_status_change", "lineup_change", "new_alert", "injury_new"]
 # Loader: (league, settings, cache) -> (ctx, values, warnings)
@@ -78,6 +82,7 @@ class PregameResult(BaseModel):
     injuries: list[Any] = Field(default_factory=list)           # Recommendation (kind "injury")
     goalies_tonight: dict[str, dict[str, Any]] = Field(default_factory=dict)   # team -> named goalie
     summary_text: str = ""
+    today_actions: list[str] = Field(default_factory=list)      # the week plan's step for today (<= 3)
     nothing_changed: bool = True
     baseline: str | None = None      # "daily" / "pregame" (source of the snapshot diffed against) / None
     baseline_at: str | None = None
@@ -87,11 +92,13 @@ class PregameResult(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
     def notify_lines(self) -> list[str]:
-        """Bullets for :func:`report.notify.notify_changes`."""
+        """Bullets for :func:`report.notify.notify_changes`: today's plan actions first
+        ("Before puck drop today:"), then what changed since the morning."""
+        lead = [CHECKLIST_HEAD] + self.today_actions if self.today_actions else []
         if self.nothing_changed:
-            return [self.summary_text]
+            return lead + [self.summary_text]
         today = self.lineup_recs.get("today") or None
-        return [c.text for c in display_changes(self.changes, today)] + [(today or {}).get("text") or ""]
+        return lead + [c.text for c in display_changes(self.changes, today)] + [(today or {}).get("text") or ""]
 
     def title(self) -> str:
         return f"Pre-game {_clock(self.ran_at)} - {LEAGUE_LABEL.get(self.league, self.league)}"
@@ -100,7 +107,8 @@ class PregameResult(BaseModel):
         """JSON-friendly summary (recommendations as titles)."""
         return {
             "league": self.league, "day": self.day.isoformat(), "ran_at": self.ran_at.isoformat(timespec="seconds"),
-            "summary_text": self.summary_text, "nothing_changed": self.nothing_changed,
+            "summary_text": self.summary_text, "today_actions": self.today_actions,
+            "nothing_changed": self.nothing_changed,
             "changes": [c.model_dump() for c in self.changes],
             "lineup": {"week": [r.title for r in self.lineup_recs.get("week") or []],
                        "today": self.lineup_recs.get("today") or {}},
@@ -606,13 +614,15 @@ def default_loader(league: str, settings: Any, cache: Any) -> tuple[Any, Mapping
 def run_pregame(league: str, settings: Any, cache: Any, as_of: date | None = None, notify: bool = False,
                 force_refresh: bool = True, *, quiet_if_unchanged: bool = False, loader: Loader | None = None,
                 dfo_client: Any = None, injuries_fetch: Callable | None = None, now: datetime | None = None,
-                notifier: Callable[..., list[str]] | None = None, write_snapshot: bool = True) -> PregameResult:
+                notifier: Callable[..., list[str]] | None = None, write_snapshot: bool = True,
+                planner: Callable[[Any, Mapping[str, Any], datetime], Any] | None = None) -> PregameResult:
     """One league's pre-game run (see the module docstring). Raises ``ProviderError`` (or whatever
     the loader raises) when the league cannot be loaded; every later step degrades to a warning.
 
     ``notify``: post the changes (or the no-change line) with ``report.notify.notify_changes``;
     with ``quiet_if_unchanged`` nothing is sent when nothing changed. ``loader`` / ``dfo_client`` /
-    ``injuries_fetch`` / ``notifier`` are injectable for tests."""
+    ``injuries_fetch`` / ``notifier`` / ``planner`` (the week plan for today's "Before puck drop"
+    lines; returns None for none) are injectable for tests."""
     from .providers.lines_enrich import LineSnapshotStore
     from .recommend.alerts import recommend_line_alerts
     from .recommend.injuries import recommend_injuries
@@ -660,7 +670,28 @@ def run_pregame(league: str, settings: Any, cache: Any, as_of: date | None = Non
                         goalies_tonight=state["goalies"], nothing_changed=not changes,
                         baseline=(prev or {}).get("source"), baseline_at=(prev or {}).get("taken_at"),
                         refresh={k: v for k, v in refresh.items() if k != "warnings"}, warnings=warnings)
+    plan = safe("week plan", lambda: planner(ctx, values, now) if planner is not None
+                else _week_plan(ctx, values, now, data_dir), None)
+    since = None
+    if plan is not None:
+        from .recommend.plan import today_checklist
+        from .recommend.plan_memory import since_line
+
+        res.today_actions = today_checklist(plan, day)
+        since = since_line(plan)
+    # plan steps that change the roster or lineup (a goalie check alone leaves "lineup set" true)
+    moves_today = [a for a in res.today_actions if not a.startswith("Check goalie")]
+    if moves_today and lineup is not None and lineup.get("set"):
+        lineup = {**lineup, "text": PLAN_REST}
+        res.lineup_recs["today"] = lineup
     res.summary_text = summarize(changes, lineup, now)
+    if res.today_actions:
+        if moves_today and res.summary_text == NO_CHANGES:
+            res.summary_text = NO_CHANGES_PLAN
+        head = _sentence(f"{CHECKLIST_HEAD} " + "; ".join(res.today_actions))
+        res.summary_text = f"{head} {res.summary_text}"[:SUMMARY_LIMIT]
+    if since:
+        res.summary_text = f"{res.summary_text} {_sentence(since)}"[:SUMMARY_LIMIT]
     if write_snapshot:
         try:
             res.snapshot_path = str(save_snapshot(data_dir, league, day, state))
@@ -669,11 +700,24 @@ def run_pregame(league: str, settings: Any, cache: Any, as_of: date | None = Non
     # An unset lineup at 5 PM is the most useful thing to send: post even when nothing changed.
     _today = res.lineup_recs.get("today") or {}
     _pending_today = bool(_today) and not _today.get("set", True)  # today's lineup still needs moves
+    # an add the plan schedules today is an action too, even when nothing changed since morning
+    _pending_today = _pending_today or any(a.startswith(("Add ", "Claim ")) for a in res.today_actions)
     if notify and not (quiet_if_unchanged and res.nothing_changed and not _pending_today):
         if notifier is None:
             from .report.notify import notify_changes as notifier
         res.notify = notifier(settings, res.title(), res.notify_lines())
     return res
+
+
+def _week_plan(ctx: Any, values: Mapping[str, Any], now: datetime, data_dir: Any = None) -> Any:
+    """The weekly action plan for today's checklist (no provider: no win probabilities needed;
+    ``data_dir``: compared with the last plan shown, plan memory)."""
+    from datetime import timezone
+
+    from .recommend.plan import build_week_plan
+
+    aware = now if now.tzinfo is not None else now.astimezone(timezone.utc)
+    return build_week_plan(ctx, values, now=aware, data_dir=data_dir)
 
 
 def _history_snapshots(data_dir: Any) -> dict:

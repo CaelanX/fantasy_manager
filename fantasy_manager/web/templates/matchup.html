@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import pill, plink with context %}
+{% from "_macros.html" import pill, plink, team_chip with context %}
 {% block heading %}
 <p class="sc dateline">{{ res.ctx.name }} &middot; head to head{% if m.playoffs %} &middot; playoffs{% endif %}</p>
 <h1>{% if m.opponent_team %}{{ m.my_team }} <span class="vs">vs</span> {{ m.opponent_team }}{% else %}{{ m.my_team }}{% endif %}</h1>
@@ -85,6 +85,28 @@
 </div>
 {% endif %}
 
+{% if goalies %}
+<section aria-labelledby="h-goalies">
+  <h2 id="h-goalies">Goalies this week <span class="aside">{{ goalies.total|n1 }} expected pts from your {{ goalies.g_slots }} G slots</span></h2>
+  <div class="tbl"><table class="r stack">
+    <caption class="sr-only">Who to start in goalie slots each day</caption>
+    <thead><tr><th scope="col">Day</th><th scope="col">Start</th><th scope="col">Sit</th><th scope="col" class="n">Open G</th></tr></thead>
+    <tbody>
+      {% for d in goalies.days %}
+      <tr>
+        <th scope="row" data-label="Day">{{ d.day.strftime('%a %b %d') }}</th>
+        <td data-label="Start">{% for g in d.start %}{{ g.name }} <small>{{ g.opp }} &middot; {{ g.prob }}% &middot; {{ g.pts|n1 }} pts</small>{% if not loop.last %}<br>{% endif %}{% else %}-{% endfor %}</td>
+        <td data-label="Sit">{% for g in d.sit %}{{ g.name }} <small>{{ g.pts|n1 }} pts</small>{% if not loop.last %}<br>{% endif %}{% else %}-{% endfor %}</td>
+        <td data-label="Open G" class="n">{{ d.open }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% if goalies.free_agents %}<p class="note">Best free-agent goalies: {% for f in goalies.free_agents %}{{ f.name }} ({{ f.team }}, {{ f.starts }} exp. starts, {{ f.pts|n1 }} pts){% if not loop.last %}; {% endif %}{% endfor %}. Streaming picks are on Recommendations.</p>{% endif %}
+  {% for n in goalies.notes %}<p class="foot-note">{{ n }}.</p>{% endfor %}
+</section>
+{% endif %}
+
 {% for label, players in [('Your lineup', m.my_players), ('Their lineup', m.their_players)] if players %}
 <section aria-labelledby="h-lu-{{ loop.index }}">
   <h2 id="h-lu-{{ loop.index }}">{{ label }} <span class="aside">{{ m.lineup_basis }}</span></h2>
@@ -94,7 +116,7 @@
     <tbody>
       {% for x in players %}
       <tr>
-        <th scope="row" class="pname" data-label="Player">{{ plink(x, league) }}<small>{{ x.pos }} &middot; {{ x.team or 'FA' }}{% if x.status != 'healthy' %} &middot; {{ pill(x.status) }}{% endif %}</small></th>
+        <th scope="row" class="pname" data-label="Player">{{ plink(x, league) }}<small>{{ x.pos }} {% if x.team %}{{ team_chip(x.team) }}{% else %}FA{% endif %}{% if x.status != 'healthy' %} {{ pill(x.status) }}{% endif %}</small></th>
         <td data-label="Slot" class="slot">{{ x.slot or '-' }}</td>
         <td data-label="Games left" class="n">{{ x.games_left }}</td>
         <td data-label="Proj" class="n">{{ x.proj_remaining|n1 }}</td>

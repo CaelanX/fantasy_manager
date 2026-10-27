@@ -373,10 +373,23 @@ def test_daily_recs_are_for_today_only():
     assert recommend_lineup(ctx, vals) == []         # today only a plays: nothing to change
     ctx2 = ctx.model_copy(update={"as_of": date(2026, 10, 7)})
     r = recommend_lineup(ctx2, vals)[0]
-    assert r.title == "Start b over a today" and r.predicted_gain == pytest.approx(3.0)
+    # a has no game Wed: a one-day swap, worded as one (not a verdict on a)
+    assert r.title == "Start b in a's slot today (a has no game)" and r.predicted_gain == pytest.approx(3.0)
+    assert r.headline == "a has no game today; b has a game"
     assert (r.gain_units, r.horizon_days) == ("day_pts", 1)
     codes = [x.code for x in r.reasons]
     assert "DAY_VALUE" in codes and "GAMES_LEFT" in codes
+
+
+def test_daily_swap_headline_names_the_opponent_and_keeps_over_when_both_play():
+    ctx, t, vals = _daily()
+    thu = date(2026, 10, 8)            # both play Thu: b wins on points, a keeps his game
+    ctx2 = ctx.model_copy(update={"as_of": thu, "opponents": {"CGY": {thu: "@VAN"}}})
+    r = recommend_lineup(ctx2, vals)[0]
+    assert r.title == "Start b over a today"
+    assert r.headline == "b projects 3.0 pts today vs 2.0 for a"
+    ctx3 = ctx.model_copy(update={"as_of": date(2026, 10, 7), "opponents": {"CGY": {date(2026, 10, 7): "@VAN"}}})
+    assert recommend_lineup(ctx3, vals)[0].headline == "a has no game today; b plays @VAN"
 
 
 def test_weekly_lock_keeps_the_week_lineup():
@@ -437,3 +450,17 @@ def test_ir_player_due_back_mid_matchup_gets_an_activate_reminder():
     # back after the matchup ends: nothing to do this matchup
     vals["h"] = vals["h"].model_copy(update={"return_date": date(2026, 10, 14)})
     assert not any(r.subjects and r.subjects[0].cid == "h" for r in recommend_lineup(ctx, vals))
+
+def test_daily_ir_swap_gain_is_matchup_points():
+    # a (EDM) is on IR in the C slot; d (EDM) is healthy in the IR slot: the swap's gain is what the
+    # best daily lineup gains over the rest of the matchup, not d's week projection
+    ctx, t, vals = _daily()
+    a = next(p for p in t.players if p.cid == "a")
+    a.status = "ir"
+    d = P("d", ["C"])
+    t.slots.append(RosterSlot(slot="IR", player=d, starting=False))
+    ctx = ctx.model_copy(update={"roster_shape": {"C": 1, "BN": 1, "IR": 1}})
+    vals["d"] = V(d, 4.0, proj=8.0, games=2)
+    r = next(r for r in recommend_lineup(ctx, vals) if r.title.startswith("Swap IR slots"))
+    assert (r.gain_units, r.horizon_days) == ("matchup_pts", 6)
+    assert r.predicted_gain == pytest.approx(4.0 + 4.0 - 3.0)   # d Tue + Thu; b loses only Thu (Wed is his)

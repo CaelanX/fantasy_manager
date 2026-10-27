@@ -236,3 +236,18 @@ def test_fresh_sources_get_a_footer_line_only():
     assert '<p class="meta data-fresh">All 2 sources fresh (oldest: NHL rosters, 19h)</p>' in d.html
     assert d.summary.startswith("Fantasy digest: Test League")
     assert d.summary.splitlines()[-1] == "Data: all 2 sources fresh (oldest: NHL rosters, 19h)"
+
+
+def test_digest_leads_with_the_week_plan():
+    ctx, values = make_league()
+    plan = ["This week vs Rival: win 66% with quick lineup -> 71% with the plan (111.8 pts remaining vs 108.3 "
+            "with quick lineup; moves left 2)", "Quick lineup each day; also do:"]
+    d = build_digest(ctx, values, make_recs(ctx), {}, GEN, week_plan=plan)
+    lines = d.summary.splitlines()
+    title = next(i for i, x in enumerate(lines) if x.startswith("Fantasy digest:"))
+    assert lines[title + 1:title + 3] == plan                     # right under the title line
+    assert d.markdown.index("## This week") < d.markdown.index("## Headline")
+    assert "<h2>This week</h2>" in d.html and d.html.index("This week") < d.html.index("<h2>Headline</h2>")
+    plain = build_digest(ctx, values, make_recs(ctx), {}, GEN)
+    assert "This week" not in plain.summary and "## This week" not in plain.markdown
+

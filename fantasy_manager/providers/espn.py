@@ -11,7 +11,9 @@ from ..models import (CANONICAL_STATS, ActivityItem, FantasyTeam, LeagueContext,
                       ScoringConfig, StatLine, normalize_name)
 from .base import ProviderError
 
-ESPN_TTL = 15 * 60
+# League API (lineups, rosters, free agents): short, so a lineup set on espn.com shows up on the next run
+ESPN_TTL = 2 * 60
+ESPN_HOST = "fantasy.espn.com"   # every league API URL (lm-api-reads.fantasy.espn.com) contains it
 TRENDING_TTL = 6 * 3600
 # League-independent ("leaguedefaults") player pool: ESPN-wide % rostered and its change, no
 # cookies needed. {year} is the season (ESPN_YEAR).
@@ -212,6 +214,24 @@ def position_limits_from_settings(roster_settings: Mapping[str, Any] | None) -> 
     return out
 
 
+def stat_limits_from_settings(roster_settings: Mapping[str, Any] | None) -> list[str]:
+    """ESPN ``rosterSettings.lineupSlotStatLimits`` (games-played caps per lineup slot; ``{}``
+    when the league sets none) -> one text per limited slot, e.g. "G: limit 82 (stat 32)".
+    The entry format is not verified on a live league with limits, so it is shown as given."""
+    out: list[str] = []
+    for sid, v in ((roster_settings or {}).get("lineupSlotStatLimits") or {}).items():
+        try:
+            slot = SLOT_IDS.get(int(sid), f"slot {sid}")
+        except (TypeError, ValueError):
+            slot = f"slot {sid}"
+        if isinstance(v, Mapping):
+            n, stat = v.get("limitValue"), v.get("statId")
+            out.append(f"{slot}: limit {n}" + (f" (stat {stat})" if stat is not None else ""))
+        else:
+            out.append(f"{slot}: {v}")
+    return out
+
+
 def max_roster_from_counts(counts: Mapping[str, Any] | None) -> int | None:
     """Maximum rostered players outside IR: the sum of the non-IR lineupSlotCounts."""
     shape = roster_shape_from_counts(dict(counts or {}))
@@ -240,6 +260,12 @@ def _num_or_none(v: Any) -> float | None:
         return float(v) if v is not None else None
     except (TypeError, ValueError):
         return None
+
+
+def waiver_until_from_raw(raw: Mapping[str, Any]) -> date | None:
+    """Local date a player on waivers (``status`` WAIVERS) clears: ``waiverProcessDate`` (epoch ms)."""
+    ms = raw.get("waiverProcessDate") if raw.get("status") == "WAIVERS" else None
+    return datetime.fromtimestamp(ms / 1000).date() if isinstance(ms, (int, float)) and ms > 0 else None
 
 
 def acquisition_limits(acq: Mapping[str, Any] | None, period_days: int | None = None) -> dict[str, Any]:
@@ -519,6 +545,8 @@ class EspnProvider:
         self.warnings: list[str] = []
         self._league_obj: Any = None
         self._ctx: LeagueContext | None = None
+        self.acquisition_settings: dict[str, Any] = {}   # settings.acquisitionSettings (claims planner)
+        self.waiver_rank: int | None = None              # my team's waiverRank (1 = first claim)
 
     # -- best-effort extras (harness): failures become warnings, never exceptions ------
     def _warn(self, msg: str) -> None:
@@ -688,6 +716,7 @@ class EspnProvider:
         fas: dict[str, Player] = {}
         for ep, raw in fa_raw:
             pl = player_from_espn(ep, year, ownership=ownership_fields(raw.get("player", {})))
+            pl.waiver_until = waiver_until_from_raw(raw)
             fas.setdefault(pl.cid, pl)
 
         st = league.settings
@@ -700,6 +729,7 @@ class EspnProvider:
             roster_shape=roster_shape_from_counts(counts),
             position_limits=position_limits_from_settings(roster_settings),
             max_roster_size=max_roster_from_counts(counts),
+            stat_limits=stat_limits_from_settings(roster_settings),
             teams=teams,
             free_agents=list(fas.values()),
             matchup_period=getattr(league, "currentMatchupPeriod", None),
@@ -722,6 +752,7 @@ class EspnProvider:
         try:
             st = (raw_settings or {}).get("settings") or {}
             acq = st.get("acquisitionSettings") or {}
+            self.acquisition_settings = dict(acq)
             status = (raw_settings or {}).get("status") or (raw_league or {}).get("status") or {}
             today = ctx.as_of
             cur_mp = status.get("currentMatchupPeriod") or getattr(league, "currentMatchupPeriod", None)
@@ -755,6 +786,7 @@ class EspnProvider:
             ctx.moves_period_label = "matchup period"
             team_json = next((t for t in (raw_league or {}).get("teams") or []
                               if str(t.get("id")) == my_team_id), None)
+            self.waiver_rank = (team_json or {}).get("waiverRank")
             ctr_period, ctr_season, spent = transaction_counter(team_json, cur_mp)
             if limits["faab_budget"] is not None:
                 ctx.faab_remaining = limits["faab_budget"] - (spent or 0.0)

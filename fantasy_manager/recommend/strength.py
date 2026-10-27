@@ -8,6 +8,8 @@ below, 0 at no gain, capped at 10):
 * waiver / FPG gains (season_fpg): 0.3 -> 3, 1.0 -> 6, 2.0 -> 9, 3.0 -> 10
 * week points (week_pts, lineup and week-horizon waivers; matchup_pts, the points left in this
   matchup): 1 -> 3, 3 -> 6, 6 -> 9, 8 -> 10
+* today's points (day_pts, daily-lineup start/sit): 1 -> 2, 3 -> 4, 6 -> 6, 12 -> 8, 20 -> 10. A
+  one-day swap is routine and free (no move), so one player-game (~2-6 pts) reads 3-6, not 10
 * trades: expected value EV = my edge (MY_EDGE reason; the dynasty Δ for future-only recs)
   x acceptance probability (P_ACCEPT reason), see recommend.trades: 0.15 -> 3, 0.35 -> 6
   (a +0.5 FPG deal at p = 0.7), 0.6 -> 8, 1.0 -> 10. Trade recs without P_ACCEPT (older
@@ -29,6 +31,7 @@ from .base import confidence
 
 WAIVER_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (0.3, 3.0), (1.0, 6.0), (2.0, 9.0), (3.0, 10.0))
 WEEK_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (1.0, 3.0), (3.0, 6.0), (6.0, 9.0), (8.0, 10.0))
+DAY_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (1.0, 2.0), (3.0, 4.0), (6.0, 6.0), (12.0, 8.0), (20.0, 10.0))
 TRADE_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (0.5, 4.0), (1.0, 6.0), (2.0, 9.0), (3.0, 10.0))
 TRADE_EV_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (0.15, 3.0), (0.35, 6.0), (0.6, 8.0), (1.0, 10.0))
 FLAG_SCALE: tuple[tuple[float, float], ...] = ((0.0, 0.0), (0.35, 4.0), (0.6, 7.0), (1.0, 10.0))
@@ -66,6 +69,8 @@ def rec_confidence(rec: Recommendation) -> float:
 def _gain_strength(gain: float, units: str | None) -> float:
     if units in ("week_pts", "matchup_pts"):
         return interp(gain, WEEK_SCALE)
+    if units == "day_pts":
+        return interp(gain, DAY_SCALE)
     if units in ("lineup_fpg", "dynasty"):
         return interp(gain, TRADE_SCALE)
     return interp(gain, WAIVER_SCALE)
@@ -124,8 +129,12 @@ def apply_strength(recs: Iterable[Recommendation]) -> list[Recommendation]:
 
 def apply_ranks(recs: Iterable[Recommendation]) -> list[Recommendation]:
     """Set ``rank_in_kind`` / ``kind_total`` (in place) from the given order, per kind group
-    (sell_high and buy_low share 'flags')."""
+    (sell_high and buy_low share 'flags'), and each rec's missing ``headline``
+    (recommend.headline: every recommender ends with this call)."""
+    from .headline import apply_headlines
+
     out = list(recs)
+    apply_headlines(out)
     groups: dict[str, list[Recommendation]] = {}
     for r in out:
         groups.setdefault(KIND_GROUP.get(r.kind, r.kind), []).append(r)
@@ -136,14 +145,15 @@ def apply_ranks(recs: Iterable[Recommendation]) -> list[Recommendation]:
 
 
 def gain_text(rec: Recommendation) -> str:
-    """'+0.95 FPG', '+3.2 pts/wk', '+1.5 pts (3d)', '+0.80 lineup FPG', '+1.10 dyn' or '-'."""
+    """'+0.95 FPG', '+3.2 pts/wk', '+1.5 pts (3d left)', '+0.80 lineup FPG', '+1.10 dyn' or '-'.
+    matchup_pts are the points over the days left in this matchup, not a weekly rate."""
     g = rec.predicted_gain
     if g is None:
         return "-"
     unit = {"week_pts": "pts/wk", "season_fpg": "FPG", "lineup_fpg": "lineup FPG", "dynasty": "dyn"}.get(
         rec.gain_units or "", "")
     if rec.gain_units == "matchup_pts":
-        return f"{g:+.1f} pts" + (f" ({rec.horizon_days}d)" if rec.horizon_days else "")
+        return f"{g:+.1f} pts" + (f" ({rec.horizon_days}d left)" if rec.horizon_days else " (this matchup)")
     if rec.gain_units == "season_fpg" and rec.horizon_days == 7:
         unit = "FPG (wk)"
     if rec.gain_units == "season_fpg" and rec.kind in ("sell_high", "buy_low"):

@@ -294,3 +294,15 @@ def test_trending_goes_through_the_cache_with_the_sort_filter():
             raise RuntimeError("offline")
     bad = EspnProvider(SimpleNamespace(espn_year=2027), cache=Broken())
     assert bad.trending() == [] and "offline" in bad.warnings[0]
+
+
+def test_stat_limits_from_settings():
+    from fantasy_manager.providers.espn import stat_limits_from_settings
+
+    # the live league: lineupSlotStatLimits is {} (no games-played caps)
+    assert stat_limits_from_settings({"lineupSlotStatLimits": {}}) == []
+    assert stat_limits_from_settings(None) == []
+    # a league with a goalie GP cap on lineup slot 5 (G) is shown as given
+    assert stat_limits_from_settings({"lineupSlotStatLimits": {"5": {"limitValue": 82, "statId": 32}}}) == [
+        "G: limit 82 (stat 32)"]
+
