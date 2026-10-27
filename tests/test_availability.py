@@ -82,6 +82,21 @@ def test_status_defaults_and_flat_fallback():
     assert est("healthy", "est. return 2026-12-01") is None and season_availability("healthy", None, AS_OF)[0] == 1.0
 
 
+def test_not_injury_related_out_is_a_short_absence():
+    """ESPN marks a healthy player who is not dressing (a new acquisition awaiting his debut, personal
+    leave) OUT with a "Not Injury Related" note: sized like day-to-day, not the flat injury value."""
+    today = date(2026, 10, 26)
+    note = ("Not Injury Related: While Hellebuyck appears to be close to making his team debut, Keefe said "
+            "that there are \"several boxes they'll need to tick\" before the Devils give the green light")
+    e = est("out", note, as_of=today)
+    assert e.return_date == today + timedelta(days=3)
+    assert e.games_missed == sum(1 for d in DATES if today <= d < today + timedelta(days=3))
+    assert e.multiplier > 0.95
+    assert "not injury related" in e.source
+    # an injury without a timetable still keeps the flat "out" value
+    assert est("out", "Lower Body: Hellebuyck (lower body) is out indefinitely", as_of=today) is None
+
+
 def test_without_a_schedule_games_come_from_days():
     e = return_estimate("suspended", "suspension (est. return 2026-10-17)", AS_OF, None, START)
     assert e.games_remaining == 82 and e.games_missed == pytest.approx(11 * 82 / 186)
