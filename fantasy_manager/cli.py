@@ -2400,6 +2400,10 @@ def plan_cmd(ctx: typer.Context,
                   f"moves left {moves}" + (f" · stance {p.stance}" if p.stance else ""))
     console.print(f"Win probability: [bold]{_pct(p.win_as_set)}[/] with quick lineup each day -> "
                   f"[bold]{_pct(p.win_plan)}[/] with the plan")
+    if p.since is not None:
+        console.print(f"[bold]Since your last plan[/]" + (f" ({escape(p.since.at)})" if p.since.at else ""))
+        for line in p.since.done + p.since.roster + p.since.changed + p.since.kept + p.since.new:
+            console.print(f"- {escape(line)}")
     steps = Table(title="Plan steps beyond quick lineup (points over the rest of the matchup)")
     for c, j in (("#", "right"), ("When", "left"), ("Do this", "left"), ("Pts", "right"), ("Win", "right"),
                  ("Why", "left")):
@@ -2415,7 +2419,8 @@ def plan_cmd(ctx: typer.Context,
         what = ("Claim " if m.claim else "Add ") + m.add.name + (f", drop {m.drop.name}" if m.drop else "") \
             + (f", {m.to_ir.name} to IR" if m.to_ir else "")
         when = f"{m.day:%a}" + ("" if m.effective == m.day else f" (counts {m.effective:%a})")
-        why = (m.note + " · " if m.note else "") + m.headline + (f" · {m.timing}" if m.timing else "") \
+        why = ({"new": "New · ", "kept": "Kept from your last plan · "}.get(m.status, "")) \
+            + (m.note + " · " if m.note else "") + m.headline + (f" · {m.timing}" if m.timing else "") \
             + (f" · {m.market}" if m.market else "")
         why += "".join(f" · {r}" for r in m.reasons[:1])
         steps.add_row(str(n), when, escape(what), f"+{m.gain_pts:.1f}", _pp(m.win_delta), escape(why))

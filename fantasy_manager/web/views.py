@@ -857,15 +857,23 @@ def plan_page(res: Any, provider: Any = None) -> dict[str, Any]:
             m = _memo(res, "matchup", lambda: current_matchup(res.ctx, provider, res.values))
         except Exception:  # noqa: BLE001 - the plan works without the opponent
             m = None
+        from ..config import get_settings
+
         return build_week_plan(res.ctx, res.values, dynasty_values=res.dynasty, recs=list(res.recs),
-                               matchup=m, provider=provider)
+                               matchup=m, provider=provider, data_dir=get_settings().fm_data_dir)
 
     p = _memo(res, "plan", build)
     pct = (lambda x: None if x is None else round(x * 100))
     today = p.days[0].day if p.days else None
+    from ..config import get_settings
+    from ..recommend.plan_memory import latest_snapshot
+
+    snap = latest_snapshot(get_settings().fm_data_dir, res.ctx.provider) or {}
+    # an open roster spot leads today: its no-drop add first
+    today_moves = sorted((m for m in p.moves if m.day == today), key=lambda m: m.drop is not None or m.to_ir is not None)
     return {"plan": p, "win_as_set": pct(p.win_as_set), "win_lineup": pct(p.win_lineup), "win_plan": pct(p.win_plan),
-            "today_moves": [m for m in p.moves if m.day == today],
-            "later_moves": [m for m in p.moves if m.day != today]}
+            "today_moves": today_moves, "later_moves": [m for m in p.moves if m.day != today],
+            "since_ref": snap.get("created") or ""}
 
 
 # NHL team primary colours for the small team chips (presentation only). Keys are normalised

@@ -866,9 +866,10 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
             and not ctx.get("no_mode")
         base["data_mode"] = (res.mode if res is not None and res.mode else cur_mode)
         base["data_mode_source"] = (res.mode_source if res is not None and res.mode else cur_source)
-        base["flash"] = _mode_flash(request.query_params.get("msg"), res)
-        if base["flash"] is None:
-            base["flash"], base["flash_warn"] = _rollback_flash(request.query_params.get("msg"))
+        if base.get("flash") is None:          # a page may bring its own banner ("Did it" on /plan)
+            base["flash"] = _mode_flash(request.query_params.get("msg"), res)
+            if base["flash"] is None:
+                base["flash"], base["flash_warn"] = _rollback_flash(request.query_params.get("msg"))
         if "llm_ok" not in base:
             base["llm_ok"] = llm_available() if name in ("overview.html", "recommendations.html",
                                                          "player.html") else False
@@ -926,6 +927,16 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
             log.exception("weekly plan for %s failed", league)
             return render(request, "error.html", league, status_code=500, res=res, title="Plan unavailable",
                           error=f"{type(e).__name__}: {e}")
+        q = request.query_params
+        if q.get("msg") == "moved":       # back from "Did it": verify the move from the fresh data
+            from ..config import get_settings
+            from ..recommend.plan_memory import moved_banner
+
+            text, warn, again = moved_banner(get_settings().fm_data_dir, league, q.get("since"), res.ctx,
+                                             (q.get("label") or "")[:120], retry=q.get("retry") == "1")
+            page.update(flash=text, flash_warn=warn,
+                        moved_retry={"since": q.get("since") or "", "label": (q.get("label") or "")[:120]}
+                        if again else None)
         return render(request, "plan.html", league, res=res, title="This week", no_mode=True, **page)
 
     @app.get("/overview", response_class=HTMLResponse)
@@ -1220,6 +1231,37 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         if callable(invalidate):
             invalidate(league)
         return RedirectResponse(safe_next(next, league), status_code=303)
+
+    @app.post("/moved")
+    async def moved(request: Request):
+        """"Did it" / "I made a move" (form fields or query params: league, since, label, retry):
+        clear the league's cached data like /refresh, then show /plan with a banner that checks the
+        move against the plan snapshot shown when the button was pressed (``since``)."""
+        fields = dict(request.query_params)
+        body = await request.body()
+        if body:
+            fields.update(parse_qsl(body.decode("utf-8", "replace"), keep_blank_values=True))
+        league = fields.get("league") or default_league
+        if league not in LEAGUES:
+            return JSONResponse({"detail": f"league must be one of {', '.join(LEAGUES)}"}, status_code=422)
+        since = fields.get("since") or ""
+        if not since:
+            from ..config import get_settings
+            from ..recommend.plan_memory import latest_snapshot
+
+            since = (latest_snapshot(get_settings().fm_data_dir, league) or {}).get("created") or ""
+        clear_settings()
+        clear_league_data(league)
+        cache.clear(league)
+        invalidate = getattr(loader, "invalidate", None)
+        if callable(invalidate):
+            invalidate(league)
+        extra = {"msg": "moved", "since": since[:40]}
+        if fields.get("label"):
+            extra["label"] = fields["label"][:120]
+        if fields.get("retry") == "1":
+            extra["retry"] = "1"
+        return RedirectResponse(safe_next("/plan", league, **extra), status_code=303)
 
     @app.post("/mode")
     async def set_mode(request: Request):

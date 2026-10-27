@@ -523,6 +523,23 @@ select, .weeknav input[type="date"] { font: inherit; font-size: .95rem; padding:
 .net-week { list-style: none; margin: 10px 0 0; padding: 12px 14px; background: var(--paper); border: 1px solid var(--rule);
   border-radius: var(--r-card); font-size: .92rem; color: var(--ink-2); }
 .net-week li + li { margin-top: 4px; }
+.since-list { list-style: none; margin: 0 0 8px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--r-card); font-size: .92rem; color: var(--ink-2); }
+.since-list .sl { display: flex; gap: 10px; align-items: baseline; }
+.since-list .sl + .sl { margin-top: 8px; }
+.sl-k { flex: 0 0 4.6rem; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.sl-done .sl-k { color: var(--good); }
+.sl-changed .sl-k, .sl-roster .sl-k { color: var(--warn); }
+.sl-new .sl-k, .sl-kept .sl-k { color: var(--accent); }
+.act-status { margin: 0 0 6px; }
+.today-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.did-form { margin: 8px 0 0; }
+.today-head .did-form { margin: 0; }
+.did-btn { min-height: 44px; padding: 0 16px; border: 1px solid var(--rule-2); border-radius: var(--r-pill);
+  background: var(--paper); color: var(--ink); font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer; }
+.did-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tag-new { color: var(--accent); background: var(--accent-wash); }
+.tag-kept { color: var(--good); background: var(--good-wash); }
 .day.is-ok .d-sum { color: var(--ink-3); }
 .calm { margin: 0; padding: 16px; background: var(--paper); border: 1px dashed var(--rule-2); border-radius: var(--r-card);
   color: var(--ink-2); }

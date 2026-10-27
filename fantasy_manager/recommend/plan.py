@@ -81,6 +81,22 @@ class PlanMove(BaseModel):
     role: str | None = None            # "rental" (a later step drops him) / "swap" (drops an earlier pickup)
     note: str = ""                     # the chain story: "Rent X Mon-Sat..." / "Then swap X for Y Sun: ..."
     timing: str = ""                   # when to make it: "Make this move the evening before (...)"
+    status: str = ""                   # vs the last plan shown: "new" / "kept" (stability) / "" unchanged
+
+
+class PlanSince(BaseModel):
+    """What changed since the last plan shown (``plan_memory.compare``)."""
+    at: str = ""                       # when that plan was made, local: "Mon 2:43 PM"
+    done: list[str] = Field(default_factory=list)       # "Done: added X, dropped Y (Mon)"
+    changed: list[str] = Field(default_factory=list)    # removed steps, each with its reason
+    new: list[str] = Field(default_factory=list)        # steps that were not in it
+    kept: list[str] = Field(default_factory=list)       # earlier steps kept for stability
+    roster: list[str] = Field(default_factory=list)     # roster changes outside the plan
+    long_term: list[str] = Field(default_factory=list)  # dropped keeper-type steps worth a later move
+
+    @property
+    def empty(self) -> bool:
+        return not (self.done or self.changed or self.new or self.kept or self.roster or self.long_term)
 
 
 class PlanAction(BaseModel):
@@ -135,6 +151,7 @@ class WeekPlan(BaseModel):
     watch: list[str] = Field(default_factory=list)
     claim_watch: list[str] = Field(default_factory=list)   # claims on waivers not scheduled (see the claim list)
     net_week: list[str] = Field(default_factory=list)      # who is gone / stays, long-term change, points
+    since: PlanSince | None = None                         # vs the last plan shown (plan memory)
     notes: list[str] = Field(default_factory=list)
     available: bool = True
 
@@ -542,10 +559,13 @@ def plan_summary(plan: WeekPlan, day: date) -> list[str]:
         head += f": win {plan.win_as_set:.0%} with quick lineup -> {plan.win_plan:.0%} with the plan"
     head += f" ({plan.proj_plan:.1f} pts remaining vs {plan.proj_as_set:.1f} with quick lineup"
     head += f"; moves left {plan.moves_left})" if plan.moves_left is not None else ")"
+    from .plan_memory import since_line
+
+    lead = [head] + ([s] if (s := since_line(plan)) else [])
     actions = today_checklist(plan, day)
     if not actions:
-        return [head, "Today: quick lineup is enough"]
-    return [head, "Quick lineup each day; also do:"] + [f"Today: {a}" for a in actions]
+        return lead + ["Today: quick lineup is enough"]
+    return lead + ["Quick lineup each day; also do:"] + [f"Today: {a}" for a in actions]
 
 
 def _pair_outs(ins: list[Player], prev: list[Player], playing: set[str]) -> list[tuple[Player, Player | None]]:
@@ -643,11 +663,19 @@ def build_week_plan(ctx: LeagueContext, values: Mapping[str, Any], *, dynasty_va
     if stance == "protect" and max_moves >= 2:
         max_moves -= 1
         plan.notes.append("Protect stance: one move is kept in reserve for an injury.")
+    # plan memory: earlier plans for this matchup period (data_dir given: the CLI, dashboard, harness)
+    from . import plan_memory
+
+    snaps = plan_memory.load_snapshots(data_dir, plan, ctx) if data_dir is not None else None
+    kept: dict[tuple, str] = {}
     txs: list[_Tx] = []
     if max_moves > 0:
         pairs, notes = _candidates(ctx, values, dynasty_values)
         plan.notes.extend(notes)
-        txs = _search(ctx, tl, pairs, max_moves, MIN_MOVE_PTS.get(stance, 1.0), now, values, dyn)
+        min_pts = MIN_MOVE_PTS.get(stance, 1.0)
+        txs = _search(ctx, tl, pairs, max_moves, min_pts, now, values, dyn)
+        if snaps:      # keep the last plan's steps unless the new one is clearly better
+            txs, kept = plan_memory.stabilize(ctx, tl, txs, snaps[-1], pairs, max_moves, min_pts, now)
     elif left == 0:
         plan.notes.append("No moves left this period: the plan only sets lineups.")
     plan.moves_planned = len(txs)
@@ -687,10 +715,17 @@ def build_week_plan(ctx: LeagueContext, values: Mapping[str, Any], *, dynasty_va
         if t.drop is not None:      # long-term change against the player this step actually drops
             mv.reasons.insert(0, _long_term(ctx, values, dyn, t.add, t.drop)[1])
         mv.timing, mv.day = _timing(ctx, mv)
+        if plan_memory.move_key(mv) in kept:
+            mv.status = "kept"
         plan.moves.append(mv)
         prev_total, prev_win = tot, win
     plan.win_plan = prev_win
     _chains(plan, ctx, values, dyn, tl)
+    if snaps is not None:
+        plan.since = plan_memory.compare(plan, ctx, snaps, kept, tl, txs, values, dyn, now)
+        if plan.since is not None:
+            plan.watch.extend(plan.since.long_term)
+        plan_memory.save_snapshot(data_dir, plan, ctx, now)
 
     # goalie lines
     if goalies is None:

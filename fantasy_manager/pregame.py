@@ -670,11 +670,15 @@ def run_pregame(league: str, settings: Any, cache: Any, as_of: date | None = Non
                         goalies_tonight=state["goalies"], nothing_changed=not changes,
                         baseline=(prev or {}).get("source"), baseline_at=(prev or {}).get("taken_at"),
                         refresh={k: v for k, v in refresh.items() if k != "warnings"}, warnings=warnings)
-    plan = safe("week plan", lambda: (planner or _week_plan)(ctx, values, now), None)
+    plan = safe("week plan", lambda: planner(ctx, values, now) if planner is not None
+                else _week_plan(ctx, values, now, data_dir), None)
+    since = None
     if plan is not None:
         from .recommend.plan import today_checklist
+        from .recommend.plan_memory import since_line
 
         res.today_actions = today_checklist(plan, day)
+        since = since_line(plan)
     # plan steps that change the roster or lineup (a goalie check alone leaves "lineup set" true)
     moves_today = [a for a in res.today_actions if not a.startswith("Check goalie")]
     if moves_today and lineup is not None and lineup.get("set"):
@@ -686,6 +690,8 @@ def run_pregame(league: str, settings: Any, cache: Any, as_of: date | None = Non
             res.summary_text = NO_CHANGES_PLAN
         head = _sentence(f"{CHECKLIST_HEAD} " + "; ".join(res.today_actions))
         res.summary_text = f"{head} {res.summary_text}"[:SUMMARY_LIMIT]
+    if since:
+        res.summary_text = f"{res.summary_text} {_sentence(since)}"[:SUMMARY_LIMIT]
     if write_snapshot:
         try:
             res.snapshot_path = str(save_snapshot(data_dir, league, day, state))
@@ -703,14 +709,15 @@ def run_pregame(league: str, settings: Any, cache: Any, as_of: date | None = Non
     return res
 
 
-def _week_plan(ctx: Any, values: Mapping[str, Any], now: datetime) -> Any:
-    """The weekly action plan for today's checklist (no provider: no win probabilities needed)."""
+def _week_plan(ctx: Any, values: Mapping[str, Any], now: datetime, data_dir: Any = None) -> Any:
+    """The weekly action plan for today's checklist (no provider: no win probabilities needed;
+    ``data_dir``: compared with the last plan shown, plan memory)."""
     from datetime import timezone
 
     from .recommend.plan import build_week_plan
 
     aware = now if now.tzinfo is not None else now.astimezone(timezone.utc)
-    return build_week_plan(ctx, values, now=aware)
+    return build_week_plan(ctx, values, now=aware, data_dir=data_dir)
 
 
 def _history_snapshots(data_dir: Any) -> dict:

@@ -1,4 +1,13 @@
 {% extends "base.html" %}
+{# "Did it": tell the dashboard a move was made; it re-reads the league and checks the roster. #}
+{% macro did_form(label, text="Did it") -%}
+<form method="post" action="/moved" class="did-form">
+  <input type="hidden" name="league" value="{{ league }}">
+  <input type="hidden" name="since" value="{{ since_ref }}">
+  <input type="hidden" name="label" value="{{ label }}">
+  <button type="submit" class="did-btn">{{ text }}</button>
+</form>
+{%- endmacro %}
 {# One scheduled add / claim. Moves that share a chain (rent a player, then swap him out) are
    grouped visually: the list item carries the chain id and the role tag. #}
 {% macro move_card(mv, show_day, prev=none, nxt=none) -%}
@@ -7,6 +16,7 @@
 <li class="act act-move{% if mv.chain is not none %} in-chain{% endif %}{% if cont %} chain-cont{% endif %}{% if more %} chain-more{% endif %}"{% if mv.chain is not none %} data-chain="{{ mv.chain }}"{% endif %}>
   {% if show_day %}<p class="act-day"><b>{{ mv.day.strftime('%a') }}</b>{% if mv.effective != mv.day %}<span>counts {{ mv.effective.strftime('%a') }}</span>{% endif %}</p>{% endif %}
   <div class="act-main">
+    {% if mv.status %}<p class="act-status"><span class="tag tag-{{ mv.status }}">{{ {'new': 'New', 'kept': 'Kept from your last plan'}.get(mv.status, mv.status) }}</span></p>{% endif %}
     {% if mv.note %}<p class="act-note">{% if mv.role %}<span class="role role-{{ mv.role }}">{{ {'rental': 'Rental', 'swap': 'Swap'}.get(mv.role, mv.role) }}</span>{% endif %}{{ mv.note }}</p>{% endif %}
     <p class="act-do">{{ 'Claim' if mv.claim else 'Add' }} {{ mv.add.name }}{% if mv.drop %}, drop {{ mv.drop.name }}{% elif mv.to_ir %}, {{ mv.to_ir.name }} to IR{% endif %}</p>
     <p class="act-why">{{ mv.headline }}</p>
@@ -15,6 +25,7 @@
     <p class="act-tags">{% if not show_day and mv.effective != mv.day %}<span class="tag">counts {{ mv.effective.strftime('%a') }}</span>{% endif %}{% if mv.market %}<span class="mk {{ 'mk-ok' if mv.market == 'market agrees' else 'mk-no' }}">{{ mv.market|capitalize }}</span>{% endif %}{% if mv.win_delta is not none %}<span class="tag">{{ '%+d'|format((mv.win_delta * 100)|round|int) }}% win chance</span>{% endif %}</p>
     {% endif %}
     {% for r in mv.reasons %}<p class="note">{{ r }}</p>{% endfor %}
+    {{ did_form(('Claim ' if mv.claim else 'Add ') ~ mv.add.name ~ ((', drop ' ~ mv.drop.name) if mv.drop else '')) }}
   </div>
   <p class="act-pts"><b>+{{ mv.gain_pts|n1 }}</b><span>pts</span></p>
 </li>
@@ -58,8 +69,33 @@
 {% else %}
 {% set today_day = plan.days[0].day if plan.days else none %}
 {% set today_line = plan.days[0] if plan.days else none %}
+{% if moved_retry %}
+{# the league hasn't shown the move yet: check once more in a minute (static/moved.js) #}
+<form method="post" action="/moved" id="moved-retry" data-retry-after="60" hx-boost="false" hidden>
+  <input type="hidden" name="league" value="{{ league }}">
+  <input type="hidden" name="since" value="{{ moved_retry.since }}">
+  <input type="hidden" name="label" value="{{ moved_retry.label }}">
+  <input type="hidden" name="retry" value="1">
+</form>
+<script src="/static/moved.js" defer></script>
+{% endif %}
+{% if plan.since %}
+<section class="since" aria-labelledby="h-since">
+  <h2 id="h-since">Since your last plan{% if plan.since.at %} <span class="aside">{{ plan.since.at }}</span>{% endif %}</h2>
+  <ul class="since-list">
+    {% for x in plan.since.done %}<li class="sl sl-done"><span class="sl-k">Done</span>{{ x|replace('Done: ', '') }}</li>{% endfor %}
+    {% for x in plan.since.roster %}<li class="sl sl-roster"><span class="sl-k">Roster</span>{{ x }}</li>{% endfor %}
+    {% for x in plan.since.changed %}<li class="sl sl-changed"><span class="sl-k">Changed</span>{{ x }}</li>{% endfor %}
+    {% for x in plan.since.kept %}<li class="sl sl-kept"><span class="sl-k">Kept</span>{{ x }}</li>{% endfor %}
+    {% for x in plan.since.new %}<li class="sl sl-new"><span class="sl-k">New</span>{{ x|replace('New: ', '') }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
 <section class="today" aria-labelledby="h-today">
-  <h2 id="h-today">Today{% if today_day %} <span class="aside">{{ today_day.strftime('%A %b %d').replace(' 0', ' ') }}</span>{% endif %}</h2>
+  <div class="today-head">
+    <h2 id="h-today">Today{% if today_day %} <span class="aside">{{ today_day.strftime('%A %b %d').replace(' 0', ' ') }}</span>{% endif %}</h2>
+    {{ did_form("", "I made a move") }}
+  </div>
   {% if plan.today or today_moves %}
   <ol class="acts">
     {% for a in plan.today %}
@@ -67,6 +103,7 @@
       <div class="act-main">
         <p class="act-do">{{ a.title }}</p>
         {% if a.headline %}<p class="act-why">{{ a.headline }}</p>{% endif %}
+        {{ did_form(a.title) }}
       </div>
       {% if a.gain is not none %}<p class="act-pts"><b>{{ a.gain|n1(True) }}</b><span>{{ 'pts' if a.gain_units == 'matchup_pts' else '' }}</span></p>{% endif %}
     </li>
