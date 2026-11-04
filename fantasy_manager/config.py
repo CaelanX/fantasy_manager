@@ -96,6 +96,10 @@ class Settings(BaseSettings):
     fantrax_points: Annotated[dict[str, float], NoDecode] = {}
     fantrax_dynasty: bool = False
     fantrax_keeper_horizon_years: int = 3
+    # Keepers per team each offseason (everyone else goes back into the draft). Fantrax reports a
+    # "Dynasty" keeper type even when the commissioner limits keepers, so it is set here. Unset =
+    # every player is kept (a true dynasty).
+    fantrax_keepers: int | None = None
     # Dynasty priority: contend (win this season first), balanced, or rebuild. A mode chosen on the
     # dashboard or with `fm mode` (<FM_DATA_DIR>/prefs.json) takes precedence; see prefs.py.
     fantrax_mode: Literal["contend", "balanced", "rebuild"] = "balanced"

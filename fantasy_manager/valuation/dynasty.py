@@ -97,6 +97,14 @@ class DynastyValue(BaseModel):
     market_value: float | None = None
     pedigree: float = 1.0
     mode: str = DEFAULT_MODE
+    # Keeper leagues (ctx.keepers_per_team set; see "Keeper leagues" in the module docstring).
+    # In keep-everyone dynasties: season_part + future == value, keeper_surplus == future and
+    # keeper is True, so callers can use these fields unconditionally.
+    season_part: float = 0.0          # this season's term (w_0 x fpg_season)
+    future: float = 0.0               # seasons after this one (years >= 1 + terminal), market-blended
+    keeper_surplus: float = 0.0       # max(0, future - a waiver-level roster spot's future value)
+    keeper: bool = True               # among his holder's top keepers_per_team by keeper_surplus
+                                      # (free agents: would enter MY top keepers)
     reasons: list[Reason] = Field(default_factory=list)
 
 
@@ -336,6 +344,16 @@ def _apply_market(out: dict[str, DynastyValue], ctx: LeagueContext) -> None:
             value=mv, baseline=owned[cid]))
         dv.market_value = mv
         dv.value = blended
+
+
+def keeper_total(players: Iterable[Player], dyn: Mapping[str, "DynastyValue"], k: int | None) -> float:
+    """Long-term value a roster carries past this season: the sum of the ``k`` largest
+    ``keeper_surplus`` among ``players`` (the keepers the team would choose). ``k`` None (a
+    keep-everyone dynasty): every player's surplus counts. Players without a DynastyValue count 0.
+    Used for exact marginal keeper value: a trade's or pickup's long-term change for a team is
+    keeper_total(after) - keeper_total(before)."""
+    xs = sorted((dyn[p.cid].keeper_surplus for p in players if p.cid in dyn), reverse=True)
+    return sum(xs if k is None else xs[:max(0, int(k))])
 
 
 def dynasty_rank(values: Mapping[str, DynastyValue] | Iterable[DynastyValue]) -> list[DynastyValue]:

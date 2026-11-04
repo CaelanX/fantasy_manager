@@ -1681,6 +1681,7 @@ class FantraxProvider:
             matchup_period=None,
             dynasty=bool(s.fantrax_dynasty) or self.rules_dynasty,
             keeper_horizon_years=int(s.fantrax_keeper_horizon_years),
+            keepers_per_team=getattr(s, "fantrax_keepers", None),
             dynasty_mode=getattr(s, "fantrax_mode", None) or "balanced",
             lineup_lock=self.lineup_lock,
             as_of=self.today or date.today(),

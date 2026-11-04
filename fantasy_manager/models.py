@@ -192,6 +192,9 @@ class LeagueContext(BaseModel):
     matchup_period: int | None
     dynasty: bool = False
     keeper_horizon_years: int = 3
+    # Players each team may keep into next season (free, no year limit); the rest are redrafted.
+    # None = every player is kept (a true dynasty). See valuation/dynasty.py "Keeper leagues".
+    keepers_per_team: int | None = None
     dynasty_mode: DynastyMode = "contend"
     # Where dynasty_mode came from: "prefs" (dashboard / `fm mode`), "env" (FANTRAX_MODE), "default"
     # or "option" (`--mode`, this run only); None when a loader did not resolve it.
