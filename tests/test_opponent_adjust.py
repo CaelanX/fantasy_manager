@@ -1,4 +1,4 @@
-"""Per-game skater opponent multipliers (valuation.schedule: betting-market implied team totals,
+﻿"""Per-game skater opponent multipliers (valuation.schedule: betting-market implied team totals,
 else opponent goals against) and their use in the daily plan (recommend.lineup.day_value)."""
 from datetime import date
 
@@ -140,3 +140,21 @@ def test_opp_adj_reason_on_todays_lineup_rec():
     assert opp.value > 1.0 and opp.baseline == 1.0
     assert "b: today @EDM - market implies 3.90 goals for his team" in opp.text
     assert r.predicted_gain == pytest.approx(2.0 * opp.value)
+
+
+def test_valuate_week_projection_carries_the_opponent_factor_once():
+    from fantasy_manager.scoring import PointsScoring
+    from fantasy_manager.valuation.valuate import valuate_league
+    a = P("a", "EDM")
+    a.lines["season"] = StatLine(split="season", gp=20, stats={"G": 10.0})
+    ctx = make_ctx([("C", a)])
+    sch.opponent_adjust(ctx, odds=odds_fn({}), ga={"BOS": (1.21, 20), "CGY": (1.21, 20)})
+    pv = valuate_league(ctx, PointsScoring({"G": 1.0}))["a"]
+    r = next(r for r in pv.reasons if r.code == sch.OPP_WEEK_REASON)
+    assert r.value == pytest.approx(1.1)
+    neutral = ctx.model_copy()
+    sch.opponent_adjust(neutral, odds=odds_fn({}), ga={})              # same league, neutral opponents
+    plain = valuate_league(neutral, PointsScoring({"G": 1.0}))["a"]
+    assert all(r.code != sch.OPP_WEEK_REASON for r in plain.reasons)
+    assert pv.proj_week == pytest.approx(plain.proj_week * 1.1)
+    assert day_value(ctx, a, pv, TUE) == pytest.approx(day_value(ctx, a, plain, TUE))   # not counted twice

@@ -814,7 +814,7 @@ def _daily_lineup(lc: LeagueContext, team: Any, slots: list[str], plan: Any, rec
         now = where.get(p.cid) or "-"
         shown = f"[bold yellow]{now}[/]" if now in ("BN", "IR") else now
         tbl.add_row(slot, p.name, _pos(p), p.team or "-", _status(p), _fmt(today.values.get(p.cid)),
-                    str(plan.starts(p.cid)), shown + (" [dim](locked)[/]" if p.cid in today.locked else ""))
+                    str(plan.remaining_starts(p.cid)), shown + (" [dim](locked)[/]" if p.cid in today.locked else ""))
     console.print(tbl)
     wk = Table(title="Rest of the matchup (best lineup each day)")
     for c, j in (("Day", "left"), ("Starts", "right"), ("Proj", "right"), ("As set", "right"),

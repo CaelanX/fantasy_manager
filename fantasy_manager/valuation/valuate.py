@@ -108,8 +108,9 @@ from .replacement import DEFAULT_SLOTS, ROSTERED_FALLBACK_PCT, best_slot, replac
 from .regression import (ASSIST_SHRINK_CAP, ASSIST_SHRINK_MIN_GP, ASSIST_SHRINK_SHARE, GSAX_K_SHOTS, K_GOALS,
                          assist_shrink_rates, gsax_rates, luck_signals, shrink_goals)
 from .roles import goalie_news_share, role_change
-from .schedule import (ACTUAL_SHARE_K, ROSTER_ONLY_SHARE, actual_start_share, context_window, proj_week,
-                       schedule_factor, start_share, start_share_parts, teammate_shares)
+from .schedule import (ACTUAL_SHARE_K, OPP_WEEK_REASON, ROSTER_ONLY_SHARE, actual_start_share, context_window,
+                       opp_week_factor, proj_week, schedule_factor, start_share, start_share_parts,
+                       teammate_shares)
 
 PRIOR_TEAM_GAMES = 82
 PROJ_SHARE_K = 20
@@ -892,6 +893,13 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
                                           f"{sf.start_share:.0%}", value=sf.start_share, baseline=share_week))
         if sf is not None:
             pw = proj_week(fpg, a_week, sf.games, sf.offnight) * sf.start_share * week_share
+            opp = opp_week_factor(ctx, p, window) if sf.games else 1.0
+            if abs(opp - 1.0) > 1e-4:
+                pw *= opp
+                pv.reasons.append(Reason(code=OPP_WEEK_REASON,
+                                         text=f"Opponents {window.label()}: week value x{opp:.2f} "
+                                              f"(market implied goals, else opponent goals against)",
+                                         value=opp, baseline=1.0))
             pv.proj_week, pv.games_next7, pv.offnight_next7 = pw, sf.games, sf.offnight
             pv.fpg_week = pw / window.avg_team_games
             pre = " (preseason: first 7 days from opening night)" if window.preseason else ""
