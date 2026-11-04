@@ -331,9 +331,11 @@ def store_news(store_dir: str | Path | None, items: Iterable[NewsItem],
         d = it.model_dump(mode="json")
         d["seen"] = (raw.get(key) or {}).get("seen") or now
         raw[key] = d
-    raw = _prune(raw, datetime.now(timezone.utc))
+    ref = _ref_time(as_of)
+    # Retention follows the earlier of now and as_of, so a past as_of (a replay) keeps its window.
+    raw = _prune(raw, min(datetime.now(timezone.utc), ref))
     _write_store(path, raw)
-    return _newest_first(_items(_prune(raw, _ref_time(as_of))))
+    return _newest_first(_items(_prune(raw, ref)))
 
 
 def fetch_news(fetch_text: FetchText | None, store_dir: str | Path | None,
