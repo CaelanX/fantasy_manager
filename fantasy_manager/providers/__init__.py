@@ -45,5 +45,15 @@ def clear_league_cache(name: str, settings: Any, cache: Any) -> int:
     return 0
 
 
-__all__ = ["get_provider", "clear_league_cache", "ProviderError", "ProviderUnavailable", "LeagueProvider",
+def clear_status_cache(cache: Any) -> int:
+    """Drop the cached day-of status feeds: Daily Faceoff starting goalies and the ESPN injury
+    feed (the dashboard's Refresh), so late goalie confirmations and injury updates show up.
+    Line combinations, NHL stats and news stay cached. Returns how many entries were removed."""
+    from .dailyfaceoff import clear_goalie_cache
+    from .injuries import clear_cache as clear_injury_cache
+
+    return clear_goalie_cache(cache) + clear_injury_cache(cache)
+
+
+__all__ = ["get_provider", "clear_league_cache", "clear_status_cache", "ProviderError", "ProviderUnavailable", "LeagueProvider",
            "PROVIDERS"]

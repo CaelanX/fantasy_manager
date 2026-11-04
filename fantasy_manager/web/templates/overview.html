@@ -173,11 +173,30 @@
 </section>
 
 <section id="free-agents" aria-labelledby="h-fa">
-  <h2 id="h-fa">Free agents <span class="aside">top {{ free_agents|length }} by VORP</span></h2>
+  <h2 id="h-fa">Free agents <span class="aside">top {{ free_agents|length }} by {{ FA_SORTS[fa_filter.sort] if fa_filter else 'season VORP' }}</span></h2>
+  {% if fa_filter %}
+  <form method="get" action="{{ path }}#free-agents" class="filterbar" aria-label="Filter free agents">
+    <input type="hidden" name="league" value="{{ league }}">
+    {% if kind != 'all' %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    <span class="fgroup"><label for="fa-pos">Position</label>
+    <select id="fa-pos" name="fa_pos">
+      <option value=""{% if not fa_filter.pos %} selected{% endif %}>Any</option>
+      {% for p in POSITION_FILTERS %}<option value="{{ p }}"{% if fa_filter.pos == p %} selected{% endif %}>{{ 'F (any forward)' if p == 'F' else p }}</option>{% endfor %}
+    </select></span>
+    <span class="fgroup"><label for="fa-q">Name</label>
+    <input id="fa-q" name="fa_q" type="search" value="{{ fa_filter.q or '' }}" placeholder="search" autocomplete="off"></span>
+    <span class="fgroup"><label for="fa-sort">Sort</label>
+    <select id="fa-sort" name="fa_sort">
+      {% for k, label in FA_SORTS.items() %}<option value="{{ k }}"{% if fa_filter.sort == k %} selected{% endif %}>{{ label|capitalize }}</option>{% endfor %}
+    </select></span>
+    <button type="submit" class="btn">Apply</button>
+    {% if fa_filter.active %}<a class="reset" href="{{ path }}?league={{ league }}{% if kind != 'all' %}&amp;kind={{ kind }}{% endif %}#free-agents">Clear filters</a>{% endif %}
+  </form>
+  {% endif %}
   {% if free_agents %}
-  {{ player_table(free_agents, 'Best free agents by value over replacement') }}
+  {{ player_table(free_agents, 'Best free agents') }}
   {% else %}
-  <p class="empty">No free agents loaded.</p>
+  <p class="empty">{% if fa_filter and fa_filter.active %}No free agents match these filters.{% else %}No free agents loaded.{% endif %}</p>
   {% endif %}
 </section>
 {% endblock %}

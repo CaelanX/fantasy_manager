@@ -167,6 +167,15 @@ def goalies_url(day: date) -> str:
     return f"{BASE_URL}/starting-goalies/{day.isoformat()}"
 
 
+GOALIES_PREFIX = f"{BASE_URL}/starting-goalies/"
+
+
+def clear_goalie_cache(cache: Any) -> int:
+    """Drop every cached starting-goalies page (``HttpCache``) so the next load sees late
+    confirmations; team line pages are kept. Returns how many entries were removed."""
+    return cache.clear(url_contains=GOALIES_PREFIX)
+
+
 def ttl_for(url: str) -> float:
     return TTL_GOALIES if "/starting-goalies/" in url else TTL_LINES
 

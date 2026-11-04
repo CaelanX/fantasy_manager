@@ -694,8 +694,40 @@ def draft_picks(res: Any, team: FantasyTeam | None) -> list[dict[str, Any]]:
              "net": a.net, "inferred": a.inferred} for a in held]
 
 
-def free_agents(res: Any, limit: int = 15) -> list[dict[str, Any]]:
-    fas = sorted(res.ctx.free_agents, key=lambda p: -(_num(getattr(res.values.get(p.cid), "vorp", None)) or -99.0))
+# free-agent list sort keys (query value -> label); "vorp" is the default
+FA_SORTS = {"vorp": "season VORP", "fpg_week": "FPG this week", "games": "games this week"}
+
+
+def _fa_pos_ok(p: Player, pos: str | None) -> bool:
+    if not pos:
+        return True
+    ps = set(p.positions)
+    return bool(ps & {"C", "LW", "RW", "F"}) if pos == "F" else pos in ps
+
+
+def free_agents(res: Any, limit: int = 15, pos: str | None = None, q: str | None = None,
+                sort: str = "vorp") -> list[dict[str, Any]]:
+    """The best ``limit`` free agents: optionally one position (``POSITION_FILTERS``; F = any
+    forward) and a name search (accent / case-insensitive substring), sorted by season VORP
+    (default), FPG this week or NHL games this week (then VORP)."""
+    from ..matching.normalize import normalize_name
+
+    pos = pos if pos in POSITION_FILTERS else None
+    sort = sort if sort in FA_SORTS else "vorp"
+    needle = normalize_name(q) if q else ""
+
+    def num(p: Player, attr: str) -> float:
+        v = _num(getattr(res.values.get(p.cid), attr, None))
+        return -99.0 if v is None else v
+
+    fas = [p for p in res.ctx.free_agents
+           if _fa_pos_ok(p, pos) and (not needle or needle in normalize_name(p.name))]
+    if sort == "games":
+        rows = [player_row(res, p, owner="FA") for p in fas]
+        rows.sort(key=lambda r: (-(r["games_n"] if r["games_n"] is not None else -1), -num(r["p"], "vorp")))
+        return rows[:limit]
+    attr = "fpg_week" if sort == "fpg_week" else "vorp"
+    fas.sort(key=lambda p: (-num(p, attr), -num(p, "vorp")))
     return [player_row(res, p, owner="FA") for p in fas[:limit]]
 
 
@@ -710,6 +742,76 @@ def league_injuries(res: Any, limit: int = 15) -> list[dict[str, Any]]:
                 rows.append(player_row(res, s.player, slot=s.slot, owner=t.name))
     rows.sort(key=lambda x: -(x["fpg"] or 0.0))
     return rows[:limit]
+
+
+# --------------------------------------------------------------------------- trade evaluator
+
+def _side_rows(res: Any, team: FantasyTeam, chosen: set[str]) -> list[dict[str, Any]]:
+    rows = []
+    for s in sorted((s for s in team.slots if s.player is not None),
+                    key=lambda s: -(_num(getattr(res.values.get(s.player.cid), "fpg_season", None)) or -99.0)):
+        p = s.player
+        pv = res.values.get(p.cid)
+        rows.append({"cid": p.cid, "name": p.name, "pos": pos_str(p), "team": p.team or "FA", "slot": s.slot,
+                     "status": p.status, "fpg": _num(getattr(pv, "fpg_season", None)),
+                     "vorp": _num(getattr(pv, "vorp", None)),
+                     "dyn": _num(getattr((res.dynasty or {}).get(p.cid), "value", None)),
+                     "checked": p.cid in chosen})
+    return rows
+
+
+def trade_eval_page(res: Any, team_id: str | None, give: Iterable[str], get: Iterable[str],
+                    give_picks: Iterable[str] = (), get_picks: Iterable[str] = (), provider: Any = None,
+                    evaluate: bool = True) -> dict[str, Any]:
+    """The Trade evaluator page: both rosters (and draft picks, dynasty leagues with pick data) as
+    checkboxes, and, once anything is chosen (and ``evaluate``: False when the form only switched
+    teams), ``recommend.trades.evaluate_offer`` on the offer (``offer_summary``: the same numbers
+    as ``fm trade-eval``)."""
+    from ..recommend.trades import (evaluate_offer, offer_summary, pick_assets, trade_block_offered,
+                                    trade_block_wants)
+
+    ctx = res.ctx
+    me = next((t for t in ctx.teams if t.owner_is_me), None)
+    others = [t for t in ctx.teams if not t.owner_is_me]
+    give, get = [c for c in give if c], [c for c in get if c]
+    give_picks, get_picks = [k for k in give_picks if k], [k for k in get_picks if k]
+    team = next((t for t in others if t.team_id == team_id), None)
+    if team is None and get:      # the owner of the players asked for
+        team = next((t for t in others if any(p.cid in get for p in t.players)), None)
+    team = team or (others[0] if others else None)
+    out: dict[str, Any] = {"teams": [{"team_id": t.team_id, "name": t.name} for t in others], "team": team,
+                           "my_rows": [], "their_rows": [], "my_picks": [], "their_picks": [],
+                           "result": None, "rec": None, "error": None}
+    if me is None or team is None:
+        out["error"] = "No other teams loaded." if me is not None else "Your team was not found in the league."
+        return out
+    theirs = {p.cid for p in team.players}
+    get = [c for c in get if c in theirs]             # switching teams drops the other team's players
+    out["my_rows"] = _side_rows(res, me, set(give))
+    out["their_rows"] = _side_rows(res, team, set(get))
+    try:
+        picks = _memo(res, "trade_eval_picks", lambda: pick_assets(ctx, res.values, getattr(res, "dynasty", None)))
+    except Exception:  # noqa: BLE001 - picks are optional
+        picks = {}
+    held_theirs = {a.key for a in picks.get(team.team_id, [])}
+    get_picks = [k for k in get_picks if k in held_theirs]
+    out["my_picks"] = [{"key": a.key, "label": a.short(me.team_id), "value": a.value, "net": a.net,
+                        "checked": a.key in give_picks}
+                       for a in sorted(picks.get(me.team_id, []), key=lambda a: (a.year, a.round))]
+    out["their_picks"] = [{"key": a.key, "label": a.short(team.team_id), "value": a.value, "net": a.net,
+                           "checked": a.key in get_picks}
+                          for a in sorted(picks.get(team.team_id, []), key=lambda a: (a.year, a.round))]
+    if not evaluate or not (give or get or give_picks or get_picks):
+        return out
+    try:
+        o = evaluate_offer(ctx, res.values, give, get, team_id=team.team_id,
+                           dynasty_values=getattr(res, "dynasty", None), give_picks=give_picks, get_picks=get_picks,
+                           wants=trade_block_wants(ctx, provider), offered=trade_block_offered(provider))
+        out["result"] = offer_summary(o)
+        out["rec"] = o.rec
+    except (LookupError, ValueError) as e:
+        out["error"] = str(e.args[0] if e.args else e)
+    return out
 
 
 # --------------------------------------------------------------------------- player page

@@ -1183,6 +1183,17 @@ class _TradeEngine:
             ev.acceptance = self._accept(ev)
         return ev
 
+    def with_picks(self, ev: TradeEval, give_picks: Sequence[Any] = (), get_picks: Sequence[Any] = ()
+                   ) -> TradeEval:
+        """A copy of ``ev`` (which carries no picks) with draft picks added: each pick counts in my
+        dynasty change at its ``net`` value (over the roster spot the draftee takes) and in their
+        view at its full value (``pick_worth``, via ``p_accept``)."""
+        var = replace(ev, give_picks=list(give_picks), get_picks=list(get_picks))
+        var.delta_dyn = ev.delta_dyn + sum(a.net for a in get_picks) - sum(a.net for a in give_picks)
+        var.delta_dyn_n = var.delta_dyn / self.scale if self.mode is not None else 0.0
+        var.acceptance = self._accept(var)
+        return var
+
     def with_pick(self, ev: TradeEval) -> TradeEval | None:
         """``ev`` with one draft pick added to balance it: when the market calls it far in their
         favour (perceived > PICK_ASK_MIN) the pick of theirs that gives the best EV while they
@@ -1204,10 +1215,7 @@ class _TradeEngine:
             return None
         best: TradeEval | None = None
         for a in options:
-            var = replace(ev, give_picks=[a] if side == "give" else [], get_picks=[a] if side == "get" else [])
-            var.delta_dyn = ev.delta_dyn + (a.net if side == "get" else -a.net)
-            var.delta_dyn_n = var.delta_dyn / self.scale
-            var.acceptance = self._accept(var)
+            var = self.with_picks(ev, give_picks=[a] if side == "give" else [], get_picks=[a] if side == "get" else [])
             if not var.accepted or (ev.accepted and var.ev <= ev.ev):
                 continue
             if side == "give":
@@ -1420,17 +1428,311 @@ def evaluate_trade(ctx: LeagueContext, values: Mapping[str, Any], give: list[str
                    wants: Mapping[str, set[str]] | None = None,
                    lineup_fn: LineupFn | None | bool = None,
                    offered: Mapping[str, set[str]] | None = None,
-                   accept_params: AcceptParams | None = None) -> TradeEval:
-    """Evaluate an arbitrary n-for-m proposal (cids). team_id defaults to the owner of `get`."""
+                   accept_params: AcceptParams | None = None,
+                   give_picks: Sequence[Any] = (), get_picks: Sequence[Any] = ()) -> TradeEval:
+    """Evaluate an arbitrary n-for-m proposal (cids). team_id defaults to the owner of `get`
+    (or of the first of `get_picks`). `give_picks` / `get_picks`: draft picks (``PickAsset`` or
+    its ``key``, "pick:<year>:<round>:<original team id>"), dynasty leagues with pick data only."""
     eng = _TradeEngine(ctx, values, dynasty_values, wants, lineup_fn, offered, accept_params)
+    return _evaluate_with(eng, give, get, team_id, give_picks, get_picks)
+
+
+def _evaluate_with(eng: "_TradeEngine", give: Sequence[str], get: Sequence[str], team_id: str | None,
+                   give_picks: Sequence[Any] = (), get_picks: Sequence[Any] = ()) -> TradeEval:
+    """The one scoring path for a given proposal (``evaluate_trade``, ``evaluate_offer``):
+    ``_TradeEngine.evaluate`` without the screen, exact lineups, then any picks added in."""
+    ctx = eng.ctx
     by_cid = {p.cid: p for t in ctx.teams for p in t.players}
+    missing = [c for c in list(give) + list(get) if c not in by_cid]
+    if missing:
+        raise LookupError(f"not on any roster: {', '.join(missing)}")
+    me = ctx.my_team.team_id
     if team_id is None:
-        owner = [t.team_id for t in ctx.teams if not t.owner_is_me
-                 and {p.cid for p in t.players} >= set(get)]
+        if get:
+            owner = [t.team_id for t in ctx.teams if not t.owner_is_me
+                     and {p.cid for p in t.players} >= set(get)]
+        else:
+            holders = {a.holder for a in _pick_assets(eng, get_picks)}
+            owner = sorted(h for h in holders if h != me)
         if not owner:
             raise LookupError("could not find a single team owning all requested players")
         team_id = owner[0]
-    return eng.evaluate(team_id, [by_cid[c] for c in give], [by_cid[c] for c in get], screen=False)
+    if team_id not in eng.sides or team_id == me:
+        raise LookupError(f"unknown counterparty team {team_id!r}")
+    mine = {p.cid for p in ctx.my_team.players}
+    theirs = {p.cid for p in eng.sides[team_id].team.players}
+    if not set(give) <= mine:
+        raise LookupError(f"not on your roster: {', '.join(by_cid[c].name for c in give if c not in mine)}")
+    if not set(get) <= theirs:
+        raise LookupError(f"not on {eng.sides[team_id].team.name}'s roster: "
+                          f"{', '.join(by_cid[c].name for c in get if c not in theirs)}")
+    ev = eng.evaluate(team_id, [by_cid[c] for c in give], [by_cid[c] for c in get], screen=False)
+    gp, tp = _pick_assets(eng, give_picks), _pick_assets(eng, get_picks)
+    for a in gp:
+        if a.holder != me:
+            raise LookupError(f"you do not hold the {a.label} pick")
+    for a in tp:
+        if a.holder != team_id:
+            raise LookupError(f"{ev.team.name} does not hold the {a.label} pick")
+    return eng.with_picks(ev, gp, tp) if gp or tp else ev
+
+
+def _pick_assets(eng: "_TradeEngine", picks: Sequence[Any]) -> list[Any]:
+    """PickAssets for ``picks`` (PickAsset objects or their ``key``s)."""
+    if not picks:
+        return []
+    if not eng.picks:
+        raise ValueError("draft picks can only be traded in dynasty leagues whose provider reports picks (Fantrax)")
+    by_key = {a.key: a for ps in eng.picks.values() for a in ps}
+    out = []
+    for x in picks:
+        a = by_key.get(x if isinstance(x, str) else getattr(x, "key", None))
+        if a is None:
+            raise LookupError(f"unknown draft pick {x!r}")
+        out.append(a)
+    return out
+
+
+# -- evaluating a specific offer (`fm trade-eval`, the web Trade evaluator) ------------------
+
+EVAL_ACCEPT_EDGE = 0.1       # an offer is worth accepting from this edge (FPG, or the mode's blend)
+EVAL_DECLINE_EDGE = -0.3     # ... and clearly bad below this; counter in between
+
+
+@dataclass
+class OfferEval:
+    """A specific trade offer judged from my side: the scored deal (``ev``), its reasons in the
+    proposal format (``rec``: MY_EDGE, MARKET_VIEW, MARKET_CHECK, ...), and a verdict."""
+    ev: TradeEval
+    rec: Recommendation
+    verdict: str                          # "accept" | "counter" | "decline"
+    why: list[str]
+    counter: str | None = None            # a concrete counter (one of their picks to ask for)
+    units: str = "VORP"
+
+
+def _verdict(ev: TradeEval) -> tuple[str, list[str]]:
+    """(accept / counter / decline, reasons) for an offer, from the same quantities the proposal
+    filters use: legality and protected drops, my edge (ΔMe or the dynasty mode's blend), the
+    mode's this-season floor and the market overpay."""
+    edge = ev.my_edge
+    if ev.my_illegal:
+        return "decline", [f"Your roster would be illegal after it ({ev.my_illegal})"]
+    if ev.blocked:
+        return "decline", [f"The deal {ev.blocked}"]
+    why: list[str] = []
+    floor_broken = ev.win_now_cost or (ev.mode == "balanced" and ev.delta_me < -BALANCED_TOLERANCE)
+    if floor_broken:
+        tol = WIN_NOW_TOLERANCE if ev.mode == "contend" else BALANCED_TOLERANCE
+        why.append(f"It costs this season's lineup {-ev.delta_me:.2f} pts/game ({ev.mode} mode allows {tol:g})")
+    label = "your edge" if ev.mode is None else f"your {ev.mode} edge"
+    if edge < EVAL_DECLINE_EDGE:
+        return "decline", [f"You lose: {label} {edge:+.2f} pts/game-equivalent"] + why
+    if floor_broken:
+        return ("counter" if edge > 0 else "decline"), why + [f"{label} {edge:+.2f}"]
+    if edge < EVAL_ACCEPT_EDGE:
+        return "counter", [f"Too close to call: {label} {edge:+.2f}; ask for a little more"]
+    if ev.clear_overpay and edge < OVERPAY_MIN_EDGE:
+        return "counter", [f"You gain ({label} {edge:+.2f}) but hand over {ev.market_overpay:.0f} market worth pts: "
+                           f"{market_label(ev.market_overpay).lower()}, so ask for more"]
+    why.insert(0, f"You gain: {label} {edge:+.2f}")
+    if ev.market_overpay < -3.0:
+        why.append(f"{market_label(ev.market_overpay)} by market value")
+    return "accept", why
+
+
+def _counter_pick(eng: "_TradeEngine", ev: TradeEval) -> Any:
+    """The cheapest of their picks that turns a counter into an accept they plausibly take."""
+    if eng.mode is None or ev.give_picks or ev.get_picks:
+        return None
+    for a in sorted(eng.picks.get(ev.team.team_id, []), key=lambda a: a.value):
+        var = eng.with_picks(ev, get_picks=[a])
+        if _verdict(var)[0] == "accept" and var.p >= MIN_P_ACCEPT:
+            return a
+    return None
+
+
+def evaluate_offer(ctx: LeagueContext, values: Mapping[str, Any], give: Sequence[str], get: Sequence[str],
+                   team_id: str | None = None, dynasty_values: Mapping[str, Any] | None = None,
+                   give_picks: Sequence[Any] = (), get_picks: Sequence[Any] = (),
+                   wants: Mapping[str, set[str]] | None = None, offered: Mapping[str, set[str]] | None = None,
+                   lineup_fn: LineupFn | None | bool = None,
+                   accept_params: AcceptParams | None = None) -> OfferEval:
+    """Judge one specific offer (cids / pick keys, as ``evaluate_trade``) from my side: the same
+    scoring as the proposal generator, its reasons (``_to_rec``, with MARKET_CHECK) and a
+    verdict: accept (edge >= EVAL_ACCEPT_EDGE, the mode's floor holds, not a clear market overpay
+    unless the edge is large), decline (illegal for me, a protected drop, or edge <
+    EVAL_DECLINE_EDGE), counter otherwise (with the cheapest of their picks that fixes it, when
+    one does)."""
+    if not give and not get and not give_picks and not get_picks:
+        raise ValueError("an offer needs at least one player or pick on some side")
+    eng = _TradeEngine(ctx, values, dynasty_values, wants, lineup_fn, offered, accept_params)
+    ev = _evaluate_with(eng, give, get, team_id, give_picks, get_picks)
+    rec = apply_strength([_to_rec(ev, eng.V, eng.units, eng.lineup.source, eng.market)])[0]
+    verdict, why = _verdict(ev)
+    counter = None
+    if verdict == "counter":
+        a = _counter_pick(eng, ev)
+        if a is not None:
+            counter = f"Ask {ev.team.name} to add their {a.short(ev.team.team_id)} pick"
+    return OfferEval(ev=ev, rec=rec, verdict=verdict, why=why, counter=counter, units=eng.units)
+
+
+def offer_summary(o: OfferEval) -> dict[str, Any]:
+    """Plain-data view of an ``OfferEval`` (``fm trade-eval --json``, the web evaluator)."""
+    ev, r = o.ev, o.rec
+    rate = ev.rate or DEFAULT_RATE
+    acc = ev.acceptance
+    team_id = ev.team.team_id
+
+    def pl(ps: Iterable[Player]) -> list[dict[str, Any]]:
+        return [{"cid": p.cid, "name": p.name, "positions": list(p.positions), "team": p.team} for p in ps]
+
+    def pk(a: Any, holder: str) -> dict[str, Any]:
+        return {"key": a.key, "label": a.short(holder), "value": round(a.value, 2), "net": round(a.net, 2)}
+
+    fair_dev = None if ev.fair_dev == math.inf else round(ev.fair_dev, 3)
+    return {
+        "team": ev.team.name, "team_id": team_id,
+        "give": pl(ev.give), "get": pl(ev.get),
+        "give_picks": [pk(a, a.holder) for a in ev.give_picks],
+        "get_picks": [pk(a, team_id) for a in ev.get_picks],
+        "verdict": o.verdict, "verdict_reasons": list(o.why), "counter": o.counter,
+        "my_gain": {"fpg": round(ev.delta_me, 3), "week": round(gain_week(ev.delta_me, rate), 2),
+                    "season": round(gain_season(ev.delta_me, rate), 1)},
+        "their_gain": {"fpg": round(ev.delta_them, 3)},
+        "my_edge": round(ev.my_edge, 3), "mode": ev.mode, "units": o.units,
+        "dynasty_delta": None if ev.mode is None else {"value": round(ev.delta_dyn, 2),
+                                                       "fpg_equiv": round(ev.delta_dyn_n, 3)},
+        "fairness": {"value_in": round(ev.v_in, 2), "value_out": round(ev.v_out, 2), "model_gap": fair_dev,
+                     "model_fair": ev.fair,
+                     "market_to_them": round(ev.market_overpay, 1) if acc is not None else None,
+                     "market_label": market_label(ev.market_overpay) if acc is not None else None,
+                     "p_accept": round(acc.p, 3) if acc is not None else None},
+        "roster": _roster_text(ev),
+        "market_check": [x.text for x in r.reasons if x.code == "MARKET_CHECK"],
+        "reasons": [x.model_dump(mode="json") for x in r.reasons],
+    }
+
+
+def trade_block_wants(ctx: LeagueContext, provider: Any) -> dict[str, set[str]] | None:
+    """team_id -> positions wanted, from the provider's trade blocks (Fantrax): positions wanted
+    plus the positions of specific players wanted. None when the provider has no trade blocks."""
+    blocks = getattr(provider, "trade_blocks", None) or []
+    by_cid = {p.cid: p for p in ctx.all_players()}
+    wants: dict[str, set[str]] = {}
+    for b in blocks:
+        tid = str(getattr(b, "team_id", "") or "")
+        pos = {x for x in (getattr(b, "positions_wanted", None) or []) if x and x not in ("BN", "IR", "UTIL")}
+        for cid in getattr(b, "players_wanted", None) or []:
+            p = by_cid.get(cid)
+            if p is not None:
+                pos |= {x for x in p.positions if x != "F"}
+        if tid and pos:
+            wants[tid] = pos
+    return wants or None
+
+
+def trade_block_offered(provider: Any) -> dict[str, set[str]] | None:
+    """team_id -> player cids that team offers on its trade block (None without blocks)."""
+    out: dict[str, set[str]] = {}
+    for b in getattr(provider, "trade_blocks", None) or []:
+        tid = str(getattr(b, "team_id", "") or "")
+        cids = {c for c in getattr(b, "players_offered", None) or [] if c}
+        if tid and cids:
+            out[tid] = cids
+    return out or None
+
+
+# -- name resolution for user-typed offers ---------------------------------------------------
+
+def find_players(queries: Iterable[str], pool: Sequence[Player]) -> list[Player]:
+    """Players in ``pool`` for typed names: cid or exact normalized name, else every query token
+    in the name ("mcdavid", "c mcdavid"), else the fuzzy matcher (``matching.matcher``).
+    LookupError names the unmatched or ambiguous query."""
+    from ..matching.matcher import Candidate, PlayerIndex
+    from ..matching.normalize import normalize_name
+
+    pool = list({p.cid: p for p in pool}.values())
+    norm = {p.cid: normalize_name(p.name) for p in pool}
+    index: PlayerIndex | None = None
+    out: list[Player] = []
+    for raw in queries:
+        q = raw.strip()
+        if not q:
+            continue
+        nq = normalize_name(q)
+        hits = [p for p in pool if p.cid == q] or [p for p in pool if norm[p.cid] == nq]
+        if not hits and nq:
+            toks = nq.split()
+            hits = [p for p in pool
+                    if all(any(w == t or (len(t) == 1 and w.startswith(t)) for w in norm[p.cid].split())
+                           for t in toks)]
+        if not hits and nq:
+            index = index or PlayerIndex(Candidate(key=p.cid, name=p.name, team=p.team) for p in pool)
+            m = index.match(q)
+            if m.confidence != "none":
+                hits = [p for p in pool if p.cid == m.key]
+        if not hits:
+            raise LookupError(f"no player matching {q!r}")
+        if len(hits) > 1:
+            raise LookupError(f"{q!r} is ambiguous: " + ", ".join(f"{p.name} ({p.team or '?'})" for p in hits[:6]))
+        out.append(hits[0])
+    return out
+
+
+def find_team(ctx: LeagueContext, query: str) -> FantasyTeam:
+    """A team by id, exact name, or a unique case-insensitive name substring."""
+    q = query.strip().lower()
+    teams = list(ctx.teams)
+    hits = ([t for t in teams if t.team_id.lower() == q] or [t for t in teams if t.name.lower() == q]
+            or [t for t in teams if q and q in t.name.lower()])
+    if len(hits) != 1:
+        names = ", ".join(t.name for t in (hits or teams))
+        raise LookupError(f"{'ambiguous' if hits else 'no'} team matching {query!r} ({names})")
+    return hits[0]
+
+
+def find_pick(picks: Sequence[Any], spec: str, holder_id: str) -> Any:
+    """The pick ``holder_id`` holds matching ``spec``: "2027 R1", "2027 1", "2027 round 1",
+    optionally naming the original team ("2027 R1 (from Team X)", "2027 R1 Team X"), or a pick
+    key ("pick:2027:1:<team id>"). Without a team, the holder's own pick wins a tie."""
+    import re
+
+    s = spec.strip()
+    held = [a for a in picks if a.holder == holder_id]
+    if s.startswith("pick:"):
+        hit = [a for a in held if a.key == s]
+        if hit:
+            return hit[0]
+        raise LookupError(f"no held pick {s!r}")
+    m = re.match(r"^\s*(\d{4})\s*(?:r|rd|round)?\s*(\d+)\s*(.*)$", s, re.IGNORECASE)
+    if not m:
+        raise LookupError(f"bad pick {spec!r}: use e.g. \"2027 R1\" or \"2027 R2 (from Team X)\"")
+    year, rnd, rest = int(m.group(1)), int(m.group(2)), m.group(3)
+    rest = re.sub(r"^\(?\s*(from\s+)?|\)\s*$", "", rest.strip(), flags=re.IGNORECASE).strip().lower()
+    hits = [a for a in held if a.year == year and a.round == rnd]
+    if rest:
+        hits = [a for a in hits if rest in a.original_name.lower() or rest == a.original.lower()]
+    elif len(hits) > 1:
+        hits = [a for a in hits if a.original == holder_id] or hits
+    if not hits:
+        avail = ", ".join(a.short(holder_id) for a in sorted(held, key=lambda a: (a.year, a.round))) or "none"
+        raise LookupError(f"no pick matching {spec!r} (held: {avail})")
+    if len(hits) > 1:
+        raise LookupError(f"{spec!r} is ambiguous: " + ", ".join(a.short(holder_id) for a in hits))
+    return hits[0]
+
+
+def pick_assets(ctx: LeagueContext, values: Mapping[str, Any],
+                dynasty_values: Mapping[str, Any] | None = None) -> dict[str, list[Any]]:
+    """Valued draft picks by holder team id, exactly as the trade engine values them ({} outside
+    dynasty leagues with pick data)."""
+    V, units, _ = trade_values(ctx, values, dynasty_values)
+    if units != "dynasty" or not ctx.draft_picks:
+        return {}
+    from ..valuation.picks import picks_by_holder, value_picks
+    return picks_by_holder(value_picks(ctx, values, V))
 
 
 def diverse(evals: Iterable[TradeEval], n: int, per_team: int, per_given: int = MAX_PER_GIVEN,

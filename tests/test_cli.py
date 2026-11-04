@@ -636,3 +636,35 @@ def test_settings_line_for_games_played_limits():
     assert _stat_limits_line(SimpleNamespace(stat_limits=["G: limit 82 (stat 32)"])) == \
         "Games-played limits: G: limit 82 (stat 32) (shown only: fm does not enforce them yet)"
 
+
+
+def test_trade_eval_command(monkeypatch, tmp_path):
+    _patch2(monkeypatch, tmp_path)
+    res = runner.invoke(cli.app, ["trade-eval", "--give", "my_c2", "--get", "opp_lw"])
+    assert res.exit_code == 0, res.output
+    assert "Trade with them" in res.output and "Verdict: ACCEPT" in res.output
+    assert "Your lineup" in res.output and "Their lineup" in res.output and "Fairness (market)" in res.output
+    res = runner.invoke(cli.app, ["--json", "trade-eval", "--give", "my_c2,my_lw", "--get", "opp_lw",
+                                  "--team", "them"])
+    assert res.exit_code == 0, res.output
+    data = json.loads(res.output)
+    o = data["offer"]
+    assert o["team"] == "them" and [p["cid"] for p in o["give"]] == ["my_c2", "my_lw"]
+    assert o["verdict"] in ("accept", "counter", "decline") and "my_gain" in o and "their_gain" in o
+    assert data["recommendation"]["kind"] == "trade" and data["errors"] == []
+
+
+def test_trade_eval_bad_input(monkeypatch, tmp_path):
+    _patch2(monkeypatch, tmp_path)
+    assert runner.invoke(cli.app, ["trade-eval"]).exit_code == 2                         # nothing named
+    res = runner.invoke(cli.app, ["trade-eval", "--give", "my_c2", "--get", "nobody here"])
+    assert res.exit_code == 2 and "no player" in res.output
+    res = runner.invoke(cli.app, ["trade-eval", "--give", "my_c2", "--get", "opp_lw", "--team", "zzz"])
+    assert res.exit_code == 2 and "no team" in res.output
+    res = runner.invoke(cli.app, ["trade-eval", "--give", "my_c2", "--get-pick", "2027 R1", "--team", "them"])
+    assert res.exit_code == 2 and "dynasty" in res.output
+
+
+def test_split_names():
+    assert cli._split_names(["A, B", "C", " "]) == ["A", "B", "C"]
+    assert cli._split_names(None) == []

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pill, reasons_table with context %}
+{% block heading %}
+<p class="sc dateline">{{ res.ctx.name }} &middot; same scoring as Moves</p>
+<h1>Trade evaluator</h1>
+<p class="sub">Got an offer? Tick what you send and what you get. You get your lineup's gain, theirs, fairness by our model and by market value, and a verdict.</p>
+{% endblock %}
+{% block content %}
+{% macro side_list(rows, name, legend) -%}
+<fieldset class="te-side">
+  <legend>{{ legend }}</legend>
+  {% if rows %}
+  <ul class="te-list">
+    {% for x in rows %}
+    <li><label class="te-opt">
+      <input type="checkbox" name="{{ name }}" value="{{ x.cid }}"{% if x.checked %} checked{% endif %}>
+      <span class="te-name">{{ x.name }} <small class="muted">{{ x.pos }} &middot; {{ x.team }}{% if x.slot in ('IR', 'IR+') %} &middot; IR{% endif %}</small>{% if x.status not in ('healthy', 'unknown') %} {{ pill(x.status) }}{% endif %}</span>
+      <span class="te-val">{{ x.fpg|n1 }} <small class="muted">{{ vlabel }}</small>{% if x.dyn is not none %} &middot; {{ x.dyn|n1 }} <small class="muted">dyn</small>{% endif %}</span>
+    </label></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="empty">No players.</p>{% endif %}
+</fieldset>
+{%- endmacro %}
+{% macro pick_list(picks, name, legend) -%}
+{% if picks %}
+<fieldset class="te-side te-picks">
+  <legend>{{ legend }}</legend>
+  <ul class="te-list">
+    {% for a in picks %}
+    <li><label class="te-opt">
+      <input type="checkbox" name="{{ name }}" value="{{ a.key }}"{% if a.checked %} checked{% endif %}>
+      <span class="te-name">{{ a.label }}</span>
+      <span class="te-val">{{ a.value|n1 }} <small class="muted">value</small> &middot; {{ a.net|n1 }} <small class="muted">net</small></span>
+    </label></li>
+    {% endfor %}
+  </ul>
+</fieldset>
+{% endif %}
+{%- endmacro %}
+
+{% set r = result %}
+{% if r %}
+<section id="te-result" aria-labelledby="h-te-result" class="te-result te-{{ r.verdict }}">
+  <h2 id="h-te-result">Verdict: {{ r.verdict|capitalize }} <span class="aside">trade with {{ r.team }}</span></h2>
+  <p class="te-deal">You send <b>{% for p in r.give %}{{ p.name }}{% if not loop.last or r.give_picks %}, {% endif %}{% endfor %}{% for a in r.give_picks %}your {{ a.label }} pick{% if not loop.last %}, {% endif %}{% endfor %}{% if not r.give and not r.give_picks %}nothing{% endif %}</b>;
+    you get <b>{% for p in r['get'] %}{{ p.name }}{% if not loop.last or r.get_picks %}, {% endif %}{% endfor %}{% for a in r.get_picks %}their {{ a.label }} pick{% if not loop.last %}, {% endif %}{% endfor %}{% if not r['get'] and not r.get_picks %}nothing{% endif %}</b>.</p>
+  <ul class="te-why">
+    {% for w in r.verdict_reasons %}<li>{{ w }}</li>{% endfor %}
+    {% if r.counter %}<li><b>Counter:</b> {{ r.counter }}</li>{% endif %}
+  </ul>
+  <dl class="te-kv">
+    <div><dt>Your lineup</dt><dd>{{ '%+.2f'|format(r.my_gain.fpg) }} pts/game &middot; {{ '%+.1f'|format(r.my_gain.week) }} pts/week &middot; {{ '%+.0f'|format(r.my_gain.season) }} rest of season</dd></div>
+    <div><dt>Their lineup</dt><dd>{{ '%+.2f'|format(r.their_gain.fpg) }} pts/game (our model)</dd></div>
+    <div><dt>Fairness (model)</dt><dd>you get {{ '%.2f'|format(r.fairness.value_in) }}, send {{ '%.2f'|format(r.fairness.value_out) }} {{ 'dynasty value' if r.units == 'dynasty' else 'season VORP' }}{% if r.fairness.model_gap is not none %} (gap {{ '%.0f'|format(r.fairness.model_gap * 100) }}%){% endif %}</dd></div>
+    {% if r.fairness.market_label %}<div><dt>Fairness (market)</dt><dd>{{ r.fairness.market_label }} ({{ '%+.0f'|format(r.fairness.market_to_them) }} worth pts to them); they would accept ~{{ '%.0f'|format(r.fairness.p_accept * 100) }}%</dd></div>{% endif %}
+    {% if r.dynasty_delta %}<div><dt>Dynasty value</dt><dd>{{ '%+.2f'|format(r.dynasty_delta.value) }} ({{ '%+.2f'|format(r.dynasty_delta.fpg_equiv) }} FPG-equivalent); {{ r.mode }} edge {{ '%+.2f'|format(r.my_edge) }}</dd></div>{% endif %}
+    <div><dt>Roster</dt><dd>{{ r.roster|replace('Roster: ', '') }}</dd></div>
+  </dl>
+  {% if r.market_check %}
+  <h3 class="sub-h">Market check</h3>
+  <ul class="te-why">{% for t in r.market_check %}<li>{{ t }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if rec %}
+  <details class="te-all"><summary>Every reason ({{ rec.reasons|length }})</summary>
+    {{ reasons_table(rec.reasons, 'Every reason for this evaluation') }}
+  </details>
+  {% endif %}
+</section>
+{% elif error %}
+<p class="flash flash-warn" role="status">{{ error }}</p>
+{% endif %}
+
+<section id="te-form" aria-labelledby="h-te-form">
+  <h2 id="h-te-form">{% if r %}Change the offer{% else %}The offer{% endif %}</h2>
+  {% if team %}
+  <form method="get" action="/trade-eval" class="te-form">
+    <input type="hidden" name="league" value="{{ league }}">
+    <div class="filterbar">
+      <span class="fgroup"><label for="te-team">Trade with</label>
+      <select id="te-team" name="team">
+        {% for t in teams %}<option value="{{ t.team_id }}"{% if t.team_id == team.team_id %} selected{% endif %}>{{ t.name }}</option>{% endfor %}
+      </select></span>
+      <button type="submit" class="btn btn-ghost" name="switch" value="1">Show their roster</button>
+    </div>
+    <div class="te-grid">
+      <div>
+        {{ side_list(my_rows, 'give', 'You send') }}
+        {{ pick_list(my_picks, 'give_pick', 'Your draft picks') }}
+      </div>
+      <div>
+        {{ side_list(their_rows, 'get', 'You get (' ~ team.name ~ ')') }}
+        {{ pick_list(their_picks, 'get_pick', team.name ~ "'s draft picks") }}
+      </div>
+    </div>
+    <p class="te-submit"><button type="submit" class="btn">Evaluate</button>
+      <a class="reset" href="/trade-eval?league={{ league }}">Clear</a></p>
+  </form>
+  {% endif %}
+  <p class="foot-note">Verdict: accept when your edge (lineup pts/game; in dynasty leagues the {{ data_mode }} blend with dynasty value) is at least +0.1 and the deal keeps your mode's this-season floor; decline below -0.3, when your roster would be illegal or a protected prospect must be dropped; counter in between, or when you hand over far more market value than a small edge justifies. Same CLI: <code>fm trade-eval</code>.</p>
+</section>
+{% endblock %}

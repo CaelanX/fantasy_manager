@@ -817,7 +817,7 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                        strength_info=views.strength_info, market_info=views.market_info, counterparty=views.counterparty,
                        rec_key=rec_key,
                        SKATER_RATES=views.SKATER_RATES, GOALIE_RATES=views.GOALIE_RATES,
-                       RATE_LABEL=views.RATE_LABEL, POSITION_FILTERS=views.POSITION_FILTERS,
+                       RATE_LABEL=views.RATE_LABEL, POSITION_FILTERS=views.POSITION_FILTERS, FA_SORTS=views.FA_SORTS,
                        EXPLAIN_FAILED=EXPLAIN_FAILED, auth_enabled=False, credits=views.credits,
                        limits_text=views.limits_text, exploits=views.exploits)
     env.globals.update(moves_text=_moves_footer)
@@ -848,7 +848,7 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
     def render(request: Request, name: str, league: str, status_code: int = 200, **ctx: Any) -> HTMLResponse:
         path = request.url.path
         switch_path = path if path in ("/", "/plan", "/overview", "/roster", "/recommendations", "/news",
-                                         "/health", "/schedule", "/matchup") else "/"
+                                         "/health", "/schedule", "/matchup", "/trade-eval") else "/"
         query = [(k, v) for k, v in request.query_params.multi_items() if k != "msg"]
         here = path + (f"?{urlencode(query)}" if query else "")
         cur_mode, cur_source = current_mode()
@@ -913,8 +913,9 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         return {"status": "ok", "cached": {lg: cache.age(lg) is not None for lg in LEAGUES}}
 
     @app.get("/", response_class=HTMLResponse)
-    def home_page(request: Request, league: str = LeagueQ, kind: str = "all"):
-        return plan(request, league) if home == "plan" else overview(request, league, kind)
+    def home_page(request: Request, league: str = LeagueQ, kind: str = "all", fa_pos: str | None = None,
+                  fa_q: str | None = None, fa_sort: str | None = None):
+        return plan(request, league) if home == "plan" else overview(request, league, kind, fa_pos, fa_q, fa_sort)
 
     @app.get("/plan", response_class=HTMLResponse)
     def plan(request: Request, league: str = LeagueQ):
@@ -940,7 +941,8 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         return render(request, "plan.html", league, res=res, title="This week", no_mode=True, **page)
 
     @app.get("/overview", response_class=HTMLResponse)
-    def overview(request: Request, league: str = LeagueQ, kind: str = "all"):
+    def overview(request: Request, league: str = LeagueQ, kind: str = "all", fa_pos: str | None = None,
+                 fa_q: str | None = None, fa_sort: str | None = None):
         res = load_or_error(request, league)
         if isinstance(res, Response):
             return res
@@ -961,13 +963,20 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
                 if ctx.dynasty and is_prospect(p, player_age(p, ctx.as_of, res.dynasty)):
                     prospects += 1
                 news.extend((p, n) for n in res.news_by_cid.get(p.cid, []))
+        fa_filter = {"pos": fa_pos if fa_pos in views.POSITION_FILTERS else None,
+                     "q": (fa_q or "").strip()[:60] or None,
+                     "sort": fa_sort if fa_sort in views.FA_SORTS else "vorp"}
+        fa_filter["active"] = bool(fa_filter["pos"] or fa_filter["q"] or fa_filter["sort"] != "vorp")
         epoch = datetime.min
         news.sort(key=lambda t: t[1].published.replace(tzinfo=None) if t[1].published else epoch, reverse=True)
         return render(request, "overview.html", league, res=res, team=team, kind=kind,
                       moves=shown[:OVERVIEW_MOVES], shown_total=len(shown), counts=kind_counts(res.recs),
                       summary=overview_summary(res.recs, alerts, prospects), alerts=alerts,
                       news=news[:4], total=len(res.recs), week=views.week_panel(res, team),
-                      standings=views.standings(res), free_agents=views.free_agents(res),
+                      standings=views.standings(res),
+                      free_agents=views.free_agents(res, pos=fa_filter["pos"], q=fa_filter["q"],
+                                                    sort=fa_filter["sort"]),
+                      fa_filter=fa_filter,
                       league_injuries=views.league_injuries(res),
                       matchup=views.matchup_strip(res, views.provider_for(loader, league)),
                       outlook=views.outlook_section(res, views.provider_for(loader, league)), title="Overview")
@@ -1097,6 +1106,19 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
         page = views.schedule_page(res, week, views.provider_for(loader, league))
         return render(request, "schedule.html", league, res=res, title="Schedule", **page)
 
+    @app.get("/trade-eval", response_class=HTMLResponse)
+    def trade_eval(request: Request, league: str = LeagueQ, team: str | None = None):
+        """Trade evaluator: tick players / picks on both sides (a GET form, so a result is a
+        shareable link); the verdict is ``recommend.trades.evaluate_offer`` (as ``fm trade-eval``)."""
+        res = load_or_error(request, league)
+        if isinstance(res, Response):
+            return res
+        q = request.query_params
+        page = views.trade_eval_page(res, team, q.getlist("give"), q.getlist("get"), q.getlist("give_pick"),
+                                     q.getlist("get_pick"), provider=views.provider_for(loader, league),
+                                     evaluate=not q.get("switch"))
+        return render(request, "trade_eval.html", league, res=res, title="Trade evaluator", **page)
+
     @app.get("/matchup", response_class=HTMLResponse)
     def matchup(request: Request, league: str = LeagueQ):
         res = load_or_error(request, league)
@@ -1199,18 +1221,23 @@ def create_app(loader: Loader | None = None, *, cache_ttl: float = CACHE_TTL,
 
     def clear_league_data(league: str) -> None:
         """Drop the provider's cached league responses (lineups etc.) so the reload reads the
-        league live, not the up-to-2-minute-old copy."""
+        league live, not the up-to-2-minute-old copy, and the day-of status feeds (Daily Faceoff
+        starting goalies, the ESPN injury feed) so late goalie confirmations show up."""
         try:
             from ..cache import HttpCache
             from ..config import get_settings
-            from ..providers import clear_league_cache
+            from .. import providers
 
             s = get_settings()
             if s.fm_offline:
                 return          # offline the cache is the only copy
             http = HttpCache(s.fm_data_dir)
             try:
-                clear_league_cache(league, s, http)
+                providers.clear_league_cache(league, s, http)
+                try:
+                    providers.clear_status_cache(http)
+                except Exception:  # noqa: BLE001 - the league data is the part that matters
+                    log.warning("could not clear the goalie / injury cache", exc_info=True)
             finally:
                 http.close()
         except Exception:  # noqa: BLE001 - a refresh must never fail on cache cleanup

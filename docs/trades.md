@@ -189,6 +189,49 @@ list), and the digest (trade lines show only the reader-facing reasons). Without
 sweet-spot list (advise, the web), up to half of the proposal slots are reserved for sweet-spot
 deals.
 
+## Evaluating a specific offer
+
+`fm trade-eval` and the web **Trade evaluator** (`/trade-eval`, under "Trade eval" in the nav)
+judge one offer, e.g. one another manager sent you:
+
+```
+fm trade-eval --give "Nylander, Misa" --get "Vejmelka" [--give-pick "2027 R1"] [--get-pick "2028 R2 (from Team X)"] [--team "Team X"] [--mode rebuild] [--json]
+```
+
+* Names are matched to rosters (`recommend.trades.find_players`): exact name or id, then every typed
+  word in the name ("mcdavid", "c mcdavid"), then the fuzzy matcher; an ambiguous name is an error
+  listing the candidates. `--give` / `--get` take comma-separated names and repeat.
+* The other team is `--team` (id, name or a unique part of it), else the owner of the `--get`
+  players (or of a `--get-pick`).
+* Picks are named as `fm picks` shows them: "2027 R1", "2027 1" or "2027 round 1", optionally the
+  original team ("2027 R2 (from Team X)", "2027 R2 Team X"), or a pick key
+  "pick:2027:2:<team id>". Without a team the holder's own pick wins a tie. Dynasty leagues with
+  pick data only (Fantrax).
+
+Scoring is the generator's (`evaluate_offer` and `evaluate_trade` share `_evaluate_with`, i.e.
+`_TradeEngine.evaluate` without the screen, then `_TradeEngine.with_picks`, the same pick
+arithmetic as the generator's pick sweeteners): ΔMe and ΔThem with the exact lineup solver,
+the model-value gap (season VORP, or dynasty value in dynasty leagues), ΔDyn and the mode's
+edge, the market view and acceptance, and the MARKET_CHECK reasons. The output shows your gain
+(per game, per week, rest of season), their gain, fairness by model and by market, the dynasty
+value change, the roster moves, the market check and a verdict:
+
+| verdict | when |
+|---|---|
+| decline | your roster would be illegal after it, a protected prospect must be dropped, or my edge < EVAL_DECLINE_EDGE (-0.3) |
+| counter | edge between -0.3 and EVAL_ACCEPT_EDGE (+0.1); the contend / balanced this-season floor is broken but the edge is still positive; or a clear market overpay (> 10 worth points to them) with an edge under OVERPAY_MIN_EDGE (1.0) |
+| accept | otherwise (edge >= +0.1, floor kept, no unjustified overpay) |
+
+The thresholds are lower than the generator's MIN_GAIN_ME (0.3): proposing a trade costs a
+message and goodwill, accepting one you already hold does not. A counter names the cheapest of
+their picks that would turn it into an accept they still plausibly take (p_accept >= 0.25), when
+one exists. `--json` returns `offer` (`offer_summary`: verdict, verdict_reasons, counter,
+my_gain, their_gain, my_edge, mode, dynasty_delta, fairness, roster, market_check, reasons) and
+`recommendation` (the full trade Recommendation).
+
+The web page ticks players (and picks) on both rosters in a GET form, so a result is a
+shareable link; "Show their roster" switches teams without evaluating.
+
 ## Exploits: teams under roster pressure
 
 A manager who has to make a move is easier to deal with. `recommend.trades.exploit_opportunities(ctx,
@@ -265,3 +308,4 @@ All in `fantasy_manager/recommend/trades.py`:
 | MAX_PER_GIVEN, MAX_PER_RECEIVED, max_per_team | 2, 2, 3 | diversity caps |
 | OVERPAY_CAP | 30 | skip candidates this far in their favour |
 | CALIBRATION_MIN_N | 20 | proposals before the curve is refitted |
+| EVAL_ACCEPT_EDGE, EVAL_DECLINE_EDGE | 0.1, -0.3 | offer verdicts (`evaluate_offer`): accept from / decline below |

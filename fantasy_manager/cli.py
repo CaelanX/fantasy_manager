@@ -1025,21 +1025,11 @@ def _reason_val(r: Recommendation, code: str) -> float | None:
 
 
 def _trade_wants(lc: LeagueContext, provider: Any) -> dict[str, set[str]] | None:
-    """team_id -> positions wanted, from Fantrax trade blocks (positions wanted plus the
-    positions of specific players wanted). None when the provider has no trade blocks."""
-    blocks = getattr(provider, "trade_blocks", None) or []
-    by_cid = {p.cid: p for p in lc.all_players()}
-    wants: dict[str, set[str]] = {}
-    for b in blocks:
-        tid = str(getattr(b, "team_id", "") or "")
-        pos = {x for x in (getattr(b, "positions_wanted", None) or []) if x and x not in ("BN", "IR", "UTIL")}
-        for cid in getattr(b, "players_wanted", None) or []:
-            p = by_cid.get(cid)
-            if p is not None:
-                pos |= {x for x in p.positions if x != "F"}
-        if tid and pos:
-            wants[tid] = pos
-    return wants or None
+    """team_id -> positions wanted, from Fantrax trade blocks (``recommend.trades.trade_block_wants``).
+    None when the provider has no trade blocks."""
+    from .recommend.trades import trade_block_wants
+
+    return trade_block_wants(lc, provider)
 
 
 def _history() -> Any:
@@ -1223,13 +1213,9 @@ def _need_trades_out(d: Loaded, wants: Any, offered: Any, limit: int, as_json: b
 
 def _trade_offered(provider: Any) -> dict[str, set[str]] | None:
     """team_id -> player cids that team offers on its Fantrax trade block (None without blocks)."""
-    out: dict[str, set[str]] = {}
-    for b in getattr(provider, "trade_blocks", None) or []:
-        tid = str(getattr(b, "team_id", "") or "")
-        cids = {c for c in getattr(b, "players_offered", None) or [] if c}
-        if tid and cids:
-            out[tid] = cids
-    return out or None
+    from .recommend.trades import trade_block_offered
+
+    return trade_block_offered(provider)
 
 
 def _print_exploits(exploits: list[Recommendation]) -> None:
@@ -1298,6 +1284,123 @@ def _print_future(future: list[Recommendation], n: int = 3) -> None:
         cost = next((x.text for x in r.reasons if x.code == "WIN_NOW_COST"), "")
         dyn = next((x.text for x in r.reasons if x.code == "DYNASTY_DELTA"), "")
         console.print(f"[dim]  {r.title}: {cost}; {dyn.split(';')[0]}[/]")
+
+
+def _split_names(items: Optional[list[str]]) -> list[str]:
+    """Repeatable, comma-separated option values -> names ("A,B" --give C -> [A, B, C])."""
+    return [x.strip() for it in items or [] for x in it.split(",") if x.strip()]
+
+
+def resolve_offer(lc: LeagueContext, values: dict[str, Any], dyn: dict[str, Any] | None, give: list[str],
+                  get: list[str], give_pick: list[str], get_pick: list[str], team: str | None = None
+                  ) -> dict[str, Any]:
+    """Typed names -> evaluate_offer kwargs (cids, pick keys, team_id). The other team is --team,
+    else the owner of the --get players. LookupError / ValueError on bad input."""
+    from .recommend.trades import find_pick, find_players, find_team, pick_assets
+
+    me = lc.my_team
+    their = find_team(lc, team) if team else None
+    others = [t for t in lc.teams if t.team_id != me.team_id]
+    give_ps = find_players(give, me.players)
+    get_ps = find_players(get, (their.players if their else [p for t in others for p in t.players]))
+    if their is None and get_ps:
+        owners = {t.team_id for t in others for p in t.players if p.cid in {q.cid for q in get_ps}}
+        if len(owners) > 1:
+            raise LookupError("the --get players are on different teams: " + ", ".join(
+                sorted(t.name for t in others if t.team_id in owners)))
+        their = next(t for t in others if t.team_id in owners)
+    picks: dict[str, list[Any]] = {}
+    if give_pick or get_pick:
+        picks = pick_assets(lc, values, dyn)
+        if not picks:
+            raise ValueError("draft picks can only be traded in dynasty leagues whose provider reports picks "
+                             "(Fantrax)")
+        if get_pick and their is None:
+            raise LookupError("--get-pick needs --team (or a --get player) to know whose pick it is")
+    all_picks = [a for ps in picks.values() for a in ps]
+    give_keys = [find_pick(all_picks, s, me.team_id).key for s in give_pick]
+    get_keys = [find_pick(all_picks, s, their.team_id).key for s in get_pick] if their else []
+    if their is None:
+        raise LookupError("name the other team with --team (or add a --get player)")
+    return {"give": [p.cid for p in give_ps], "get": [p.cid for p in get_ps], "team_id": their.team_id,
+            "give_picks": give_keys, "get_picks": get_keys}
+
+
+VERDICT_STYLE = {"accept": "bold green", "counter": "bold yellow", "decline": "bold red"}
+
+
+@app.command("trade-eval")
+def trade_eval(ctx: typer.Context,
+               give: Optional[list[str]] = typer.Option(None, "--give", help="Players you send, comma-separated "
+                                                                             "(repeatable). Fuzzy names."),
+               get: Optional[list[str]] = typer.Option(None, "--get", help="Players you receive, comma-separated "
+                                                                           "(repeatable)."),
+               give_pick: Optional[list[str]] = typer.Option(None, "--give-pick",
+                                                             help='Your draft pick to send, e.g. "2027 R1" or '
+                                                                  '"2027 R2 (from Team X)" (repeatable; see fm picks).'),
+               get_pick: Optional[list[str]] = typer.Option(None, "--get-pick", help="Their draft pick to receive "
+                                                                                    "(repeatable)."),
+               team: Optional[str] = typer.Option(None, "--team", "-t", help="The other team (name or id); "
+                                                                            "default: the owner of the --get players."),
+               deep: bool = typer.Option(False, "--deep", help="Also fetch NHL game logs for recent form."),
+               league: Optional[LeagueName] = typer.Option(None, "--league", "-l"),
+               mode: Optional[ModeName] = _mode_opt(),
+               json_out: bool = typer.Option(False, "--json")) -> None:
+    """Evaluate a specific trade offer: your lineup gain, theirs, fairness, dynasty value, market check
+    and a verdict (accept / counter / decline). Same scoring as `fm trades`."""
+    from .recommend.trades import evaluate_offer, offer_summary
+
+    league_name, as_json = _opts(ctx, league, json_out)
+    gives, gets = _split_names(give), _split_names(get)
+    gpicks, tpicks = [x.strip() for x in give_pick or [] if x.strip()], [x.strip() for x in get_pick or [] if x.strip()]
+    if not (gives or gets or gpicks or tpicks):
+        _fail("Name the offer: --give and/or --get players (and --give-pick / --get-pick for draft picks).", 2)
+    d = _load_all(league_name, deep, mode=_mode_val(mode))
+    lc = d.lc
+    try:
+        kw = resolve_offer(lc, d.values, d.dyn, gives, gets, gpicks, tpicks, team)
+        o = evaluate_offer(lc, d.values, dynasty_values=d.dyn, wants=_trade_wants(lc, d.provider),
+                           offered=_trade_offered(d.provider), **kw)
+    except (LookupError, ValueError) as e:
+        _fail(str(e.args[0] if e.args else e), 2)
+    s = offer_summary(o)
+    if as_json:
+        _json_out({"offer": s, "recommendation": o.rec.model_dump(mode="json")}, lc, d.errors)
+        return
+    give_txt = ", ".join([p["name"] for p in s["give"]] + [f"your {a['label']} pick" for a in s["give_picks"]])
+    get_txt = ", ".join([p["name"] for p in s["get"]] + [f"their {a['label']} pick" for a in s["get_picks"]])
+    console.print(f"[bold]Trade with {escape(s['team'])}[/]: you send {escape(give_txt or 'nothing')}; "
+                  f"you get {escape(get_txt or 'nothing')}")
+    if s["mode"]:
+        console.print(f"[dim]{escape(_mode_line(lc))}[/]")
+    v = s["verdict"]
+    console.print(f"Verdict: [{VERDICT_STYLE[v]}]{v.upper()}[/] - " + escape("; ".join(s["verdict_reasons"])))
+    if s["counter"]:
+        console.print(f"  Counter: {escape(s['counter'])}")
+    tbl = Table(show_header=False, box=None, pad_edge=False)
+    tbl.add_column(style="bold")
+    tbl.add_column()
+    g = s["my_gain"]
+    tbl.add_row("Your lineup", f"{g['fpg']:+.2f} pts/game · {g['week']:+.1f} pts/week · {g['season']:+.0f} rest of season")
+    tbl.add_row("Their lineup", f"{s['their_gain']['fpg']:+.2f} pts/game (our model)")
+    f = s["fairness"]
+    units = "dynasty value" if s["units"] == "dynasty" else "season VORP"
+    gap = "-" if f["model_gap"] is None else f"{f['model_gap']:.0%}"
+    tbl.add_row("Fairness (model)", f"you get {f['value_in']:.2f}, send {f['value_out']:.2f} {units} (gap {gap})")
+    if f["market_label"] is not None:
+        tbl.add_row("Fairness (market)", f"{f['market_label']} ({f['market_to_them']:+.0f} worth pts to them); "
+                                         f"they would accept ~{f['p_accept']:.0%}")
+    if s["dynasty_delta"] is not None:
+        dd = s["dynasty_delta"]
+        tbl.add_row("Dynasty value", f"{dd['value']:+.2f} ({dd['fpg_equiv']:+.2f} FPG-equivalent); "
+                                     f"{s['mode']} edge {s['my_edge']:+.2f}")
+    tbl.add_row("Roster", escape(s["roster"].removeprefix("Roster: ")))
+    console.print(tbl)
+    if s["market_check"]:
+        console.print("[bold]Market check[/]")
+        for t in s["market_check"]:
+            console.print(f"  {escape(t)}")
+    _footer(lc, d.errors)
 
 
 @app.command()

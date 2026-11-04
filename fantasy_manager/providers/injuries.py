@@ -80,6 +80,12 @@ class InjuryReport(BaseModel):
         return self.status in ("out", "ir", "ltir", "suspended")
 
 
+def clear_cache(cache: Any) -> int:
+    """Drop the cached ESPN injury feed (``HttpCache``) so the next load reads it live. Returns
+    how many entries were removed."""
+    return cache.clear(url_contains=INJURIES_URL)
+
+
 def default_fetch_json(url: str, params: dict | None = None) -> Any:
     resp = httpx.get(url, params=params, follow_redirects=True, timeout=20.0,
                      headers={"User-Agent": "fantasy-manager/0.1"})

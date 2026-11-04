@@ -400,7 +400,7 @@ sup { font-size: .62em; font-weight: 700; margin-left: 1px; }
   background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-card); font-size: .92rem; }
 .filterbar label { color: var(--ink-3); font-size: .86rem; }
 .fgroup { display: inline-flex; align-items: center; gap: 8px; }
-.filterbar input[type="number"] { font: inherit; width: 6.5rem; min-height: 44px; padding: 6px 10px; border-radius: var(--r-ctl);
+.filterbar input[type="number"], .filterbar input[type="search"] { font: inherit; width: 6.5rem; min-height: 44px; padding: 6px 10px; border-radius: var(--r-ctl);
   border: 1px solid var(--rule-2); background: var(--paper); color: var(--ink); }
 .filterbar .reset { font-size: .88rem; }
 .filter-help { flex: 1 1 100%; font-size: .8rem; color: var(--ink-3); }
@@ -793,3 +793,39 @@ table.r.season-t { font-size: .78rem; }
   @keyframes puck { from { left: 0; } }
   @keyframes sweep { from { width: 0; } }
 }
+
+/* ---------------------------------------------------------------- trade evaluator (/trade-eval) */
+.filterbar input[type="search"] { width: 11rem; max-width: 100%; }
+.btn-ghost { background: var(--paper); color: var(--ink); }
+.btn-ghost:hover { background: var(--wash); color: var(--ink); }
+.te-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 760px) { .te-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.te-side { border: 1px solid var(--rule); border-radius: var(--r-card); background: var(--paper); margin: 0 0 16px;
+  padding: 8px 12px 10px; min-width: 0; }
+.te-side legend { font: 700 1.05rem/1.2 var(--display); padding: 0 6px; }
+.te-list { list-style: none; margin: 0; padding: 0; }
+.te-list li + li { border-top: 1px solid var(--rule); }
+.te-opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 10px;
+  min-height: 44px; padding: 6px 0; cursor: pointer; }
+.te-opt input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+.te-name { overflow-wrap: anywhere; }
+.te-name small { display: block; }
+.te-val { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; font-size: .9rem; }
+.te-submit { display: flex; align-items: center; gap: 16px; margin: 4px 0 0; }
+.te-result { border: 1px solid var(--rule); border-left: 6px solid var(--ink-3); border-radius: var(--r-card);
+  background: var(--paper); padding: 14px 16px; }
+.te-accept { border-left-color: var(--good); }
+.te-accept h2 { color: var(--good); }
+.te-counter { border-left-color: var(--warn); }
+.te-counter h2 { color: var(--warn); }
+.te-decline { border-left-color: var(--bad); }
+.te-decline h2 { color: var(--bad); }
+.te-deal { margin: 0 0 8px; }
+.te-why { margin: 0 0 12px; padding-left: 1.2em; }
+.te-kv { display: grid; gap: 6px; margin: 0; }
+.te-kv > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 14px; padding: 6px 0; border-top: 1px solid var(--rule); }
+@media (min-width: 640px) { .te-kv > div { grid-template-columns: 11rem minmax(0, 1fr); } }
+.te-kv dt { font-weight: 600; color: var(--ink-2); }
+.te-kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.te-all { margin-top: 12px; }
+.te-all summary { cursor: pointer; color: var(--accent); font-size: .9rem; min-height: 44px; display: flex; align-items: center; }
