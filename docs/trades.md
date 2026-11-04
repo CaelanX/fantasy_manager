@@ -58,6 +58,32 @@ FPG-like units, weighted by the dynasty mode:
 | balanced | ΔMe + ΔDyn | ΔMe >= -1.0 |
 | rebuild | 0.5 ΔMe + ΔDyn | none |
 
+### Keeper leagues
+
+When the league keeps only K players per team each offseason (free, no year limit; everyone else
+is redrafted: `FANTRAX_KEEPERS`, `ctx.keepers_per_team`), a player's value past this season counts
+only while he is one of his team's top K keepers by keeper surplus (his future value over a
+waiver-level roster spot's). Per-player dynasty values then no longer add up, so ΔDyn is my whole
+roster's change (IR included, `recommend.base.dynasty_change`):
+
+    ΔDyn = this season's part of who comes and goes
+         + keeper_total(after) - keeper_total(before)      (the K largest surpluses)
+         - roster spot x net players added                 (min replacement FPG x this season's weight)
+         ± draft picks at their net value
+
+* acquiring a young player who would be my (K+1)-th keeper adds only his this-season part;
+* one who displaces my K-th keeper adds his surplus minus the displaced keeper's;
+* trading a keeper away costs his surplus minus my next-best player's;
+* the roster-spot charge is this season only: a spot's long-term value is already inside the
+  surplus.
+
+DYNASTY_DELTA names the change: "Keepers: top-3 long-term +0.84 (Bouchard replaces Sanderson as a
+keeper); this season +0.12 = dynasty value +0.96 for me (+0.31 FPG-equivalent); ...". The FPG
+scale and the mode weights are the same as above. Only a keeper is a protected prospect: a young
+player his team would not keep has no future value to protect, so he can be dropped to make room.
+Waivers, hold-or-cut, the weekly plan and the outlook use the same roster-level change
+(`recommend.base.swap_values` / `dynasty_change`).
+
 ## Acceptance: the market view
 
 The other manager does not see our model; they see consensus. `p_accept` therefore uses
@@ -120,7 +146,7 @@ A candidate is proposed only when:
 * my edge > 0.3,
 * p_accept >= 0.25,
 * both rosters are legal after the trade,
-* it does not force me to drop a protected young prospect (dynasty),
+* it does not force me to drop a protected young prospect (dynasty; in keeper leagues only a keeper),
 * in contend mode, it does not cost this season's lineup more than 0.3 pts/game.
 
 The old fairness band on our own model value is gone as a filter. The model-value gap is still

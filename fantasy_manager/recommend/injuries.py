@@ -15,7 +15,11 @@ the IR-move rec carries a HOLD_VERDICT reason. Otherwise he blocks an active spo
 CUT only when the cut beats holding by CUT_EDGE (CUT_EDGE_GUESSED when the return date is assumed,
 not read from a note: a guessed absence leans toward keeping a high producer), with the break-even
 ("cut only if he misses more than ~N games"). Dynasty leagues never cut a protected player or one
-worth more than DYNASTY_MIN_RATIO x the replacement long-term. A cut uses an add (MOVE_BUDGET)."""
+worth more than DYNASTY_MIN_RATIO x the replacement long-term. In keeper leagues
+(``ctx.keepers_per_team``) "long-term" is each one's exact contribution to my roster
+(``base.swap_values``: this season's part + the change in my top-K keepers), and only a keeper is
+protected (``base.protected_reason``): an injured prospect I would not keep is judged on this season.
+A cut uses an add (MOVE_BUDGET)."""
 from __future__ import annotations
 
 import sqlite3
@@ -31,8 +35,9 @@ from ..models import LeagueContext, Player, Reason, Recommendation
 from ..valuation.adjust import Horizon, _games_remaining, season_availability
 from ..valuation.valuate import PlayerValue
 from .base import (CHURN_EXEMPT_STATUSES, IR_SLOT_NAMES, cap_text, capped_positions, churn_text, droppable_players,
-                   dynasty_map, moves_budget_reason, moves_left, no_moves_text, player_age, position_room,
-                   protection_reason, recently_added, roster_legal_after, shares_slot)
+                   dynasty_floats, dynasty_objects, keeper_k, moves_budget_reason, moves_left, no_moves_text,
+                   position_room, protected_reason, recently_added, roster_legal_after, shares_slot,
+                   swap_values)
 from .strength import IR_FLOOR, apply_ranks, apply_strength
 from .waivers import DYNASTY_MIN_RATIO, recommend_waivers
 
@@ -207,7 +212,9 @@ def hold_or_cut(ctx: LeagueContext, values: Mapping[str, PlayerValue], players: 
                               [Reason(code="HOLD_VERDICT", text=f"{p.name} sits in an IR slot, so keeping him "
                                       f"costs nothing; ~{ab.hold_pts:.0f} pts after his return",
                                       value=round(ab.hold_pts, 1))]))
-    dyn = dynasty_map(ctx, values, dynasty_values)
+    dobj = dynasty_objects(ctx, values, dynasty_values)
+    dyn = dynasty_floats(dobj)
+    keepers = keeper_k(ctx, dobj) if dyn is not None else None
     for p in players:
         pv = values.get(p.cid)
         fa = _replacement(ctx, values, p)
@@ -234,13 +241,17 @@ def hold_or_cut(ctx: LeagueContext, values: Mapping[str, PlayerValue], players: 
         ]
         protect = None
         if dyn is not None:
-            d_p, d_fa = dyn.get(p.cid, 0.0), dyn.get(fa.cid, 0.0)
-            why = protection_reason(p, player_age(p, ctx, dynasty_values))
+            if keepers is None:
+                d_p, d_fa = dyn.get(p.cid, 0.0), dyn.get(fa.cid, 0.0)
+            else:   # keeper league: exact contributions to my roster (this season + my top-K keepers)
+                d_fa, d_p = swap_values(ctx, dobj, ctx.my_team.players, fa, p)
+            why = protected_reason(p, ctx, dynasty_values, dobj)
             if why:
                 protect = f"protected dynasty asset ({why})"
             elif d_p > DYNASTY_MIN_RATIO * d_fa:
                 protect = f"long-term value {d_p:.1f} vs {fa.name} {d_fa:.1f}"
-            reasons.append(Reason(code="DYNASTY_COST", text=f"Dynasty value {p.name} {d_p:.1f} vs {fa.name} "
+            label = "Dynasty value" if keepers is None else f"Value (this season + top-{keepers} keepers)"
+            reasons.append(Reason(code="DYNASTY_COST", text=f"{label} {p.name} {d_p:.1f} vs {fa.name} "
                                   f"{d_fa:.1f}" + (f": cutting gives up {d_p - d_fa:.1f}" if d_p > d_fa else ""),
                                   value=d_fa - d_p, baseline=d_p))
         if cut <= hold * (1.0 + edge) or protect is not None:

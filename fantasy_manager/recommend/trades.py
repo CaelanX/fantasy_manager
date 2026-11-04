@@ -69,9 +69,24 @@ normalised to FPG-like units by the sum of the mode's year weights plus its term
 * balanced   my edge = ΔMe + ΔDyn_n (ΔMe >= -1.0).
 * rebuild    my edge = ΔDyn_n + 0.5 * ΔMe (no this-season floor).
 
+Keeper leagues (``ctx.keepers_per_team`` = K: each team keeps K players, everyone else is
+redrafted): only my top-K keepers carry value past this season, so per-player V does not add up.
+ΔDyn is my whole roster's change (IR included, ``base.dynasty_change``): this season's part
+(season_part of who comes and goes) + keeper_total(after) - keeper_total(before) (the K largest
+keeper surpluses), - repl x net players added with repl = minimum replacement FPG x the mode's
+this-season weight only (``season_weight``; a spot's long-term value is already in the surplus,
+which is measured over a waiver-level spot). So a young player who would be my (K+1)-th keeper
+adds only his season part; one who displaces my K-th keeper adds his surplus less the displaced
+one's; trading a keeper away costs his surplus less my next-best's. Draft picks still count at
+``net``. DYNASTY_DELTA names the keeper change ("Bouchard replaces Sanderson as a keeper").
+dynasty_scale is unchanged: the units are the same. V (holder-relative: season part + surplus
+for a keeper) still drives the fairness display, drop order, candidates and the market pool.
+
 Protected players (young first-round picks aged <= 23, or <= 23 and widely rostered; see
 ``base.protection_reason``) are dropped to make room only as a last resort and only when the
-incoming value is >= 1.5x theirs; otherwise the trade is rejected.
+incoming value is >= 1.5x theirs; otherwise the trade is rejected. In keeper leagues only a
+keeper on his team (``DynastyValue.keeper``) is protected (``base.protected_reason``): a prospect
+his team would not keep has no future value to protect.
 
 Per-position roster maximums (``ctx.position_limits``, counted over the whole roster incl. IR)
 are enforced for both sides: when the incoming players would put a side over a maximum, it must
@@ -116,9 +131,9 @@ from .market import (CLEAR_FAVOR_PTS, FPTS_STAT, GROUPED_COMPONENTS, MARKET_MIN_
 from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation, RosterSlot
 from ..valuation.replacement import eligible_slots
 from .base import (DEFAULT_GAMES_PER_WEEK, IR_SLOT_NAMES, POSITION_PLURAL, PROTECT_OVERRIDE, SEASON_GAMES,
-                   GameRate, _position_counts, cap_text,
-                   gain_season, gain_week, game_rate, has_data, limit_positions, moves_left, moves_note,
-                   player_age, protection_reason, roster_legal_after)
+                   DynastyChange, GameRate, _position_counts, cap_text, dynasty_change, dynasty_objects,
+                   gain_season, gain_week, game_rate, has_data, keeper_k, keeper_set, keepers_text,
+                   limit_positions, moves_left, moves_note, player_age, protected_reason, roster_legal_after)
 
 try:  # written concurrently by another module owner; greedy fallback below
     from .lineup import optimal_lineup as _optimal_lineup  # type: ignore
@@ -315,7 +330,12 @@ def _dyn_value(x: Any) -> float:
 
 def trade_values(ctx: LeagueContext, values: Mapping[str, Any],
                  dynasty_values: Mapping[str, Any] | None = None) -> tuple[dict[str, float], str, float]:
-    """(V by cid, units label, value of one freed roster spot in V units)."""
+    """(V by cid, units label, value of one freed roster spot in V units).
+
+    The roster spot: the league's minimum replacement FPG x ``dynasty_scale`` (a replacement-level
+    asset held over the horizon). Keeper leagues (``base.keeper_k``): x the mode's this-season
+    weight only (``season_weight``): a spot's long-term value is already in the keeper surplus
+    (future over a waiver-level spot), so charging it again over the horizon would count it twice."""
     if dynasty_values is None and ctx.dynasty:
         try:
             from ..valuation.dynasty import apply_dynasty  # type: ignore
@@ -331,7 +351,8 @@ def trade_values(ctx: LeagueContext, values: Mapping[str, Any],
             from ..valuation.valuate import replacement_for
             levels = replacement_for(ctx, values, "season")  # type: ignore[arg-type]
             if levels:
-                repl = min(levels.values()) * dynasty_scale(ctx)
+                per = season_weight(ctx) if keeper_k(ctx, dynasty_values) is not None else dynasty_scale(ctx)
+                repl = min(levels.values()) * per
         except Exception:
             repl = 0.0
         return v, "dynasty", repl
@@ -340,7 +361,10 @@ def trade_values(ctx: LeagueContext, values: Mapping[str, Any],
 
 def dynasty_scale(ctx: LeagueContext) -> float:
     """Dynasty value of 1 FPG held flat over the horizon (sum of the mode's year weights plus
-    the terminal weight): converts dynasty-value deltas to FPG-like units."""
+    the terminal weight): converts dynasty-value deltas to FPG-like units. The same in keeper
+    leagues: their deltas (this season's part + the keepers' surplus change) are in the same
+    dynasty units, and a this-season-only change keeps the weight it has in a keep-everyone
+    dynasty (w_0 / scale)."""
     horizon = max(1, int(ctx.keeper_horizon_years or 1))
     try:
         from ..valuation.dynasty import mode_weights
@@ -348,6 +372,15 @@ def dynasty_scale(ctx: LeagueContext) -> float:
         return sum(w) + DYNASTY_DISCOUNT ** horizon * terminal
     except Exception:
         return sum(DYNASTY_DISCOUNT ** y for y in range(horizon))
+
+
+def season_weight(ctx: LeagueContext) -> float:
+    """The dynasty mode's weight on this season (w_0: 1.0 contend / balanced, 0.7 rebuild)."""
+    try:
+        from ..valuation.dynasty import mode_weights
+        return float(mode_weights(getattr(ctx, "dynasty_mode", None), 1)[0][0])
+    except Exception:
+        return 1.0
 
 
 def fairness(v_in: list[float], v_out: list[float], repl: float = 0.0) -> tuple[bool, float]:
@@ -622,6 +655,8 @@ class TradeEval:
     mode: str | None = None               # dynasty mode (None: plain season VORP trade values)
     delta_dyn: float = 0.0                # dynasty value change for me (V units)
     delta_dyn_n: float = 0.0              # ... normalised to FPG-like units
+    keeper_change: DynastyChange | None = None   # keeper leagues: my roster's change (base.dynasty_change)
+    spot_cost: float = 0.0                # roster-spot charge inside delta_dyn (repl x net players added)
     blocked: str | None = None            # protected-player drop that the trade would force
     my_cap: str | None = None             # per-position maximum that forces one of my_drops
     their_cap: str | None = None
@@ -746,15 +781,20 @@ class _TradeEngine:
         self.ctx = ctx
         self.values = values
         self.dynasty_values = dynasty_values
-        self.V, self.units, self.repl = trade_values(ctx, values, dynasty_values)
+        # the DynastyValue objects (computed once when not supplied): keeper leagues need their fields
+        self.dyn = dynasty_values if dynasty_values is not None else dynasty_objects(ctx, values)
+        self.V, self.units, self.repl = trade_values(ctx, values, self.dyn)
         self.mode = (getattr(ctx, "dynasty_mode", None) or "contend") \
             if ctx.dynasty and self.units == "dynasty" else None
+        # keepers per team in keeper leagues (base.keeper_k); None = keep-everyone dynasty / redraft
+        self.keepers = keeper_k(ctx, self.dyn) if self.units == "dynasty" else None
         self.scale = max(1e-9, dynasty_scale(ctx))
         self.protected: dict[str, str] = {}
         if self.units == "dynasty":
             for t in ctx.teams:
                 for p in t.players:
-                    why = protection_reason(p, player_age(p, ctx, dynasty_values))
+                    # keeper leagues: only a keeper on his team is protected (base.protected_reason)
+                    why = protected_reason(p, ctx, dynasty_values, self.dyn)
                     if why:
                         self.protected[p.cid] = why
         self.wants = {k: set(v) for k, v in (wants or {}).items()}
@@ -1119,12 +1159,20 @@ class _TradeEngine:
         v_out = sum(self.V.get(p.cid, 0.0) for p in give)
         # each extra player I end up rostering takes a spot a replacement-level asset (repl) could fill
         net_added = len(get) - len(give) - len(my_drops) + (1 if my_fill is not None else 0)
-        d_dyn = v_in - v_out - sum(self.V.get(p.cid, 0.0) for p in my_drops) \
-            + (self.V.get(my_fill.cid, 0.0) if my_fill is not None else 0.0) - self.repl * net_added
-        d_dyn_n = d_dyn / self.scale if self.mode is not None else 0.0
         # lineup pools add the IR-slot players (season value already counts the games they miss),
         # so trading away an injured or day-to-day player in IR is not free
         me_ir_pool = [p for p in me.ir if p.cid not in give_ids] + my_ir
+        spot_cost = self.repl * net_added
+        keeper_change = None
+        if self.keepers is not None:
+            # keeper league: only my top-K keepers carry value past this season, so the change is
+            # my whole roster's (IR included) season part + keeper_total, after - before
+            keeper_change = dynasty_change(self.ctx, self.dyn, me.active + me.ir, me_after + me_ir_pool)
+            d_dyn = keeper_change.total - spot_cost
+        else:
+            d_dyn = v_in - v_out - sum(self.V.get(p.cid, 0.0) for p in my_drops) \
+                + (self.V.get(my_fill.cid, 0.0) if my_fill is not None else 0.0) - spot_cost
+        d_dyn_n = d_dyn / self.scale if self.mode is not None else 0.0
         me_pool = self._with_free_fill(me_after, me_ir_pool, me.capacity, me)
         # cheap greedy screen of my side first
         me_base = self._baselines(me, my_fill)
@@ -1139,7 +1187,8 @@ class _TradeEngine:
                              fair_dev=dev, delta_me=d_me, delta_them=0.0, need_text=None, my_drops=my_drops,
                              their_drops=[], my_fill=my_fill, their_fill=None, my_ir=my_ir, mode=self.mode,
                              delta_dyn=d_dyn, delta_dyn_n=d_dyn_n, blocked=my_block, my_cap=my_cap, screened=True,
-                             pressure_text=pressure, rate=self.rate)
+                             pressure_text=pressure, rate=self.rate, keeper_change=keeper_change,
+                             spot_cost=spot_cost)
 
         them_after = [p for p in them.active if p.cid not in get_ids] + list(give)
         them_after, their_drops, their_fill, their_ir, their_block, their_cap = self._settle_roster(
@@ -1174,6 +1223,7 @@ class _TradeEngine:
                        fair=fair, fair_dev=dev, delta_me=d_me, delta_them=d_them, need_text=need_text,
                        my_drops=my_drops, their_drops=their_drops, my_fill=my_fill, their_fill=their_fill,
                        my_ir=my_ir, their_ir=their_ir, mode=self.mode, delta_dyn=d_dyn, delta_dyn_n=d_dyn_n,
+                       keeper_change=keeper_change, spot_cost=spot_cost,
                        blocked=blocked, my_cap=my_cap, their_cap=their_cap,
                        block_text="; ".join(block) or None, my_illegal=None if ok else why,
                        pressure_text=pressure, rate=self.rate, hole_text=hole_text, hole_slots=hole_slots)
@@ -1313,6 +1363,23 @@ def _roster_text(ev: TradeEval) -> str:
 DEFAULT_RATE = GameRate(DEFAULT_GAMES_PER_WEEK, float(SEASON_GAMES), "default")   # a TradeEval without a rate
 
 
+def keeper_delta_text(ev: TradeEval) -> str:
+    """DYNASTY_DELTA text in keeper leagues: "Keepers: top-3 long-term +0.84 (Bouchard replaces
+    Sanderson as a keeper); this season +0.12; roster spot -0.20 = dynasty value +0.76 for me
+    (+0.25 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty"."""
+    ch = ev.keeper_change
+    assert ch is not None and ev.mode is not None
+    parts = [f"Keepers: top-{ch.k} long-term {ch.keepers:+.2f} ({keepers_text(ch)})",
+             f"this season {ch.season:+.2f}"]
+    if abs(ev.spot_cost) > 1e-9:
+        parts.append(f"roster spot {-ev.spot_cost:+.2f}")
+    picks = ev.delta_dyn - (ch.total - ev.spot_cost)
+    if abs(picks) > 1e-9:
+        parts.append(f"draft picks {picks:+.2f}")
+    return (f"{'; '.join(parts)} = dynasty value {ev.delta_dyn:+.2f} for me ({ev.delta_dyn_n:+.2f} "
+            f"FPG-equivalent); {ev.mode} edge = {ME_WEIGHT[ev.mode]:g} x lineup + {DYN_WEIGHT[ev.mode]:g} x dynasty")
+
+
 def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str,
             market: MarketPool | None = None) -> Recommendation:
     def vl(ps: list[Player]) -> str:
@@ -1387,7 +1454,10 @@ def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str,
         Reason(code="FAIR_PCT", text=f"Model-value gap {ev.fair_dev:.0%} (shown only; old band {band:.0%})",
                value=ev.fair_dev, baseline=band),
     ]
-    if ev.mode is not None:
+    if ev.mode is not None and ev.keeper_change is not None:
+        reasons.append(Reason(code="DYNASTY_DELTA", text=keeper_delta_text(ev), value=ev.delta_dyn_n,
+                              baseline=ev.delta_dyn))
+    elif ev.mode is not None:
         reasons.append(Reason(code="DYNASTY_DELTA",
                               text=f"Dynasty value {ev.delta_dyn:+.2f} for me ({ev.delta_dyn_n:+.2f} FPG-equivalent); "
                                    f"{ev.mode} edge = {ME_WEIGHT[ev.mode]:g} x lineup + "
@@ -2160,7 +2230,8 @@ def find_needs(ctx: LeagueContext, values: Mapping[str, Any], outlook: Any = Non
                dynasty_values: Mapping[str, Any] | None = None) -> list[Need]:
     """My weakest starting slot types this season (vs the league median, at most NEED_SLOTS) and,
     in dynasty leagues heading to rebuild / balanced, the position group whose future value ranks
-    in the league's bottom third."""
+    in the league's bottom third (keeper leagues: counting only each team's top-K keepers,
+    ``base.keeper_set``)."""
     per_team = {t.team_id: _slot_vorps(t.players, values, ctx.roster_shape) for t in ctx.teams}
     mine = per_team.get(ctx.my_team.team_id, {})
     needs: list[Need] = []
@@ -2183,8 +2254,13 @@ def find_needs(ctx: LeagueContext, values: Mapping[str, Any], outlook: Any = Non
         except Exception:  # pragma: no cover - optional
             return out
         totals: dict[str, dict[str, float]] = {}
+        k = keeper_k(ctx, dynasty_values)
+        if k is not None:   # keeper leagues: a team keeping nobody at a position ranks last there
+            for g in {position_group(p) for t in ctx.teams for p in t.players}:
+                totals[g] = {t.team_id: 0.0 for t in ctx.teams}
         for t in ctx.teams:
-            for p in t.players:
+            # keeper leagues: only a team's top-K keepers are still on it next season
+            for p in (t.players if k is None else keeper_set(t.players, dynasty_values, k)):
                 f = future_values(p, ctx, values, dynasty_values)
                 g = position_group(p)
                 totals.setdefault(g, {}).setdefault(t.team_id, 0.0)
@@ -2192,12 +2268,18 @@ def find_needs(ctx: LeagueContext, values: Mapping[str, Any], outlook: Any = Non
         for g, by_team in totals.items():
             ranked = sorted(by_team, key=lambda tid: -by_team[tid])
             me_id = ctx.my_team.team_id
-            if me_id not in ranked or ranked.index(me_id) < len(ranked) * (1 - LONG_TERM_BOTTOM):
+            if me_id not in ranked:
+                continue
+            # keeper leagues: many teams keep nobody at a position (ties at 0), so my rank is the
+            # number of teams strictly ahead of me, not my place among equals
+            pos = ranked.index(me_id) if k is None else sum(1 for v in by_team.values() if v > by_team[me_id])
+            if pos < len(ranked) * (1 - LONG_TERM_BOTTOM):
                 continue
             slot = next((s for s in _GROUP_SLOTS[g] if s in ctx.roster_shape), None)
             if slot is None or any(n.slot == slot for n in out):
                 continue
-            out.append(Need(slot, -1.0, f"{g} long term: your future value ranks #{ranked.index(me_id) + 1} of "
+            what = "future value" if k is None else f"keepers' future value (top {k})"
+            out.append(Need(slot, -1.0, f"{g} long term: your {what} ranks #{pos + 1} of "
                                         f"{len(ranked)}", long_term=True))
     return out
 

@@ -40,6 +40,14 @@ Dynasty leagues add three rules:
   CONTEND_DROP. Skipped drops are reported in ``debug`` (PROSPECT_PROTECTED), never as recs;
 * recommendations are scored by dynasty gain (x confidence), not season gain.
 
+Keeper leagues (``ctx.keepers_per_team`` = K, ``base.keeper_k``): only my top-K keepers carry value
+past this season, so every long-term value above (the 1.15x rule, protection override, stream
+tolerance, drop order, dynasty gain) is a player's exact contribution to my roster
+(``base.swap_values``): the drop's = what losing him costs (a non-keeper: only his season part), the
+add's = what he adds to the roster without the drop (his season part + any rise in my keepers'
+total), so add - drop is the move's ``base.dynasty_change``. Only a keeper is protected
+(``base.protected_reason``): a prospect I would not keep can be dropped like anyone else.
+
 This-matchup pickups (``recommend_matchup_waivers``) relax the 1.15x rule: the add may be worth
 less than the drop long-term, by at most ``STREAM_DYNASTY_TOLERANCE`` of the drop's dynasty value
 for the league's dynasty mode (contend 25%, balanced 15%, rebuild 0%), and is scored by the
@@ -90,9 +98,10 @@ from .lineup import _dp, daily_plan, starting_slots
 from .market import MarketPool, market_check_reasons
 from .strength import apply_ranks, apply_strength
 from .base import (CHURN_EXEMPT_STATUSES, CHURN_OVERRIDE_GAIN, INJURY_REPLACEMENT_STATUSES, PROTECT_OVERRIDE,
-                   churn_blocked, churn_text, confidence, droppable_players, evidence_games, dynasty_map, free_ir_slots,
-                   has_data, ir_movable, move_scarcity_threshold, moves_budget_reason, open_roster_spots,
-                   player_age, protection_reason, recently_added, roster_legal_after, shares_slot)
+                   churn_blocked, churn_text, confidence, droppable_players, evidence_games, dynasty_floats,
+                   dynasty_objects, free_ir_slots, has_data, ir_movable, keeper_k, move_scarcity_threshold,
+                   moves_budget_reason, open_roster_spots, protected_reason, recently_added, roster_legal_after,
+                   shares_slot, swap_values)
 
 MIN_GAIN = 0.3
 DYNASTY_MIN_RATIO = 1.15
@@ -193,7 +202,12 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         return []   # no moves left this period (base.no_moves_text says when they resume)
     budget = moves_budget_reason(ctx)
     team = ctx.my_team
-    dyn = dynasty_map(ctx, values, dynasty_values)
+    dobj = dynasty_objects(ctx, values, dynasty_values)
+    dyn = dynasty_floats(dobj)
+    # keeper leagues (base.keeper_k): long-term values are a player's exact contribution to my
+    # roster (this season's part + the change in my top-K keepers), not his V (``lt_pair``)
+    keepers = keeper_k(ctx, dobj) if dyn is not None else None
+    my_roster = team.players
     contend = getattr(ctx, "dynasty_mode", "contend") == "contend"
     free_ir = free_ir_slots(team, ctx.roster_shape)
     to_ir = [p for p in ir_movable(team, values) if p.cid in values][:free_ir]
@@ -229,12 +243,25 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
         after, new_starters = _lineup_fpg(pool + [fa], slots, {**values, fa.cid: fv}, horizon)
         out = [p for p in pool if p.cid in starters - new_starters]
         return after - before, min(out, key=lambda p: values[p.cid].fpg_for(horizon)) if out else None
+
+    def lt_pair(add: Player | None, drop: Player | None) -> tuple[float, float]:
+        """(add, drop) long-term values: V in keep-everyone dynasties; in keeper leagues their
+        exact contributions to my roster (``base.swap_values``: add - drop = the move's change)."""
+        if keepers is None:
+            return (dyn.get(add.cid, 0.0) if add is not None else 0.0,
+                    dyn.get(drop.cid, 0.0) if drop is not None else 0.0)
+        return swap_values(ctx, dobj, my_roster, add, drop)
+
     protected = {}
+    contrib: dict[str, float] = {}      # keeper leagues: what each droppable player contributes long term
     if dyn is not None:
         for p in mine:
-            why = protection_reason(p, player_age(p, ctx, dynasty_values))
+            # keeper leagues: only one of my keepers is protected (base.protected_reason)
+            why = protected_reason(p, ctx, dynasty_values, dobj)
             if why:
                 protected[p.cid] = why
+            if keepers is not None:
+                contrib[p.cid] = lt_pair(None, p)[1]
 
     # empty starting slots: lineup pool incl. IR-slot players (their value counts the games they miss)
     in_ir = [s.player for s in team.slots if s.player is not None and s.slot == "IR" and s.player.cid in values]
@@ -245,7 +272,7 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
     def drop_key(p: Player) -> tuple[float, float]:
         fpg = values[p.cid].fpg_for(horizon)
         if dyn is not None and p.cid in dyn:
-            return dyn[p.cid], fpg
+            return (dyn[p.cid] if keepers is None else contrib.get(p.cid, 0.0)), fpg
         if stream:            # a this-matchup drop is still permanent: rest-of-season value decides
             return values[p.cid].fpg_season, fpg
         return fpg, fpg
@@ -310,10 +337,9 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                                                text=f"Not adding {fa.name}: {cap_why} and no droppable "
                                                     f"same-position player")})
             if dyn is not None:
-                a_val = dyn.get(fa.cid, 0.0)
                 chosen = None
                 for p in pool:
-                    d_val = dyn.get(p.cid, 0.0)
+                    a_val, d_val = lt_pair(fa, p)
                     why = protected.get(p.cid)
                     if why is None or a_val >= PROTECT_OVERRIDE * d_val:
                         chosen = p
@@ -375,9 +401,8 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
             continue
         dyn_gain = None
         if dyn is not None:
-            a_val = dyn.get(fa.cid, 0.0)
+            a_val, d_val = lt_pair(fa, drop)
             if drop is not None:
-                d_val = dyn.get(drop.cid, 0.0)
                 # this matchup only, or a season-long empty starting slot: a small, stated long-term cost is allowed
                 if stream or empty_fill:
                     tol = STREAM_DYNASTY_TOLERANCE.get(getattr(ctx, "dynasty_mode", None) or "contend", 0.0)
@@ -444,10 +469,11 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                                        f"({free_ir} IR slot{'s' if free_ir != 1 else ''} free): no drop needed",
                                   value=float(free_ir)))
         if dyn is not None and drop is not None and (stream or empty_fill):
-            d_val, a_val = dyn.get(drop.cid, 0.0), dyn.get(fa.cid, 0.0)
+            a_val, d_val = lt_pair(fa, drop)
+            unit = "dynasty value" if keepers is None else f"value (this season + top-{keepers} keepers)"
             reasons.append(Reason(
                 code="DYNASTY_COST",
-                text=(f"Long term: {fa.name} {a_val:.1f} vs {drop.name} {d_val:.1f} dynasty value ("
+                text=(f"Long term: {fa.name} {a_val:.1f} vs {drop.name} {d_val:.1f} {unit} ("
                       + (f"an upgrade, {a_val - d_val:+.1f})" if a_val >= d_val
                          else f"costs {d_val - a_val:.1f}, {(d_val - a_val) / d_val:.0%} of {drop.name}'s value)")),
                 value=a_val - d_val, baseline=d_val))
@@ -459,6 +485,13 @@ def recommend_waivers(ctx: LeagueContext, values: dict[str, PlayerValue], limit:
                       + (f"an upgrade, {a_val - d_val:+.2f})" if a_val >= d_val
                          else f"costs {d_val - a_val:.2f}, {(d_val - a_val) / d_val:.0%} of {drop.name}'s)")),
                 value=a_val - d_val, baseline=d_val))
+        elif dyn is not None and drop is not None and keepers is not None:
+            a_val, d_val = lt_pair(fa, drop)
+            reasons.append(Reason(code="DYNASTY_DROP",
+                                  text=f"Keeper-league value {fa.name} {a_val:.2f} vs {drop.name} {d_val:.2f} "
+                                       f"(this season + the change in your top-{keepers} keepers; lowest-value "
+                                       f"droppable same-slot player; needs x{DYNASTY_MIN_RATIO:g})",
+                                  value=a_val, baseline=d_val))
         elif dyn is not None and drop is not None:
             reasons.append(Reason(code="DYNASTY_DROP",
                                   text=f"Dynasty value {fa.name} {dyn.get(fa.cid, 0.0):.2f} vs "

@@ -36,6 +36,35 @@ less (reason ROOKIE_CONFIDENCE).
 Market prior: when at least MARKET_MIN_PLAYERS players carry a league-wide % rostered, every
 such player is ranked by it and mapped to the model value at the same rank among all modelled
 players (a rank-to-value transform); ``value = 0.65 * model + 0.35 * market``.
+
+Keeper leagues (``ctx.keepers_per_team`` = K; None = a keep-everyone dynasty, valued exactly as
+above): each team keeps K players into next season for free (no draft-pick cost, no limit on years
+kept) and everyone else goes back into a redraft. Only a keeper's later seasons stay with his
+team, so the value splits in two:
+
+* ``season_part = w_0 * fpg_season``: this season, worth the same to whoever rosters him now.
+* ``future``: the trajectory total minus the w_0 term (years 1..H-1 plus the terminal term), with
+  the rookie-confidence scaling above. The market prior applies to ``future`` only: the
+  rank-to-value transform runs over the future values (``market_value`` is then the market's
+  future value, and ``future = 0.65 * model future + 0.35 * market_value``).
+* ``spot_future = repl * (sum_{y>=1} w_y + 0.8^H * T)``, repl = the league's lowest replacement
+  FPG (``valuate.replacement_for``, min over slots; 0 when unavailable). Keepers are free, so a
+  keeper slot left unused is filled by a waiver-level player next season;
+  ``keeper_surplus = max(0, future - spot_future)``.
+* ``keeper``: on each fantasy team, the top K players by keeper_surplus (every slot, IR
+  included) whose surplus is positive. A free agent (or any valued player on no team) is a keeper
+  iff his surplus is positive and beats the K-th largest surplus on my team (any positive surplus
+  when I have fewer than K): free agents are judged from my side because pickups are my moves.
+  K = 0: nobody is kept.
+* ``value = season_part + (keeper_surplus if keeper else 0)``. ``model_value`` is the same with
+  the pre-market future (the keeper flag as above). ``upside`` stays the growth / pedigree premium
+  inside ``future`` (it reaches ``value`` only through a keeper's surplus).
+
+Reasons KEEPER ("Keeper #2 of 3 on <team>: ...") and NOT_KEEPER ("... valued on this season
+only") say which; ``keeper_total`` sums a roster's K largest surpluses, the long-term value it
+carries. Keep-everyone leagues fill the same fields so callers can use them unconditionally:
+``season_part = w_0 * fpg_season``, ``future = value - season_part`` (after the market blend),
+``keeper_surplus = future`` and ``keeper = True``.
 """
 from __future__ import annotations
 
@@ -44,7 +73,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 
 from pydantic import BaseModel, Field
 
-from ..models import LeagueContext, Player, Reason
+from ..models import FantasyTeam, LeagueContext, Player, Reason
 from . import params as _params
 
 if TYPE_CHECKING:
@@ -94,14 +123,16 @@ class DynastyValue(BaseModel):
     upside: float                     # growth / pedigree premium over a flat trajectory (signed)
     horizon_years: int
     model_value: float | None = None  # before the market prior
-    market_value: float | None = None
+    market_value: float | None = None  # keeper leagues: the market's view of `future` only
     pedigree: float = 1.0
     mode: str = DEFAULT_MODE
     # Keeper leagues (ctx.keepers_per_team set; see "Keeper leagues" in the module docstring).
     # In keep-everyone dynasties: season_part + future == value, keeper_surplus == future and
     # keeper is True, so callers can use these fields unconditionally.
+    # Keeper leagues: value == season_part + (keeper_surplus if keeper else 0).
     season_part: float = 0.0          # this season's term (w_0 x fpg_season)
     future: float = 0.0               # seasons after this one (years >= 1 + terminal), market-blended
+                                      # (keeper leagues: may be below the spot, never floored)
     keeper_surplus: float = 0.0       # max(0, future - a waiver-level roster spot's future value)
     keeper: bool = True               # among his holder's top keepers_per_team by keeper_surplus
                                       # (free agents: would enter MY top keepers)
@@ -271,13 +302,47 @@ def market_values(model: Mapping[str, float], owned: Mapping[str, float]) -> dic
     return out
 
 
+def keeper_count(ctx: LeagueContext) -> int | None:
+    """``ctx.keepers_per_team`` as an int >= 0, or None for a keep-everyone dynasty."""
+    k = getattr(ctx, "keepers_per_team", None)
+    if k is None:
+        return None
+    try:
+        return max(0, int(k))
+    except (TypeError, ValueError):
+        return None
+
+
+def min_replacement_fpg(ctx: LeagueContext, values: Mapping[str, "PlayerValue"]) -> float:
+    """The league's lowest replacement FPG this season (min over slots of
+    ``valuate.replacement_for``); 0.0 when it cannot be computed."""
+    from .valuate import replacement_for  # local: valuate is the heavier module, avoid a cycle
+
+    try:
+        levels = replacement_for(ctx, values, "season")
+    except Exception:  # noqa: BLE001 - no replacement level: a spot is worth nothing
+        return 0.0
+    return float(min(levels.values())) if levels else 0.0
+
+
+def spot_future(ctx: LeagueContext, values: Mapping[str, "PlayerValue"], mode: str | None = None) -> float:
+    """Future value of a waiver-level roster spot: ``min_replacement_fpg`` held flat over the
+    seasons after this one (``sum_{y>=1} w_y + 0.8^H * T``). A keeper must beat it, since an
+    unused keeper slot is filled by a waiver-level player next season."""
+    years = max(1, int(ctx.keeper_horizon_years or 1))
+    w, terminal = mode_weights(mode or getattr(ctx, "dynasty_mode", None), years)
+    return min_replacement_fpg(ctx, values) * (sum(w[1:]) + DISCOUNT ** years * terminal)
+
+
 def apply_dynasty(values: Mapping[str, "PlayerValue"], ctx: LeagueContext,
                   ages: Mapping[str, float] | None = None, mode: str | None = None) -> dict[str, DynastyValue]:
     """Dynasty value for every PlayerValue. `ages` ({cid: age}) fills in missing birth dates
-    (e.g. FantraxProvider.ages); `mode` overrides ``ctx.dynasty_mode``."""
+    (e.g. FantraxProvider.ages); `mode` overrides ``ctx.dynasty_mode``. Keeper leagues
+    (``ctx.keepers_per_team`` set) value non-keepers on this season only (module docstring)."""
     years = max(1, int(ctx.keeper_horizon_years or 1))
     mode = mode or getattr(ctx, "dynasty_mode", None) or DEFAULT_MODE
     weights, terminal = mode_weights(mode, years)
+    k = keeper_count(ctx)
     out: dict[str, DynastyValue] = {}
     for cid, pv in values.items():
         p = pv.player
@@ -315,35 +380,143 @@ def apply_dynasty(values: Mapping[str, "PlayerValue"], ctx: LeagueContext,
             base = scaled
         later = f", {healthy:.2f} healthy in later years" if years > 1 and abs(healthy - fpg) > 1e-9 else ""
         wtxt = "/".join(f"{x:g}" for x in weights)
-        reasons.append(Reason(
-            code="DYNASTY_HORIZON",
-            text=f"{years}-year {mode} value {base:.2f} (weights {wtxt} + {term:.2f} beyond year {years}) "
-                 f"from {fpg:.2f} FPG{later}",
-            value=base, baseline=fpg))
+        season = weights[0] * fpg
+        if k is None:
+            htext = (f"{years}-year {mode} value {base:.2f} (weights {wtxt} + {term:.2f} beyond year {years}) "
+                     f"from {fpg:.2f} FPG{later}")
+        else:
+            htext = (f"{years}-year {mode} trajectory {base:.2f} = this season {season:.2f} + future "
+                     f"{base - season:.2f} (weights {wtxt} + {term:.2f} beyond year {years}) from {fpg:.2f} "
+                     f"FPG{later}; the future counts only for a keeper")
+        reasons.append(Reason(code="DYNASTY_HORIZON", text=htext, value=base, baseline=fpg))
         out[cid] = DynastyValue(player=p, value=base, age=age, age_mult=level, upside=base - flat,
                                 horizon_years=years, model_value=base, pedigree=ped, mode=mode,
-                                reasons=reasons)
-    _apply_market(out, ctx)
+                                season_part=season, future=base - season, keeper_surplus=base - season,
+                                keeper=True, reasons=reasons)
+    if k is None:
+        _apply_market(out, ctx)
+        for dv in out.values():
+            dv.future = dv.value - dv.season_part
+            dv.keeper_surplus = dv.future
+        return out
+    _apply_keepers(out, values, ctx, k, mode)
     return out
 
 
-def _apply_market(out: dict[str, DynastyValue], ctx: LeagueContext) -> None:
+def _apply_market(out: dict[str, DynastyValue], ctx: LeagueContext, field: str = "value") -> None:
+    """Blend ``field`` ("value", or "future" in keeper leagues) with its market counterpart: the
+    rank-to-value transform of league-wide % rostered over that field's model values."""
     owned = {p.cid: float(p.pct_owned) for p in ctx.all_players()
              if p.pct_owned is not None and p.cid in out}
     if len(owned) < MARKET_MIN_PLAYERS:
         return
-    model = {cid: dv.value for cid, dv in out.items()}
+    model = {cid: getattr(dv, field) for cid, dv in out.items()}
     market = market_values(model, owned)
+    what = "market value" if field == "value" else "market future value"
+    mdl = "model" if field == "value" else "model future"
     for cid, mv in market.items():
         dv = out[cid]
-        blended = (1.0 - MARKET_WEIGHT) * dv.value + MARKET_WEIGHT * mv
+        cur = getattr(dv, field)
+        blended = (1.0 - MARKET_WEIGHT) * cur + MARKET_WEIGHT * mv
         dv.reasons.append(Reason(
             code="MARKET_PRIOR",
-            text=f"Rostered in {owned[cid]:.0f}% of leagues -> market value {mv:.2f}; "
-                 f"{1 - MARKET_WEIGHT:.0%} model {dv.value:.2f} + {MARKET_WEIGHT:.0%} market = {blended:.2f}",
+            text=f"Rostered in {owned[cid]:.0f}% of leagues -> {what} {mv:.2f}; "
+                 f"{1 - MARKET_WEIGHT:.0%} {mdl} {cur:.2f} + {MARKET_WEIGHT:.0%} market = {blended:.2f}",
             value=mv, baseline=owned[cid]))
         dv.market_value = mv
-        dv.value = blended
+        setattr(dv, field, blended)
+
+
+def _ordinal(n: int) -> str:
+    suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def _apply_keepers(out: dict[str, DynastyValue], values: Mapping[str, "PlayerValue"], ctx: LeagueContext,
+                   k: int, mode: str) -> None:
+    """Keeper-league pass (module docstring "Keeper leagues"): market prior on the future part,
+    surplus over a waiver-level spot, keeper flags per team (free agents against my team), and
+    value = season_part + the keeper's surplus."""
+    model_future = {cid: dv.future for cid, dv in out.items()}
+    _apply_market(out, ctx, field="future")
+    spot = spot_future(ctx, values, mode)
+    for dv in out.values():
+        dv.keeper_surplus = max(0.0, dv.future - spot)
+
+    def surplus_text(dv: DynastyValue) -> str:
+        return f"long-term surplus {dv.keeper_surplus:+.2f} over a waiver-level spot " \
+               f"(future {dv.future:.2f} - spot {spot:.2f})"
+
+    def no_surplus(dv: DynastyValue) -> Reason:
+        return Reason(code="NOT_KEEPER",
+                      text=f"No keeper value: future {dv.future:.2f} does not beat a waiver-level spot "
+                           f"({spot:.2f}); valued on this season only",
+                      value=dv.keeper_surplus, baseline=0.0)
+
+    top = f"top {k} keeper{'' if k == 1 else 's'}"
+    holder: dict[str, FantasyTeam] = {}
+    by_team: dict[str, list[str]] = {}
+    for t in ctx.teams:
+        for p in t.players:
+            if p.cid in out and p.cid not in holder:
+                holder[p.cid] = t
+                by_team.setdefault(t.team_id, []).append(p.cid)
+    for t in ctx.teams:
+        ranked = sorted(by_team.get(t.team_id, []), key=lambda c: -out[c].keeper_surplus)
+        kth = out[ranked[k - 1]].keeper_surplus if 0 < k <= len(ranked) else 0.0
+        for i, cid in enumerate(ranked):
+            dv = out[cid]
+            dv.keeper = i < k and dv.keeper_surplus > 0.0
+            if dv.keeper:
+                dv.reasons.append(Reason(code="KEEPER", text=f"Keeper #{i + 1} of {k} on {t.name}: {surplus_text(dv)}",
+                                         value=dv.keeper_surplus, baseline=spot))
+            elif k == 0:
+                dv.reasons.append(Reason(code="NOT_KEEPER", text="No keepers in this league: valued on this season only",
+                                         value=dv.keeper_surplus, baseline=0.0))
+            elif dv.keeper_surplus <= 0.0:
+                dv.reasons.append(no_surplus(dv))
+            else:
+                dv.reasons.append(Reason(
+                    code="NOT_KEEPER",
+                    text=f"Not among {t.name}'s {top} ({_ordinal(k)} keeper surplus {kth:.2f}): "
+                         f"valued on this season only",
+                    value=dv.keeper_surplus, baseline=kth))
+
+    try:
+        me: FantasyTeam | None = ctx.my_team
+    except LookupError:
+        me = None
+    my_name = me.name if me is not None else "my team"
+    mine = sorted((out[c].keeper_surplus for c in by_team.get(me.team_id, [])) if me is not None else [],
+                  reverse=True)
+    mine_pos = [s for s in mine if s > 0.0][:k] if k > 0 else []
+    bar = mine_pos[k - 1] if k > 0 and len(mine_pos) >= k else 0.0
+    for cid, dv in out.items():
+        if cid in holder:
+            continue
+        s = dv.keeper_surplus
+        dv.keeper = k > 0 and s > 0.0 and s > bar
+        if dv.keeper:
+            rank = 1 + sum(1 for x in mine_pos if x >= s)
+            dv.reasons.append(Reason(code="KEEPER",
+                                     text=f"Free agent: would be keeper #{rank} of {k} on {my_name}: {surplus_text(dv)}",
+                                     value=s, baseline=spot))
+        elif k == 0:
+            dv.reasons.append(Reason(code="NOT_KEEPER", text="No keepers in this league: valued on this season only",
+                                     value=s, baseline=0.0))
+        elif s <= 0.0:
+            dv.reasons.append(no_surplus(dv))
+        else:
+            dv.reasons.append(Reason(
+                code="NOT_KEEPER",
+                text=f"Free agent: would not crack {my_name}'s {top} ({_ordinal(k)} keeper surplus {bar:.2f}): "
+                     f"valued on this season only",
+                value=s, baseline=bar))
+
+    for cid, dv in out.items():
+        model_surplus = max(0.0, model_future[cid] - spot)
+        dv.model_value = dv.season_part + (model_surplus if dv.keeper else 0.0)
+        dv.value = dv.season_part + (dv.keeper_surplus if dv.keeper else 0.0)
 
 
 def keeper_total(players: Iterable[Player], dyn: Mapping[str, "DynastyValue"], k: int | None) -> float:
@@ -351,7 +524,9 @@ def keeper_total(players: Iterable[Player], dyn: Mapping[str, "DynastyValue"], k
     ``keeper_surplus`` among ``players`` (the keepers the team would choose). ``k`` None (a
     keep-everyone dynasty): every player's surplus counts. Players without a DynastyValue count 0.
     Used for exact marginal keeper value: a trade's or pickup's long-term change for a team is
-    keeper_total(after) - keeper_total(before)."""
+    keeper_total(after) - keeper_total(before) (pass ``keeper_count(ctx)`` as ``k``). Surpluses
+    are >= 0 in keeper leagues, so adding a player never lowers it; in keep-everyone leagues
+    surplus == future (not floored) and the sum runs over every player."""
     xs = sorted((dyn[p.cid].keeper_surplus for p in players if p.cid in dyn), reverse=True)
     return sum(xs if k is None else xs[:max(0, int(k))])
 

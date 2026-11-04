@@ -65,10 +65,11 @@ def ir_movable(team: FantasyTeam, values: Mapping[str, Any] | None = None) -> li
     return sorted(out, key=lambda p: (IR_MOVE_STATUSES.index(p.status), -fpg(p)))
 
 
-def dynasty_map(ctx: LeagueContext, values: Mapping[str, Any],
-                dynasty_values: Mapping[str, Any] | None = None) -> dict[str, float] | None:
-    """{cid: dynasty value} in dynasty leagues (computed from `values` when not supplied),
-    else None."""
+def dynasty_objects(ctx: LeagueContext, values: Mapping[str, Any],
+                    dynasty_values: Mapping[str, Any] | None = None) -> Mapping[str, Any] | None:
+    """The dynasty values as given (``valuation.dynasty.DynastyValue`` objects, or plain floats)
+    in dynasty leagues, computed from `values` when not supplied; None outside dynasty leagues or
+    when they cannot be computed. Keeper-league math (``dynasty_change``) needs these objects."""
     if not ctx.dynasty:
         return None
     if dynasty_values is None:
@@ -81,12 +82,154 @@ def dynasty_map(ctx: LeagueContext, values: Mapping[str, Any],
                 ctx.warnings.append(f"{msg} ({type(e).__name__}: {str(e)[:100]}); "
                                     "recommendations use season values only")
             return None
+    return dynasty_values
+
+
+def dynasty_floats(dynasty_values: Mapping[str, Any] | None) -> dict[str, float] | None:
+    """{cid: value} from DynastyValue objects or floats (None when empty)."""
     out: dict[str, float] = {}
     for cid, dv in (dynasty_values or {}).items():
         v = dv if isinstance(dv, (int, float)) else getattr(dv, "value", None)
         if v is not None:
             out[cid] = float(v)
     return out or None
+
+
+def dynasty_map(ctx: LeagueContext, values: Mapping[str, Any],
+                dynasty_values: Mapping[str, Any] | None = None) -> dict[str, float] | None:
+    """{cid: dynasty value} in dynasty leagues (computed from `values` when not supplied),
+    else None."""
+    return dynasty_floats(dynasty_objects(ctx, values, dynasty_values))
+
+
+# -- keeper leagues (LeagueContext.keepers_per_team) ----------------------------------------
+#
+# Each team keeps K players into next season (free, no year limit); everyone else is redrafted.
+# A player's long-term value therefore counts only while he is one of his team's top K by
+# ``DynastyValue.keeper_surplus`` (his future value over a waiver-level roster spot's). The exact
+# dynasty-unit change of a roster move for a team is
+#
+#     sum(season_part, after) - sum(season_part, before) + keeper_total(after) - keeper_total(before)
+#
+# (``valuation.dynasty.keeper_total``: the K largest surpluses): a 4th good young player adds
+# only this season's value; one who displaces the K-th keeper adds his surplus less the displaced
+# one's; dropping a non-keeper prospect costs only his season part. In keep-everyone dynasties
+# (keepers_per_team None) the change stays the plain sum of per-player values.
+
+class DynastyChange(NamedTuple):
+    """A team's dynasty-unit change from roster ``before`` to ``after`` (``dynasty_change``)."""
+    total: float                      # what recommenders use (= season + keepers in keeper leagues)
+    season: float = 0.0               # keeper leagues: this season's part (sum of season_part)
+    keepers: float = 0.0              # keeper leagues: keeper_total(after) - keeper_total(before)
+    kept_in: tuple[Player, ...] = ()  # keeper leagues: players who join the top-K keepers
+    kept_out: tuple[Player, ...] = () # ... and who leave them (traded / dropped / displaced)
+    k: int | None = None              # keepers per team; None = keep-everyone (additive)
+
+
+def _has_keeper_fields(dyn: Mapping[str, Any]) -> bool:
+    dv = next(iter(dyn.values()), None)
+    return dv is not None and hasattr(dv, "keeper_surplus") and hasattr(dv, "season_part")
+
+
+def keeper_k(ctx: LeagueContext, dyn: Mapping[str, Any] | None = None) -> int | None:
+    """Keepers per team when keeper-league math applies: a dynasty league with
+    ``ctx.keepers_per_team`` set and, when `dyn` is given, dynasty values that carry the keeper
+    fields (DynastyValue objects; a plain {cid: float} map cannot, so it stays additive).
+    None = keep-everyone dynasty (or not a dynasty league)."""
+    k = getattr(ctx, "keepers_per_team", None)
+    if not getattr(ctx, "dynasty", False) or k is None:
+        return None
+    if dyn is not None and not _has_keeper_fields(dyn):
+        return None
+    return max(0, int(k))
+
+
+def _dyn_v(dyn: Mapping[str, Any], cid: str) -> float:
+    dv = dyn.get(cid)
+    if dv is None:
+        return 0.0
+    return float(dv) if isinstance(dv, (int, float)) else float(getattr(dv, "value", 0.0) or 0.0)
+
+
+def _season_part(dyn: Mapping[str, Any], cid: str) -> float:
+    return float(getattr(dyn.get(cid), "season_part", 0.0) or 0.0)
+
+
+def _surplus(dyn: Mapping[str, Any], cid: str) -> float:
+    return float(getattr(dyn.get(cid), "keeper_surplus", 0.0) or 0.0)
+
+
+def keeper_set(players: Iterable[Player], dyn: Mapping[str, Any], k: int) -> list[Player]:
+    """The keepers a team would choose: its top ``k`` players by keeper_surplus (positive surplus
+    only), best first; ``keeper_total`` sums their surpluses."""
+    ranked = sorted((p for p in players if _surplus(dyn, p.cid) > 0.0), key=lambda p: -_surplus(dyn, p.cid))
+    return ranked[:max(0, k)]
+
+
+def dynasty_change(ctx: LeagueContext, dyn: Mapping[str, Any] | None, before: Iterable[Player],
+                   after: Iterable[Player]) -> DynastyChange:
+    """Dynasty-unit change for a team going from roster ``before`` to ``after`` (IR players
+    included in both). Keeper leagues (``keeper_k``): the season_part change of the players who
+    come and go plus keeper_total(after) - keeper_total(before), with the keeper set's change.
+    Keep-everyone: V(added) - V(removed), the plain additive change."""
+    b = {p.cid: p for p in before}
+    a = {p.cid: p for p in after}
+    added = [p for c, p in a.items() if c not in b]
+    removed = [p for c, p in b.items() if c not in a]
+    dyn = dyn or {}
+    k = keeper_k(ctx, dyn) if dyn else None
+    if k is None:
+        return DynastyChange(sum(_dyn_v(dyn, p.cid) for p in added) - sum(_dyn_v(dyn, p.cid) for p in removed))
+    from ..valuation.dynasty import keeper_total
+
+    season = sum(_season_part(dyn, p.cid) for p in added) - sum(_season_part(dyn, p.cid) for p in removed)
+    keep = keeper_total(a.values(), dyn, k) - keeper_total(b.values(), dyn, k)
+    kb, ka = keeper_set(b.values(), dyn, k), keeper_set(a.values(), dyn, k)
+    kb_ids, ka_ids = {p.cid for p in kb}, {p.cid for p in ka}
+    kept_in = tuple(p for p in ka if p.cid not in kb_ids)
+    kept_out = tuple(p for p in kb if p.cid not in ka_ids)
+    return DynastyChange(season + keep, season, keep, kept_in, kept_out, k)
+
+
+def dynasty_delta(ctx: LeagueContext, dyn: Mapping[str, Any] | None, before: Iterable[Player],
+                  after: Iterable[Player]) -> float:
+    """``dynasty_change(...).total``: the dynasty-unit change of a roster move for one team."""
+    return dynasty_change(ctx, dyn, before, after).total
+
+
+def swap_values(ctx: LeagueContext, dyn: Mapping[str, Any] | None, roster: Iterable[Player],
+                add: Player | None, drop: Player | None) -> tuple[float, float]:
+    """(add value, drop value) in dynasty units for swapping ``drop`` for ``add`` on ``roster``
+    (my players, IR included). Keep-everyone: (V(add), V(drop)). Keeper leagues: what ``drop``
+    contributes to the roster (the dynasty_delta of losing him) and what ``add`` contributes to it
+    without ``drop``, so add - drop is the swap's exact ``dynasty_delta``. A ``drop`` not on
+    ``roster`` (e.g. a pickup planned earlier) is valued as if he were."""
+    dyn = dyn or {}
+    if keeper_k(ctx, dyn) is None or not dyn:
+        return (_dyn_v(dyn, add.cid) if add is not None else 0.0,
+                _dyn_v(dyn, drop.cid) if drop is not None else 0.0)
+    gone = {x.cid for x in (add, drop) if x is not None}
+    base = [p for p in roster if p.cid not in gone]
+    a = dynasty_delta(ctx, dyn, base, base + [add]) if add is not None else 0.0
+    d = dynasty_delta(ctx, dyn, base, base + [drop]) if drop is not None else 0.0
+    return a, d
+
+
+def keepers_text(ch: DynastyChange) -> str:
+    """"Bouchard replaces Sanderson as a keeper" / "Bouchard becomes a keeper" / "Sanderson is
+    no longer a keeper" / "keepers unchanged" for a keeper-league DynastyChange."""
+    def names(ps: Iterable[Player]) -> str:
+        return " + ".join(p.name for p in ps)
+
+    if ch.kept_in and ch.kept_out:
+        return f"{names(ch.kept_in)} replace{'s' if len(ch.kept_in) == 1 else ''} {names(ch.kept_out)} as " \
+               f"{'a keeper' if len(ch.kept_in) == 1 else 'keepers'}"
+    if ch.kept_in:
+        return f"{names(ch.kept_in)} become{'s a keeper' if len(ch.kept_in) == 1 else ' keepers'}"
+    if ch.kept_out:
+        return f"{names(ch.kept_out)} {'is' if len(ch.kept_out) == 1 else 'are'} no longer " \
+               f"{'a keeper' if len(ch.kept_out) == 1 else 'keepers'}"
+    return "keepers unchanged"
 
 
 def open_roster_spots(team: FantasyTeam, roster_shape: Mapping[str, int]) -> int:
@@ -248,6 +391,25 @@ def protection_reason(p: Player, age: float | None) -> str | None:
     if owned is not None and owned >= PROTECT_UNPROVEN_OWNED and p.career_gp is not None             and p.career_gp < PROTECT_UNPROVEN_GP:
         return f"{p.name} is {age:.0f}, {p.career_gp} NHL GP and rostered in {owned:.0f}% of leagues"
     return None
+
+
+def protected_reason(p: Player, ctx: LeagueContext, dynasty_values: Mapping[str, Any] | None = None,
+                     dyn: Mapping[str, Any] | None = None) -> str | None:
+    """``protection_reason`` (age from ``dynasty_values``, see ``player_age``) and, in keeper
+    leagues (``keeper_k``), only for a keeper on his team (``DynastyValue.keeper`` in `dyn`,
+    default `dynasty_values`): a prospect his team would not keep has no future value to protect.
+    A player without a dynasty value keeps the plain rule."""
+    why = protection_reason(p, player_age(p, ctx, dynasty_values))
+    if why is None:
+        return None
+    dyn = dyn if dyn is not None else dynasty_values
+    k = keeper_k(ctx, dyn) if dyn else None
+    if k is None:
+        return why
+    dv = dyn.get(p.cid)
+    if dv is not None and not getattr(dv, "keeper", True):
+        return None
+    return f"{why}, " + ("his team's keeper" if k == 1 else f"a top-{k} keeper")
 
 
 # -- transaction budget and churn guard (LeagueContext.moves_* / recent_adds) -----------------

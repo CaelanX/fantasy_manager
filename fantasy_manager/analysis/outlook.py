@@ -9,7 +9,10 @@ For every team in the league:
   (``valuation.dynasty._healthy_fpg``) times his age-curve / pedigree trajectory
   (``trajectory_factor``) for 1..FUTURE_YEARS seasons ahead; the best lineup of those values per
   year, averaged, ranked. Same units as ``now`` (a lineup's FPG), so a team that ages out shows a
-  falling line.
+  falling line. Keeper leagues (``ctx.keepers_per_team`` = K): only each team's top-K keepers
+  (``recommend.base.keeper_set``, by keeper surplus) are still on it next season, everyone else is
+  redrafted, so the future lineup holds just those K players (the future line is the keepers'
+  part of a lineup and ranks the teams' cores).
 * **Playoff odds this season.** A Monte Carlo of the rest of the fantasy regular season
   (SIMS draws, fixed seed): every week each team meets a random opponent and wins with the normal
   probability of its weekly points (lineup FPG x GAMES_PER_WEEK, sd WEEKLY_CV of the mean) beating
@@ -38,6 +41,10 @@ Sell and buy lists follow the recommended direction:
   peak now); buy young risers (future value above today's) from contending teams first.
 * balanced: sell my steepest decliners aged >= BALANCED_SELL_AGE; buy players in their prime who
   hold their value both now and later.
+
+Keeper leagues: "long-term value" (contend sells) is the keeper surplus (future over a waiver-level
+spot), not the holder-relative dynasty value; rebuild / balanced buys must be players who would
+enter my top-K keepers (surplus above my K-th keeper's): a later season counts only for a keeper.
 """
 from __future__ import annotations
 
@@ -266,11 +273,20 @@ def redraft_label(odds: float) -> str:
 def _assets(o: Outlook, ctx: LeagueContext, values: Mapping[str, Any], dyn: Mapping[str, Any] | None,
             fut: Mapping[str, float]) -> None:
     """Fill ``o.sell`` / ``o.buy`` for the recommended direction (module docstring)."""
+    from ..recommend.base import keeper_k, keeper_set
     from ..recommend.trades import _greedy_assignment
 
     me = ctx.my_team
     mine = me.players
     starters = {c for cids in _greedy_assignment(mine, values, ctx.roster_shape).values() for c in cids}
+    k = keeper_k(ctx, dyn) if dyn else None
+
+    def surplus(p: Player) -> float:
+        return float(getattr((dyn or {}).get(p.cid), "keeper_surplus", 0.0) or 0.0)
+
+    # keeper leagues: a later season counts only for a player who would enter my top-K keepers
+    my_keepers = keeper_set(mine, dyn, k) if k is not None else []
+    keep_bar = surplus(my_keepers[-1]) if k is not None and len(my_keepers) >= k else 0.0
     weakest = min((_now(values, p) for p in mine if p.cid in starters), default=0.0)
     direction = {t.team.team_id: t for t in o.teams}
     rec = o.recommended
@@ -278,7 +294,17 @@ def _assets(o: Outlook, ctx: LeagueContext, values: Mapping[str, Any], dyn: Mapp
     for p in mine:
         now, f, age = _now(values, p), fut.get(p.cid), _age(p, ctx, dyn)
         dv = getattr((dyn or {}).get(p.cid), "value", None)
-        if rec == "contend":
+        if rec == "contend" and k is not None:
+            # keeper league: his long-term value is his keeper surplus (to me or a team that keeps him)
+            s = surplus(p)
+            if p.cid in starters or p.cid not in (dyn or {}) or s <= 0:
+                continue
+            kept = any(q.cid == p.cid for q in my_keepers)
+            sell.append((s, Asset(p, None, now, f, age,
+                                  f"not in your lineup this season (long-term value {s:.1f}, "
+                                  + ("one of your keepers" if kept else f"not one of your top {k} keepers")
+                                  + "): turn him into a starter")))
+        elif rec == "contend":
             if p.cid in starters or not isinstance(dv, (int, float)) or dv <= 0:
                 continue
             sell.append((float(dv), Asset(p, None, now, f, age,
@@ -314,6 +340,8 @@ def _assets(o: Outlook, ctx: LeagueContext, values: Mapping[str, Any], dyn: Mapp
             elif rec == "rebuild":
                 if f is None or f <= now or (age is not None and age > REBUILD_BUY_MAX_AGE):
                     continue
+                if k is not None and surplus(p) <= keep_bar:
+                    continue     # keeper league: would not be one of my keepers
                 buyer = their is not None and their.label == "contend"
                 score = f * (1.2 if buyer else 1.0)
                 a = f"age {age:.0f}, " if age is not None else ""
@@ -322,6 +350,8 @@ def _assets(o: Outlook, ctx: LeagueContext, values: Mapping[str, Any], dyn: Mapp
             elif rec == "balanced":
                 if f is None or age is None or not (PRIME_AGES[0] <= age <= PRIME_AGES[1]):
                     continue
+                if k is not None and surplus(p) <= keep_bar:
+                    continue     # keeper league: his later value would not be mine to keep
                 score = min(now, f)
                 why = f"age {age:.0f}, {now:.2f} FPG now and about {f:.2f} later: value both ways"
             else:
@@ -334,7 +364,12 @@ def build_outlook(ctx: LeagueContext, values: Mapping[str, Any], dynasty_values:
                   provider: Any = None, sims: int = SIMS) -> Outlook:
     """Every team's this-season and future lineup strength, playoff odds, and my recommended
     mode with sell / buy lists (module docstring)."""
+    from ..recommend.base import keeper_k, keeper_set
+
     dyn = dynasty_values if ctx.dynasty else None
+    k = keeper_k(ctx, dyn) if dyn else None
+    # keeper leagues: next season a team has only its top-K keepers (the rest are redrafted)
+    core = {t.team_id: (t.players if k is None else keeper_set(t.players, dyn, k)) for t in ctx.teams}
     now_vals = {p.cid: _now(values, p) for t in ctx.teams for p in t.players}
     fut_by_year: list[dict[str, float]] = [{} for _ in range(FUTURE_YEARS)]
     fut_avg: dict[str, float] = {}
@@ -352,7 +387,8 @@ def build_outlook(ctx: LeagueContext, values: Mapping[str, Any], dynasty_values:
         rows.append(TeamOutlook(
             team=t, record=rec, win_pct=(rec[0] + 0.5 * rec[2]) / gp if rec and gp else None,
             now=_lineup(t.players, now_vals, ctx),
-            future=[_lineup(t.players, fut_by_year[y], ctx) for y in range(FUTURE_YEARS)] if dyn is not None else []))
+            future=[_lineup(core[t.team_id], fut_by_year[y], ctx) for y in range(FUTURE_YEARS)]
+            if dyn is not None else []))
     for i, r in enumerate(sorted(rows, key=lambda r: -r.now)):
         r.now_rank = i + 1
     if dyn is not None:
@@ -374,6 +410,9 @@ def build_outlook(ctx: LeagueContext, values: Mapping[str, Any], dynasty_values:
                   current=ctx.dynasty_mode if ctx.dynasty else None, weeks_left=weeks, playoff_teams=spots)
     out.notes = [f"Playoff odds: {weeks} regular-season weeks left ({wsrc}), {spots} playoff spots ({ssrc}); "
                  f"random opponents, {sims} simulations (approximate)"]
+    if k is not None:
+        out.notes.append(f"Keeper league: next seasons count only each team's top {k} keeper{'s' if k != 1 else ''} "
+                         f"(everyone else is redrafted), so the future lineups hold just those players")
     if me is not None:
         if dyn is not None:
             out.recommended, out.reasons = recommend_mode(me, n)

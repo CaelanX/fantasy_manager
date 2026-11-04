@@ -25,6 +25,19 @@ Every pick a team holds (``LeagueContext.draft_picks``) gets a dynasty value in 
    and good prospects on waivers most picks net little: they are cheap to give and, since
    managers price them on absolute value, useful as trade sweeteners.
 
+Keeper leagues (``ctx.keepers_per_team`` set; see ``valuation.dynasty`` "Keeper leagues"): the
+next draft is a redraft of everyone not kept, so steps 3 and 5 change (1, 2 and 4 do not).
+The pool is every valued player, rostered or free agent, except the predicted keepers (rostered
+players with ``keeper`` True; a free agent is always in the pool), ranked by next-season value
+``nv = healthy FPG x trajectory_factor(group, age, 1, pedigree)`` (``dynasty._healthy_fpg``, the
+DynastyValue's age and pedigree). Overall pick k is worth ``w_1 x nv`` of the k-th best pool
+player (w_1 = the mode's year-1 weight, ``dynasty.DISCOUNT`` with a 1-year horizon); no
+DRAFT_CLASS_DISCOUNT, since these are established players, not prospects years from the NHL.
+``net`` = value - ``repl x w_1`` (same per-year discount), repl = the league's lowest replacement
+FPG: the draftee takes next season's roster spot a waiver-level player would otherwise fill.
+When ``dynasty_values`` carries no keeper flags (e.g. plain floats), ``apply_dynasty`` is rerun
+for them.
+
 Approximate by design: the curve and constants are documented here so they can be refit.
 """
 from __future__ import annotations
@@ -33,7 +46,8 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from ..models import FantasyTeam, LeagueContext
-from .dynasty import DISCOUNT
+from .dynasty import (DISCOUNT, _healthy_fpg, age_on, keeper_count, min_replacement_fpg, mode_weights,
+                      position_group, trajectory_factor)
 
 DRAFT_CLASS_DISCOUNT = 0.75     # a new draftee vs today's comparable-rank unproven player
 FUTURE_SLOT_SHRINK = 0.5        # expected slot pulled halfway to the middle per year ahead
@@ -170,6 +184,53 @@ def roster_spot_value(ctx: LeagueContext, values: Mapping[str, Any]) -> float:
     return min(levels.values()) * (sum(w) + DISCOUNT ** horizon * terminal)
 
 
+# -- keeper leagues (module docstring "Keeper leagues") -------------------------------------
+
+def next_season_weight(ctx: LeagueContext) -> float:
+    """w_1, the mode's weight on next season (``DISCOUNT`` when the horizon is one year)."""
+    years = max(1, int(ctx.keeper_horizon_years or 1))
+    w, _ = mode_weights(getattr(ctx, "dynasty_mode", None), years)
+    return w[1] if len(w) > 1 else DISCOUNT
+
+
+def next_season_fpg(ctx: LeagueContext, pv: Any, dv: Any = None) -> float:
+    """Next season's per-game value: healthy FPG x trajectory_factor(group, age, 1, pedigree),
+    age and pedigree from the DynastyValue ``dv`` (birth date and 1.0 without one)."""
+    p = pv.player
+    healthy = _healthy_fpg(pv, float(getattr(pv, "fpg_season", 0.0) or 0.0))
+    if dv is not None and hasattr(dv, "pedigree"):
+        age, ped = getattr(dv, "age", None), float(getattr(dv, "pedigree", 1.0) or 1.0)
+    else:
+        age, ped = age_on(p.birth_date, ctx.as_of), 1.0
+    return healthy * trajectory_factor(position_group(p), age, 1, ped)
+
+
+def keeper_slot_curve(ctx: LeagueContext, values: Mapping[str, Any], dynasty_values: Mapping[str, Any]
+                      ) -> list[float]:
+    """Keeper leagues: value by overall pick (index 0 = pick 1) of next season's redraft, w_1 x
+    next-season value of the pool (every valued player except rostered predicted keepers), best
+    first."""
+    rostered = {p.cid for t in ctx.teams for p in t.players}
+    w1 = next_season_weight(ctx)
+    pool = []
+    for cid, pv in values.items():
+        dv = dynasty_values.get(cid)
+        if cid in rostered and dv is not None and getattr(dv, "keeper", False):
+            continue
+        pool.append(next_season_fpg(ctx, pv, dv))
+    pool.sort(reverse=True)
+    return [w1 * v for v in pool]
+
+
+def keeper_spot_value(ctx: LeagueContext, values: Mapping[str, Any]) -> float:
+    """Keeper leagues: next season's value of the roster spot a draftee takes, repl x w_1."""
+    return min_replacement_fpg(ctx, values) * next_season_weight(ctx)
+
+
+def _has_keeper_flags(dynasty_values: Mapping[str, Any] | None) -> bool:
+    return bool(dynasty_values) and all(hasattr(dv, "keeper") for dv in dynasty_values.values())
+
+
 def curve_at(curve: list[float], overall: int) -> float:
     if not curve:
         return 0.0
@@ -226,11 +287,11 @@ def holdings(ctx: LeagueContext) -> list[tuple[str, int, int, str, bool]]:
 def value_picks(ctx: LeagueContext, values: Mapping[str, Any],
                 dynasty_values: Mapping[str, Any] | None = None) -> list[PickAsset]:
     """Every known draft pick with its value, best first ([] outside dynasty leagues or without
-    pick data)."""
+    pick data). Keeper leagues value the redraft of everyone not kept (module docstring)."""
     if not ctx.dynasty or not ctx.draft_picks:
         return []
+    from .dynasty import apply_dynasty
     if dynasty_values is None:
-        from .dynasty import apply_dynasty
         dynasty_values = apply_dynasty(values, ctx)  # type: ignore[arg-type]
     dyn = {cid: v for cid, dv in (dynasty_values or {}).items() if (v := _dyn(dv)) is not None}
     rows = holdings(ctx)
@@ -239,8 +300,13 @@ def value_picks(ctx: LeagueContext, values: Mapping[str, Any],
     names = {t.team_id: t.name for t in ctx.teams}
     n = max(1, len(ctx.teams))
     first = min(y for _, y, _, _, _ in rows)
-    curve = slot_curve(ctx, dyn)
-    spot = roster_spot_value(ctx, values)
+    if keeper_count(ctx) is None:
+        curve = slot_curve(ctx, dyn)
+        spot = roster_spot_value(ctx, values)
+    else:
+        full = dynasty_values if _has_keeper_flags(dynasty_values) else apply_dynasty(values, ctx)  # type: ignore[arg-type]
+        curve = keeper_slot_curve(ctx, values, full or {})
+        spot = keeper_spot_value(ctx, values)
     elapsed = _elapsed(ctx)
     slots: dict[int, dict[str, float]] = {}
     out = []
@@ -266,4 +332,5 @@ def picks_by_holder(picks: list[PickAsset]) -> dict[str, list[PickAsset]]:
 
 
 __all__ = ["PickAsset", "value_picks", "picks_by_holder", "expected_slots", "slot_curve", "pick_value",
-           "holdings", "DRAFT_CLASS_DISCOUNT", "FUTURE_SLOT_SHRINK"]
+           "holdings", "keeper_slot_curve", "keeper_spot_value", "next_season_fpg", "next_season_weight",
+           "DRAFT_CLASS_DISCOUNT", "FUTURE_SLOT_SHRINK"]

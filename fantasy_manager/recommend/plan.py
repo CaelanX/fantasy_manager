@@ -48,7 +48,7 @@ from typing import Any, Iterable, Mapping
 from pydantic import BaseModel, Field
 
 from ..models import FantasyTeam, LeagueContext, Player, Recommendation
-from .base import moves_left, shares_slot
+from .base import dynasty_delta, keeper_k, moves_left, shares_slot, swap_values
 from .headline import market_suffix
 from .lineup import UNAVAILABLE, _dp, _lock, _starters, day_value, plan_days, started, starting_slots
 
@@ -375,16 +375,22 @@ def _best_day(tl: _Timeline, txs: list[_Tx], add: Player, drop: Player | None, t
     return best
 
 
-def _long_term(ctx: LeagueContext, values: Mapping[str, Any], dyn: Mapping[str, float] | None,
+def _long_term(ctx: LeagueContext, values: Mapping[str, Any], dyn: Mapping[str, Any] | None,
                add: Player, drop: Player) -> tuple[bool, str]:
     """(within tolerance, reason text) of swapping ``drop`` for ``add`` long term: dynasty value in
     dynasty leagues, else rest-of-season FPG, with the waiver engine's stream tolerance
     (``waivers.STREAM_DYNASTY_TOLERANCE`` for the league's mode). Always against the player this
-    step actually drops (a re-stream drops an earlier pickup, not the waiver rec's drop)."""
+    step actually drops (a re-stream drops an earlier pickup, not the waiver rec's drop). Keeper
+    leagues (`dyn` = the DynastyValue objects, ``base.keeper_k``): each one's exact contribution to
+    my roster (``base.swap_values``: this season's part + the change in my top-K keepers)."""
     from .waivers import STREAM_DYNASTY_TOLERANCE
 
     tol = STREAM_DYNASTY_TOLERANCE.get(getattr(ctx, "dynasty_mode", None) or "contend", 0.0)
-    if dyn is not None:
+    k = keeper_k(ctx, dyn) if dyn else None
+    if dyn is not None and k is not None:
+        a, d = swap_values(ctx, dyn, ctx.my_team.players, add, drop)
+        unit, lead, fmt = f"value (this season + top-{k} keepers)", "Long term", "{:.1f}"
+    elif dyn is not None:
         a, d, unit, lead = dyn.get(add.cid, 0.0), dyn.get(drop.cid, 0.0), "dynasty value", "Long term"
         fmt = "{:.1f}"
     else:
@@ -401,7 +407,7 @@ def _long_term(ctx: LeagueContext, values: Mapping[str, Any], dyn: Mapping[str, 
 
 def _search(ctx: LeagueContext, tl: _Timeline, pairs: list, max_moves: int, min_pts: float,
             now: datetime, values: Mapping[str, Any] | None = None,
-            dyn: Mapping[str, float] | None = None) -> list[_Tx]:
+            dyn: Mapping[str, Any] | None = None) -> list[_Tx]:
     """Beam search over move sequences (module docstring). A re-stream (dropping a pickup the plan
     made earlier) must also stay within the long-term tolerance against that pickup (``_long_term``)."""
     states: list[tuple[float, list[_Tx]]] = [(tl.total([]), [])]
@@ -654,9 +660,13 @@ def build_week_plan(ctx: LeagueContext, values: Mapping[str, Any], *, dynasty_va
         before = _Timeline(ctx, team, values, days, now).total([])
         ir_items[0].gain, ir_items[0].gain_units = round(plan.proj_lineup - before, 2), "matchup_pts"
 
-    from .base import dynasty_map
+    from .base import dynasty_floats, dynasty_objects
 
-    dyn = dynasty_map(ctx, values, dynasty_values)
+    dobj = dynasty_objects(ctx, values, dynasty_values)
+    dyn = dynasty_floats(dobj)
+    # long-term comparisons (_long_term, _chains): V in keep-everyone dynasties; in keeper leagues
+    # the DynastyValue objects, for exact contributions to my roster (base.swap_values)
+    lt = dobj if dyn is not None and keeper_k(ctx, dobj) is not None else dyn
     left = moves_left(ctx)
     plan.moves_left = left
     max_moves = UNLIMITED_MOVES_CAP if left is None else left
@@ -673,7 +683,7 @@ def build_week_plan(ctx: LeagueContext, values: Mapping[str, Any], *, dynasty_va
         pairs, notes = _candidates(ctx, values, dynasty_values)
         plan.notes.extend(notes)
         min_pts = MIN_MOVE_PTS.get(stance, 1.0)
-        txs = _search(ctx, tl, pairs, max_moves, min_pts, now, values, dyn)
+        txs = _search(ctx, tl, pairs, max_moves, min_pts, now, values, lt)
         if snaps:      # keep the last plan's steps unless the new one is clearly better
             txs, kept = plan_memory.stabilize(ctx, tl, txs, snaps[-1], pairs, max_moves, min_pts, now)
     elif left == 0:
@@ -713,14 +723,14 @@ def build_week_plan(ctx: LeagueContext, values: Mapping[str, Any], *, dynasty_va
         if t.rec is not None and t.rec.reasons:
             mv.reasons = [x.text for x in t.rec.reasons if x.code in ("WAIVER_CLAIM", "CHURN_GUARD")]
         if t.drop is not None:      # long-term change against the player this step actually drops
-            mv.reasons.insert(0, _long_term(ctx, values, dyn, t.add, t.drop)[1])
+            mv.reasons.insert(0, _long_term(ctx, values, lt, t.add, t.drop)[1])
         mv.timing, mv.day = _timing(ctx, mv)
         if plan_memory.move_key(mv) in kept:
             mv.status = "kept"
         plan.moves.append(mv)
         prev_total, prev_win = tot, win
     plan.win_plan = prev_win
-    _chains(plan, ctx, values, dyn, tl)
+    _chains(plan, ctx, values, lt, tl)
     if snaps is not None:
         plan.since = plan_memory.compare(plan, ctx, snaps, kept, tl, txs, values, dyn, now)
         if plan.since is not None:
@@ -745,11 +755,15 @@ def _slot_label(p: Player) -> str:
     return "G" if p.is_goalie else ("/".join(pos[:2]) if pos else "F")
 
 
-def _chains(plan: WeekPlan, ctx: LeagueContext, values: Mapping[str, Any], dyn: Mapping[str, float] | None,
+def _chains(plan: WeekPlan, ctx: LeagueContext, values: Mapping[str, Any], dyn: Mapping[str, Any] | None,
             tl: _Timeline) -> None:
     """Tell re-streams as one story: the first pickup is a rental, the later step that drops him a
     swap (why: his games are done, the move would otherwise expire, the keeper value), plus the
-    "Net this week" lines (who is gone, who stays, long-term change, points)."""
+    "Net this week" lines (who is gone, who stays, long-term change, points). Keeper leagues (`dyn`
+    = DynastyValue objects): the keeper value and the long-term change are my roster's exact
+    change (``base.swap_values`` / ``base.dynasty_delta``)."""
+    keepers = keeper_k(ctx, dyn) if dyn else None
+    roster = ctx.my_team.players
     by_add = {m.add.cid: m for m in plan.moves}
     n = 0
     for i, m in enumerate(plan.moves):
@@ -772,7 +786,11 @@ def _chains(plan: WeekPlan, ctx: LeagueContext, values: Mapping[str, Any], dyn: 
             reset = (ctx.period_end + timedelta(days=1)) if getattr(ctx, "period_end", None) else None
             why.append("this is your last move this week and unused moves don't carry over"
                        + (f" (reset {_wd(reset)} {reset:%b} {reset.day})" if reset else ""))
-        if dyn is not None and dyn.get(m.add.cid, 0.0) > dyn.get(prev.add.cid, 0.0):
+        if dyn is not None and keepers is not None:
+            a, d = swap_values(ctx, dyn, roster, m.add, prev.add)
+            if a > d:
+                why.append(f"{m.add.name} is the better keeper")
+        elif dyn is not None and dyn.get(m.add.cid, 0.0) > dyn.get(prev.add.cid, 0.0):
             why.append(f"{m.add.name} is the better keeper")
         m.note = f"Then swap {prev.add.name} for {m.add.name} {_wd(m.effective)}: " + "; ".join(why)
     if not plan.moves:
@@ -782,7 +800,11 @@ def _chains(plan: WeekPlan, ctx: LeagueContext, values: Mapping[str, Any], dyn: 
     stays = [p for c, p in added.items() if c not in dropped]
     gone = [p for c, p in dropped.items() if c not in added]
     rented = [p for c, p in added.items() if c in dropped]
-    if dyn is not None:
+    if dyn is not None and keepers is not None:
+        out = {p.cid for p in gone}
+        delta = dynasty_delta(ctx, dyn, roster, [p for p in roster if p.cid not in out] + stays)
+        lt = f"long term {delta:+.1f} value (this season + top-{keepers} keepers)"
+    elif dyn is not None:
         delta = sum(dyn.get(p.cid, 0.0) for p in stays) - sum(dyn.get(p.cid, 0.0) for p in gone)
         lt = f"long term {delta:+.1f} dynasty value"
     else:
