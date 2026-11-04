@@ -464,3 +464,108 @@ def test_daily_ir_swap_gain_is_matchup_points():
     r = next(r for r in recommend_lineup(ctx, vals) if r.title.startswith("Swap IR slots"))
     assert (r.gain_units, r.horizon_days) == ("matchup_pts", 6)
     assert r.predicted_gain == pytest.approx(4.0 + 4.0 - 3.0)   # d Tue + Thu; b loses only Thu (Wed is his)
+
+
+def test_started_and_finished_games_are_worth_nothing_more_today():
+    # the score so far already holds whatever a started (or finished) game produced: the plan
+    # must not count his per-game value again, but he keeps his slot
+    from datetime import datetime, timezone
+
+    from fantasy_manager.recommend.lineup import daily_plan
+
+    ctx, t, vals = _daily()
+    tue = date(2026, 10, 6)
+    ctx.schedule["CGY"].append(tue)
+    ctx.game_starts = {"EDM": {tue: datetime(2026, 10, 6, 23, 0, tzinfo=timezone.utc)},
+                       "CGY": {tue: datetime(2026, 10, 7, 2, 0, tzinfo=timezone.utc)}}
+    before = daily_plan(ctx, t, vals, now=datetime(2026, 10, 6, 22, 0, tzinfo=timezone.utc))
+    assert before.days[0].values["a"] == pytest.approx(2.0)
+    live = daily_plan(ctx, t, vals, now=datetime(2026, 10, 6, 23, 30, tzinfo=timezone.utc))   # a's game is on
+    day0 = live.days[0]
+    assert day0.values["a"] == 0.0 and day0.values["b"] == pytest.approx(3.0)
+    assert list(day0.assign.values()) == ["a"]                      # a stays locked in his slot
+    assert day0.optimal == 0.0 and day0.current == 0.0
+    assert "a" in day0.playing                                      # he did play today
+    assert live.starts("a") == 1 and live.remaining_starts("a") == 0   # Tue (locked); Thu goes to b
+    assert live.points("a") == 0.0
+    assert live.optimal == pytest.approx(before.optimal - 3.0)      # b's 3.0 tonight is gone, a's is banked
+    final = daily_plan(ctx, t, vals, now=datetime(2026, 10, 7, 6, 0, tzinfo=timezone.utc))    # both finished
+    assert final.days[0].values == {"a": 0.0, "b": 0.0} and final.days[0].locked == {"a", "b"}
+    assert final.days[1].values["b"] == pytest.approx(3.0)          # only today is ever locked
+
+
+def test_locked_starter_never_gets_a_swap_rec_today():
+    from datetime import datetime, timezone
+    from unittest import mock
+
+    from fantasy_manager.recommend import lineup as lu
+
+    ctx, t, vals = _daily()
+    tue = date(2026, 10, 6)
+    ctx.schedule["CGY"].append(tue)                                 # b would beat a today...
+    ctx.game_starts = {"EDM": {tue: datetime(2026, 10, 6, 23, 0, tzinfo=timezone.utc)}}
+    real = lu.daily_plan
+
+    def at(now):
+        return lambda *a, **k: real(*a, **{**k, "now": now})
+
+    with mock.patch.object(lu, "daily_plan", at(datetime(2026, 10, 6, 22, 0, tzinfo=timezone.utc))):
+        assert recommend_lineup(ctx, vals)[0].title == "Start b over a today"
+    with mock.patch.object(lu, "daily_plan", at(datetime(2026, 10, 6, 23, 30, tzinfo=timezone.utc))):
+        assert recommend_lineup(ctx, vals) == []                    # ...but a's game has started
+
+
+def _goalie_ctx(share=0.6, b2b=None):
+    """One G slot, goalie g (EDM): Tue Oct 6 + Wed Oct 7 (back-to-back) + Sat Oct 10. Today Mon."""
+    g = P("g", ["G"])
+    t = team([("G", g)])
+    sched = {"EDM": [date(2026, 10, 6), date(2026, 10, 7), date(2026, 10, 10)]}
+    ctx = LeagueContext(provider="espn", league_id="1", season=2027, name="T",
+                        scoring=ScoringConfig(kind="points", weights={"G": 1.0}), roster_shape={"G": 1},
+                        teams=[t], free_agents=[], matchup_period=1, as_of=date(2026, 10, 5),
+                        period_end=date(2026, 10, 11), schedule=sched, b2b_second_night=b2b or {})
+    # per-game value 3.0 x share (valuate: fpg x week share), 3 games
+    vals = {"g": PlayerValue(player=g, fpg=3.0, fpg_season=3.0 * share, fpg_week=3.0 * share, vorp=0.0,
+                             proj_week=3 * 3.0 * share, games_next7=3, offnight_next7=0, start_share=share)}
+    return ctx, t, g, vals
+
+
+def test_goalie_day_value_uses_per_night_start_probability():
+    from fantasy_manager.recommend.lineup import day_value, night_start_probability
+    from fantasy_manager.valuation.schedule import B2B_SECOND_NIGHT_P, night_start_probs, week_start_share
+
+    ctx, t, g, vals = _goalie_ctx(0.6)
+    p1, p2 = night_start_probs(0.6, B2B_SECOND_NIGHT_P)
+    assert p2 == pytest.approx(0.35) and p1 > 0.6
+    tue, wed, sat = date(2026, 10, 6), date(2026, 10, 7), date(2026, 10, 10)
+    assert night_start_probability(ctx, g, vals["g"], tue) == pytest.approx(p1)
+    assert night_start_probability(ctx, g, vals["g"], wed) == pytest.approx(p2)
+    # the #1 is worth less on the back-to-back's second night, more on ordinary nights
+    assert day_value(ctx, g, vals["g"], wed) == pytest.approx(3.0 * p2)
+    assert day_value(ctx, g, vals["g"], tue) == pytest.approx(3.0 * p1)
+    assert day_value(ctx, g, vals["g"], sat) == pytest.approx(3.0 * p1)
+    assert day_value(ctx, g, vals["g"], wed) < 3.0 * 0.6 < day_value(ctx, g, vals["g"], tue)
+    # the backup the other way round
+    ctx_b, _, gb, vals_b = _goalie_ctx(0.4)
+    assert day_value(ctx_b, gb, vals_b["g"], wed) > 3.0 * 0.4 > day_value(ctx_b, gb, vals_b["g"], tue)
+    # the harness ledger's rate for the team replaces 0.35, and valuate's B2B-weighted week share
+    # (inside proj_week) is what gets divided out
+    ctx_l, _, gl, vals_l = _goalie_ctx(0.6, b2b={"EDM": (0.2, 9)})
+    w = week_start_share(0.6, ctx_l.schedule["EDM"], ctx_l.as_of, 7, 0.2)
+    pv = vals_l["g"].model_copy(update={"proj_week": 3 * 3.0 * w})
+    assert night_start_probability(ctx_l, gl, pv, wed) == pytest.approx(0.2)
+    assert day_value(ctx_l, gl, pv, wed) == pytest.approx(3.0 * 0.2)
+
+
+def test_goalie_second_night_is_conditioned_on_tonights_confirmed_starter():
+    from fantasy_manager.analysis.goalie_plan import RESTED_STARTER_P
+    from fantasy_manager.recommend.lineup import day_value
+
+    ctx, t, g, vals = _goalie_ctx(0.6)
+    ctx = ctx.model_copy(update={"as_of": date(2026, 10, 6)})
+    g.confirmed_start, g.start_source = False, "Confirmed"           # rests tonight
+    assert day_value(ctx, g, vals["g"], date(2026, 10, 6)) == 0.0
+    assert day_value(ctx, g, vals["g"], date(2026, 10, 7)) == pytest.approx(3.0 * RESTED_STARTER_P)
+    g.confirmed_start = True                                          # starts tonight: rests tomorrow more often
+    assert day_value(ctx, g, vals["g"], date(2026, 10, 6)) == pytest.approx(3.0)
+    assert day_value(ctx, g, vals["g"], date(2026, 10, 7)) == pytest.approx(3.0 * 0.35)

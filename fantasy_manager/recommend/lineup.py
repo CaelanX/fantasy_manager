@@ -20,6 +20,13 @@ Daily-lineup leagues: when Daily Faceoff has named tonight's starter
 team plays today, today's game in his week projection uses a start probability of 1.0
 (confirmed) / 0.8 (likely or expected) for the starter and 0.0 / 0.2 for the other goalie
 instead of his season start share (CONFIRMED_START reason on the recs involving him).
+
+Daily plan values (``day_value``): a goalie's window-averaged start share is replaced per night
+(``night_start_probability``: lower for a #1 on a back-to-back's second night, conditioned on
+tonight's reported starter); a skater's per-game value is scaled by that game's opponent
+multiplier (``valuation.schedule``: betting-market implied team total, else opponent goals
+against; OPP_ADJ reason on today's recs). Today, a player whose game has started or finished is
+worth 0 more points (already in the provider's score) and keeps his slot.
 """
 from __future__ import annotations
 
@@ -30,8 +37,11 @@ from typing import Callable, Mapping, NamedTuple
 from ..analysis.schedule_grid import per_game_value
 from ..matching.normalize import normalize_team
 from ..models import FantasyTeam, LeagueContext, Player, Reason, Recommendation, RosterSlot
+from ..analysis.goalie_plan import second_night_prob
 from ..valuation.adjust import Horizon
 from ..valuation.replacement import eligible_slots
+from ..valuation.schedule import (B2B_SECOND_NIGHT_P, OPP_WEEK_REASON, OppGame, memo_window, night_start_probs,
+                                  skater_opp_game, week_start_share)
 from ..valuation.valuate import PlayerValue
 from .headline import day_swap_headline
 from .strength import apply_ranks, apply_strength
@@ -159,7 +169,7 @@ def current_total(team: FantasyTeam, values: Mapping[str, PlayerValue], horizon:
 class PlanDay(NamedTuple):
     day: date
     assign: dict[int, str]       # {slot index: cid}, players with a game that day
-    values: dict[str, float]     # cid -> expected points that day (0 without a game)
+    values: dict[str, float]     # cid -> expected points still to come that day (0 without a game / locked)
     playing: set[str]            # cids whose NHL team plays that day (unavailable players excluded)
     locked: frozenset[str]       # cids whose game has already started (today only)
     optimal: float
@@ -179,6 +189,10 @@ class DailyPlan(NamedTuple):
 
     def starts(self, cid: str) -> int:
         return sum(1 for d in self.days if cid in d.assign.values())
+
+    def remaining_starts(self, cid: str) -> int:
+        """Starts whose game has not begun yet (today's locked games are already in the score)."""
+        return sum(1 for d in self.days if cid in d.assign.values() and cid not in d.locked)
 
     def points(self, cid: str) -> float:
         return sum(d.values.get(cid, 0.0) for d in self.days if cid in d.assign.values())
@@ -207,19 +221,80 @@ def available_on(p: Player, pv: PlayerValue | None, day: date) -> bool:
     return ret is not None and day >= ret
 
 
+def _week_share(ctx: LeagueContext, p: Player, pv: PlayerValue) -> float:
+    """The start share inside his per-game value: valuate's week share, re-weighted for the
+    window's back-to-backs when the harness ledger gave his team a rate (``B2B`` reason;
+    ``ctx.b2b_second_night``), as ``valuation.valuate`` does."""
+    share = float(pv.start_share or 0.0)
+    team = normalize_team(p.team) or ""
+    b2b = ctx.b2b_second_night.get(team)
+    if b2b is None or pv.proj_week is None:
+        return share
+    window = memo_window(ctx)
+    if window is None:
+        return share
+    return week_start_share(share, ctx.schedule.get(team) or (), window.start, window.days, b2b[0])
+
+
+def night_start_probability(ctx: LeagueContext, p: Player, pv: PlayerValue | None, day: date) -> float | None:
+    """P(``p`` starts in goal on ``day``), None for skaters / without a start share. Today: Daily
+    Faceoff (``confirmed_start_probability``). Other nights: ``night_start_probs`` of his start
+    share, the back-to-back second night lower for a #1 (``b2b_p``: the ledger's rate for his team,
+    else 0.35) and higher for the backup, ordinary nights a bit above the share; a second night
+    right after a game today that Daily Faceoff has reported is conditioned on it
+    (``goalie_plan.second_night_prob``)."""
+    if not p.is_goalie or pv is None or not pv.start_share:
+        return None
+    if day == ctx.as_of and (prob := confirmed_start_probability(p)) is not None:
+        return prob
+    share = float(pv.start_share)
+    team = normalize_team(p.team) or ""
+    dates = set(ctx.schedule.get(team) or ())
+    b2b = ctx.b2b_second_night.get(team)
+    b2b_p = b2b[0] if b2b else B2B_SECOND_NIGHT_P
+    prev = day - timedelta(days=1)
+    if prev not in dates:
+        return night_start_probs(share, b2b_p)[0]
+    if prev == ctx.as_of and (q := confirmed_start_probability(p)) is not None:
+        return second_night_prob(share, q, b2b_p)
+    return night_start_probs(share, b2b_p)[1]
+
+
+def opp_game(ctx: LeagueContext, p: Player, day: date) -> OppGame:
+    """His per-game opponent multiplier on ``day`` (``valuation.schedule``: betting-market implied
+    team total, else the opponent's goals against; neutral for goalies)."""
+    return skater_opp_game(ctx, p, day)
+
+
+def _week_opp(pv: PlayerValue) -> float:
+    """The opponent factor already inside ``proj_week`` (a Reason ``OPP_WEEK_REASON``), else 1.0."""
+    r = next((r for r in pv.reasons if r.code == OPP_WEEK_REASON and r.value), None)
+    return float(r.value) if r is not None and r.value > 0 else 1.0
+
+
 def day_value(ctx: LeagueContext, p: Player, pv: PlayerValue | None, day: date) -> float:
     """Expected points from ``p`` on ``day``: 0 without a game or while he is out, else his
-    per-game value (goalie start share included; a player back from injury at full
-    availability); today a goalie uses Daily Faceoff's start probability in place of his
-    start share."""
+    per-game value (a player back from injury at full availability) x that game's opponent
+    multiplier for skaters (``opp_game``). A goalie's window-averaged start share is replaced by
+    that night's start probability (``night_start_probability``: Daily Faceoff today, back-to-back
+    second nights lower for a #1). Already-started games are not handled here: ``daily_plan``
+    zeroes them for today (the score so far already holds their points)."""
     if pv is None or not _plays(ctx, p, day) or not available_on(p, pv, day):
         return 0.0
     v = per_game_value(pv) or 0.0
+    from_week = True
     if p.status in UNAVAILABLE:          # back from injury: undo the week's averaged availability
-        v = v / pv.avail_week if pv.avail_week > 0 else pv.fpg * (pv.start_share or 1.0)
-    prob = confirmed_start_probability(p) if day == ctx.as_of else None
-    if prob is not None and pv.start_share:
-        v = v / pv.start_share * prob
+        if pv.avail_week > 0:
+            v = v / pv.avail_week
+        else:
+            v, from_week = pv.fpg * (pv.start_share or 1.0), False
+    prob = night_start_probability(ctx, p, pv, day)
+    if prob is not None:
+        share = _week_share(ctx, p, pv) if from_week and pv.proj_week is not None else float(pv.start_share)
+        if share > 0:
+            v = v / share * prob
+    elif not p.is_goalie:
+        v = v * opp_game(ctx, p, day).mult / (_week_opp(pv) if from_week else 1.0)
     return max(0.0, v)
 
 
@@ -235,7 +310,10 @@ def daily_plan(ctx: LeagueContext, team: FantasyTeam, values: Mapping[str, Playe
     daily-lineup leagues with the NHL schedule loaded; None otherwise. Each day only players with
     a game who are not out compete for the slots, so two players who play on different nights
     can both count. Today, players whose game has started (``ctx.game_starts`` vs ``now``,
-    default the current time) keep their place."""
+    default the current time) keep their place and are worth 0: whatever they score (or
+    scored) in that game is already in the provider's score so far (ESPN ``totalPointsLive``,
+    Fantrax FPts), so counting their per-game value again would double-count it. An in-progress
+    game is not pro-rated (no cheap game clock in the context): 0 is the conservative choice."""
     if not ctx.schedule or _lock(ctx) != "daily":
         return None
     now = now or datetime.now(timezone.utc)
@@ -244,9 +322,9 @@ def daily_plan(ctx: LeagueContext, team: FantasyTeam, values: Mapping[str, Playe
     pool = _candidates(team)
     out = []
     for d in days if days is not None else plan_days(ctx):
-        vals = {p.cid: day_value(ctx, p, values.get(p.cid), d) for p in pool}
-        playing = {p.cid for p in pool if _plays(ctx, p, d) and available_on(p, values.get(p.cid), d)}
         locked = frozenset(p.cid for p in pool if d == ctx.as_of and started(ctx, p, d, now))
+        vals = {p.cid: 0.0 if p.cid in locked else day_value(ctx, p, values.get(p.cid), d) for p in pool}
+        playing = {p.cid for p in pool if _plays(ctx, p, d) and available_on(p, values.get(p.cid), d)}
         assign, total = _best(team, slots, vals, locked)
         assign = {i: c for i, c in assign.items() if c in playing}
         out.append(PlanDay(d, assign, vals, playing, locked, total, sum(vals.get(c, 0.0) for c in starters)))
@@ -274,16 +352,26 @@ def _week_reasons(p: Player, pv: PlayerValue | None, horizon: Horizon) -> list[R
     return out
 
 
-def _day_reasons(p: Player, plan: DailyPlan) -> list[Reason]:
-    """Today's expected points and his games left in the matchup (daily-lineup leagues)."""
-    today = plan.days[0].values.get(p.cid, 0.0)
+OPP_REASON_MIN = 0.03        # show OPP_ADJ when today's multiplier is at least this far from 1.0
+
+
+def _day_reasons(p: Player, plan: DailyPlan, ctx: LeagueContext | None = None) -> list[Reason]:
+    """Today's expected points, today's opponent adjustment (OPP_ADJ, skaters) and his games left
+    in the matchup (daily-lineup leagues)."""
+    day0 = plan.days[0]
+    today = day0.values.get(p.cid, 0.0)
     games = sum(1 for d in plan.days if p.cid in d.playing)
     text = (f"{p.name}: {today:.2f} projected pts today" if today > 0
-            else f"{p.name}: not expected to play today" if p.cid in plan.days[0].playing
+            else f"{p.name}: game already started today" if p.cid in day0.locked and p.cid in day0.playing
+            else f"{p.name}: not expected to play today" if p.cid in day0.playing
             else f"{p.name}: no game today")
-    out = [Reason(code="DAY_VALUE", text=text, value=today),
-           Reason(code="GAMES_LEFT", text=f"{p.name}: {games} game{'s' if games != 1 else ''} left this matchup "
-                  f"(through {plan.days[-1].day:%a %b} {plan.days[-1].day.day})", value=float(games))]
+    out = [Reason(code="DAY_VALUE", text=text, value=today)]
+    if ctx is not None and p.cid in day0.playing and p.cid not in day0.locked:
+        g = opp_game(ctx, p, day0.day)
+        if abs(g.mult - 1.0) >= OPP_REASON_MIN:
+            out.append(Reason(code="OPP_ADJ", text=g.text(p.name), value=g.mult, baseline=1.0))
+    out.append(Reason(code="GAMES_LEFT", text=f"{p.name}: {games} game{'s' if games != 1 else ''} left this matchup "
+                      f"(through {plan.days[-1].day:%a %b} {plan.days[-1].day.day})", value=float(games)))
     if p.status not in ("healthy", "unknown"):
         out.append(Reason(code="STATUS", text=f"{p.name} is {p.status}"
                           + (f" ({p.status_note})" if p.status_note else "")))
@@ -474,7 +562,7 @@ def recommend_lineup(ctx: LeagueContext, values: Mapping[str, PlayerValue],
         for x in (pin, pout):
             if x is not None:
                 reasons += (_week_reasons(x, values.get(x.cid), horizon) if plan is None
-                            else _day_reasons(x, plan))
+                            else _day_reasons(x, plan, ctx))
         for c in chain:
             if c.incoming in starters:
                 reasons.append(Reason(code="LINEUP_MOVE", text=f"{by_cid[c.incoming].name} moves to {c.slot}"

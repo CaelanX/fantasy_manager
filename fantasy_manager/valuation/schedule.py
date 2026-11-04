@@ -424,3 +424,198 @@ def teammate_shares(ctx: LeagueContext, base: Mapping[str, float], window: WeekW
             out[g.cid] = TeammateShare(base=b, week=wk, season=sn, absent=donors,
                                        window_label=window.label() if window is not None else None)
     return out
+
+
+# --------------------------------------------------------------------------- per-context memo
+
+_CTX_MEMO: dict[int, tuple[Any, dict[Any, Any]]] = {}
+
+
+def ctx_memo(ctx: LeagueContext) -> dict[Any, Any]:
+    """A scratch dict that lives as long as ``ctx`` (LeagueContext is not hashable): per-context
+    caches for values that are expensive to rebuild per player-day (the week window, opponent
+    factors). Callers key their entries with whatever inputs can change (e.g. ``as_of``)."""
+    import weakref
+
+    key = id(ctx)
+    hit = _CTX_MEMO.get(key)
+    if hit is not None and hit[0]() is ctx:
+        return hit[1]
+    memo: dict[Any, Any] = {}
+
+    def drop(ref: Any, k: int = key, store: dict = _CTX_MEMO) -> None:
+        if (store.get(k) or (None,))[0] is ref:      # not a newer context that reused the id
+            store.pop(k, None)
+
+    _CTX_MEMO[key] = (weakref.ref(ctx, drop), memo)
+    return memo
+
+
+def memo_window(ctx: LeagueContext) -> WeekWindow | None:
+    """:func:`context_window` cached per (context, as_of, season start, schedule size)."""
+    m = ctx_memo(ctx)
+    k = ("window", ctx.as_of, ctx.season_start, len(ctx.schedule), len(ctx.games_per_day))
+    if k not in m:
+        m[k] = context_window(ctx)
+    return m[k]
+
+
+# --------------------------------------------------------------------------- opponent strength (skaters)
+#
+# A skater's per-game value is scaled per game by how many goals his team is expected to score in
+# it. With betting odds archived for that day (``providers.odds.team_context``, the same snapshot
+# the goalie plan uses): ``(implied team total / day's average implied total) ** OPP_BETA_ODDS``.
+# FPG blends goals, assists and peripherals, so the exponent is below the 1.0 a pure goals/points
+# value would get: 0.7 is an approximate starting constant, to be backtested. The day's average is
+# shrunk toward ``LEAGUE_IMPLIED_TOTAL`` with ``IMPLIED_AVG_K`` teams so a two-game night does not
+# cancel the market's total. Without odds for the game: the opponent's goals against per game
+# (``analysis.goalie_plan.team_ga_factors``, shrunk toward the league average with 10 games) **
+# ``OPP_BETA_GA`` (0.5: a noisier signal). Both clamped to [0.80, 1.25]; no data -> 1.0. Goalies are
+# never adjusted here (``goalie_plan`` has their matchup model), nor is the season FPG.
+# ``FM_OPP_ADJUST=0`` turns it off.
+
+OPP_BETA_ODDS = 0.7
+OPP_BETA_GA = 0.5
+OPP_MULT_MIN = 0.80
+OPP_MULT_MAX = 1.25
+LEAGUE_IMPLIED_TOTAL = 3.05     # NHL goals per team-game, recent seasons (approximate)
+IMPLIED_AVG_K = 8.0             # teams of shrinkage of a day's average implied total toward it
+
+
+def opponent_multiplier(ratio: float | None, beta: float) -> float:
+    """``clamp(ratio ** beta, OPP_MULT_MIN, OPP_MULT_MAX)``; 1.0 without a usable ratio."""
+    if ratio is None or not ratio > 0:
+        return 1.0
+    return min(OPP_MULT_MAX, max(OPP_MULT_MIN, float(ratio) ** beta))
+
+
+def implied_ratio(team_total: float | None, day_totals: Iterable[float | None]) -> float | None:
+    """A team's implied goals over the day's average implied total (shrunk toward
+    ``LEAGUE_IMPLIED_TOTAL`` with ``IMPLIED_AVG_K`` teams); None without a team total."""
+    if team_total is None or not team_total > 0:
+        return None
+    ts = [float(t) for t in day_totals if t and t > 0]
+    avg = (sum(ts) + IMPLIED_AVG_K * LEAGUE_IMPLIED_TOTAL) / (len(ts) + IMPLIED_AVG_K)
+    return float(team_total) / avg
+
+
+class OppGame(BaseModel):
+    mult: float = 1.0
+    source: str = "neutral"             # "odds" / "goals against" / "neutral"
+    opponent: str | None = None         # "BOS" at home, "@BOS" away
+    implied_total: float | None = None  # his team's implied goals (odds)
+    ga_factor: float | None = None      # opponent GA per game / league average (fallback)
+
+    def text(self, name: str) -> str:
+        opp = f" {self.opponent}" if self.opponent else ""
+        if self.source == "odds":
+            why = f"market implies {self.implied_total:.2f} goals for his team"
+        elif self.source == "goals against":
+            why = f"opponent allows {self.ga_factor:.2f}x the league's goals per game"
+        else:
+            why = "no matchup data"
+        return f"{name}: today{opp} - {why}, per-game value x{self.mult:.2f}"
+
+
+class OpponentAdjust:
+    """Per-game skater opponent multipliers for one league context (see the section comment).
+    ``odds`` maps a day to ``providers.odds.team_context`` output (default: the archive in
+    FM_DATA_DIR); ``ga`` overrides ``team_ga_factors``. Results are cached per (team, day)."""
+
+    def __init__(self, ctx: LeagueContext, odds: Any = None,
+                 ga: Mapping[str, tuple[float, int]] | None = None, enabled: bool | None = None):
+        import os
+
+        self.ctx = ctx
+        self._odds = odds
+        self._ga = ga
+        self._days: dict[date, Mapping[str, Mapping[str, Any]]] = {}
+        self._games: dict[tuple[str, date], OppGame] = {}
+        if enabled is None:
+            enabled = os.environ.get("FM_OPP_ADJUST", "1").strip().lower() not in ("0", "false", "no", "off")
+        self.enabled = enabled
+
+    def _odds_for(self, day: date) -> Mapping[str, Mapping[str, Any]]:
+        if day not in self._days:
+            if self._odds is None:
+                from ..analysis.goalie_plan import _odds_fn
+
+                self._odds = _odds_fn(None)
+            try:
+                self._days[day] = self._odds(day) or {}
+            except Exception:  # noqa: BLE001 - odds are context only
+                self._days[day] = {}
+        return self._days[day]
+
+    def _ga_factors(self) -> Mapping[str, tuple[float, int]]:
+        if self._ga is None:
+            from ..analysis.goalie_plan import team_ga_factors
+
+            try:
+                self._ga = team_ga_factors(self.ctx)
+            except Exception:  # noqa: BLE001
+                self._ga = {}
+        return self._ga
+
+    def game(self, team: str | None, day: date) -> OppGame:
+        """The multiplier for ``team``'s game on ``day`` (neutral when disabled or unknown)."""
+        team = normalize_team(team) or ""
+        if not self.enabled or not team:
+            return OppGame()
+        key = (team, day)
+        if key not in self._games:
+            opp = (self.ctx.opponents.get(team) or {}).get(day)
+            odds = self._odds_for(day)
+            o = odds.get(team) or {}
+            ratio = implied_ratio(o.get("implied_total"), (v.get("implied_total") for v in odds.values()))
+            if ratio is not None:
+                g = OppGame(mult=opponent_multiplier(ratio, OPP_BETA_ODDS), source="odds", opponent=opp,
+                            implied_total=float(o["implied_total"]))
+            else:
+                f = self._ga_factors().get(normalize_team(opp.lstrip("@")) or "") if opp else None
+                g = (OppGame(mult=opponent_multiplier(f[0], OPP_BETA_GA), source="goals against", opponent=opp,
+                             ga_factor=f[0]) if f is not None else OppGame(opponent=opp))
+            self._games[key] = g
+        return self._games[key]
+
+    def mult(self, team: str | None, day: date) -> float:
+        return self.game(team, day).mult
+
+
+def opponent_adjust(ctx: LeagueContext, odds: Any = None, ga: Mapping[str, tuple[float, int]] | None = None,
+                    enabled: bool | None = None) -> OpponentAdjust:
+    """The context's :class:`OpponentAdjust`, built once per (context, as_of). Passing ``odds`` /
+    ``ga`` / ``enabled`` replaces it (tests, or a caller with its own odds source)."""
+    m = ctx_memo(ctx)
+    k = ("opp", ctx.as_of, id(ctx.opponents), id(ctx.schedule))
+    if odds is not None or ga is not None or enabled is not None or k not in m:
+        m[k] = OpponentAdjust(ctx, odds=odds, ga=ga, enabled=enabled)
+    return m[k]
+
+
+def skater_opp_game(ctx: LeagueContext, player: Player, day: date) -> OppGame:
+    """Opponent multiplier for ``player``'s game on ``day``: neutral for goalies (they have their
+    own matchup model in ``analysis.goalie_plan``)."""
+    if player.is_goalie:
+        return OppGame()
+    return opponent_adjust(ctx).game(player.team, day)
+
+
+OPP_WEEK_REASON = "OPP_ADJ_WEEK"
+
+
+def opp_week_factor(ctx: LeagueContext, player: Player, window: WeekWindow | None = None) -> float:
+    """Mean opponent multiplier over ``player``'s games in the week window (1.0 for goalies, no
+    games or no window), for the week projection: ``proj_week x factor``. A caller that applies it
+    to ``proj_week`` must record it as a Reason with code ``OPP_WEEK_REASON`` and ``value=factor``,
+    so the daily plan (``recommend.lineup.day_value``, which applies the per-game multiplier
+    itself) divides it back out instead of counting it twice."""
+    window = window if window is not None else memo_window(ctx)
+    team = normalize_team(player.team)
+    if player.is_goalie or window is None or not team:
+        return 1.0
+    days = sorted(d for d in set(ctx.schedule.get(team) or ()) if _in_window(d, window.start, window.days))
+    if not days:
+        return 1.0
+    adj = opponent_adjust(ctx)
+    return sum(adj.mult(team, d) for d in days) / len(days)

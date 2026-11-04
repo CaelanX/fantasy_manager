@@ -164,3 +164,16 @@ def test_matchup_page_goalie_section(monkeypatch):
     tue = next(d for d in sec["days"] if d["day"] == MON + timedelta(days=1))
     assert [g["name"] for g in tue["start"]] == ["One Goalie", "Two Goalie"] and tue["open"] == 0
     assert sec["total"] > 0
+
+
+def test_second_night_prob_helper():
+    from fantasy_manager.analysis.goalie_plan import second_night_prob
+
+    # #1: starts tonight -> b2b_p tomorrow; rests tonight -> RESTED_STARTER_P
+    assert second_night_prob(0.6, 1.0) == pytest.approx(B2B_SECOND_NIGHT_P)
+    assert second_night_prob(0.6, 0.0) == pytest.approx(RESTED_STARTER_P)
+    assert second_night_prob(0.6, 0.8, 0.2) == pytest.approx(0.8 * 0.2 + 0.2 * RESTED_STARTER_P)
+    # backup: repeats with BACKUP_REPEAT_P, else takes the second night with 1 - b2b_p
+    assert second_night_prob(0.4, 1.0) == pytest.approx(BACKUP_REPEAT_P)
+    assert second_night_prob(0.4, 0.0) == pytest.approx(1 - B2B_SECOND_NIGHT_P)
+    assert second_night_prob(0.1, 1.0) == 0.1                        # third goalie keeps his share

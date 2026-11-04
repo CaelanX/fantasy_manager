@@ -125,3 +125,24 @@ def test_no_schedule_keeps_old_semantics():
     v = valuate_league(ctx, PointsScoring({"G": 1.0}))["p"]
     assert v.proj_week is None and v.fpg_week == pytest.approx(v.fpg * 0.75)
     assert v.lineup_value("week") == pytest.approx(v.fpg_week)
+
+
+def test_ctx_memo_lives_with_the_context_and_is_per_object():
+    import gc
+
+    from fantasy_manager.valuation.schedule import _CTX_MEMO, ctx_memo, memo_window
+
+    def mk():
+        return LeagueContext(provider="t", league_id="1", season=2027, name="T",
+                             scoring=ScoringConfig(kind="points", weights={"G": 1.0}), roster_shape={"C": 1},
+                             teams=[], free_agents=[], matchup_period=1, as_of=D,
+                             schedule={"EDM": days(0, 2)}, games_per_day={})
+    a, b = mk(), mk()
+    ctx_memo(a)["x"] = 1
+    assert ctx_memo(a)["x"] == 1 and "x" not in ctx_memo(b)
+    w = memo_window(a)
+    assert w is memo_window(a) and w.start == D
+    key = id(a)
+    del a
+    gc.collect()
+    assert key not in _CTX_MEMO or _CTX_MEMO[key][0]() is not None    # dropped with its context

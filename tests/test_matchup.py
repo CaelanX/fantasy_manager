@@ -154,6 +154,48 @@ def test_lineups_locked():
     assert mu.lineups_locked(espn_ctx, None) is False
 
 
+def _started_aaa(ctx):
+    """AAA's game today (Thu) started at 23:00 UTC; CCC's starts at 01:00 UTC Fri."""
+    from datetime import datetime, timezone
+
+    ctx.game_starts = {"AAA": {TODAY: datetime(2026, 10, 8, 23, 0, tzinfo=timezone.utc)},
+                       "CCC": {TODAY: datetime(2026, 10, 9, 1, 0, tzinfo=timezone.utc)}}
+    return (datetime(2026, 10, 8, 22, 0, tzinfo=timezone.utc), datetime(2026, 10, 8, 23, 30, tzinfo=timezone.utc),
+            datetime(2026, 10, 9, 6, 0, tzinfo=timezone.utc))
+
+
+def test_started_games_today_are_not_projected_again():
+    # the score so far (ESPN totalPointsLive / Fantrax FPts) already holds tonight's points from
+    # games under way or over: the remaining projection must not count them a second time
+    ctx, values = make_league()
+    before, live, over = _started_aaa(ctx)
+    kw = dict(today=TODAY, scores=_scores(10.0, 12.0), calendar=CAL, seed=1, streaming=False)
+    pre = mu.current_matchup(ctx, None, values, now=before, **kw)
+    mid = mu.current_matchup(ctx, None, values, now=live, **kw)
+    pre_m, mid_m = ({x.cid: x for x in m.my_players} for m in (pre, mid))
+    per_game = values["m1"].proj_week / values["m1"].games_next7
+    assert pre_m["m1"].games_left == 2 and mid_m["m1"].games_left == 1          # Thu started, Sat left
+    assert mid_m["m1"].proj_remaining == pytest.approx(pre_m["m1"].proj_remaining - per_game)
+    assert mid_m["mg"].games_left == pre_m["mg"].games_left - 1                 # AAA goalie too
+    assert mid_m["m3"].games_left == pre_m["m3"].games_left == 2                # CCC not started yet
+    assert mid.my_projected_remaining < pre.my_projected_remaining
+    end = mu.current_matchup(ctx, None, values, now=over, **kw)                  # every Thu game over
+    end_m = {x.cid: x for x in end.my_players}
+    assert end_m["m3"].games_left == 1 and end_m["m1"].games_left == 1
+
+
+def test_started_games_today_weekly_lock_path():
+    ctx, values = make_league(provider="fantrax")
+    weekly = SimpleNamespace(rules=SimpleNamespace(get=lambda label: "Weekly"))
+    before, live, _ = _started_aaa(ctx)
+    kw = dict(today=TODAY, scores=_scores(0.0, 0.0), calendar=CAL, seed=1)
+    pre = {x.cid: x for x in mu.current_matchup(ctx, weekly, values, now=before, **kw).my_players}
+    mid = {x.cid: x for x in mu.current_matchup(ctx, weekly, values, now=live, **kw).my_players}
+    assert (pre["m1"].games_left, mid["m1"].games_left) == (2, 1)
+    assert mid["m1"].proj_remaining == pytest.approx(values["m1"].proj_week / values["m1"].games_next7)
+    assert mid["m3"].games_left == 2                                             # CCC: Thu not started + Fri
+
+
 def test_locked_lineup_uses_current_starters_and_no_streaming():
     ctx, values = make_league(provider="fantrax")
     weekly = SimpleNamespace(rules=SimpleNamespace(get=lambda label: "Weekly"))

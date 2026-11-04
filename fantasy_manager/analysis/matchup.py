@@ -9,7 +9,10 @@ advice for the current matchup period.
   ``proj_week * games_left / games_next7`` (per-game value x games when the week projection has no
   games). Daily-lineup leagues (ESPN, and Fantrax leagues whose Rules page says lineup changes
   are executed daily) use each team's optimal week lineup; weekly-lock Fantrax leagues use the
-  current starters (``providers.fantrax.lineup_lock_for``, the single parsed value).
+  current starters (``providers.fantrax.lineup_lock_for``, the single parsed value). Today's
+  games that have already started (``ctx.game_starts``) are left out: the score so far already
+  includes them. Skaters' remaining games carry the per-game opponent multiplier
+  (``recommend.lineup.opp_game``).
 * Win probability - Monte Carlo (2,000 draws): each starter's remaining total is normal with the
   apportioned mean and per-game SD ``1.3 * sqrt(FPG)`` for skaters, ``2.5 * sqrt(FPG)`` for goalies
   (a start is win-or-bust), added to the points already banked.
@@ -20,14 +23,14 @@ from __future__ import annotations
 
 import math
 import random
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterable, Literal, Mapping
 
 from pydantic import BaseModel, Field
 
 from ..models import FantasyTeam, LeagueContext, Player
-from .schedule_grid import (UNAVAILABLE, PeriodCalendar, _group, espn_league, league_calendar, per_day,
-                            per_game_value, streaming_targets, window_counts)
+from .schedule_grid import (UNAVAILABLE, PeriodCalendar, _group, espn_league, league_calendar, per_game_value,
+                            streaming_targets)
 
 DRAWS = 2000
 SKATER_SD_K = 1.3
@@ -192,23 +195,35 @@ def lineup_players(team: FantasyTeam, ctx: LeagueContext, values: Mapping[str, A
 
 
 def project_team(ctx: LeagueContext, team: FantasyTeam, values: Mapping[str, Any], start: date, end: date,
-                 locked: bool) -> tuple[list[PlayerProjection], str]:
-    """Each starter's games, projected points and SD over [start, end]."""
+                 locked: bool, now: datetime | None = None) -> tuple[list[PlayerProjection], str]:
+    """Each starter's games, projected points and SD over [start, end]. Games already started
+    today (``ctx.game_starts`` vs ``now``, default the current time) are left out: the score so
+    far already holds their points. Weekly-lock leagues scale a skater's apportioned points by the
+    mean opponent multiplier of his remaining games (``recommend.lineup.opp_game``); daily
+    lineups get it per game through ``day_value``."""
     if not locked and start <= end:
         from ..recommend.lineup import daily_plan
 
-        plan = daily_plan(ctx, team, values, [start + timedelta(days=k) for k in range((end - start).days + 1)])
+        plan = daily_plan(ctx, team, values, [start + timedelta(days=k) for k in range((end - start).days + 1)],
+                          now=now)
         if plan is not None:
             return _project_daily(team, values, plan), "best lineup each day"
-    gpd = per_day(ctx)
+    from ..recommend.lineup import _week_opp, opp_game, started
+
+    now = now or datetime.now(timezone.utc)
     starters, basis = lineup_players(team, ctx, values, locked)
     out = []
     for p, slot in starters:
-        games = 0
+        days: list[date] = []
         if start <= end and p.team and p.team in ctx.schedule:
-            games = window_counts(ctx.schedule[p.team], gpd, start, end)[0]
+            days = [d for d in sorted(set(ctx.schedule[p.team])) if start <= d <= end
+                    and not (d == ctx.as_of and started(ctx, p, d, now))]
+        games = len(days)
         pv = values.get(p.cid)
         proj = apportion(pv, games)
+        if games and not p.is_goalie and pv is not None:
+            opp = sum(opp_game(ctx, p, d).mult for d in days) / games
+            proj *= opp / (_week_opp(pv) if hasattr(pv, "reasons") else 1.0)
         pg = proj / games if games else 0.0
         out.append(PlayerProjection(
             cid=p.cid, name=p.name, team=p.team, pos=_pos(p), group=_group(p), slot=slot, status=p.status,
@@ -220,10 +235,11 @@ def project_team(ctx: LeagueContext, team: FantasyTeam, values: Mapping[str, Any
 
 
 def _project_daily(team: FantasyTeam, values: Mapping[str, Any], plan: Any) -> list[PlayerProjection]:
-    """Projections for daily lineups: each player counts only the days the plan starts him."""
+    """Projections for daily lineups: each player counts only the days the plan starts him, less
+    today's games that have already started (worth 0 in the plan, already in the score)."""
     out = []
     for p in team.players:
-        games = plan.starts(p.cid)
+        games = plan.remaining_starts(p.cid)
         if not games:
             continue
         proj = plan.points(p.cid)
@@ -544,9 +560,11 @@ def _values(ctx: LeagueContext) -> Mapping[str, Any]:
 def current_matchup(ctx: LeagueContext, provider: Any = None, values: Mapping[str, Any] | None = None, *,
                     today: date | None = None, draws: int = DRAWS, seed: int | None = None,
                     scores: ScoreInfo | None = None, calendar: PeriodCalendar | None = None,
-                    streaming: bool = True) -> Matchup:
+                    streaming: bool = True, now: datetime | None = None) -> Matchup:
     """The current matchup preview for my team. ``scores`` (tests) skips the provider request;
-    ``calendar`` defaults to ``league_calendar(ctx, provider)``."""
+    ``calendar`` defaults to ``league_calendar(ctx, provider)``. The projection starts at today
+    but leaves out today's games that have started by ``now`` (default the current time): the
+    score so far (ESPN ``totalPointsLive``, Fantrax FPts) already counts them."""
     today = today or ctx.as_of
     values = values if values is not None else _values(ctx)
     warnings: list[str] = []
@@ -566,8 +584,8 @@ def current_matchup(ctx: LeagueContext, provider: Any = None, values: Mapping[st
         opp = next((t for t in ctx.teams if str(t.team_id) == str(scores.opponent_id)), None)
         if opp is None:
             warnings.append(f"Opponent team {scores.opponent_id} is not in the loaded league")
-    mine, basis = project_team(ctx, me, values, from_day, end, locked)
-    theirs, _ = project_team(ctx, opp, values, from_day, end, locked) if opp is not None else ([], basis)
+    mine, basis = project_team(ctx, me, values, from_day, end, locked, now)
+    theirs, _ = project_team(ctx, opp, values, from_day, end, locked, now) if opp is not None else ([], basis)
     m = Matchup(league=ctx.provider, my_team=me.name, opponent_team=opp.name if opp else None,
                 opponent_id=opp.team_id if opp else None, period=scores.period if scores else (per.number if per else None),
                 start=start, end=end, from_day=from_day, days_left=days_left,

@@ -106,6 +106,20 @@ class GoalieWeek(BaseModel):
                    for g in by[c].games if g.day == d.day)
 
 
+def _shrunk_team_factors(ctx: LeagueContext, totals: Mapping[str, float]) -> dict[str, tuple[float, int]]:
+    """{team: (total per game / league average, shrunk toward 1.0 with ``GF_SHRINK_K`` games;
+    team games)} from per-team season ``totals`` and the NHL schedule's games played before today.
+    Teams with fewer than ``GF_MIN_GAMES`` games are left out (neutral)."""
+    played = {t: sum(1 for d in ds if d < ctx.as_of) for t, ds in ctx.schedule.items()}
+    rates = {t: (g / played[t], played[t]) for t, g in totals.items() if played.get(t, 0) >= GF_MIN_GAMES}
+    if not rates:
+        return {}
+    avg = sum(r for r, _ in rates.values()) / len(rates)
+    if avg <= 0:
+        return {}
+    return {t: ((n * (r / avg) + GF_SHRINK_K) / (n + GF_SHRINK_K), n) for t, (r, n) in rates.items()}
+
+
 def team_gf_factors(ctx: LeagueContext) -> dict[str, tuple[float, int]]:
     """{team: (goals per game / league average, shrunk toward 1.0; team games)} from the league's
     skater season lines and the NHL schedule's games played before today. Teams with fewer than
@@ -117,14 +131,42 @@ def team_gf_factors(ctx: LeagueContext) -> dict[str, tuple[float, int]]:
         if p.is_goalie or line is None or not team:
             continue
         goals[team] = goals.get(team, 0.0) + float(line.stats.get("G", 0.0) or 0.0)
+    return _shrunk_team_factors(ctx, goals)
+
+
+GA_MIN_COVERAGE = 0.8        # the pool's goalies must cover this share of a team's games for its GA rate
+
+
+def team_ga_factors(ctx: LeagueContext) -> dict[str, tuple[float, int]]:
+    """{team: (goals against per game / league average, shrunk toward 1.0 like
+    :func:`team_gf_factors`; team games)} from the league's goalie season lines (GA). A team whose
+    goalies in the pool played fewer than ``GA_MIN_COVERAGE`` of its games is left out (neutral):
+    its GA would be undercounted."""
+    ga: dict[str, float] = {}
+    gp: dict[str, float] = {}
+    for p in ctx.all_players():
+        line = p.lines.get("season")
+        team = normalize_team(p.team)
+        if not p.is_goalie or line is None or not team or "GA" not in line.stats:
+            continue
+        ga[team] = ga.get(team, 0.0) + float(line.stats.get("GA", 0.0) or 0.0)
+        gp[team] = gp.get(team, 0.0) + float(line.gp or 0)
     played = {t: sum(1 for d in ds if d < ctx.as_of) for t, ds in ctx.schedule.items()}
-    rates = {t: (g / played[t], played[t]) for t, g in goals.items() if played.get(t, 0) >= GF_MIN_GAMES}
-    if not rates:
-        return {}
-    avg = sum(r for r, _ in rates.values()) / len(rates)
-    if avg <= 0:
-        return {}
-    return {t: ((n * (r / avg) + GF_SHRINK_K) / (n + GF_SHRINK_K), n) for t, (r, n) in rates.items()}
+    ga = {t: g for t, g in ga.items() if played.get(t, 0) and gp.get(t, 0.0) >= GA_MIN_COVERAGE * played[t]}
+    return _shrunk_team_factors(ctx, ga)
+
+
+def second_night_prob(share: float, q: float, b2b_p: float = B2B_SECOND_NIGHT_P) -> float:
+    """P(start) on a back-to-back's second night when the first night's start probability ``q``
+    is known (Daily Faceoff): a #1 (share >= 0.5) who starts the first night starts again with
+    ``b2b_p``, one who rests with ``RESTED_STARTER_P``; a backup (share >= 0.25) who starts the
+    first night repeats with ``BACKUP_REPEAT_P``, else ``1 - b2b_p``. A third goalie keeps his
+    share."""
+    if share >= STARTER_SHARE:
+        return q * b2b_p + (1 - q) * RESTED_STARTER_P
+    if share >= BACKUP_MIN_SHARE:
+        return q * BACKUP_REPEAT_P + (1 - q) * (1 - b2b_p)
+    return share
 
 
 def _scoring(ctx: LeagueContext) -> Any:
@@ -200,9 +242,7 @@ def _games(ctx: LeagueContext, p: Player, pv: Any, days: list[date], odds_for: C
             src = "confirmed" if today_prob in (0.0, 1.0) else "likely"
             known = prob
         elif second and prev_known is not None and share >= BACKUP_MIN_SHARE:
-            q = prev_known
-            prob = (q * B2B_SECOND_NIGHT_P + (1 - q) * RESTED_STARTER_P if share >= STARTER_SHARE
-                    else q * BACKUP_REPEAT_P + (1 - q) * (1 - B2B_SECOND_NIGHT_P))
+            prob = second_night_prob(share, prev_known, B2B_SECOND_NIGHT_P)
             src, known = "B2B 2nd night, after tonight's starter", None
         elif second:
             prob, src, known = p2, "B2B 2nd night", None
@@ -287,5 +327,5 @@ def goalie_week(ctx: LeagueContext, values: Mapping[str, Any], *, odds: OddsFn |
                       streams=recs, notes=notes)
 
 
-__all__ = ["GoalieGame", "GoalieRow", "GoalieDay", "GoalieWeek", "goalie_week", "start_points",
-           "team_gf_factors"]
+__all__ = ["GoalieGame", "GoalieRow", "GoalieDay", "GoalieWeek", "goalie_week", "second_night_prob",
+           "start_points", "team_ga_factors", "team_gf_factors"]
