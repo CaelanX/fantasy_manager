@@ -766,6 +766,8 @@ class _TradeEngine:
         self._base_cache: dict[tuple[str, str], list[list[Player]]] = {}
         self._free_cache: dict[frozenset[str], tuple[Player, list[Player]] | None] = {}
         cap = sum(int(n) for s, n in ctx.roster_shape.items() if s not in IR_SLOTS)
+        if ctx.max_roster_size:   # the league maximum can sit below the slot count (Fantrax)
+            cap = min(cap, int(ctx.max_roster_size))
         self.sides: dict[str, _Side] = {}
         for t in ctx.teams:
             active = [s.player for s in t.slots if s.player is not None and s.slot not in IR_SLOTS]

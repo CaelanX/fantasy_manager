@@ -729,17 +729,15 @@ def test_sweet_spots_get_reserved_slots_without_a_collector():
     assert [r.score for r in reserved] == sorted((r.score for r in reserved), reverse=True)
 
 
-def test_roster_legality_is_enforced_for_both_sides():
+def test_league_roster_max_below_the_slots_forces_drops_on_both_sides():
     ctx, values = build()
     ctx.roster_shape = {**SHAPE, "BN": 3}          # room for 8 by slots ...
     ctx.max_roster_size = 7                        # ... but the league caps rosters at 7
     ev = evaluate_trade(ctx, values, give=["m_c2"], get=["a_d2", "a_d3"], lineup_fn=False)
-    assert ev.my_drops == [] and ev.my_illegal and "roster limit 7" in ev.my_illegal and not ev.accepted
+    assert len(ev.my_drops) == 1 and ev.my_illegal is None
     ctx.max_roster_size = 6                        # Team A holds 6 and would receive 2 for 1
     ev = evaluate_trade(ctx, values, give=["m_c1", "m_c2"], get=["a_d1"], lineup_fn=False)
-    assert ev.my_illegal is None and not ev.acceptance.legal and ev.p == 0.0 and not ev.accepted
-    recs = recommend_trades(ctx, values, lineup_fn=False, limit=50, max_per_team=50, max_per_given=50)
-    assert not any(r.counterparty == "Team A" and len(r.drop) == 2 for r in recs)
+    assert len(ev.their_drops) == 1 and ev.acceptance.legal
 
 
 def test_future_only_keeps_win_now_cost_with_acceptance(monkeypatch):
