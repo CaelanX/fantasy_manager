@@ -11,6 +11,8 @@ data/
 # docker-compose backup volume (deploy/backup.sh) and the dashboard session key
 backups/
 web_secret
+# static dashboard snapshot (fm web-export): league data in clear text
+site/
 
 # Python
 .venv/

@@ -25,7 +25,10 @@ match wins:
 7. "month-to-month" 45 days, "week-to-week" 21 days, "day-to-day" 3 days.
 
 Without anything in the note, the status decides: dtd = day-to-day (3 days), IR = 30 days, LTIR =
-the rest of the season, suspended = 5 games; "out" (and anything else) keeps the flat multiplier.
+the rest of the season, suspended = 5 games; "out" flagged "Not Injury Related" (ESPN's label for a
+healthy player not dressing: a new acquisition awaiting his debut, personal leave, a healthy
+scratch) = 3 days like day-to-day, since the flat "out" value (40% of the season gone) is sized
+for injuries; any other "out" (and anything else) keeps the flat multiplier.
 The week horizon is unchanged (``availability_multiplier``: 0 while out).
 """
 from __future__ import annotations
@@ -92,6 +95,7 @@ _MONTH_PHRASE = re.compile(rf"\b(until|by|sometime\s+in|at\s+least|around|before
 # "4-6 months after having shoulder surgery in June": a duration counts from the (past) injury month
 _INJURED_IN = re.compile(rf"\b(?:surgery|procedure|injur\w*|hurt|operation)\b[^.;]{{0,20}}?\b(?:in|on)\s+"
                          rf"(?:(early|mid|late)[- ])?{_MONTH}\b", re.I)
+_NOT_INJURY = re.compile(r"\bnot\s+injury[- ]related\b", re.I)
 _TO_PHRASES = ((re.compile(r"\bmonth[- ]to[- ]month\b", re.I), MONTH_TO_MONTH_DAYS, "month-to-month"),
                (re.compile(r"\bweek[- ]to[- ]week\b", re.I), WEEK_TO_WEEK_DAYS, "week-to-week"),
                (re.compile(r"\bday[- ]to[- ]day\b", re.I), DAY_TO_DAY_DAYS, "day-to-day"))
@@ -242,8 +246,9 @@ def return_estimate(status: str, note: str | None, as_of: date, team_dates: Iter
                         start, src = d, f'{src}, from "{inj.group(0).strip()}"'
                 ret = start + timedelta(days=round(val))
             missed = _games_between(as_of, ret, team_dates, season_start) if ret > as_of else 0.0
-    elif status == "dtd":
-        ret, src = anchor + timedelta(days=DAY_TO_DAY_DAYS), f"day-to-day, ~{DAY_TO_DAY_DAYS} days assumed"
+    elif status == "dtd" or (status == "out" and _NOT_INJURY.search(note or "")):
+        why = "day-to-day" if status == "dtd" else "not injury related, no timetable"
+        ret, src = anchor + timedelta(days=DAY_TO_DAY_DAYS), f"{why}, ~{DAY_TO_DAY_DAYS} days assumed"
         missed = _games_between(as_of, ret, team_dates, season_start)
     elif status == "ir":
         ret, src = anchor + timedelta(days=IR_DEFAULT_DAYS), f"IR without a timetable, {IR_DEFAULT_DAYS} days assumed"

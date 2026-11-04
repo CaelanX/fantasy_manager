@@ -1,0 +1,123 @@
+# Free hosting on GitHub (no server, no card): the daily job, the 5 PM pre-game check and a few
+# dashboard refreshes run here on a schedule, and every run publishes a password-protected,
+# read-only snapshot of the dashboard to GitHub Pages. Setup: docs/hosting.md, "Free option:
+# GitHub Actions + Pages".
+#
+# Repo secrets: FM_ENV (the whole .env file), FM_DATA_KEY (passphrase of the encrypted data
+# branch), FM_SITE_PASSWORD (the dashboard password). Settings > Pages > Source: GitHub Actions.
+#
+# Times are UTC (GitHub cron has no time zones): 11:30 UTC = 7:30 AM Toronto in summer time,
+# 6:30 AM in winter; 21:00 UTC = 5 PM / 4 PM. GitHub may start a scheduled run a few minutes to
+# an hour late when it is busy.
+name: hosted
+
+on:
+  schedule:
+    - cron: "30 11 * * *"      # daily job
+    - cron: "0 21 * * *"       # pre-game check
+    - cron: "0 15,18,0,3 * * *" # dashboard refresh (games and lineups move during the day)
+  workflow_dispatch:
+    inputs:
+      job:
+        description: What to run before publishing the dashboard
+        type: choice
+        options: [refresh, daily, pregame]
+        default: refresh
+
+permissions:
+  contents: write   # the encrypted data branch
+  pages: write
+  id-token: write
+
+concurrency:        # one run at a time: each run reads and then rewrites the data branch
+  group: fm-hosted
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      TZ: America/Toronto
+      FM_DATA_DIR: ${{ github.workspace }}/data
+      FM_DATA_KEY: ${{ secrets.FM_DATA_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        env:
+          FM_ENV: ${{ secrets.FM_ENV }}
+          FM_SITE_PASSWORD: ${{ secrets.FM_SITE_PASSWORD }}
+        run: |
+          missing=""
+          [ -n "$FM_ENV" ] || missing="$missing FM_ENV"
+          [ -n "$FM_DATA_KEY" ] || missing="$missing FM_DATA_KEY"
+          [ -n "$FM_SITE_PASSWORD" ] || missing="$missing FM_SITE_PASSWORD"
+          if [ -n "$missing" ]; then echo "::error::missing repo secrets:$missing (docs/hosting.md)"; exit 1; fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install ".[web]"
+
+      - name: Write .env
+        env:
+          FM_ENV: ${{ secrets.FM_ENV }}
+        run: |
+          umask 077
+          printf '%s\n' "$FM_ENV" > .env
+
+      - name: Restore data
+        id: restore
+        run: bash deploy/gh-data.sh pull
+
+      - name: Pick the job
+        id: job
+        run: |
+          job="${{ github.event.inputs.job }}"
+          case "${{ github.event.schedule }}" in
+            "30 11 * * *") job=daily ;;
+            "0 21 * * *") job=pregame ;;
+          esac
+          echo "job=${job:-refresh}" >> "$GITHUB_OUTPUT"
+          echo "running: ${job:-refresh}"
+
+      - name: Daily job
+        if: steps.job.outputs.job == 'daily'
+        run: FM_BIN="$(command -v fm)" bash deploy/daily.sh || echo "::warning::a daily step failed (see the log above)"
+
+      - name: Pre-game check
+        if: steps.job.outputs.job == 'pregame'
+        run: FM_BIN="$(command -v fm)" bash deploy/daily.sh pregame || echo "::warning::the pre-game check failed"
+
+      - name: Export the dashboard
+        run: fm web-export --out site
+
+      - name: Save data         # never after a failed restore: that would replace the history with nothing
+        if: always() && steps.restore.outcome == 'success'
+        run: bash deploy/gh-data.sh push
+
+      - name: Encrypt the dashboard
+        env:
+          STATICRYPT_PASSWORD: ${{ secrets.FM_SITE_PASSWORD }}
+        run: |
+          # a fixed salt keeps "Remember me" working from one snapshot to the next (it is not secret)
+          salt=$(printf '%s' "fm-site:$GITHUB_REPOSITORY" | sha256sum | cut -c1-32)
+          cd site
+          npx --yes staticrypt@3.5.4 ./* -r -d . --salt "$salt" --remember 30 --short --config false \
+            --template-title "Fantasy Manager" --template-instructions "Enter the dashboard password."
+          if grep -L "staticrypt" ./*.html | grep -q .; then echo "::error::unencrypted pages left"; exit 1; fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Publish
+        id: deploy
+        uses: actions/deploy-pages@v4

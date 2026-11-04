@@ -120,7 +120,7 @@ To run the report every morning with Windows Task Scheduler, see [docs/schedulin
 
 ## Hosting
 
-To reach the dashboard from your phone anywhere and have the daily job run without your PC, host it on a small Ubuntu server (about US$5-8 a month plus a domain). [docs/hosting.md](docs/hosting.md) walks through it step by step: pick a VPS, point a domain at it, run `deploy/install.sh` (Caddy with automatic HTTPS in front of the dashboard, systemd timers for the 07:30 daily job and a nightly backup), put your `.env` on the server and set `FM_WEB_PASSWORD`. It also covers updates, backups, refreshing the Fantrax cookie remotely, monitoring, a Docker alternative (`Dockerfile`, `docker-compose.yml`) and a Tailscale option that exposes nothing to the internet.
+To reach the dashboard from your phone anywhere and have the daily job run without your PC, host it on a small Ubuntu server (about US$5-8 a month plus a domain). [docs/hosting.md](docs/hosting.md) walks through it step by step: pick a VPS, point a domain at it, run `deploy/install.sh` (Caddy with automatic HTTPS in front of the dashboard, systemd timers for the 07:30 daily job and a nightly backup), put your `.env` on the server and set `FM_WEB_PASSWORD`. It also covers updates, backups, refreshing the Fantrax cookie remotely, monitoring, a Docker alternative (`Dockerfile`, `docker-compose.yml`) and a Tailscale option that exposes nothing to the internet. For free hosting with no server and no card, GitHub Actions can run the jobs and publish a password-protected, read-only dashboard to GitHub Pages (`fm web-export`, `.github/workflows/hosted.yml`; see [the GitHub option](docs/hosting.md#free-option-github-actions--pages-no-card)).
 
 ## Development
 
