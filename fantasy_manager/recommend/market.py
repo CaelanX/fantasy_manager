@@ -36,7 +36,7 @@ DRIVER_LABELS = {
     "ROOKIE_BLEND": "rookie model", "NHLE": "rookie model", "PEDIGREE_PRIOR": "rookie model",
     "GP_EXPECTATION": "expected games", "ROOKIE_GAMES": "expected games",
     "RETURN_ESTIMATE": "injury return estimate", "START_SHARE": "goalie start share",
-    "START_ACTUAL": "goalie start share",
+    "START_ACTUAL": "goalie start share", "GSAX": "goalie save talent (GSAx)", "ASSIST_SHRINK": "assist luck",
     "PRESEASON": "preseason", "TEAMMATE_OUT": "teammate out",
 }
 
