@@ -560,7 +560,7 @@ def ev_ctx():
     spec = {"me": [("C", "m_c", ["C"], 2.0), ("LW", "m_lw", ["LW"], 1.0), ("D", "m_d", ["D"], 0.5),
                    ("BN", "m_c2", ["C"], 1.9)],
             "X": [("C", "x_c", ["C"], 1.0), ("LW", "x_lw", ["LW"], 1.6), ("D", "x_d", ["D"], 2.5),
-                  ("BN", "x_bn", ["D"], 0.2)]}
+                  ("BN", "x_bn", ["LW", "D"], 0.2)]}   # covers either slot: no hole (HOLE_PTS)
     values, teams = {}, []
     for tid, rows in spec.items():
         entries = []
@@ -1263,3 +1263,21 @@ def test_trade_into_an_empty_slot_is_measured_against_the_waiver_fill():
     # a trade that leaves the hole open is not charged for it: F 4.0 for F 4.5 is +0.5 either way
     ev = evaluate_trade(ctx, values, give=["f2"], get=["o_f1"], team_id="o", lineup_fn=False)
     assert ev.delta_me == pytest.approx(0.5)
+
+
+def test_trade_that_strips_their_thin_position_lowers_acceptance(monkeypatch):
+    """B has exactly 2 D for 2 D slots: taking one for my bench C leaves a D slot they cannot fill
+    from their roster. Any manager sees that, so acceptance takes HOLE_PTS per slot left empty."""
+    monkeypatch.setattr(tr, "MARKET_CONVEXITY", 1.0)
+    ctx, values = build()
+    ev = evaluate_trade(ctx, values, give=["m_c2"], get=["b_d1"], team_id="B", lineup_fn=False)
+    assert ev.hole_slots == 1 and "short 1 D (1 of 2 filled)" in ev.hole_text
+    # A has a spare D (a_d3) on the bench: no hole
+    ok = evaluate_trade(ctx, values, give=["m_c2"], get=["a_d2"], team_id="A", lineup_fn=False)
+    assert ok.hole_slots == 0 and ok.hole_text is None
+    B = next(t for t in ctx.teams if t.team_id == "B")
+    m = StubMarket({"m_c2": 60, "b_d1": 60})
+    hole = p_accept(deal(ctx, ["m_c2"], ["b_d1"], hole_slots=1, hole_text=ev.hole_text), B, ctx, m)
+    assert hole.perceived == pytest.approx(-tr.HOLE_PTS) and hole.p < 0.5
+    rec = tr._to_rec(ev, {}, "vorp", "test")
+    assert any(r.code == "THEIR_HOLE" for r in rec.reasons)

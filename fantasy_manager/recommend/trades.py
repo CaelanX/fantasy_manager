@@ -20,7 +20,9 @@ it, big enough to be worth sending. So a proposal is scored from both sides (doc
              add). Perceived fairness to them = package(what they get) - package(what they give)
              (a package counts its best player in full and each further player at DEPTH_WEIGHT),
              - ROSTER_SPOT_PENALTY per player they must drop to make room, + NEED_PTS when an
-             incoming player fills their weakest starting slot, + BLOCK_PTS when the deal matches
+             incoming player fills their weakest starting slot, - HOLE_PTS per starting slot the
+             deal leaves them unable to fill from their own roster (e.g. their best D for a forward
+             when they have no spare D: any manager sees that), + BLOCK_PTS when the deal matches
              their trade block. A logistic maps it to a probability (even = 0.5, +10 worth points
              in their favour = 0.75, -10 = 0.25, capped at
              P_CEILING), which is multiplied by roster legality (0 when their roster would break a
@@ -141,6 +143,7 @@ MARKET_CONVEXITY = 3.0       # market worth = 100 x (percentile / 100) ** 3 (see
 DEPTH_WEIGHT = 0.5           # a package's 2nd+ player counts at this share of his worth
 ROSTER_SPOT_PENALTY = 3.0    # per player the counterparty must drop to make room
 NEED_PTS = 5.0               # an incoming player fills their weakest starting slot
+HOLE_PTS = 10.0              # per starting slot the deal leaves them unable to fill from their own roster
 BLOCK_PTS = 5.0              # the deal matches their trade block (a wanted position / an offered player)
 ACCEPT_X0 = 0.0              # perceived fairness at which p = 0.5
 ACCEPT_K = math.log(3.0) / 10.0   # logistic slope: +10 points -> 0.75, -10 -> 0.25
@@ -489,6 +492,11 @@ def p_accept(deal: "TradeEval", their_team: FantasyTeam, ctx: LeagueContext, mar
     if deal.need_text:
         perceived += NEED_PTS
         notes.append(f"+{NEED_PTS:g} fills their weakest slot")
+    holes = getattr(deal, "hole_slots", 0)
+    if holes:
+        pen = HOLE_PTS * holes
+        perceived -= pen
+        notes.append(f"-{pen:g} {deal.hole_text}")
     if deal.block_text:
         perceived += BLOCK_PTS
         notes.append(f"+{BLOCK_PTS:g} trade block")
@@ -622,6 +630,8 @@ class TradeEval:
     acceptance: Acceptance | None = None
     screened: bool = False                # stopped after my side: my gain cannot pass
     pressure_text: str | None = None      # exploit: the counterparty roster pressure this relieves
+    hole_text: str | None = None          # starting slots the deal leaves them unable to fill
+    hole_slots: int = 0
     rate: GameRate | None = None          # my starters' games per week / left (gain units)
     refined: bool = False                 # lineups re-solved exactly (``_TradeEngine.refine``)
     me_after: list[list[Player]] = field(default_factory=list, repr=False)  # "after" rosters (_with_free_fill)
@@ -1000,6 +1010,20 @@ class _TradeEngine:
                 return rosters
         return [side.active + side.ir, alt + side.ir]
 
+    def _holes(self, side: _Side, before: list[Player], after: list[Player]) -> tuple[int, str | None]:
+        """(starting slots ``after`` can fill fewer than ``before``, text naming them): a hole
+        the trade opens in the side's own roster, before any waiver pickup."""
+        shape = self.ctx.roster_shape
+        b = _greedy_assignment(before, self.values, shape, LINEUP_HORIZON)
+        a = _greedy_assignment(after, self.values, shape, LINEUP_HORIZON)
+        short = {s: len(b.get(s, [])) - len(a.get(s, [])) for s in b}
+        short = {s: n for s, n in short.items() if n > 0}
+        n = sum(short.values())
+        if n <= 0:
+            return 0, None
+        what = ", ".join(f"{k} {s} ({len(a.get(s, []))} of {shape.get(s)} filled)" for s, k in short.items())
+        return n, f"leaves {side.team.name} short {what}"
+
     def _delta(self, afters: list[list[Player]], bases: list[list[Player]], exact: bool) -> float:
         """optimal(after) - optimal(before) on the season horizon; each = the best of its rosters."""
         f = self.lineup if exact else self.lineup.greedy
@@ -1130,6 +1154,8 @@ class _TradeEngine:
             if fits:
                 vtxt = "empty" if v == -math.inf else f"starter VORP {v:+.2f}"
                 need_text = f"{fits[0].name} fills {them.team.name}'s weakest slot {slot} ({vtxt})"
+        their_ir_pool = [p for p in them.ir if p.cid not in get_ids] + their_ir
+        hole_slots, hole_text = self._holes(them, them.active + them.ir, them_after + their_ir_pool)
         block: list[str] = []
         offered = [p for p in get if p.cid in self.offered.get(team_id, set())]
         if offered:
@@ -1141,8 +1167,7 @@ class _TradeEngine:
             block.append(f"{fits[0].name} matches {them.team.name}'s trade-block wants ({', '.join(sorted(want))})")
         ok, why = roster_legal_after(me.team, self.ctx, add=list(get) + ([my_fill] if my_fill else []),
                                      drop=list(give) + my_drops, to_ir=my_ir)
-        them_pool = self._with_free_fill(them_after, [p for p in them.ir if p.cid not in get_ids] + their_ir,
-                                         them.capacity, them)
+        them_pool = self._with_free_fill(them_after, their_ir_pool, them.capacity, them)
         them_base = self._baselines(them, their_fill)
         d_them = self._delta(them_pool, them_base, exact=False)
         ev = TradeEval(team=them.team, give=list(give), get=list(get), v_in=v_in, v_out=v_out,
@@ -1151,7 +1176,7 @@ class _TradeEngine:
                        my_ir=my_ir, their_ir=their_ir, mode=self.mode, delta_dyn=d_dyn, delta_dyn_n=d_dyn_n,
                        blocked=blocked, my_cap=my_cap, their_cap=their_cap,
                        block_text="; ".join(block) or None, my_illegal=None if ok else why,
-                       pressure_text=pressure, rate=self.rate)
+                       pressure_text=pressure, rate=self.rate, hole_text=hole_text, hole_slots=hole_slots)
         ev.me_after, ev.them_after = me_pool, them_pool
         ev.me_base, ev.them_base = me_base, them_base
         free = self._free_fill(me.active, me.ir, me.capacity)
@@ -1318,6 +1343,9 @@ def _to_rec(ev: TradeEval, V: Mapping[str, float], units: str, source: str,
                                   value=-ev.overpay_cost, baseline=ev.market_overpay))
     if ev.need_text:
         reasons.append(Reason(code="THEIR_NEED", text=ev.need_text, value=NEED_PTS))
+    if ev.hole_text:
+        reasons.append(Reason(code="THEIR_HOLE", text=f"Trade {ev.hole_text}: a hard sell",
+                              value=-HOLE_PTS * ev.hole_slots))
     if ev.block_text:
         reasons.append(Reason(code="TRADE_BLOCK", text=ev.block_text, value=BLOCK_PTS))
     reasons.append(Reason(code="ROSTER_CONSEQUENCE", text=_roster_text(ev),
