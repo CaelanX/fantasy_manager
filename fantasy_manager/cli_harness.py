@@ -122,6 +122,12 @@ def _daily_league(lg: str, settings: Any, ledger: Any, today: date, since: date,
             out["warnings"].extend((getattr(provider, "warnings", []) or [])[n_warn:])
         m = match_episodes(ledger, lg, today)
         out["match"] = {"episodes": m.episodes, "by_status": m.by_status, "decisions": m.decisions}
+        if ctx is not None:   # matchup win-probability snapshot + final scores of ended periods
+            from .harness.matchup_calib import capture_matchup
+
+            mc = capture_matchup(ledger, lg, ctx, provider, values, today)
+            out["warnings"].extend(mc.pop("warnings"))
+            out["matchup"] = mc
     finally:
         cache.close()
     if ctx is not None and ctx.schedule:
@@ -320,6 +326,8 @@ def _grade_leagues(ledger: Any, leagues: list[str], week: date, today: date) -> 
             r["outcomes"] = g.to_dict()
             r["outcomes_line"] = g.line()
             r["week"] = grade_week(ledger, lg, week)
+            from .harness.matchup_calib import calibration_report
+            r["matchup"] = calibration_report(ledger, lg)
         except Exception as e:  # noqa: BLE001 - one league must never sink the other
             r["error"] = f"{type(e).__name__}: {e}"
         out.append(r)
@@ -426,6 +434,11 @@ def daily_cmd(league: str = typer.Option("all", "--league", "-l", help="espn | f
         st = ", ".join(f"{k} {v}" for k, v in sorted((m.get("by_status") or {}).items())) or "none"
         dec = ", ".join(f"{k} {v}" for k, v in sorted((m.get("decisions") or {}).items())) or "none"
         console.print(f"{lg}: episodes {st}; decisions {dec}")
+        mc = r.get("matchup")
+        if mc:
+            wp = f" (period {mc.get('period')}, {mc['win_prob']:.0%} to win)" if mc.get("win_prob") is not None else ""
+            console.print(f"{lg}: matchup snapshot {escape(str(mc.get('snapshot')))}{wp}; "
+                          f"{mc.get('results', 0)} final score(s) recorded")
         for w in r.get("warnings") or []:
             console.print(f"  [dim]{escape(str(w))}[/]")
     rl = summary["realized"]
@@ -676,6 +689,9 @@ def _print_grade(g: dict[str, Any]) -> None:
         console.print(f"[red]{g['league']}: grading failed: {escape(g['error'])}[/]")
         return
     console.print(escape(g.get("outcomes_line") or ""))
+    if g.get("matchup"):
+        from .harness.matchup_calib import summary_line
+        console.print(escape(summary_line(g["matchup"])))
     w = g.get("week") or {}
     if w.get("note"):
         console.print(f"{g['league']}: {escape(w['note'])}")
@@ -791,6 +807,24 @@ def _print_counterfactual(cf: dict[str, Any] | None) -> None:
                       f"paired with a model pick yet ({_trust(cf['trust'])}).")
 
 
+def _print_matchup_calibration(mc: dict[str, Any] | None) -> None:
+    if not mc:
+        return
+    from .harness.matchup_calib import summary_line
+
+    console.print(escape(summary_line(mc)) + f" ({_trust(mc.get('trust', 'hidden'))})")
+    if not mc.get("graded_snapshots"):
+        return
+    t = Table(title="Matchup win probability: reliability (all graded daily snapshots)")
+    for c in ("Predicted", "N", "Mean predicted", "Observed win rate"):
+        t.add_column(c, justify="right")
+    for b in mc.get("reliability") or []:
+        if b["n"]:
+            t.add_row(f"{b['lo']:.0%}-{b['hi']:.0%}", str(b["n"]), _f(b["mean_pred"], pct=True),
+                      _f(b["observed"], pct=True))
+    console.print(t)
+
+
 def _print_bar(rep: dict[str, Any]) -> None:
     pi = rep.get("params") or {}
     console.print(f"Params: {pi.get('version', '-')} (hash {(pi.get('hash') or '-')[:10]}, "
@@ -819,6 +853,7 @@ def _print_bar(rep: dict[str, Any]) -> None:
             items = [f"{x['metric']} {x['pool']} (n={x['n']}, need {x['need'] if x['need'] is not None else '?'} more)"
                      for x in nj]
             console.print("[dim]Not judgeable yet: " + "; ".join(items) + "[/]")
+        _print_matchup_calibration(L.get("matchup_calibration"))
         hl = L.get("headline")
         console.print(f"Digest line: {escape(hl)}" if hl else "[dim]Digest line: hidden (nothing trustworthy yet)[/]")
 

@@ -614,7 +614,18 @@ def league_report(ledger: Ledger, league: str) -> dict[str, Any]:
         "not_judgeable": not_judgeable(rows) if rows else default_hidden(),
         "outcomes": {k: int(oc[k] or 0) for k in ("n", "complete", "ungradable", "unmatched")},
         "headline": headline(ledger, league),
+        "matchup_calibration": _matchup_calibration(ledger, league),
     }
+
+
+def _matchup_calibration(ledger: Ledger, league: str) -> dict[str, Any] | None:
+    """``harness.matchup_calib.calibration_report`` (None on a failure: never breaks the bar)."""
+    try:
+        from .matchup_calib import calibration_report
+
+        return calibration_report(ledger, league)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def known_leagues(ledger: Ledger) -> list[str]:

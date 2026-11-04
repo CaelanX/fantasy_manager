@@ -7,7 +7,9 @@
   model's recommendations per kind with its Wilson 95% band.
 * ``scorecard`` followed / partial / ignored / user-only counts and hit rates (latest bar).
 * ``capture``   what the ledger holds: episodes by kind and status, transactions, realized days,
-  unmatched identities, the last daily run and a warning list.
+  unmatched identities, the last daily run and a warning list (including a mis-sized matchup
+  win-probability SD once ``harness.matchup_calib`` can fit one; the full calibration is the
+  league report's ``matchup_calibration`` key).
 * ``changelog`` the params versions (``params_store.history()``), newest first, with the
   rollback targets; ``calendar`` the refit calendar and the auto-apply preference.
 * ``health_block`` the compact 3-line digest block (hidden until something is trustworthy).
@@ -196,6 +198,9 @@ def capture(ledger: Ledger, league: str, now: datetime | None = None) -> dict[st
         if missing > 0:
             warnings.append(f"{missing} game date(s) between {first} and {yday} were never pulled: "
                             "those windows cannot mature.")
+    mc = _matchup_warning(ledger, league)
+    if mc:
+        warnings.append(mc)
     if total_proj and unmatched_proj / total_proj > 0.15:
         warnings.append(f"{unmatched_proj} of {total_proj} players in the latest snapshot have no NHL id "
                         "(`fm sync --review`).")
@@ -215,6 +220,21 @@ def capture(ledger: Ledger, league: str, now: datetime | None = None) -> dict[st
                                                                           "league")},
         "warnings": warnings,
     }
+
+
+def _matchup_warning(ledger: Ledger, league: str) -> str | None:
+    """A capture warning when the fitted matchup SD scale says the win probabilities are mis-sized
+    (only once enough matchups are complete; harness.matchup_calib)."""
+    try:
+        from .matchup_calib import calibration_report, summary_line
+
+        rep = calibration_report(ledger, league)
+    except Exception:  # noqa: BLE001
+        return None
+    sc = rep.get("scale")
+    if not sc or sc.get("verdict") == "about right":
+        return None
+    return "Matchup win probabilities look " + sc["verdict"] + ": " + summary_line(rep).split(": ", 1)[1]
 
 
 # --------------------------------------------------------------------------- params

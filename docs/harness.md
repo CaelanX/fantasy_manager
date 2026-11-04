@@ -123,6 +123,36 @@ Graded weekly (as of Monday; only windows that have fully ended count):
   model's top pick of that day over the same window.
 - **Trades** are too few to average; they are listed case by case.
 
+## Matchup win probability
+
+`fm matchup`'s win probability (Monte Carlo with per-game SDs of 1.3·√FPG for skaters and
+2.5·√FPG for goalies, `analysis/matchup.py`) is graded too (`harness/matchup_calib.py`):
+
+- **Capture.** `fm harness daily` stores one `matchup_snapshots` row per league per day (the first
+  run of the day wins; a rerun changes nothing): period and dates, points so far, my and the
+  opponent's projected final, the projected margin, the margin's SD (√(my_sd² + their_sd²), the
+  same per-starter SDs the simulation draws from), the win probability and the SD constants used.
+- **Results.** Once a period has ended (its last day is before today) the next daily run reads
+  the final score from the provider (ESPN: the `mMatchupScore` schedule once ESPN names a winner;
+  Fantrax: the SCHEDULE standings) into `matchup_results` (win / loss / tie). It re-reads the score
+  for 3 days after the period ends to pick up stat corrections.
+- **Grading.** Every snapshot taken while the period was still being played is scored against
+  its result: **Brier score** (0.25 = coin flip, lower is better), **log loss** (probabilities
+  clipped to 0.001..0.999; a tie counts as 0.5) and a **reliability table** (5 bins of predicted
+  probability vs the observed win rate), plus how often "chase" (< 40%) and "protect" (> 60%)
+  snapshots ended in a win.
+- **SD scale.** With z = (actual margin − projected margin) / margin SD, the maximum-likelihood
+  scale is s = √(mean z²), each matchup weighted equally (its daily snapshots share one outcome).
+  s > 1.1 means the SDs are too small (overconfident probabilities), s < 0.9 too large. It is
+  fitted only from **8 completed matchups** ("insufficient data" before; provisional from 8,
+  reliable from 20), and it is **never applied**: the report suggests constants (1.3·s, 2.5·s)
+  for a manual change to `analysis/matchup.py`. They are not valuation params, so nothing goes
+  into the params store.
+
+Shown by `fm harness status` (summary line + reliability table), `fm harness grade` (one line per
+league) and the league report's `matchup_calibration` key (`/api/health.json`). The Health tab's
+Data capture warnings flag a fitted scale outside 0.9..1.1.
+
 ## Trust labels
 
 Every number carries one. Hidden numbers are never shown as results.

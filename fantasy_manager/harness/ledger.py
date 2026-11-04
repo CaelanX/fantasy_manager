@@ -31,6 +31,13 @@ Deployment (``harness.deployment``, NHL per-game reports; ``DEPLOYMENT_TABLES``,
 * ``goalie_starts``     per goalie per game date: started, SA / SV / GA, TOI minutes and whether
                         the team also played the previous day (``back_to_back``)
 * ``deployment_pulls``  which game dates were pulled (including empty ones)
+
+Matchup calibration (``harness.matchup_calib``; ``MATCHUP_TABLES``, kept by ``fm harness rebuild``
+because the archive cannot restore them):
+
+* ``matchup_snapshots`` one row per league per day: the current matchup's projected finals,
+                        margin, margin SD and win probability as ``fm matchup`` computed them
+* ``matchup_results``   the final score of each ended matchup period (win / loss / tie)
 """
 from __future__ import annotations
 
@@ -128,6 +135,19 @@ CREATE TABLE IF NOT EXISTS goalie_starts (
 CREATE INDEX IF NOT EXISTS ix_goalie_starts_team ON goalie_starts(team, game_date);
 CREATE TABLE IF NOT EXISTS deployment_pulls (
     game_date TEXT PRIMARY KEY, n_skaters INTEGER NOT NULL, n_goalies INTEGER NOT NULL, pulled_at TEXT);
+CREATE TABLE IF NOT EXISTS matchup_snapshots (
+    league TEXT NOT NULL, day TEXT NOT NULL, period INTEGER, period_start TEXT, period_end TEXT,
+    opponent_id TEXT, opponent TEXT, days_left INTEGER, playoffs INTEGER,
+    my_so_far REAL, their_so_far REAL, my_proj_total REAL, their_proj_total REAL,
+    margin REAL, my_sd REAL, their_sd REAL, margin_sd REAL, win_prob REAL,
+    skater_sd_k REAL, goalie_sd_k REAL, source TEXT, recorded_at TEXT,
+    PRIMARY KEY (league, day));
+CREATE TABLE IF NOT EXISTS matchup_results (
+    league TEXT NOT NULL, period INTEGER NOT NULL, period_end TEXT NOT NULL, period_start TEXT,
+    opponent_id TEXT, my_final REAL, their_final REAL,
+    result TEXT,                               -- win | loss | tie
+    source TEXT, recorded_at TEXT,
+    PRIMARY KEY (league, period, period_end));
 """
 
 # Columns added after schema v1 (``Ledger._migrate`` adds them to older dbs).
@@ -142,6 +162,8 @@ TABLES = ("runs", "recs", "rec_players", "rec_episodes", "transactions", "lineup
 # NHL deployment pulls (harness.deployment). Not in TABLES: `fm harness rebuild` deletes TABLES
 # minus a keep-list, and these cannot be restored from the archive.
 DEPLOYMENT_TABLES = ("deployment_daily", "goalie_starts", "deployment_pulls")
+# Matchup win-probability snapshots and final scores (harness.matchup_calib). Not in TABLES either.
+MATCHUP_TABLES = ("matchup_snapshots", "matchup_results")
 
 
 def rec_key(league: str, kind: str, add: Iterable[str], drop: Iterable[str], counterparty: str | None = None,
@@ -232,7 +254,7 @@ class Ledger:
     def reset(self) -> None:
         """Drop every row of every table (``fm harness rebuild``)."""
         with self._lock:
-            for t in TABLES + DEPLOYMENT_TABLES:
+            for t in TABLES + DEPLOYMENT_TABLES + MATCHUP_TABLES:
                 self.db.execute(f"DELETE FROM {t}")
             self.db.commit()
 
