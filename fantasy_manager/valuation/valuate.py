@@ -25,9 +25,28 @@ return date / game count / duration read from ``status_note``, counted on his te
 season, suspension = 5 games; flat value only when nothing can be inferred). Reason RETURN_ESTIMATE.
 
 Harness ledger inputs (opt-in, filled by the enrich deployment step only when a team has >= 5
-games in the ledger): ``ctx.goalie_actual_starts`` feeds ``start_share(actual=...)`` for goalies
-without a projection (START_ACTUAL) and ``ctx.b2b_second_night`` feeds
-``schedule_factor(b2b_p=...)`` for the week window (B2B).
+games in the ledger): ``ctx.goalie_actual_starts`` sets the start share (START_ACTUAL) as
+``(starts + 10 * base) / (team games + 10)``, ``base`` = the projection's own share (projected GS
+/ 82) for a projected goalie (replacing the blend with his season stat line's starts, which the
+ledger already counts) or the prior-line share otherwise (``start_share(actual=...)``); and
+``ctx.b2b_second_night`` feeds ``schedule_factor(b2b_p=...)`` for the week window (B2B).
+
+Goalie save talent (GSAX; MoneyPuck goalie files, ``providers.xg_enrich``): the blended rates'
+save component (raw save %, season-to-date shrunk toward a projection / history built on raw save
+% too) is replaced by ``regression.GoalieGsax.sv_pct_on(league)`` = the league save % (goalie
+positional means) + his shot mix's effect (MoneyPuck expected save % on his shots minus MoneyPuck's
+league save %) + GSAx per shot regressed with 3000 shots of prior over up to three seasons weighted
+1 / 0.8 / 0.6. With SA = his shots against per game: GA = SA x (1 - sv), SV = SA x sv, SVPCT = sv,
+GAA scaled with GA (``regression.gsax_rates``); wins / shutouts are untouched. Used from 500
+season-weighted shots. Preseason too (it describes past seasons, not a season-to-date rate).
+The harness replay (``player_rates``) leaves it out, like role changes.
+
+In-season assist luck (ASSIST_SHRINK): from 10 GP this season, with this season's 5v5 on-ice
+shooting %, A/GP (and PTS) moves by -0.35 x assist luck x GP / (GP + 20)
+(``regression.luck_signals``, assists / game), capped at 15% of FPG. Never preseason.
+
+Optional signals that fail (rookie inputs, news roles, preseason lines, teammate shares, GSAx)
+are skipped with one ``ctx.warnings`` entry per signal (``warn_signal``).
 
 Teammate-aware goalie shares (``schedule.teammate_shares``, reason TEAMMATE_OUT): when a team's
 higher-share goalie is out / IR / LTIR / suspended, his share is redistributed to the team's other
@@ -86,16 +105,19 @@ from .blend import (PRIOR_SPLITS, baseline_k, blend_preseason, blend_rates, blen
                     shrink_baseline, shrink_k, shrink_toward)
 from .params import age_factor
 from .replacement import DEFAULT_SLOTS, ROSTERED_FALLBACK_PCT, best_slot, replacement_with_fallback, vorp
-from .regression import K_GOALS, shrink_goals
+from .regression import (ASSIST_SHRINK_CAP, ASSIST_SHRINK_MIN_GP, ASSIST_SHRINK_SHARE, GSAX_K_SHOTS, K_GOALS,
+                         assist_shrink_rates, gsax_rates, luck_signals, shrink_goals)
 from .roles import goalie_news_share, role_change
-from .schedule import (ROSTER_ONLY_SHARE, context_window, proj_week, schedule_factor, start_share, start_share_parts,
-                       teammate_shares)
+from .schedule import (ACTUAL_SHARE_K, ROSTER_ONLY_SHARE, actual_start_share, context_window, proj_week,
+                       schedule_factor, start_share, start_share_parts, teammate_shares)
 
 PRIOR_TEAM_GAMES = 82
 PROJ_SHARE_K = 20
 MIN_GP_FOR_MEAN = {"F": 20, "D": 20, "G": 10}
 XG_MIN_GP = 5                # season GP before the xG goal shrink applies (regression.MIN_CURRENT_GP)
 XG_CREDIT = "ixG: MoneyPuck.com"
+GSAX_CREDIT = "GSAx: MoneyPuck.com"
+ONICE_CREDIT = "on-ice shooting %: MoneyPuck.com"
 WEEK_OUT_STATUSES = ("out", "ir", "ltir", "suspended")   # out for now (day-to-day is a flat week discount)
 MIN_LEDGER_TEAM_GAMES = 5    # ledger team games before actual starts / back-to-back rates are used
 
@@ -368,6 +390,16 @@ def _rookie_estimate(p: Player, means: dict[str, dict[str, float]], age: float |
                         mean=means.get(position_group(p), {}), season_gp=season_gp, as_of=as_of, scoring=scoring)
 
 
+def warn_signal(ctx: LeagueContext, signal: str, exc: BaseException | None = None) -> None:
+    """One ``ctx.warnings`` entry per optional valuation signal that failed (the value is computed
+    without it; deduplicated by signal name, so a per-player failure warns once)."""
+    prefix = f"Valuation: {signal} unavailable"
+    if any(w.startswith(prefix) for w in ctx.warnings):
+        return
+    detail = f" ({type(exc).__name__}: {str(exc)[:100]})" if exc is not None else ""
+    ctx.warnings.append(f"{prefix}{detail}; values computed without it")
+
+
 def _rookie_lookup(ctx: LeagueContext) -> dict[str, dict[str, Any]]:
     """cid -> rookie inputs of the context's unproven skaters with rookie evidence ({} on error or
     with FM_ROOKIE_MODEL=0)."""
@@ -378,7 +410,8 @@ def _rookie_lookup(ctx: LeagueContext) -> dict[str, dict[str, Any]]:
     try:
         from ..providers.rookie_enrich import history_for, signals_for
         from .rookie import has_rookie_evidence, is_unproven
-    except Exception:  # an optional signal must never break valuation
+    except Exception as e:  # an optional signal must never break valuation
+        warn_signal(ctx, "rookie model", e)
         return {}
     out: dict[str, dict[str, Any]] = {}
     for p in ctx.all_players():
@@ -388,7 +421,8 @@ def _rookie_lookup(ctx: LeagueContext) -> dict[str, dict[str, Any]]:
             hist, sigs = history_for(p), signals_for(p)
             if has_rookie_evidence(p, hist, sigs):
                 out[p.cid] = {"history": hist, "signals": sigs, "as_of": ctx.as_of}
-        except Exception:
+        except Exception as e:
+            warn_signal(ctx, "rookie model inputs", e)
             continue
     return out
 
@@ -398,13 +432,15 @@ def _news_signals(ctx: LeagueContext) -> dict[str, list[Any]]:
     ({} on error): established skaters' role changes and goalie job news (``valuation.roles``)."""
     try:
         from ..providers.rookie_enrich import signals_for
-    except Exception:  # an optional signal must never break valuation
+    except Exception as e:  # an optional signal must never break valuation
+        warn_signal(ctx, "news role signals", e)
         return {}
     out: dict[str, list[Any]] = {}
     for p in ctx.all_players():
         try:
             sigs = signals_for(p)
-        except Exception:
+        except Exception as e:
+            warn_signal(ctx, "news role signals", e)
             continue
         if sigs:
             out[p.cid] = list(sigs)
@@ -443,7 +479,8 @@ def _preseason_lookup(ctx: LeagueContext) -> dict[str, Any]:
     try:
         from ..providers.preseason_enrich import preseason_lines
         return preseason_lines(ctx)
-    except Exception:  # an optional signal must never break valuation
+    except Exception as e:  # an optional signal must never break valuation
+        warn_signal(ctx, "preseason lines", e)
         return {}
 
 
@@ -514,16 +551,145 @@ def projected_workload(p: Player, team_gp: Mapping[str, int] | None = None
     return share, per_team_game, text
 
 
+def projection_share(p: Player) -> float:
+    """The projection's own start share: projected GS (else GP) / 82 (0 without a projection)."""
+    proj = p.lines.get("projected")
+    if proj is None or proj.gp <= 0:
+        return 0.0
+    return min(1.0, float(proj.stats.get("GS", proj.gp)) / PRIOR_TEAM_GAMES)
+
+
+def _gsax_lookup(ctx: LeagueContext) -> dict[str, Any]:
+    """cid -> usable regressed GSAx (``regression.GoalieGsax``) registered by the enrich xG step for
+    the context's goalies ({} when none were loaded)."""
+    try:
+        from ..providers.xg_enrich import goalie_gsax
+    except Exception as e:  # an optional signal must never break valuation
+        warn_signal(ctx, "goalie GSAx", e)
+        return {}
+    year = season_start_year(ctx.as_of)
+    out: dict[str, Any] = {}
+    for p in ctx.all_players():
+        if not p.is_goalie:
+            continue
+        try:
+            est = goalie_gsax(p, year)
+        except Exception as e:
+            warn_signal(ctx, "goalie GSAx", e)
+            continue
+        if est is not None and est.usable:
+            out[p.cid] = est
+    return out
+
+
+def _season_span(years: tuple[int, ...]) -> str:
+    def lab(y: int) -> str:
+        return f"{y}-{str(y + 1)[-2:]}"
+    if not years:
+        return ""
+    lo, hi = min(years), max(years)
+    return lab(lo) if lo == hi else f"{lab(lo)}..{lab(hi)}"
+
+
+def league_save_pct(means: Mapping[str, Mapping[str, float]]) -> float | None:
+    """League save % of the fantasy data (goalie positional means: SV / SA, else 1 - GA / SA)."""
+    g = means.get("G") or {}
+    sa = g.get("SA")
+    if not sa or sa <= 0:
+        return None
+    if "SV" in g:
+        return float(g["SV"]) / sa
+    if "GA" in g:
+        return 1.0 - float(g["GA"]) / sa
+    return None
+
+
+def _shot_quality(est: Any) -> str:
+    """His expected save % vs MoneyPuck's league save % (an easier / harder shot mix)."""
+    if est.league_sv_pct is None:
+        return f"expected save % {est.xsv_pct:.3f}"
+    d = (est.xsv_pct - est.league_sv_pct) * 100
+    return f"{d:+.2f} save % points vs league"
+
+
+def apply_gsax(rates: dict[str, float], est: Any, scoring: ScoringSystem, league_sv: float | None = None
+               ) -> tuple[dict[str, float], Reason | None]:
+    """Goalie rates with the save component replaced by the regressed GSAx estimate
+    (``regression.gsax_rates``, anchored on ``league_sv``) and reason GSAX (value = regressed GSAx
+    per shot, baseline = the save % the rates implied before). Unchanged rates and None when there
+    is nothing to adjust."""
+    new, before, after = gsax_rates(rates, est, league_sv)
+    if before is None or after is None:
+        return rates, None
+    f0, f1 = scoring.value(rates), scoring.value(new)
+    text = (f"MoneyPuck GSAx {est.raw_gsax:+.1f} on {est.raw_shots:.0f} shots ({_season_span(est.seasons)}), "
+            f"regressed to {est.per_shot * 100:+.2f} per 100 shots (seasons weighted 1/0.8/0.6, "
+            f"k={GSAX_K_SHOTS:g} shots; shot quality against {_shot_quality(est)}): save % {before:.3f} -> "
+            f"{after:.3f}, {f0:.2f} -> {f1:.2f} FPG ({GSAX_CREDIT})")
+    return new, Reason(code="GSAX", text=text, value=round(est.per_shot, 5), baseline=round(before, 4))
+
+
+def assist_shrink(p: Player, rates: dict[str, float], scoring: ScoringSystem,
+                  norms: Mapping[str, float] | None = None) -> tuple[dict[str, float], Reason | None]:
+    """In-season assist-luck shrink (reason ASSIST_SHRINK): from ``ASSIST_SHRINK_MIN_GP`` games
+    this season, with MoneyPuck's 5v5 on-ice shooting % describing this season, A/GP (and PTS)
+    moves by ``-ASSIST_SHRINK_SHARE x assist luck (assists / game) x confidence``
+    (``regression.luck_signals``: confidence = GP / (GP + 20)). The FPG change is capped at
+    ``ASSIST_SHRINK_CAP`` of his FPG. Never preseason or from last season's numbers."""
+    if p.is_goalie or not rates or "A" not in rates or p.onice_sh_pct is None:
+        return rates, None
+    gp = p.gp("season")
+    if gp < ASSIST_SHRINK_MIN_GP or p.xg_split not in (None, "season"):
+        return rates, None
+    sig = luck_signals(p, norms or None)          # no scoring: luck in assists / game
+    if sig is None or sig.from_prior or not sig.assist_luck_fpg:
+        return rates, None
+    new, delta = assist_shrink_rates(rates, sig)
+    f0, f1 = scoring.value(rates), scoring.value(new)
+    cap = ASSIST_SHRINK_CAP * abs(f0)
+    capped = abs(f1 - f0) > cap
+    if capped:
+        delta *= cap / abs(f1 - f0)
+        new = dict(rates)
+        new["A"] += delta
+        if "PTS" in new:
+            new["PTS"] += delta
+        f1 = scoring.value(new)
+    if abs(delta) < 1e-6:
+        return rates, None
+    norm = p.onice_sh_pct - (sig.onice_sh_pct_delta or 0.0)
+    line = p.lines.get("season")
+    a_pg = float(line.stats.get("A", 0.0)) / gp if line is not None and gp else 0.0
+    text = (f"{a_pg:.2f} A/GP this season at {p.onice_sh_pct:.1%} 5v5 on-ice shooting (norm {norm:.1%}): "
+            f"assist luck {sig.assist_luck_fpg:+.2f}/GP, {ASSIST_SHRINK_SHARE:.0%} of it x confidence "
+            f"{sig.confidence:.2f} removed -> assist rate {rates['A']:.2f} -> {new['A']:.2f}/GP, "
+            f"{f0:.2f} -> {f1:.2f} FPG" + (f" (capped at {ASSIST_SHRINK_CAP:.0%} of FPG)" if capped else "")
+            + f" ({ONICE_CREDIT})")
+    return new, Reason(code="ASSIST_SHRINK", text=text, value=round(delta, 4), baseline=round(sig.assist_luck_fpg, 4))
+
+
+def _onice_norms(ctx: LeagueContext) -> dict[str, float]:
+    try:
+        from ..providers.xg_enrich import onice_norms
+        return onice_norms(season_start_year(ctx.as_of))
+    except Exception as e:  # an optional signal must never break valuation
+        warn_signal(ctx, "on-ice shooting norms", e)
+        return {}
+
+
 def goalie_base_share(p: Player, ctx: LeagueContext, team_gp: Mapping[str, int]) -> tuple[float, bool]:
     """(start share before teammate adjustments, has evidence) - the same share valuate_league
     computes (projection, else ledger starts, else the shrunk stat-line share). ``has evidence``
     is False when the share is the bare prior (no projection, no starts, no team games)."""
     work = projected_workload(p, team_gp)
+    actual = ctx.goalie_actual_starts.get(p.cid)
+    ledger = actual is not None and actual[1] >= MIN_LEDGER_TEAM_GAMES
     if work is not None:
+        if ledger:
+            return actual_start_share(projection_share(p), actual[0], actual[1], ACTUAL_SHARE_K), True  # type: ignore[index]
         return work[0], True
     tg = goalie_team_games(p, team_gp)
-    actual = ctx.goalie_actual_starts.get(p.cid)
-    if actual is not None and actual[1] >= MIN_LEDGER_TEAM_GAMES:
+    if ledger:
         return start_share(p, team_games=tg, actual=actual), True
     share, _, games = start_share_parts(p, team_games=tg)
     return share, games > 0
@@ -542,7 +708,8 @@ def _teammate_shares(ctx: LeagueContext, team_gp: Mapping[str, int], window: Any
             weights[p.cid] = min(share, ROSTER_ONLY_SHARE)
     try:
         return teammate_shares(ctx, base, window, weights)
-    except Exception:  # an optional adjustment must never break valuation
+    except Exception as e:  # an optional adjustment must never break valuation
+        warn_signal(ctx, "teammate goalie shares", e)
         return {}
 
 
@@ -580,6 +747,9 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
     preseason = _preseason_lookup(ctx)
     rookies = _rookie_lookup(ctx)
     news = _news_signals(ctx)
+    gsax = _gsax_lookup(ctx)
+    league_sv = league_save_pct(means) if gsax else None
+    norms = _onice_norms(ctx)
     pp_teams = {normalize_team(p.team) for p in players if p.pp_unit}
     lineup_teams = {normalize_team(p.team) for p in players if p.line}
     for p in players:
@@ -589,6 +759,16 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
         rates, reasons = _rates_for(p, means, scoring, season_age(p, ctx.as_of), preseason=preseason.get(p.cid),
                                     rookie=rk)
         est = rk.get("estimate") if rk else None
+        fpg_pre = scoring.value(rates) if rates else 0.0
+        if p.is_goalie and rates and p.cid in gsax:
+            rates, why = apply_gsax(rates, gsax[p.cid], scoring, league_sv)
+            if why is not None:
+                reasons.append(why)
+        elif not p.is_goalie and rates:
+            rates, why = assist_shrink(p, rates, scoring, norms)
+            if why is not None:
+                reasons.append(why)
+        fpg_shift = (scoring.value(rates) if rates else 0.0) - fpg_pre   # GSAX / ASSIST_SHRINK change
         role = None
         if rk is None and not p.is_goalie and rates and not _is_unproven(p):
             team = normalize_team(p.team)
@@ -623,17 +803,36 @@ def valuate_league(ctx: LeagueContext, scoring: ScoringSystem) -> dict[str, Play
         if p.is_goalie:
             ss_prior, ss_k = _params.start_share_prior(), _params.start_share_k()
             work = projected_workload(p, team_gp)
+            actual = ctx.goalie_actual_starts.get(p.cid)
+            ledger = actual is not None and actual[1] >= MIN_LEDGER_TEAM_GAMES
             if work is not None:
                 share, per_team_game, text = work
-                season_value = (per_team_game if per_team_game is not None else fpg * share) * a_season
-                share_parts = {"share_source": "projection"}
-                reasons.append(Reason(code="START_SHARE",
-                                      text=f"{text}: season value {fpg * a_season:.2f} -> {season_value:.2f} FPG",
-                                      value=share, baseline=ss_prior))
+                if per_team_game is not None:     # the projection's own FPts: carry the GSAx change
+                    per_team_game += fpg_shift * share
+                if ledger:     # this season's ledger starts replace the stat-line blend (k=10)
+                    proj_share = projection_share(p)
+                    new_share = actual_start_share(proj_share, actual[0], actual[1], ACTUAL_SHARE_K)  # type: ignore[index]
+                    if per_team_game is not None and share > 0:
+                        per_team_game *= new_share / share
+                    season_value = (per_team_game if per_team_game is not None else fpg * new_share) * a_season
+                    share_parts = {"share_source": "actual"}
+                    reasons.append(Reason(code="START_ACTUAL",
+                                          text=f"Start share {new_share:.0%} from {actual[0]} starts in "  # type: ignore[index]
+                                               f"{actual[1]} team games this season (ledger), shrunk toward his "  # type: ignore[index]
+                                               f"projected share {proj_share:.0%} (k={ACTUAL_SHARE_K:g}; projection "
+                                               f"estimate {share:.0%}): season value {fpg * a_season:.2f} -> "
+                                               f"{season_value:.2f} FPG",
+                                          value=new_share, baseline=share))
+                    share = new_share
+                else:
+                    season_value = (per_team_game if per_team_game is not None else fpg * share) * a_season
+                    share_parts = {"share_source": "projection"}
+                    reasons.append(Reason(code="START_SHARE",
+                                          text=f"{text}: season value {fpg * a_season:.2f} -> {season_value:.2f} FPG",
+                                          value=share, baseline=ss_prior))
             else:
                 share, gs, tg = start_share_parts(p, team_games=goalie_team_games(p, team_gp))
-                actual = ctx.goalie_actual_starts.get(p.cid)
-                if actual is not None and actual[1] >= MIN_LEDGER_TEAM_GAMES:
+                if ledger:
                     line_share = share
                     share = start_share(p, team_games=goalie_team_games(p, team_gp), actual=actual)
                     share_parts = {"share_source": "actual"}

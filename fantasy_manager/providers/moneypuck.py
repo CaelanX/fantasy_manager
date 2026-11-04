@@ -98,6 +98,34 @@ def _f(row: dict[str, str], key: str) -> float:
         return 0.0
 
 
+# Columns each signal reads. ``_f`` turns a missing column into 0.0, so a renamed column would
+# otherwise silently zero a signal (e.g. ixG = 0 drags every goal rate to 0 through XG_SHRINK):
+# callers check ``missing_columns`` first and skip the signal with a warning instead.
+CORE_COLUMNS: tuple[str, ...] = ("playerId", "situation", "games_played")
+SKATER_XG_COLUMNS: tuple[str, ...] = ("I_F_xGoals", "I_F_goals")
+SKATER_ONICE_COLUMNS: tuple[str, ...] = ("OnIce_F_goals", "OnIce_F_shotsOnGoal")
+GOALIE_GSAX_COLUMNS: tuple[str, ...] = ("xGoals", "goals", "ongoal")
+
+
+def csv_columns(text: str) -> list[str] | None:
+    """Header columns of a MoneyPuck CSV (None for an empty response without a header)."""
+    text = (text or "").lstrip("﻿")
+    if not text.strip():
+        return None
+    first = next(csv.reader(io.StringIO(text)), None)
+    return [c.strip() for c in first] if first else None
+
+
+def missing_columns(text: str, required: Iterable[str]) -> list[str]:
+    """The ``required`` columns absent from the CSV header ([] for an empty response: nothing
+    to parse, nothing to misread)."""
+    cols = csv_columns(text)
+    if cols is None:
+        return []
+    have = set(cols)
+    return [c for c in required if c not in have]
+
+
 def _ratio(num: float, den: float) -> float | None:
     return num / den if den > 0 else None
 
@@ -303,9 +331,28 @@ class MoneyPuckClient:
             raise ValueError(f"unknown situation {situation!r}; choose from {', '.join(SITUATIONS)}")
         return parse_goalies(self.raw(season_start_year, "goalies"), situation)
 
+    def missing(self, season_start_year: int, kind: Literal["skaters", "goalies"],
+                required: Iterable[str]) -> list[str]:
+        """Required columns missing from one season file's header (see ``missing_columns``)."""
+        return missing_columns(self.raw(season_start_year, kind), required)
+
     def skaters_by_id(self, season_start_year: int, situation: str = "all",
                       with_pp: bool = False) -> dict[int, MpSkater]:
         return {r.nhl_id: r for r in self.skaters(season_start_year, situation, with_pp)}
+
+
+def goalie_calibration(rows: Iterable[MpGoalie], min_shots: float = 20000.0,
+                       bounds: tuple[float, float] = (0.9, 1.1)) -> float:
+    """League goals against / xGoals against over one season's goalie rows (situation ``all``),
+    clamped to ``bounds``: multiply a goalie's xGA by it so league GSAx sums to ~0. 1.0 when the
+    rows hold fewer than ``min_shots`` shots on goal (a partial file would calibrate on noise)."""
+    ga = xga = sa = 0.0
+    for r in rows:
+        ga, xga, sa = ga + r.ga, xga + r.xga, sa + r.sa
+    if sa < min_shots or xga <= 0:
+        return 1.0
+    lo, hi = bounds
+    return min(hi, max(lo, ga / xga))
 
 
 def xg_calibration(rows: Iterable[MpSkater]) -> dict[str, float]:

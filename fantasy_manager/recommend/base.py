@@ -75,7 +75,11 @@ def dynasty_map(ctx: LeagueContext, values: Mapping[str, Any],
         try:
             from ..valuation.dynasty import apply_dynasty
             dynasty_values = apply_dynasty(values, ctx)
-        except Exception:
+        except Exception as e:
+            msg = "Dynasty values unavailable"
+            if not any(w.startswith(msg) for w in ctx.warnings):
+                ctx.warnings.append(f"{msg} ({type(e).__name__}: {str(e)[:100]}); "
+                                    "recommendations use season values only")
             return None
     out: dict[str, float] = {}
     for cid, dv in (dynasty_values or {}).items():

@@ -207,3 +207,159 @@ def regressed_rates(rates: Mapping[str, float], signals: LuckSignals | None,
     if signals is None:
         return dict(rates)
     return shrink_goals(rates, signals.ixg_per_game, signals.gp, k)
+
+
+# --------------------------------------------------------------------------- assist luck (in-season)
+
+# In-season assist-luck shrink (``valuate.assist_shrink``): from ASSIST_SHRINK_MIN_GP games this
+# season, A/GP moves by -ASSIST_SHRINK_SHARE x assist_luck (assists / game) x confidence, the
+# share of a season's assist luck the backtest saw disappear (ASSIST_LUCK_REALIZED, rounded down),
+# capped at ASSIST_SHRINK_CAP of his FPG. Never preseason or from last season's on-ice numbers.
+ASSIST_SHRINK_SHARE = 0.35
+ASSIST_SHRINK_MIN_GP = 10
+ASSIST_SHRINK_CAP = 0.15
+
+
+def assist_shrink_rates(rates: Mapping[str, float], signals: LuckSignals | None,
+                        share: float = ASSIST_SHRINK_SHARE) -> tuple[dict[str, float], float]:
+    """(rates with ``A`` (and ``PTS``) moved by ``-share x assist_luck x confidence``, the change in
+    A/GP). ``signals`` must be computed without league weights (assists / game). Unchanged without
+    signals, an ``A`` rate or assist luck."""
+    out = dict(rates)
+    if signals is None or "A" not in out or not signals.assist_luck_fpg:
+        return out, 0.0
+    delta = -share * signals.assist_luck_fpg * signals.confidence
+    delta = max(delta, -out["A"])                  # never below zero assists
+    out["A"] += delta
+    if "PTS" in out:
+        out["PTS"] += delta
+    return out, delta
+
+
+# --------------------------------------------------------------------------- goalie GSAx
+
+# Goalie save talent from MoneyPuck goals saved above expected (``providers.xg_enrich`` fills it,
+# ``valuate`` applies it): GSAx per shot on goal over up to three seasons weighted 1 / 0.8 / 0.6
+# (current first), regressed toward 0 (league average) with GSAX_K_SHOTS shots of prior:
+#
+#     gsax_per_shot_hat = sum(w * GSAx) / (sum(w * shots) + GSAX_K_SHOTS)
+#
+# Save % needs thousands of shots to stabilise, so 3000 shots of prior keep a 1500-shot season at
+# a third of its raw GSAx rate. Below GSAX_MIN_SHOTS weighted shots the estimate is not used.
+# MoneyPuck's shot counts differ a little from the NHL's (its league save % runs ~0.004 lower), so
+# the talent is carried as a deviation from MoneyPuck's league save % and re-anchored on the
+# league's own (``GoalieGsax.sv_pct_on``).
+GSAX_SEASON_WEIGHTS: tuple[float, ...] = (1.0, 0.8, 0.6)
+GSAX_K_SHOTS = 3000.0
+GSAX_MIN_SHOTS = 500.0
+GSAX_SV_BOUNDS = (0.85, 0.95)        # sanity clamp of the resulting save %
+
+
+@dataclass
+class GoalieGsax:
+    """A goalie's regressed save talent. ``gsax`` / ``shots`` are season-weighted sums
+    (calibrated xGA - GA, shots on goal), ``raw_gsax`` / ``raw_shots`` the plain totals,
+    ``xsv_pct`` the shot-weighted save % an average goalie would post on his shots (his team's
+    shot quality), ``per_shot`` the regressed GSAx per shot."""
+    nhl_id: int
+    seasons: tuple[int, ...]
+    gsax: float
+    shots: float
+    raw_gsax: float
+    raw_shots: float
+    xsv_pct: float
+    per_shot: float
+    shots_per_game: float | None = None     # most recent season with games
+    league_sv_pct: float | None = None      # MoneyPuck league save %, weighted like xsv_pct
+
+    @property
+    def usable(self) -> bool:
+        return self.shots >= GSAX_MIN_SHOTS
+
+    @property
+    def sv_pct(self) -> float:
+        """Projected save % on MoneyPuck's scale: expected save % on his shots + regressed GSAx per
+        shot (clamped)."""
+        lo, hi = GSAX_SV_BOUNDS
+        return min(hi, max(lo, self.xsv_pct + self.per_shot))
+
+    def sv_pct_on(self, league_sv: float | None) -> float:
+        """Projected save % re-anchored on ``league_sv`` (the fantasy data's league save %):
+        ``league_sv + (xsv_pct - MoneyPuck league sv) + per_shot``; ``sv_pct`` when either league
+        level is unknown."""
+        if league_sv is None or self.league_sv_pct is None or not 0.8 < league_sv < 1.0:
+            return self.sv_pct
+        lo, hi = GSAX_SV_BOUNDS
+        return min(hi, max(lo, league_sv + (self.xsv_pct - self.league_sv_pct) + self.per_shot))
+
+
+def regressed_gsax(nhl_id: int, seasons: list[tuple], k: float = GSAX_K_SHOTS,
+                   weights: tuple[float, ...] = GSAX_SEASON_WEIGHTS) -> GoalieGsax | None:
+    """``seasons``: (start year, calibrated xGA, GA, shots on goal, GP[, MoneyPuck league save %])
+    most recent first, at most ``len(weights)`` used (a missing season keeps its slot: pass the
+    current season even when empty). None without shots."""
+    g = s = rg = rs = wx = wl = 0.0
+    used: list[int] = []
+    spg = None
+    have_league = True
+    for w, row in zip(weights, seasons):
+        year, xga, ga, sa, gp = row[:5]
+        lsv = row[5] if len(row) > 5 else None
+        if sa <= 0:
+            continue
+        used.append(year)
+        g += w * (xga - ga)
+        s += w * sa
+        wx += w * xga
+        if lsv is None:
+            have_league = False
+        else:
+            wl += w * sa * lsv
+        rg += xga - ga
+        rs += sa
+        if spg is None and gp > 0:
+            spg = sa / gp
+    if s <= 0:
+        return None
+    return GoalieGsax(nhl_id=nhl_id, seasons=tuple(used), gsax=g, shots=s, raw_gsax=rg, raw_shots=rs,
+                      xsv_pct=1.0 - wx / s, per_shot=g / (s + k), shots_per_game=spg,
+                      league_sv_pct=wl / s if have_league else None)
+
+
+def gsax_rates(rates: Mapping[str, float], est: GoalieGsax, league_sv: float | None = None
+               ) -> tuple[dict[str, float], float | None, float | None]:
+    """(goalie rates with the save component replaced by ``est``, save % before, save % after).
+
+    The blended rates already carry his raw save % (season-to-date shrunk toward a projection /
+    history that is itself built on raw save %). That component is replaced, not adjusted: with
+    SA = his shots against per game, the projected save % becomes ``est.sv_pct_on(league_sv)``
+    (the league save % + his shot quality's effect + regressed GSAx per shot), so ``GA = SA x (1 - sv)``, ``SV = SA x sv``,
+    ``SVPCT = sv`` and GAA scales with GA. Only keys already in ``rates`` change (wins / shutouts
+    are left alone). Unchanged (and (None, None)) without a shot volume or a save stat."""
+    out = dict(rates)
+    sa = out.get("SA")
+    if not sa and "SV" in out and "GA" in out:
+        sa = out["SV"] + out["GA"]
+    if not sa:
+        sa = est.shots_per_game
+    if not sa or sa <= 0:
+        return out, None, None
+    if "SVPCT" in out:
+        pct = float(out["SVPCT"])
+        before = pct / 100.0 if pct > 1.0 else pct
+    elif "SV" in out:
+        before = out["SV"] / sa
+    elif "GA" in out:
+        before = 1.0 - out["GA"] / sa
+    else:
+        return out, None, None
+    after = est.sv_pct_on(league_sv)
+    if "SVPCT" in out:
+        out["SVPCT"] = after * 100.0 if float(out["SVPCT"]) > 1.0 else after
+    if "SV" in out:
+        out["SV"] = sa * after
+    if "GA" in out:
+        out["GA"] = sa * (1.0 - after)
+    if "GAA" in out and before < 1.0:
+        out["GAA"] = out["GAA"] * (1.0 - after) / (1.0 - before)
+    return out, before, after
