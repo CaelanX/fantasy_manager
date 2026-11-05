@@ -275,8 +275,11 @@ pub fn enrich_preseason(
     let games = nhl.preseason_games(Some(season), &team_refs, Some(ctx.as_of))?;
     game_dates.lock().unwrap_or_else(|e| e.into_inner()).extend(games.iter().map(|g| (g.game_id, g.date)));
     let mut lines: Vec<NhlSkaterGameLine> = Vec::new();
-    for g in &games {
-        match nhl.game_skater_lines(g.game_id, true) {
+    // box scores are fetched concurrently (untracked client), consumed in game order
+    let tasks: Vec<crate::enrich::Task<'_, Result<Vec<NhlSkaterGameLine>>>> =
+        games.iter().map(|g| Box::new(move || nhl.game_skater_lines(g.game_id, true)) as crate::enrich::Task<'_, _>).collect();
+    for got in crate::enrich::par_map(tasks) {
+        match got {
             Ok(got) => {
                 if !got.is_empty() {
                     res.games += 1;

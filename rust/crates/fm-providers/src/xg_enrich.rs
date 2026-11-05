@@ -97,17 +97,9 @@ fn season_rows(client: &MoneyPuckClient<'_>, year: i64) -> anyhow::Result<Season
     Ok((all, five))
 }
 
-/// True when the season file has every `required` column; else a warning and false.
-fn guard(
-    warnings: &mut Vec<String>,
-    res: &mut XgEnrichResult,
-    client: &MoneyPuckClient<'_>,
-    year: i64,
-    kind: Kind,
-    required: &[&str],
-    what: &str,
-) -> bool {
-    let miss = client.missing(year, kind, required).unwrap_or_default();
+/// True when the season file has every `required` column (`miss` = the missing ones, from
+/// `client.missing(year, kind, required)`); else a warning and false.
+fn guard(warnings: &mut Vec<String>, res: &mut XgEnrichResult, miss: &[String], year: i64, kind: Kind, what: &str) -> bool {
     if miss.is_empty() {
         return true;
     }
@@ -146,44 +138,118 @@ pub fn enrich_xg(
     }
 }
 
-fn xg_with(ctx: &mut LeagueContext, seasons: Option<(i64, i64)>, client: &MoneyPuckClient<'_>) -> XgEnrichResult {
-    let (cur_y, prior_y) = match seasons {
+/// (current, prior) start years: `seasons` (start years or NHL season ids) or from `as_of`.
+pub fn xg_seasons(as_of: NaiveDate, seasons: Option<(i64, i64)>) -> (i64, i64) {
+    match seasons {
         Some((a, b)) => (start_year(a), start_year(b)),
         None => {
-            let cur = current_start_year(Some(ctx.as_of));
+            let cur = current_start_year(Some(as_of));
             (cur, cur - 1)
         }
-    };
+    }
+}
+
+/// One season's skater file: rows by situation and the header guards' missing columns.
+#[derive(Debug)]
+pub struct SkaterYear {
+    rows: SeasonRows,
+    core_missing: Vec<String>,
+    xg_missing: Vec<String>,
+    onice_missing: Vec<String>,
+}
+
+/// One season's goalie file (situation `all`) and the GSAx header guard's missing columns.
+#[derive(Debug)]
+pub struct GoalieYear {
+    rows: Vec<MpGoalie>,
+    missing: Vec<String>,
+}
+
+/// Everything `enrich_xg` reads from MoneyPuck, loaded without the context (so it can be
+/// fetched and parsed on another thread while the earlier enrichment steps run). Failures are
+/// kept as the warning text `enrich_xg` would have produced at that point.
+#[derive(Debug)]
+pub struct XgData {
+    pub seasons: (i64, i64),
+    goalies: Vec<(i64, Result<GoalieYear, String>)>,
+    skaters: Vec<(i64, Result<SkaterYear, String>)>,
+}
+
+/// Load the goalie files of `cur_y` and the `GSAX_SEASON_WEIGHTS` seasons before it, then the
+/// skater files of `cur_y` and `prior_y`, in the order `enrich_xg` reads them.
+pub fn load_xg_data(client: &MoneyPuckClient<'_>, seasons: (i64, i64)) -> XgData {
+    let (cur_y, prior_y) = seasons;
+    let required: Vec<&str> = CORE_COLUMNS.iter().chain(GOALIE_GSAX_COLUMNS.iter()).copied().collect();
+    let goalies = (0..GSAX_SEASON_WEIGHTS.len() as i64)
+        .map(|i| cur_y - i)
+        .map(|y| {
+            let r = match client.goalies(y, Some("all")) {
+                Ok(rows) => Ok(GoalieYear { rows, missing: client.missing(y, Kind::Goalies, &required).unwrap_or_default() }),
+                Err(e) => Err(format!("MoneyPuck goalies {}: {}: {}", label(y), exc_name(&e), err_text(&e))),
+            };
+            (y, r)
+        })
+        .collect();
+    let core: Vec<&str> = CORE_COLUMNS.to_vec();
+    let skaters = [cur_y, prior_y]
+        .into_iter()
+        .map(|y| {
+            let r = match season_rows(client, y) {
+                Ok(rows) => {
+                    let miss = |req: &[&str]| client.missing(y, Kind::Skaters, req).unwrap_or_default();
+                    Ok(SkaterYear {
+                        rows,
+                        core_missing: miss(&core),
+                        xg_missing: miss(&SKATER_XG_COLUMNS),
+                        onice_missing: miss(&SKATER_ONICE_COLUMNS),
+                    })
+                }
+                Err(e) => Err(format!("MoneyPuck {}: {}: {}", label(y), exc_name(&e), err_text(&e))),
+            };
+            (y, r)
+        })
+        .collect();
+    XgData { seasons, goalies, skaters }
+}
+
+fn xg_with(ctx: &mut LeagueContext, seasons: Option<(i64, i64)>, client: &MoneyPuckClient<'_>) -> XgEnrichResult {
+    let data = load_xg_data(client, xg_seasons(ctx.as_of, seasons));
+    enrich_xg_with_data(ctx, data)
+}
+
+/// [`enrich_xg`] over already loaded MoneyPuck data ([`load_xg_data`]): same fields, notes and
+/// warnings, in the same order.
+pub fn enrich_xg_with_data(ctx: &mut LeagueContext, xd: XgData) -> XgEnrichResult {
+    let (cur_y, prior_y) = xd.seasons;
     let mut res = XgEnrichResult { seasons: (cur_y, prior_y), ..Default::default() };
 
-    enrich_goalies(ctx, client, &mut res, cur_y);
+    enrich_goalies(ctx, xd.goalies, &mut res, cur_y);
 
     let mut data: Map<i64, SeasonRows> = Map::new();
     let mut xg_ok: Map<i64, bool> = Map::new();
     let mut onice_ok: Map<i64, bool> = Map::new();
-    let core: Vec<&str> = CORE_COLUMNS.to_vec();
-    for y in [cur_y, prior_y] {
-        match season_rows(client, y) {
-            Ok(rows) => {
-                res.rows.insert(y, rows.0.len());
-                data.insert(y, rows);
+    for (y, r) in xd.skaters {
+        let sy = match r {
+            Ok(sy) => {
+                res.rows.insert(y, sy.rows.0.len());
+                sy
             }
-            Err(e) => {
+            Err(msg) => {
                 // network / parse failure: keep going with what we have
-                let msg = format!("MoneyPuck {}: {}: {}", label(y), exc_name(&e), err_text(&e));
                 res.errors.push(msg.clone());
                 ctx.warnings.push(msg);
                 data.insert(y, (Map::new(), Map::new()));
                 continue;
             }
-        }
-        if !guard(&mut ctx.warnings, &mut res, client, y, Kind::Skaters, &core, "expected goals") {
+        };
+        if !guard(&mut ctx.warnings, &mut res, &sy.core_missing, y, Kind::Skaters, "expected goals") {
             data.insert(y, (Map::new(), Map::new()));
             continue;
         }
-        let x = guard(&mut ctx.warnings, &mut res, client, y, Kind::Skaters, &SKATER_XG_COLUMNS, "the xG goal shrink (XG_SHRINK)");
+        data.insert(y, sy.rows);
+        let x = guard(&mut ctx.warnings, &mut res, &sy.xg_missing, y, Kind::Skaters, "the xG goal shrink (XG_SHRINK)");
         xg_ok.insert(y, x);
-        let o = guard(&mut ctx.warnings, &mut res, client, y, Kind::Skaters, &SKATER_ONICE_COLUMNS, "on-ice shooting % luck");
+        let o = guard(&mut ctx.warnings, &mut res, &sy.onice_missing, y, Kind::Skaters, "on-ice shooting % luck");
         onice_ok.insert(y, o);
     }
     if !data.values().any(|d| !d.0.is_empty()) {
@@ -251,7 +317,7 @@ fn xg_with(ctx: &mut LeagueContext, seasons: Option<(i64, i64)>, client: &MoneyP
 /// Regressed GSAx for the context's goalies (with NHL ids) from the goalie files of `cur_y` and
 /// the seasons before it (one per `GSAX_SEASON_WEIGHTS` entry). Registered for valuation;
 /// failures are warnings.
-fn enrich_goalies(ctx: &mut LeagueContext, client: &MoneyPuckClient<'_>, res: &mut XgEnrichResult, cur_y: i64) {
+fn enrich_goalies(ctx: &mut LeagueContext, files: Vec<(i64, Result<GoalieYear, String>)>, res: &mut XgEnrichResult, cur_y: i64) {
     {
         let st = Arc::make_mut(&mut ctx.enrich);
         st.gsax.retain(|k, _| k.0 != cur_y);
@@ -265,21 +331,21 @@ fn enrich_goalies(ctx: &mut LeagueContext, client: &MoneyPuckClient<'_>, res: &m
     // year -> nhl id -> (row, xGA calibration, league save %)
     type YearRows = Map<i64, (MpGoalie, f64, Option<f64>)>;
     let mut by_year: Map<i64, YearRows> = Map::new();
-    let required: Vec<&str> = CORE_COLUMNS.iter().chain(GOALIE_GSAX_COLUMNS.iter()).copied().collect();
-    for &y in &years {
-        let rows = match client.goalies(y, Some("all")) {
-            Ok(r) => r,
-            Err(e) => {
+    for (y, file) in files {
+        let rows = match file {
+            Ok(GoalieYear { rows, missing }) => {
+                if !guard(&mut ctx.warnings, res, &missing, y, Kind::Goalies, "goalie GSAx") {
+                    continue;
+                }
+                rows
+            }
+            Err(msg) => {
                 // network / parse failure: GSAx from the seasons we have
-                let msg = format!("MoneyPuck goalies {}: {}: {}", label(y), exc_name(&e), err_text(&e));
                 res.goalie_errors.push(msg.clone());
                 ctx.warnings.push(msg);
                 continue;
             }
         };
-        if !guard(&mut ctx.warnings, res, client, y, Kind::Goalies, &required, "goalie GSAx") {
-            continue;
-        }
         let cal = goalie_calibration(rows.iter(), 20000.0, (0.9, 1.1));
         let sa = py_sum(rows.iter().map(|r| r.sa));
         let lsv = if sa > 0.0 { Some(1.0 - py_sum(rows.iter().map(|r| r.ga)) / sa) } else { None };

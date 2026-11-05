@@ -80,3 +80,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - `game_rate` returns `Result<GameRate, CoreError>`; `streaming_targets(ctx, values, week_start, &StreamingOpts)`.
 - ESPN calendar needs `provider.espn_league()` populated.
 
+
+## Hand-offs (from W5-provider-pipeline)
+- CLI: `LoadError::Unavailable` -> exit 2; `Failed` -> "Error: ..." exit 1. Hidden `--from-snapshot` uses `pipeline::from_snapshot`. Multiple leagues: `load_all_many`.
+- Web refresh: `load_base` + `install_params(settings)`; `finish` (advise) belongs to W10.
+- `FM_FETCH_WORKERS` (default 12; 1 = sequential). Live cold enrich ESPN: >=99.6s sequential -> 20.7s concurrent; offline pipeline ~1.9s -> ~0.9s/league.
+

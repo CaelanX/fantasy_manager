@@ -455,17 +455,80 @@ pub fn enrich_lines(
     fetch_rosters: bool,
     clock: Clock,
 ) -> LinesResult {
+    enrich_lines_prefetched(ctx, cache, crosswalk, as_of, snapshot_store, client, candidates, teams, fetch_rosters, clock, None)
+}
+
+/// [`enrich_lines`] with the Daily Faceoff pages (and the roster match candidates) already
+/// fetched by [`prefetch_lines`] for the same day and teams (`None`: fetch here).
+#[allow(clippy::too_many_arguments)]
+pub fn enrich_lines_prefetched(
+    ctx: &mut LeagueContext,
+    cache: Option<&Arc<HttpCache>>,
+    crosswalk: Option<&Crosswalk>,
+    as_of: Option<NaiveDate>,
+    snapshot_store: Option<&LineSnapshotStore>,
+    client: Option<&mut DailyFaceoffClient<'_>>,
+    candidates: Option<&PlayerIndex>,
+    teams: Option<&[String]>,
+    fetch_rosters: bool,
+    clock: Clock,
+    prefetched: Option<LinesFetch>,
+) -> LinesResult {
     let day = as_of.unwrap_or(ctx.as_of);
     match client {
-        Some(c) => lines_with(ctx, cache, crosswalk, day, snapshot_store, c, candidates, teams, fetch_rosters, clock),
+        Some(c) => lines_with(ctx, cache, crosswalk, day, snapshot_store, c, candidates, teams, fetch_rosters, clock, prefetched),
         None => {
             let mut own = match cache {
                 Some(c) => DailyFaceoffClient::new(Box::new(make_cached_fetch_text(c.as_ref(), None, None))),
                 None => DailyFaceoffClient::with_default_fetch(),
             };
-            lines_with(ctx, cache, crosswalk, day, snapshot_store, &mut own, candidates, teams, fetch_rosters, clock)
+            lines_with(ctx, cache, crosswalk, day, snapshot_store, &mut own, candidates, teams, fetch_rosters, clock, prefetched)
         }
     }
+}
+
+/// The league-independent first half of `enrich_lines`: every team page and the starting
+/// goalies page for `day`, then (with a cache) the NHL rosters used as match candidates.
+#[derive(Debug)]
+pub struct LinesFetch {
+    pub day: NaiveDate,
+    lines: Map<String, TeamLines>,
+    warnings: Vec<String>,
+    starts: Result<Vec<GoalieStart>, String>,
+    /// roster candidates + their warning (fetched only with a cache)
+    rosters: Option<(Vec<NhlRosterPlayer>, Vec<String>)>,
+}
+
+fn team_list_of(teams: Option<&[String]>) -> Vec<String> {
+    match teams {
+        Some(t) => t.iter().map(|t| normalize_team(Some(t)).unwrap_or_else(|| t.clone())).collect(),
+        None => TEAM_SLUGS.iter().map(|(t, _)| normalize_team(Some(t)).unwrap_or_else(|| t.to_string())).collect(),
+    }
+}
+
+fn fetch_pages(client: &mut DailyFaceoffClient<'_>, team_list: &[String], day: NaiveDate) -> (Map<String, TeamLines>, Vec<String>, Result<Vec<GoalieStart>, String>) {
+    let lines = client.all_lines(Some(team_list));
+    let warnings = std::mem::take(&mut client.warnings);
+    let starts = client.starting_goalies(day).map_err(|e| format!("Daily Faceoff starting goalies unavailable ({})", short(&e)));
+    (lines, warnings, starts)
+}
+
+fn roster_teams(lines: &Map<String, TeamLines>, starts: &[GoalieStart]) -> Vec<String> {
+    let mut tset: BTreeSet<String> = lines.keys().cloned().collect();
+    tset.extend(starts.iter().map(|s| s.team.clone()));
+    tset.into_iter().collect()
+}
+
+/// Fetch (and parse) what `enrich_lines(ctx, cache, as_of=day, teams=None)` reads from the
+/// network, through the cache, without a context (runs on a worker thread).
+pub fn prefetch_lines(cache: &Arc<HttpCache>, day: NaiveDate, today: NaiveDate) -> LinesFetch {
+    let mut client = DailyFaceoffClient::new(Box::new(make_cached_fetch_text(cache.as_ref(), None, None)));
+    let (lines, warnings, starts) = fetch_pages(&mut client, &team_list_of(None), day);
+    let empty = Vec::new();
+    let tlist = roster_teams(&lines, starts.as_ref().unwrap_or(&empty));
+    let mut rw = Vec::new();
+    let ros = roster_candidates(cache, &tlist, day, today, &mut rw);
+    LinesFetch { day, lines, warnings, starts, rosters: Some((ros, rw)) }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -480,21 +543,26 @@ fn lines_with(
     teams: Option<&[String]>,
     fetch_rosters: bool,
     clock: Clock,
+    prefetched: Option<LinesFetch>,
 ) -> LinesResult {
     let mut res = LinesResult::new(day);
     let store = snapshot_store;
-    let team_list: Vec<String> = match teams {
-        Some(t) => t.iter().map(|t| normalize_team(Some(t)).unwrap_or_else(|| t.clone())).collect(),
-        None => TEAM_SLUGS.iter().map(|(t, _)| normalize_team(Some(t)).unwrap_or_else(|| t.to_string())).collect(),
-    };
 
     // 1. fetch ----------------------------------------------------------------------
-    let lines = client.all_lines(Some(&team_list));
-    res.warnings.append(&mut client.warnings);
+    // (prefetched pages are only valid for the default team list and the same day)
+    let prefetched = prefetched.filter(|p| teams.is_none() && p.day == day);
+    let (lines, mut fetch_warnings, fetched_starts, mut pre_rosters) = match prefetched {
+        Some(p) => (p.lines, p.warnings, p.starts, p.rosters),
+        None => {
+            let (l, w, s) = fetch_pages(client, &team_list_of(teams), day);
+            (l, w, s, None)
+        }
+    };
+    res.warnings.append(&mut fetch_warnings);
     let mut starts: Vec<GoalieStart> = Vec::new();
-    match client.starting_goalies(day) {
+    match fetched_starts {
         Ok(s) => starts = s,
-        Err(e) => res.warnings.push(format!("Daily Faceoff starting goalies unavailable ({})", short(&e))),
+        Err(msg) => res.warnings.push(msg),
     }
     res.starts = starts.clone();
     res.teams = lines.len();
@@ -527,10 +595,13 @@ fn lines_with(
                     let mut cands_src: Vec<Vec<Candidate>> = vec![league_candidates(&players)];
                     if fetch_rosters {
                         if let Some(c) = cache {
-                            let mut tset: BTreeSet<String> = lines.keys().cloned().collect();
-                            tset.extend(starts.iter().map(|s| s.team.clone()));
-                            let tlist: Vec<String> = tset.into_iter().collect();
-                            let ros = roster_candidates(c, &tlist, day, clock.today, &mut res.warnings);
+                            let ros = match pre_rosters.take() {
+                                Some((ros, mut w)) => {
+                                    res.warnings.append(&mut w);
+                                    ros
+                                }
+                                None => roster_candidates(c, &roster_teams(&lines, &starts), day, clock.today, &mut res.warnings),
+                            };
                             cands_src.push(candidates_of(&ros));
                         }
                     }

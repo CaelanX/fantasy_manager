@@ -19,6 +19,13 @@
 //!   `lines_client=`, `xg_client=`) are the fields of [`EnrichOptions`].
 //! * Player mutation goes through the first occurrence of each cid (`ctx.all_players()` order),
 //!   which is the object Python mutates.
+//! * Network fan-out is concurrent (W5-provider-pipeline), results unchanged: the
+//!   league-independent requests of steps 1, 2 and 5 (week / club schedules, season rows,
+//!   rosters, injury feed), the pedigree landing pages (6b) and the preseason box scores (7b)
+//!   run on [`fetch_workers`] threads and are committed in Python's order, tracker events
+//!   included ([`captured`] / [`SourceTracker::replay`]); Daily Faceoff (9) and MoneyPuck (10)
+//!   pages are fetched and parsed on background threads from the start and applied at their
+//!   step. `FM_FETCH_WORKERS=1` restores the fully sequential order.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
@@ -41,17 +48,17 @@ use fm_sources::matching::crosswalk::{candidates_of, nhl_candidates, Crosswalk};
 use fm_sources::matching::matcher::{match_player, Candidate, PlayerIndex};
 use fm_sources::moneypuck::{self, MoneyPuckClient};
 use fm_sources::nhl::{
-    cached_nhl_fetch, current_season, games_per_day, prior_season, NhlClient, NhlGameLogEntry, NhlGoalieSeason,
-    NhlPlayerLanding, NhlRosterPlayer, NhlSkaterSeason, NHL_TEAMS, WEB_BASE,
+    cached_nhl_fetch, current_season, games_per_day, prior_season, NhlClient, NhlGame, NhlGameLogEntry, NhlGoalieSeason,
+    NhlPlayerLanding, NhlRosterPlayer, NhlSkaterSeason, NhlWeekSchedule, NHL_TEAMS, WEB_BASE,
 };
 use regex::Regex;
 use serde_json::Value;
 
 use crate::deployment_enrich::{enrich_deployment, DeploymentResult};
-use crate::lines_enrich::{enrich_lines, LineSnapshotStore, LinesResult};
+use crate::lines_enrich::{enrich_lines_prefetched, LineSnapshotStore, LinesFetch, LinesResult};
 use crate::preseason_enrich::{enrich_preseason, PreseasonResult};
 use crate::rookie_enrich::{enrich_rookies, RookieOptions, HISTORY_LIMIT};
-use crate::xg_enrich::{enrich_xg, XgEnrichResult};
+use crate::xg_enrich::{enrich_xg, enrich_xg_with_data, load_xg_data, xg_seasons, XgData, XgEnrichResult};
 
 pub const HOUR: f64 = 3600.0;
 pub const TTL_NHL_STATS: f64 = 6.0 * HOUR;
@@ -275,6 +282,71 @@ pub struct TrackEntry {
     pub last_good: Option<f64>,
 }
 
+/// One tracked fetch outcome (kept while capturing, see [`captured`]).
+#[derive(Clone, Debug)]
+pub struct TrackEvent {
+    pub url: String,
+    pub params: Params,
+    pub label: &'static str,
+    pub ttl: f64,
+    /// `short(e)` of a failure
+    pub error: Option<String>,
+}
+
+thread_local! {
+    static CAPTURE: std::cell::RefCell<Option<Vec<TrackEvent>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Run `f` with this thread's tracked fetches captured instead of recorded: returns the result
+/// and the events, to be [`SourceTracker::replay`]ed where the sequential run would have
+/// recorded them.
+pub fn captured<T>(f: impl FnOnce() -> T) -> (T, Vec<TrackEvent>) {
+    let prev = CAPTURE.with(|c| c.borrow_mut().replace(Vec::new()));
+    let r = f();
+    let ev = CAPTURE.with(|c| std::mem::replace(&mut *c.borrow_mut(), prev)).unwrap_or_default();
+    (r, ev)
+}
+
+/// Concurrent network requests per fan-out (`FM_FETCH_WORKERS`, default 12; 1 = sequential).
+pub fn fetch_workers() -> usize {
+    static N: OnceLock<usize> = OnceLock::new();
+    *N.get_or_init(|| {
+        std::env::var("FM_FETCH_WORKERS").ok().and_then(|v| v.trim().parse().ok()).filter(|n: &usize| *n >= 1).unwrap_or(12)
+    })
+}
+
+/// A unit of work for [`par_captured`].
+pub type Task<'a, T> = Box<dyn FnOnce() -> T + Send + 'a>;
+
+/// Run `tasks` on up to [`fetch_workers`] threads, each [`captured`]; results (with their
+/// tracker events) come back in task order, so the caller can commit them exactly as the
+/// sequential loop would have. Panics propagate.
+pub fn par_captured<'a, T: Send>(tasks: Vec<Task<'a, T>>) -> Vec<(T, Vec<TrackEvent>)> {
+    let n = tasks.len();
+    let workers = fetch_workers().min(n);
+    if workers <= 1 {
+        return tasks.into_iter().map(captured).collect();
+    }
+    let queue = Mutex::new(tasks.into_iter().enumerate());
+    let slots: Mutex<Vec<Option<(T, Vec<TrackEvent>)>>> = Mutex::new((0..n).map(|_| None).collect());
+    std::thread::scope(|s| {
+        for _ in 0..workers {
+            s.spawn(|| loop {
+                let next = queue.lock().unwrap_or_else(|e| e.into_inner()).next();
+                let Some((i, task)) = next else { break };
+                let out = captured(task);
+                slots.lock().unwrap_or_else(|e| e.into_inner())[i] = Some(out);
+            });
+        }
+    });
+    slots.into_inner().unwrap_or_else(|e| e.into_inner()).into_iter().map(|o| o.expect("every task ran")).collect()
+}
+
+/// [`par_captured`] for work that does not go through a tracker (results in task order).
+pub fn par_map<'a, T: Send>(tasks: Vec<Task<'a, T>>) -> Vec<T> {
+    par_captured(tasks).into_iter().map(|(t, _)| t).collect()
+}
+
 /// `SourceTracker`: routes fetches through the HttpCache with per-source TTLs and records data
 /// freshness. Shared (`Arc`) by the fetch callables it hands out.
 pub struct SourceTracker {
@@ -320,9 +392,8 @@ impl SourceTracker {
         });
     }
 
-    fn record_failure(&self, url: &str, params: &Params, label: &str, ttl: f64, e: &anyhow::Error) {
+    fn record_failure(&self, url: &str, params: &Params, label: &str, ttl: f64, err: String) {
         let fetched = self.fetched_at(url, params);
-        let err = short(e);
         self.with_entry(label, Some(ttl), |s| {
             s.failed += 1;
             s.error = Some(err);
@@ -335,15 +406,44 @@ impl SourceTracker {
         });
     }
 
+    /// Record one fetch outcome, or keep it for an ordered [`SourceTracker::replay`] when this
+    /// thread runs inside [`captured`] (concurrent fetches commit in Python's order).
+    fn note(&self, ev: TrackEvent) {
+        let ev = CAPTURE.with(|c| match c.borrow_mut().as_mut() {
+            Some(buf) => {
+                buf.push(ev);
+                None
+            }
+            None => Some(ev),
+        });
+        if let Some(ev) = ev {
+            self.apply(ev);
+        }
+    }
+
+    fn apply(&self, ev: TrackEvent) {
+        match ev.error {
+            None => self.record(&ev.url, &ev.params, ev.label, ev.ttl),
+            Some(err) => self.record_failure(&ev.url, &ev.params, ev.label, ev.ttl, err),
+        }
+    }
+
+    /// Apply fetch outcomes captured on another thread, in order.
+    pub fn replay(&self, events: Vec<TrackEvent>) {
+        for ev in events {
+            self.apply(ev);
+        }
+    }
+
     pub fn fetch_json(&self, url: &str, params: &Params) -> Result<Value> {
         let (label, ttl) = ttl_for(url, params, self.today);
         match self.cache.get_json(url, params, &[], &[], ttl) {
             Ok(v) => {
-                self.record(url, params, label, ttl);
+                self.note(TrackEvent { url: url.to_string(), params: params.clone(), label, ttl, error: None });
                 Ok(v)
             }
             Err(e) => {
-                self.record_failure(url, params, label, ttl, &e);
+                self.note(TrackEvent { url: url.to_string(), params: params.clone(), label, ttl, error: Some(short(&e)) });
                 Err(e)
             }
         }
@@ -353,11 +453,11 @@ impl SourceTracker {
         let (label, ttl) = ttl_for(url, params, self.today);
         match self.cache.get_text(url, params, &[], &[], ttl) {
             Ok(v) => {
-                self.record(url, params, label, ttl);
+                self.note(TrackEvent { url: url.to_string(), params: params.clone(), label, ttl, error: None });
                 Ok(v)
             }
             Err(e) => {
-                self.record_failure(url, params, label, ttl, &e);
+                self.note(TrackEvent { url: url.to_string(), params: params.clone(), label, ttl, error: Some(short(&e)) });
                 Err(e)
             }
         }
@@ -810,8 +910,33 @@ pub fn enrich_context(
     };
     let team_refs: Vec<&str> = teams.iter().map(String::as_str).collect();
     let mut steps = Steps { failures: Map::new(), season, prior };
+
+    // (FM_FETCH_WORKERS=1: everything sequential, as in Python)
+    let concurrent = fetch_workers() > 1;
+    // Steps 9 and 10 read Daily Faceoff / MoneyPuck pages that do not depend on the league:
+    // fetched and parsed on worker threads while steps 1-8 run, applied at their step.
+    let bg_lines = cache.as_ref().filter(|_| lines && lines_client.is_none() && concurrent).map(|c| {
+        let (c, day, today) = (c.clone(), ctx.as_of, clock.today);
+        std::thread::spawn(move || crate::lines_enrich::prefetch_lines(&c, day, today))
+    });
+    let bg_xg = cache.as_ref().filter(|_| xg && xg_client.is_none() && concurrent).map(|c| {
+        let (c, seasons, today) = (c.clone(), xg_seasons(ctx.as_of, None), clock.today);
+        std::thread::spawn(move || load_xg_data(&MoneyPuckClient::from_cache(c.as_ref(), Some(today)), seasons))
+    });
     let mut results = StepResults::default();
 
+    // per-step wall time at debug level (RUST_LOG=fm_providers=debug)
+    let mut step_clock = std::time::Instant::now();
+    macro_rules! tmark {
+        ($l:expr) => {{
+            let n = std::time::Instant::now();
+            tracing::debug!(step = $l, ms = (n - step_clock).as_secs_f64() * 1e3, "enrich step");
+            #[allow(unused_assignments)]
+            {
+                step_clock = n;
+            }
+        }};
+    }
     macro_rules! step {
         ($name:expr, $body:expr) => {{
             let name: &str = &$name;
@@ -821,10 +946,43 @@ pub fn enrich_context(
         }};
     }
 
-    // 1. schedule ---------------------------------------------------------------
+    // 1, 2 and 5 fetch league-independent data (week schedule, club schedules, season rows,
+    // rosters, the injury feed): every request runs concurrently up front, then each result is
+    // committed below at its step, in Python's order (step bookkeeping, warnings, tracker).
     let as_of = ctx.as_of;
-    let wk = step!("NHL week schedule", client.week_schedule(Some(as_of)));
-    let games = step!("NHL team schedules", client.league_games(Some(season), &team_refs, Some(2)));
+    let tracked_fetch: Option<Box<FetchJson<'static>>> = tracker.as_ref().map(|t| {
+        let t = t.clone();
+        Box::new(move |url: &str, params: &Params, _ttl: f64| t.fetch_json(url, params)) as Box<FetchJson<'static>>
+    });
+    let inj_fetch: Option<&FetchJson> = injuries_fetch.as_deref().or(tracked_fetch.as_deref());
+    let mut pre = prefetch_league_independent(&client, as_of, season, [season, prior, prior2, prior3], &team_refs, inj_fetch)
+        .into_iter();
+    let commit = |ev: Vec<TrackEvent>| {
+        if let Some(t) = &tracker {
+            t.replay(ev);
+        }
+    };
+    let mut next = || pre.next().expect("one prefetched result per request");
+
+    // 1. schedule ---------------------------------------------------------------
+    let (r, ev) = next();
+    commit(ev);
+    let wk = step!("NHL week schedule", r.week());
+    // client.league_games: club by club, stopping at the first failure
+    let mut sched: Result<Map<String, Vec<NhlGame>>> = Ok(Map::new());
+    for t in &team_refs {
+        let (r, ev) = next();
+        if let Ok(m) = sched.as_mut() {
+            commit(ev);
+            match r.games() {
+                Ok(g) => {
+                    m.insert(t.to_string(), g);
+                }
+                Err(e) => sched = Err(e),
+            }
+        }
+    }
+    let games = step!("NHL team schedules", sched);
     if let Some(games) = games.as_ref().filter(|g| !g.is_empty()) {
         ctx.schedule = games
             .iter()
@@ -858,22 +1016,31 @@ pub fn enrich_context(
         ctx.source_notes.push(format!("Schedule {season}: {n} games, regular season starts {start}"));
     }
 
+    tmark!("schedule");
     // 2. NHL season rows and rosters ---------------------------------------------
-    let cur_sk = step!(format!("NHL skater stats {season}"), client.all_skaters(Some(season), 2, true, true)).unwrap_or_default();
-    let cur_g = step!(format!("NHL goalie stats {season}"), client.goalie_summary(Some(season), 2)).unwrap_or_default();
-    let pr_sk = step!(format!("NHL skater stats {prior}"), client.all_skaters(Some(prior), 2, true, true)).unwrap_or_default();
-    let pr_g = step!(format!("NHL goalie stats {prior}"), client.goalie_summary(Some(prior), 2)).unwrap_or_default();
+    let mut season_rows = |hs: i64| {
+        let (r, ev) = next();
+        commit(ev);
+        let sk = step!(format!("NHL skater stats {hs}"), r.skaters()).unwrap_or_default();
+        let (r, ev) = next();
+        commit(ev);
+        let gl = step!(format!("NHL goalie stats {hs}"), r.goalies()).unwrap_or_default();
+        (sk, gl)
+    };
+    let (cur_sk, cur_g) = season_rows(season);
+    let (pr_sk, pr_g) = season_rows(prior);
     let mut hist_sk: Vec<(i64, Vec<NhlSkaterSeason>, Vec<NhlGoalieSeason>)> = Vec::new();
     for hs in [prior2, prior3] {
-        let sk = step!(format!("NHL skater stats {hs}"), client.all_skaters(Some(hs), 2, true, true)).unwrap_or_default();
-        let gl = step!(format!("NHL goalie stats {hs}"), client.goalie_summary(Some(hs), 2)).unwrap_or_default();
+        let (sk, gl) = season_rows(hs);
         hist_sk.push((hs, sk, gl));
     }
     let mut roster: Vec<NhlRosterPlayer> = Vec::new();
     let mut roster_errors = 0usize;
     let mut last_err: Option<anyhow::Error> = None;
-    for t in &team_refs {
-        match client.team_roster(t, Some(season)) {
+    for _ in &team_refs {
+        let (r, ev) = next();
+        commit(ev);
+        match r.roster() {
             Ok(r) => roster.extend(r),
             Err(e) => {
                 roster_errors += 1;
@@ -903,6 +1070,7 @@ pub fn enrich_context(
         ctx.nhl_goalies = goalies;
     }
 
+    tmark!("stats+rosters");
     // 3. crosswalk ------------------------------------------------------------------
     let cands = nhl_candidates(&[
         candidates_of(&pr_sk),
@@ -941,6 +1109,7 @@ pub fn enrich_context(
         }
     }
 
+    tmark!("crosswalk");
     // 4. birth dates / teams from rosters ----------------------------------------------
     let by_roster: HashMap<i64, &NhlRosterPlayer> = roster.iter().map(|r| (r.player_id, r)).collect();
     for p in ctx_players_mut(ctx) {
@@ -953,18 +1122,17 @@ pub fn enrich_context(
         }
     }
 
+    tmark!("birth");
     // 5. injuries ------------------------------------------------------------------------
-    let tracked_fetch: Option<Box<FetchJson<'static>>> = tracker.as_ref().map(|t| {
-        let t = t.clone();
-        Box::new(move |url: &str, params: &Params, _ttl: f64| t.fetch_json(url, params)) as Box<FetchJson<'static>>
-    });
-    let inj_fetch: Option<&FetchJson> = injuries_fetch.as_deref().or(tracked_fetch.as_deref());
-    let reports = step!("Injury feed", fetch_injuries(inj_fetch, TTL_INJURIES));
+    let (r, ev) = next();
+    commit(ev);
+    let reports = step!("Injury feed", r.injuries());
     if let Some(reports) = reports {
         let n = merge_injuries(&mut ctx_players_mut(ctx), &reports);
         ctx.source_notes.push(format!("Injuries: {} reports, {n} matched to league players", reports.len()));
     }
 
+    tmark!("injuries");
     // 6. stat lines ---------------------------------------------------------------------
     let cur_rows = rows_by_id(&cur_sk, &cur_g);
     let pr_rows = rows_by_id(&pr_sk, &pr_g);
@@ -986,10 +1154,12 @@ pub fn enrich_context(
         ));
     }
 
+    tmark!("statlines");
     // 6b. pedigree (needs prior lines from step 6) ------------------------------------------
     let mut landings: HashMap<i64, NhlPlayerLanding> = HashMap::new();
-    step!("NHL player pages", pedigree(ctx, &client, pedigree_limit, cache.as_deref(), &mut landings, clock.now));
+    step!("NHL player pages", pedigree(ctx, &client, pedigree_limit, cache.as_deref(), &mut landings, clock.now, tracker.as_deref()));
 
+    tmark!("pedigree");
     // 6c. rookie evidence: league history (reuses 6b's landings) + news role signals -----------
     if rookies {
         if let Some(c) = &cache {
@@ -1017,11 +1187,13 @@ pub fn enrich_context(
         }
     }
 
+    tmark!("rookies");
     // 7. deep: recent form from game logs ---------------------------------------------------
     if deep {
         deep_game_logs(ctx, &client, season, deep_fa_limit);
     }
 
+    tmark!("deep");
     // 7b. preseason lines of unproven skaters (box scores; needs career GP from 6b) ---------------
     if preseason {
         if let Some(c) = &cache {
@@ -1029,10 +1201,12 @@ pub fn enrich_context(
         }
     }
 
+    tmark!("preseason");
     if let Some(t) = &tracker {
         ctx.source_notes.extend(t.notes(clock.now));
     }
 
+    tmark!("notes");
     // 8-10. deployment, lines, expected goals (each best effort) -------------------------------
     if deployment {
         let own_dep: Option<NhlClient> = if injected_nhl {
@@ -1050,26 +1224,96 @@ pub fn enrich_context(
         results.deployment_warnings =
             ctx.warnings[n_warn..].iter().filter(|w| w.starts_with("Deployment (")).cloned().collect();
     }
+    tmark!("deployment");
     if lines {
         if cache.is_none() && lines_client.is_none() {
             ctx.source_notes.push("Daily Faceoff lines skipped (no HTTP cache)".into());
         } else {
             results.lines =
-                step!("Daily Faceoff lines", lines_step(ctx, settings, cache.as_ref(), crosswalk, lines_client.as_mut(), clock));
+                step!("Daily Faceoff lines", {
+                    let pre = bg_lines.and_then(|h| h.join().ok());
+                    lines_step(ctx, settings, cache.as_ref(), crosswalk, lines_client.as_mut(), clock, pre)
+                });
         }
     }
+    tmark!("lines");
     if xg {
         if cache.is_none() && xg_client.is_none() {
             ctx.source_notes.push("MoneyPuck expected goals skipped (no HTTP cache)".into());
         } else {
-            results.xg = step!("MoneyPuck expected goals", xg_step(ctx, cache.as_ref(), xg_client, clock));
+            results.xg = step!("MoneyPuck expected goals", {
+                let pre = bg_xg.and_then(|h| h.join().ok());
+                xg_step(ctx, cache.as_ref(), xg_client, clock, pre)
+            });
         }
     }
+    tmark!("xg");
     // additive and best effort: never let the health summary sink enrichment
     match collect_sources(ctx, settings, cache.as_deref(), tracker.as_deref(), &steps.failures, &results, clock.now) {
         Ok(s) => ctx.sources = s,
         Err(e) => ctx.warnings.push(format!("Data health summary unavailable ({})", short(&e))),
     }
+    tmark!("sources");
+}
+
+// --------------------------------------------------------------------------- concurrent fetches
+
+/// One prefetched result of [`prefetch_league_independent`].
+pub enum Prefetched {
+    Week(Result<NhlWeekSchedule>),
+    Games(Result<Vec<NhlGame>>),
+    Skaters(Result<Vec<NhlSkaterSeason>>),
+    Goalies(Result<Vec<NhlGoalieSeason>>),
+    Roster(Result<Vec<NhlRosterPlayer>>),
+    Injuries(Result<Vec<InjuryReport>>),
+}
+
+macro_rules! prefetched_as {
+    ($name:ident, $variant:ident, $t:ty) => {
+        pub fn $name(self) -> Result<$t> {
+            match self {
+                Prefetched::$variant(r) => r,
+                _ => unreachable!(concat!("prefetch order: expected ", stringify!($variant))),
+            }
+        }
+    };
+}
+
+impl Prefetched {
+    prefetched_as!(week, Week, NhlWeekSchedule);
+    prefetched_as!(games, Games, Vec<NhlGame>);
+    prefetched_as!(skaters, Skaters, Vec<NhlSkaterSeason>);
+    prefetched_as!(goalies, Goalies, Vec<NhlGoalieSeason>);
+    prefetched_as!(roster, Roster, Vec<NhlRosterPlayer>);
+    prefetched_as!(injuries, Injuries, Vec<InjuryReport>);
+}
+
+/// Steps 1, 2 and 5's requests, concurrently ([`par_captured`]), in the order the sequential
+/// steps make them: week schedule, club schedules (team order), skater + goalie season rows
+/// for each of `seasons`, rosters (team order), the injury feed. Each comes back with its
+/// tracker events for the caller to commit.
+pub fn prefetch_league_independent(
+    client: &NhlClient,
+    as_of: NaiveDate,
+    season: i64,
+    seasons: [i64; 4],
+    teams: &[&str],
+    injuries: Option<&FetchJson>,
+) -> Vec<(Prefetched, Vec<TrackEvent>)> {
+    let mut tasks: Vec<Task<'_, Prefetched>> = Vec::with_capacity(2 * teams.len() + 10);
+    tasks.push(Box::new(move || Prefetched::Week(client.week_schedule(Some(as_of)))));
+    for t in teams {
+        tasks.push(Box::new(move || Prefetched::Games(client.team_schedule(t, Some(season), Some(2)))));
+    }
+    for hs in seasons {
+        tasks.push(Box::new(move || Prefetched::Skaters(client.all_skaters(Some(hs), 2, true, true))));
+        tasks.push(Box::new(move || Prefetched::Goalies(client.goalie_summary(Some(hs), 2))));
+    }
+    for t in teams {
+        tasks.push(Box::new(move || Prefetched::Roster(client.team_roster(t, Some(season)))));
+    }
+    tasks.push(Box::new(move || Prefetched::Injuries(fetch_injuries(injuries, TTL_INJURIES))));
+    par_captured(tasks)
 }
 
 // --------------------------------------------------------------------------- steps 8-10
@@ -1180,6 +1424,7 @@ pub fn lines_step(
     crosswalk: Option<&Crosswalk>,
     client: Option<&mut DailyFaceoffClient<'_>>,
     clock: Clock,
+    prefetched: Option<LinesFetch>,
 ) -> Result<LinesResult> {
     let own: Option<Crosswalk> = if crosswalk.is_none() {
         match Crosswalk::new(&settings.fm_data_dir) {
@@ -1196,7 +1441,7 @@ pub fn lines_step(
     let xw = crosswalk.or(own.as_ref());
     let store = LineSnapshotStore::new(&settings.fm_data_dir);
     let as_of = ctx.as_of;
-    let res = enrich_lines(ctx, cache, xw, Some(as_of), Some(&store), client, None, None, true, clock);
+    let res = enrich_lines_prefetched(ctx, cache, xw, Some(as_of), Some(&store), client, None, None, true, clock, prefetched);
     if let Some(x) = &own {
         x.close();
     }
@@ -1218,8 +1463,12 @@ pub fn xg_step(
     cache: Option<&Arc<HttpCache>>,
     client: Option<&MoneyPuckClient<'_>>,
     clock: Clock,
+    prefetched: Option<XgData>,
 ) -> Result<XgEnrichResult> {
-    let res = enrich_xg(ctx, cache, None, client, clock.today);
+    let res = match (prefetched, client) {
+        (Some(data), None) => enrich_xg_with_data(ctx, data),
+        (_, client) => enrich_xg(ctx, cache, None, client, clock.today),
+    };
     if let Some(c) = cache {
         if res.count() > 0 {
             let url = moneypuck::season_url(moneypuck::current_start_year(Some(ctx.as_of)), moneypuck::Kind::Skaters);
@@ -1300,6 +1549,11 @@ pub fn landing_cached(cache: Option<&HttpCache>, player_id: i64, now: f64) -> bo
 
 /// `_pedigree`: load pedigree for every target; only uncached pages count toward `limit`
 /// network requests per run. `landings` collects the parsed pages by NHL id.
+///
+/// The pages are requested concurrently: the targets up to the first repeated NHL id are
+/// planned up front (cache state before the loop, the same `limit` accounting), fetched in
+/// parallel, and committed in target order (tracker events replayed into `tracker`, the
+/// client's tracker). Targets after a repeated id run sequentially, as in Python.
 pub fn pedigree(
     ctx: &mut LeagueContext,
     client: &NhlClient,
@@ -1307,22 +1561,61 @@ pub fn pedigree(
     cache: Option<&HttpCache>,
     landings: &mut HashMap<i64, NhlPlayerLanding>,
     now: f64,
+    tracker: Option<&SourceTracker>,
 ) -> Result<()> {
     let todo = pedigree_targets(ctx, PEDIGREE_FA_LIMIT);
+    let nids: Vec<i64> = {
+        let players = ctx.all_players();
+        todo.iter().map(|&i| players[i].nhl_id().expect("targets carry an NHL id")).collect()
+    };
+    // plan: the prefix of distinct ids, whether each counts as a request, and which are fetched
+    let mut seen: HashSet<i64> = HashSet::new();
+    let prefix = nids.iter().position(|n| !seen.insert(*n)).unwrap_or(nids.len());
+    let cached_before: Vec<bool> = nids[..prefix].iter().map(|&n| landing_cached(cache, n, now)).collect();
+    let mut planned: Vec<Option<usize>> = vec![None; prefix];
+    let mut tasks: Vec<Task<'_, Result<NhlPlayerLanding>>> = Vec::new();
+    {
+        let mut fetched = 0usize;
+        for k in 0..prefix {
+            if !cached_before[k] {
+                if fetched >= limit {
+                    continue;
+                }
+                fetched += 1;
+            }
+            planned[k] = Some(tasks.len());
+            let nid = nids[k];
+            tasks.push(Box::new(move || client.player_landing(nid)));
+        }
+    }
+    let mut results: Vec<Option<(Result<NhlPlayerLanding>, Vec<TrackEvent>)>> =
+        par_captured(tasks).into_iter().map(Some).collect();
+
     let (mut done, mut errors, mut drafted, mut fetched, mut skipped) = (0, 0, 0, 0usize, 0);
     {
         let mut players = ctx_players_mut(ctx);
-        for &i in &todo {
+        for (k, &i) in todo.iter().enumerate() {
             let p = &mut players[i];
-            let nid = p.nhl_id().expect("targets carry an NHL id");
-            if !landing_cached(cache, nid, now) {
+            let nid = nids[k];
+            let cached = if k < prefix { cached_before[k] } else { landing_cached(cache, nid, now) };
+            if !cached {
                 if fetched >= limit {
                     skipped += 1;
                     continue;
                 }
                 fetched += 1;
             }
-            let landing = match client.player_landing(nid) {
+            let got = match planned.get(k).copied().flatten() {
+                Some(slot) => {
+                    let (r, ev) = results[slot].take().expect("each planned page is used once");
+                    if let Some(t) = tracker {
+                        t.replay(ev);
+                    }
+                    r
+                }
+                None => client.player_landing(nid),
+            };
+            let landing = match got {
                 Ok(l) => l,
                 Err(_) => {
                     errors += 1;
