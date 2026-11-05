@@ -123,3 +123,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - W11: `ScheduleMemo::fresh()`/`data_dir()` so `plan_claims` can drop its `data_dir` arg.
 - Timing: advise+trades ESPN 13.8s->0.11s, Fantrax 9.1s->0.15s; claims 13.1s->0.12s / 2.3s->0.11s; plan 7.0s->0.37s / 2.8s->0.32s.
 
+
+## W12-cutover (added 2026-11-04, user decision: Rust replaces Python on master)
+- Python preserved on branch `legacy-python` (8bbfa2f). After W11 passes, a cutover package (opus: layout decisions) must:
+  - remove `fantasy_manager/`, Python `tests/`, `pyproject.toml`; decide final layout (Cargo workspace at repo root vs keep `rust/`); move the data the Rust code embeds/loads (nhle_factors.json, fitted_params.json, web/templates, web/static, tests/fixtures used by Rust tests) under the Rust tree and fix `include_str!` / `CARGO_MANIFEST_DIR` paths.
+  - parity dump scripts need Python: keep `rust/parity/*.py`, documented as run from a `legacy-python` checkout; fixtures stay checked in.
+  - port Dockerfile, docker-compose.yml, .dockerignore, `.github/workflows/hosted.yml`, `deploy/` scripts to the Rust binary; update README (setup: rustup GNU toolchain + MinGW on Windows), docs/*.md commands, .env.example, `.claude/launch.json`.
