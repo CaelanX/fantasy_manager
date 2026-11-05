@@ -40,3 +40,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - ESPN warnings raised after load (activity, box_scores, trending) are only in `EspnProvider::warnings_now()`; the `trending` command must read them there.
 - `espn_scoreboard` / `espn_league_get` have no fixture coverage (tape lacks the mMatchup view): test them live once.
 
+
+## Follow-ups (from W3-harness-deploy-data)
+- fm-harness/src/deployment.rs: B2B constants (0.35, 5, 5.0) copied locally; re-point to fm_engine::valuation::schedule (after W3-valuation-schedule).
+- fm-harness/src/ingest.rs: local `archive_dir` / `load_snapshot`; re-point to fm_engine::archive (W5-archive-outcomes owns that; tell it).
+- `pull_lineups` picks the ESPN path by `provider.name() == "espn"`.
+
