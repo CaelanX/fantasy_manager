@@ -862,6 +862,7 @@ dependencies = [
  "chrono-tz",
  "csv",
  "fancy-regex",
+ "flate2",
  "fm-core",
  "fm-http",
  "fm-pycompat",

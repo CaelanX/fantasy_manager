@@ -84,6 +84,55 @@ pub fn bisect_right(sorted: &[f64], x: f64) -> usize {
 }
 
 /// `itertools.combinations(range(n), k)` in Python's (lexicographic index) order.
-pub fn combinations(_n: usize, _k: usize) -> Vec<Vec<usize>> {
-    todo!("W1-pycompat")
+/// `k > n` gives no combinations, `k == 0` gives one empty combination (like Python).
+pub fn combinations(n: usize, k: usize) -> Vec<Vec<usize>> {
+    let mut out = Vec::new();
+    if k > n {
+        return out;
+    }
+    let mut idx: Vec<usize> = (0..k).collect();
+    loop {
+        out.push(idx.clone());
+        // rightmost index that can still move (Python's itertools.combinations algorithm)
+        let mut i = k;
+        loop {
+            if i == 0 {
+                return out;
+            }
+            i -= 1;
+            if idx[i] != i + n - k {
+                break;
+            }
+        }
+        idx[i] += 1;
+        for j in i + 1..k {
+            idx[j] = idx[j - 1] + 1;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn combos() {
+        assert_eq!(combinations(4, 2), vec![vec![0, 1], vec![0, 2], vec![0, 3], vec![1, 2], vec![1, 3], vec![2, 3]]);
+        assert_eq!(combinations(3, 0), vec![Vec::<usize>::new()]);
+        assert!(combinations(2, 3).is_empty());
+        assert_eq!(combinations(5, 5).len(), 1);
+        assert_eq!(combinations(10, 3).len(), 120);
+    }
+
+    #[test]
+    fn first_extremes_and_stable_desc() {
+        let xs = [(1, 3.0), (2, 5.0), (3, 5.0), (4, 1.0), (5, 1.0)];
+        assert_eq!(first_max_by(xs.iter(), |a, b| cmp_f64(a.1, b.1)).unwrap().0, 2);
+        assert_eq!(first_min_by(xs.iter(), |a, b| cmp_f64(a.1, b.1)).unwrap().0, 4);
+        let mut v = xs.to_vec();
+        sort_desc_by(&mut v, |a, b| cmp_f64(a.1, b.1));
+        assert_eq!(v.iter().map(|x| x.0).collect::<Vec<_>>(), vec![2, 3, 1, 4, 5]);
+        let s = [1.0, 2.0, 2.0, 3.0];
+        assert_eq!((bisect_left(&s, 2.0), bisect_right(&s, 2.0)), (1, 3));
+    }
 }
