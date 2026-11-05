@@ -228,37 +228,59 @@ def _greedy_assignment(players: Iterable[Player], values: Mapping[str, Any],
     picks between slots as needed). Lineups are independent sets of a transversal matroid,
     so this greedy is exact for non-negative values - same optimum as a full DP, far cheaper.
     Players with value <= 0 are left on the bench.
+
+    Slots of one type (e.g. 6 F) are interchangeable, so the matching runs on slot types with
+    capacities: an augmenting path visits each type once and tries each of its occupants
+    (same optimum as matching individual slots, far fewer nodes).
     """
-    def val(p: Player) -> float:
-        pv = values.get(p.cid)
-        return pv.fpg_for(horizon) if pv is not None else 0.0
-
     slots = _starting_slots(roster_shape)
-    holder: list[Player | None] = [None] * len(slots)
+    types = list(dict.fromkeys(slots))                 # specific slots first, then F, then UTIL
+    cap = {t: slots.count(t) for t in types}
+    held: dict[str, list[Player]] = {t: [] for t in types}
+    elig: dict[str, list[str]] = {}
 
-    def augment(p: Player, seen: set[int]) -> bool:
-        pos = tuple(p.positions)
-        for i, s in enumerate(slots):
-            if i in seen or not _eligible(pos, s):
-                continue
-            seen.add(i)
-            cur = holder[i]
-            if cur is None or augment(cur, seen):
-                holder[i] = p
+    def types_for(p: Player) -> list[str]:
+        e = elig.get(p.cid)
+        if e is None:
+            pos = tuple(p.positions)
+            e = elig[p.cid] = [t for t in types if _eligible(pos, t)]
+        return e
+
+    def augment(p: Player, seen: set[str]) -> bool:
+        ts = [t for t in types_for(p) if t not in seen]
+        for t in ts:                                   # a free slot of an eligible type first
+            if len(held[t]) < cap[t]:
+                held[t].append(p)
                 return True
+        for t in ts:                                   # else move an occupant elsewhere
+            if t in seen:
+                continue
+            seen.add(t)
+            for i, q in enumerate(held[t]):
+                if augment(q, seen):
+                    held[t][i] = p
+                    return True
         return False
 
+    vals: dict[str, float] = {}
+    for p in players:
+        pv = values.get(p.cid)
+        vals[p.cid] = pv.fpg_for(horizon) if pv is not None else 0.0
+    # A failed search visited only full types whose occupants can reach nothing but full visited
+    # types; matches only grow, so those types stay saturated for the rest of the pass ("dead").
+    dead: set[str] = set()
     filled = 0
-    for p in sorted(players, key=val, reverse=True):
-        if filled >= len(slots) or val(p) <= 0:
+    for p in sorted(players, key=lambda p: vals[p.cid], reverse=True):
+        if filled >= len(slots) or vals[p.cid] <= 0:
             break
-        if augment(p, set()):
+        if all(t in dead for t in types_for(p)):
+            continue
+        seen = set(dead)
+        if augment(p, seen):
             filled += 1
-    out: dict[str, list[str]] = {}
-    for s, p in zip(slots, holder):
-        if p is not None:
-            out.setdefault(s, []).append(p.cid)
-    return out
+        else:
+            dead = seen
+    return {t: [p.cid for p in held[t]] for t in types if held[t]}
 
 
 def _greedy_lineup_value(players: Iterable[Player], values: Mapping[str, Any],
