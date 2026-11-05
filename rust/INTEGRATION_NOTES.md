@@ -66,3 +66,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - Optional: record `fetched_at` per tape response so freshness notes are checkable in parity.
 - Deployment-ledger `fetched_at` treats naive timestamps as chrono::Local (machine timezone).
 
+
+## For W5-provider-pipeline (from W4-valuate)
+- Call `valuate_league_with(ctx, scoring, &ScheduleMemo::new(Some(settings.data_dir)))` (`valuate_league` uses no odds). Categories/roto: `fit_and_valuate` fits first.
+- `value_picks` takes `Option<&Map<Cid, DynastyValue>>` (DynastyValue objects, not floats).
+- Hot loops elsewhere: build `ProductionCurves` once instead of calling `dynasty::trajectory_factor`/`growth_ratio` repeatedly.
+
