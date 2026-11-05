@@ -115,3 +115,11 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - Matchup-calibration golden: `FM_PARITY_FIXTURES/_w8_golden/matchup_calib.json` from rust/parity/dump_matchup_calib.py (synthetic rows; fixture harness.db has none).
 - `fm_report::health::data_health(ctx, now)` exists (web footer / digest).
 
+
+## Hand-offs (from W8-plan-claims-advise)
+- CLI/web: `plan_claims(..., memo, Some(data_dir))`. `cli/advise.json` = `advise(lineup, waivers, flags, injuries, alerts)` then `merge_normalized` with trades (wants/offered blocks), cap 15.
+- `fm plan`: `build_week_plan(ctx, values, &PlanOpts{..}, now, memo).to_json()` + meta; `archive_plan` takes `now`. `today_checklist(plan, day, CHECKLIST_LIMIT)`.
+- Set-order field to add to ARCHITECTURE 4.3: `days[*].goalies`.
+- W11: `ScheduleMemo::fresh()`/`data_dir()` so `plan_claims` can drop its `data_dir` arg.
+- Timing: advise+trades ESPN 13.8s->0.11s, Fantrax 9.1s->0.15s; claims 13.1s->0.12s / 2.3s->0.11s; plan 7.0s->0.37s / 2.8s->0.32s.
+
