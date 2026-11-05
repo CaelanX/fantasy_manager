@@ -535,7 +535,10 @@ pub fn full_report(
     Ok(rep)
 }
 
-/// Add the M4 keys to one league's report (built when not given).
+/// Moves listed in the report's move review (newest first).
+pub const REVIEW_MOVES: usize = 25;
+
+/// Add the M4 keys (and the move review) to one league's report (built when not given).
 pub fn extend_league(ledger: &Ledger, league: &str, l: Option<Value>, now: NaiveDateTime) -> Result<Value> {
     let mut l = match l {
         Some(v) => v,
@@ -546,6 +549,7 @@ pub fn extend_league(ledger: &Ledger, league: &str, l: Option<Value>, now: Naive
         m.insert("series".into(), series(ledger, league)?);
         m.insert("scorecard".into(), Value::Array(scorecard(&latest)));
         m.insert("capture".into(), capture(ledger, league, now)?);
+        m.insert("review".into(), crate::review::review(ledger, league, now.date(), REVIEW_MOVES)?);
     }
     Ok(l)
 }

@@ -101,6 +101,75 @@
   {% endif %}</p>
 </section>
 
+{# ---------------------------------------------------------------- move review + free-agent ranking #}
+{% set RV = L.review or {} %}
+{% set MV = RV.moves or {} %}
+<section aria-labelledby="h-review">
+  <h2 id="h-review">How right was the model? <span class="aside">every suggestion, taken or not, against what the players scored</span></h2>
+  {% if MV.n_moves %}
+  <div class="tbl"><table class="r stack review">
+    <caption class="sr-only">Graded moves by who made them</caption>
+    <thead><tr><th scope="col">Moves</th><th scope="col" class="n">N</th><th scope="col" class="n">Right</th><th scope="col" class="n">Wrong</th>
+      <th scope="col" class="n">Ahead</th><th scope="col" class="n">Behind</th><th scope="col" class="n">Final hit rate</th>
+      <th scope="col" class="n">Pts predicted</th><th scope="col" class="n">Pts realized</th></tr></thead>
+    <tbody>
+    {% for g in (MV.by_group or []) + [MV.total] %}
+    <tr{% if loop.last %} class="chg"{% endif %}><th scope="row" data-label="Moves">{{ g.label }}</th>
+      <td class="n" data-label="N">{{ g.n }}</td><td class="n" data-label="Right">{{ g.right }}</td><td class="n" data-label="Wrong">{{ g.wrong }}</td>
+      <td class="n" data-label="Ahead">{{ g.ahead }}</td><td class="n" data-label="Behind">{{ g.behind }}</td>
+      <td class="n" data-label="Final hit rate">{% if g.final_rate is not none %}{{ pct(g.final_rate) }} <small class="muted">({{ ci(g.final_ci[0], g.final_ci[1]) }})</small>{% else %}-{% endif %}</td>
+      <td class="n" data-label="Pts predicted">{{ hv.num(g.predicted_pts, 1) }}</td><td class="n" data-label="Pts realized">{{ hv.num(g.realized_pts, 1) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="foot-note">Right / wrong: the move's window (7 days for lineups and this-week moves, else 28) has finished and it gained / lost points.
+    Ahead / behind: still running, marked on the days played so far. Points compare the predicted gain, pro-rated to the days graded, with the points the move actually added.</p>
+  <details><summary>Latest {{ MV.moves|length }} of {{ MV.n_moves }} moves</summary>
+  <div class="tbl"><table class="r stack review-moves">
+    <caption class="sr-only">Graded moves, newest first</caption>
+    <thead><tr><th scope="col">Day</th><th scope="col">Move</th><th scope="col">Who</th><th scope="col" class="n">Graded</th>
+      <th scope="col" class="n">Predicted</th><th scope="col" class="n">Realized</th><th scope="col">Verdict</th></tr></thead>
+    <tbody>{% for m in MV.moves %}
+    <tr><th scope="row" data-label="Day">{{ m.day }}</th>
+      <td class="wrap" data-label="Move">{{ m.title or m.kind }} <small class="muted">{{ m.kind }}</small></td>
+      <td data-label="Who">{% if m.group == 'followed' %}you took it{% elif m.group == 'own' %}your own{% else %}not taken{% endif %}</td>
+      <td class="n" data-label="Graded">{{ m.days_graded }}/{{ m.window_days }}d</td>
+      <td class="n" data-label="Predicted">{{ hv.num(m.predicted_so_far, 1) }}</td>
+      <td class="n" data-label="Realized">{{ hv.num(m.realized, 1) }}{% if m.units == 'fpg_vs_l15' %} <small class="muted">FPG vs L15</small>{% endif %}</td>
+      <td data-label="Verdict">{{ m.verdict }}{% if m.early %} <small class="muted">(early)</small>{% endif %}{% if m.model_pick %} <small class="muted">model's pick {{ hv.num(m.model_pick_realized, 1) }}</small>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  </details>
+  {% else %}
+  <p class="empty">No graded moves yet. Suggestions are marked from the day after <code>fm harness daily</code> captures them.</p>
+  {% endif %}
+
+  {% set RK = RV.ranking or {} %}
+  {% set RW = (RK.windows or [])|selectattr('evaluated')|list %}
+  <h3 class="sub-h">Free-agent ranking <span class="aside">did the model's top {{ RK.top_k or 10 }} free agents outscore the market's?</span></h3>
+  {% if RK.note %}
+  <p class="empty">{{ RK.note }}</p>
+  {% elif RW %}
+  <div class="tbl"><table class="r stack ranking">
+    <caption class="sr-only">Average points of each ranker's top free agents</caption>
+    <thead><tr><th scope="col">Next</th><th scope="col" class="n">Days</th><th scope="col" class="n">Model</th><th scope="col" class="n">Market (% rostered)</th>
+      <th scope="col" class="n">Hot (season FPG)</th><th scope="col" class="n">Best possible</th><th scope="col" class="n">Median FA</th>
+      <th scope="col" class="n">Model beat market</th><th scope="col" class="n">Model beat hot</th></tr></thead>
+    <tbody>{% for w in RW %}
+    <tr><th scope="row" data-label="Next">{{ w.days }} days{% if w.early %} <small class="muted">(early)</small>{% endif %}</th>
+      <td class="n" data-label="Days">{{ w.evaluated }}</td><td class="n" data-label="Model">{{ hv.num(w.model, 1) }}</td>
+      <td class="n" data-label="Market">{{ hv.num(w.market, 1) }}</td><td class="n" data-label="Hot">{{ hv.num(w.hot, 1) }}</td>
+      <td class="n" data-label="Best possible">{{ hv.num(w.best, 1) }}</td><td class="n" data-label="Median FA">{{ hv.num(w.median, 1) }}</td>
+      <td class="n" data-label="Model beat market">{{ w.beat_market }}/{{ w.evaluated }}</td><td class="n" data-label="Model beat hot">{{ w.beat_hot }}/{{ w.evaluated }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <p class="foot-note">Each archived day, the players on no fantasy roster are ranked three ways: the model's FPG, % rostered, and season-to-date points per game.
+    The columns are the average points each ranker's top {{ RK.top_k }} actually scored over the next days. Consecutive days overlap, so fewer than 14 days is an early read.</p>
+  {% else %}
+  <p class="empty">Nothing to check yet: {{ RK.projection_days or 0 }} archived day(s); a day counts once the 7 days after it have been played.</p>
+  {% endif %}
+</section>
+
 {# ---------------------------------------------------------------- (c) calibration #}
 <section aria-labelledby="h-cal">
   <h2 id="h-cal">Calibration <span class="aside">predicted vs realized gain, by bin of predicted</span></h2>

@@ -72,6 +72,9 @@ pub fn harness_spec() -> CommandSpec {
                 .subcommand(LedgerArgs::augment_args(
                     clap::Command::new("ledger").about("Recent recommendation episodes with their match status (and my user-only moves)."),
                 ))
+                .subcommand(ReviewArgs::augment_args(clap::Command::new("review").about(
+                    "How right the model was: every suggestion (taken or not) and your own moves marked against what the players scored so far, and whether its top free agents beat the market's.",
+                )))
                 .subcommand(RebuildArgs::augment_args(
                     clap::Command::new("rebuild").about("Drop and rebuild the archive-derived tables from data/archive, then re-match."),
                 ))
@@ -100,6 +103,7 @@ pub fn harness_spec() -> CommandSpec {
             Some(("odds", s)) => odds_cmd(cli, &OddsArgs::from_arg_matches(s)?),
             Some(("ledger", s)) => ledger_cmd(cli, &LedgerArgs::from_arg_matches(s)?),
             Some(("rebuild", s)) => rebuild_cmd(cli, &RebuildArgs::from_arg_matches(s)?),
+            Some(("review", s)) => review_cmd(cli, &ReviewArgs::from_arg_matches(s)?),
             Some(("grade", s)) => grade_cmd(cli, &GradeArgs::from_arg_matches(s)?),
             Some(("status", s)) => status_cmd(cli, &StatusArgs::from_arg_matches(s)?),
             Some(("refit", s)) => refit_cmd(cli, &RefitArgs::from_arg_matches(s)?),
@@ -405,6 +409,70 @@ fn deployment_line(dp: &Value) -> String {
     format!("deployment {day}: {} skater / {} goalie rows", count(dp, "skaters"), count(dp, "goalies"))
 }
 
+/// Pull every NHL day the ledger missed since the first archived day (results, and deployment
+/// when the schedule loaded), so a skipped daily run leaves no hole in the graded windows; `skip`
+/// was pulled by this run already. Never fails.
+fn catch_up_step(cli: &Cli, ledger: &Ledger, through: NaiveDate, skip: NaiveDate, schedule: Option<&fm_harness::deployment::Schedule>) -> Value {
+    use fm_harness::realized::{backfill_start, unpulled_days};
+    let mut out = JMap::new();
+    let mut errors: Vec<String> = Vec::new();
+    let res: Result<()> = (|| {
+        let Some(start) = backfill_start(ledger, through)? else { return Ok(()) };
+        let cache = cli.cache()?;
+        let client = nhl_client(&cache, cli.today());
+        let mut done = Vec::new();
+        for d in unpulled_days(ledger, "realized_pulls", start, through)?.into_iter().filter(|d| *d != skip) {
+            match pull_realized(ledger, &client, d, None) {
+                Ok(_) => done.push(iso(d)),
+                Err(e) => errors.push(format!("NHL results {}: {}", iso(d), err_text(&e))),
+            }
+        }
+        out.insert("realized_days".into(), json!(done));
+        if let Some(schedule) = schedule.filter(|s| !s.is_empty()) {
+            let mut dep = Vec::new();
+            for d in unpulled_days(ledger, "deployment_pulls", start, through)?.into_iter().filter(|d| *d != skip) {
+                match pull_deployment(ledger, &client, d, None, None, Some(schedule), false) {
+                    Ok(_) => dep.push(iso(d)),
+                    Err(e) => errors.push(format!("deployment {}: {}", iso(d), err_text(&e))),
+                }
+            }
+            out.insert("deployment_days".into(), json!(dep));
+        }
+        Ok(())
+    })();
+    if let Err(e) = res {
+        errors.push(err_text(&e));
+    }
+    out.insert("errors".into(), json!(errors));
+    Value::Object(out)
+}
+
+fn catch_up_line(c: &Value) -> Option<String> {
+    let days = |k: &str| c.get(k).and_then(|v| v.as_array()).map(|a| a.iter().map(py_str).collect::<Vec<_>>()).unwrap_or_default();
+    let span = |v: &[String]| match (v.first(), v.last()) {
+        (Some(a), Some(b)) if a != b => format!("{} day(s), {a} to {b}", v.len()),
+        (Some(a), _) => format!("1 day, {a}"),
+        _ => String::new(),
+    };
+    let (r, d) = (days("realized_days"), days("deployment_days"));
+    let errs = days("errors");
+    if r.is_empty() && d.is_empty() && errs.is_empty() {
+        return None;
+    }
+    let mut parts = Vec::new();
+    if !r.is_empty() {
+        parts.push(format!("NHL results {}", span(&r)));
+    }
+    if !d.is_empty() {
+        parts.push(format!("deployment {}", span(&d)));
+    }
+    let mut line = format!("caught up on missed days: {}", if parts.is_empty() { "none".to_string() } else { parts.join("; ") });
+    if !errs.is_empty() {
+        line.push_str(&format!(" ({} failed: {})", errs.len(), errs.join("; ")));
+    }
+    Some(line)
+}
+
 /// Make sure today's Daily Faceoff snapshot exists; never fails.
 fn lines_step(cli: &Cli, today: NaiveDate) -> Value {
     use fm_providers::lines_enrich::{enrich_lines, LineSnapshotStore};
@@ -676,6 +744,7 @@ fn daily_cmd(cli: &mut Cli, a: &DailyArgs) -> Result<()> {
         }
     }
     let deployment = deployment_step(cli, &ledger, rday, schedule.as_ref());
+    let catch_up = catch_up_step(cli, &ledger, today - Duration::days(1), rday, schedule.as_ref());
     let lines = lines_step(cli, today);
     let news = news_step(cli);
     let (mut odds, _games) = odds_step(cli, today);
@@ -685,13 +754,22 @@ fn daily_cmd(cli: &mut Cli, a: &DailyArgs) -> Result<()> {
         }
     }
     let graded = if a.grade || today.weekday().num_days_from_monday() == 0 { Some(grade_leagues(&ledger, &lgs, last_monday(today), today)) } else { None };
+    // outcomes are re-marked every day so `fm harness review` is current; the weekly bar stays on Mondays
+    let outcomes: Option<Vec<Value>> = graded.is_none().then(|| {
+        lgs.iter()
+            .map(|lg| match grade_outcomes(&ledger, lg, today) {
+                Ok(g) => json!(g.line()),
+                Err(e) => json!(format!("{lg}: outcomes not graded ({})", err_text(&e))),
+            })
+            .collect()
+    });
     let refit = daily_refit(cli, &ledger, today);
     let failures: Vec<(String, String)> =
         results.iter().filter(|r| truthy(r.get("skipped"))).map(|r| (py_str(&r["league"]), py_str(&r["skipped"]))).collect();
     let notified = notify_failures(cli, &failures, "harness daily");
     let seconds = (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0;
     let summary = json!({
-        "leagues": results, "realized": realized, "deployment": deployment, "lines": lines, "news": news, "odds": odds,
+        "leagues": results, "realized": realized, "deployment": deployment, "catch_up": catch_up, "outcomes": outcomes, "lines": lines, "news": news, "odds": odds,
         "grade": graded, "refit": refit, "failure_notify": notified, "seconds": seconds,
     });
     let failed = !failures.is_empty();
@@ -749,6 +827,12 @@ fn daily_cmd(cli: &mut Cli, a: &DailyArgs) -> Result<()> {
         echo(format!("NHL results {}: {n} players{}", iso(rday), if n > 0 { "" } else { " (no NHL regular-season games that day)" }));
     }
     echo(deployment_line(&summary["deployment"]));
+    if let Some(l) = catch_up_line(&summary["catch_up"]) {
+        echo(l);
+    }
+    for l in summary["outcomes"].as_array().into_iter().flatten() {
+        echo(format!("outcomes {}", py_str(l)));
+    }
     echo(lines_line(&summary["lines"]));
     echo(news_line(&summary["news"]));
     echo(odds_line(&summary["odds"]));
@@ -943,6 +1027,182 @@ fn odds_cmd(cli: &mut Cli, a: &OddsArgs) -> Result<()> {
 }
 
 // --------------------------------------------------------------------------- ledger
+
+#[derive(Args, Clone, Debug)]
+pub struct ReviewArgs {
+    #[arg(long, short = 'l', default_value = "all", help = LEAGUE_HELP)]
+    pub league: String,
+    /// Moves listed (newest first).
+    #[arg(long, short = 'n', default_value_t = 20)]
+    pub limit: usize,
+    /// Re-mark outcomes against the latest NHL results first (`fm harness daily` does this every day).
+    #[arg(long)]
+    pub regrade: bool,
+    #[arg(long = "json")]
+    pub json: bool,
+}
+
+fn opt_num(v: &Value, nd: usize, signed: bool) -> String {
+    match v.as_f64() {
+        None => "-".to_string(),
+        Some(x) if signed => fixed_signed(x, nd),
+        Some(x) => fixed(x, nd),
+    }
+}
+
+fn rate_cell(v: &Value) -> String {
+    v.as_f64().map(|r| format!("{}%", fixed(r * 100.0, 0))).unwrap_or_else(|| "-".to_string())
+}
+
+fn review_cmd(cli: &mut Cli, a: &ReviewArgs) -> Result<()> {
+    use fm_harness::review::review;
+    let lgs = leagues(&a.league)?;
+    let today = cli.today();
+    let ledger = open_ledger(cli)?;
+    let mut out = Vec::new();
+    for lg in &lgs {
+        if a.regrade {
+            grade_outcomes(&ledger, lg, today)?;
+        }
+        out.push(review(&ledger, lg, today, a.limit)?);
+    }
+    drop(ledger);
+    if a.json {
+        dump(&json!({"as_of": iso(today), "leagues": out}));
+        return Ok(());
+    }
+    for r in &out {
+        let lg = py_str(&r["league"]).to_uppercase();
+        let mv = &r["moves"];
+        echo(format!("== {lg}: how right was the model? =="));
+        if mv["n_moves"].as_i64().unwrap_or(0) == 0 {
+            echo("No graded moves yet. Suggestions are graded from the day after they are captured; run `fm harness daily` every day.");
+        } else {
+            let mut t = Table::new("Moves so far (right / wrong = window finished; ahead / behind = still running)");
+            t.cols(&[
+                ("Who", L),
+                ("Moves", R),
+                ("Right", R),
+                ("Wrong", R),
+                ("Ahead", R),
+                ("Behind", R),
+                ("No result", R),
+                ("Final hit rate (95% CI)", R),
+                ("Pts predicted", R),
+                ("Pts realized", R),
+            ]);
+            for g in mv["by_group"].as_array().into_iter().flatten().chain(std::iter::once(&mv["total"])) {
+                let ci = &g["final_ci"];
+                let rate = match g["final_rate"].as_f64() {
+                    None => "-".to_string(),
+                    Some(_) => format!("{} ({}-{})", rate_cell(&g["final_rate"]), rate_cell(&ci[0]), rate_cell(&ci[1])),
+                };
+                t.row([
+                    py_str(&g["label"]),
+                    py_str(&g["n"]),
+                    py_str(&g["right"]),
+                    py_str(&g["wrong"]),
+                    py_str(&g["ahead"]),
+                    py_str(&g["behind"]),
+                    py_str(&g["no_result"]),
+                    rate,
+                    opt_num(&g["predicted_pts"], 1, true),
+                    opt_num(&g["realized_pts"], 1, true),
+                ]);
+            }
+            t.print();
+            let mut t = Table::new("By kind");
+            t.cols(&[("Kind", L), ("Moves", R), ("Right", R), ("Wrong", R), ("Ahead", R), ("Behind", R), ("Right so far", R)]);
+            for k in mv["by_kind"].as_array().into_iter().flatten() {
+                t.row([
+                    py_str(&k["label"]),
+                    py_str(&k["n"]),
+                    py_str(&k["right"]),
+                    py_str(&k["wrong"]),
+                    py_str(&k["ahead"]),
+                    py_str(&k["behind"]),
+                    rate_cell(&k["so_far_rate"]),
+                ]);
+            }
+            t.print();
+            let shown = mv["moves"].as_array().map(|a| a.len()).unwrap_or(0);
+            let mut t = Table::new(format!(
+                "Latest {shown} of {} moves (points the move added so far; flags: FPG vs his last 15 days)",
+                py_str(&mv["n_moves"])
+            ));
+            t.cols(&[("Day", L), ("Kind", L), ("Move", L), ("Who", L), ("Graded", R), ("Predicted", R), ("Realized", R), ("Verdict", L)]);
+            for m in mv["moves"].as_array().into_iter().flatten() {
+                let who = match py_str(&m["group"]).as_str() {
+                    "followed" => "you took it",
+                    "own" => "your own",
+                    _ => "not taken",
+                };
+                let mut verdict = py_str(&m["verdict"]);
+                if m["early"].as_bool() == Some(true) {
+                    verdict.push_str(" (early)");
+                }
+                if m["model_pick"].is_string() {
+                    verdict.push_str(&format!("; model's pick {}", opt_num(&m["model_pick_realized"], 1, true)));
+                }
+                t.row([
+                    py_str(&m["day"]),
+                    py_str(&m["kind"]),
+                    py_str(&m["title"]),
+                    who.to_string(),
+                    format!("{}/{}d", py_str(&m["days_graded"]), py_str(&m["window_days"])),
+                    opt_num(&m["predicted_so_far"], 1, true),
+                    opt_num(&m["realized"], 1, true),
+                    verdict,
+                ]);
+            }
+            t.print();
+        }
+        let rk = &r["ranking"];
+        if let Some(n) = rk["note"].as_str() {
+            echo(format!("Free-agent ranking: {n}"));
+            continue;
+        }
+        let ws: Vec<&Value> =
+            rk["windows"].as_array().into_iter().flatten().filter(|w| w["evaluated"].as_i64().unwrap_or(0) > 0).collect();
+        if ws.is_empty() {
+            let no_rosters = rk["days_without_rosters"].as_i64().unwrap_or(0);
+            echo(format!(
+                "Free-agent ranking: nothing to check yet ({} archived day(s); a day counts once the next 7 days have been played and pulled{}).",
+                py_str(&rk["projection_days"]),
+                if no_rosters > 0 { format!("; {no_rosters} day(s) had no rosters captured") } else { String::new() }
+            ));
+            continue;
+        }
+        let mut t = Table::new(format!("Free-agent ranking: average points of each ranker's top {} free agents", py_str(&rk["top_k"])));
+        t.cols(&[
+            ("Next", L),
+            ("Days", R),
+            ("Model", R),
+            ("Market (% rostered)", R),
+            ("Hot (season FPG)", R),
+            ("Best possible", R),
+            ("Median FA", R),
+            ("Model beat market", R),
+            ("Model beat hot", R),
+        ]);
+        for w in ws {
+            let n = w["evaluated"].as_i64().unwrap_or(0);
+            t.row([
+                format!("{} days{}", py_str(&w["days"]), if w["early"].as_bool() == Some(true) { " (early)" } else { "" }),
+                n.to_string(),
+                opt_num(&w["model"], 1, false),
+                opt_num(&w["market"], 1, false),
+                opt_num(&w["hot"], 1, false),
+                opt_num(&w["best"], 1, false),
+                opt_num(&w["median"], 1, false),
+                format!("{}/{n}", py_str(&w["beat_market"])),
+                format!("{}/{n}", py_str(&w["beat_hot"])),
+            ]);
+        }
+        t.print();
+    }
+    Ok(())
+}
 
 #[derive(Args, Clone, Debug)]
 pub struct LedgerArgs {
