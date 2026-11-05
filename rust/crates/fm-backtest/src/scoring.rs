@@ -3,19 +3,16 @@
 //!
 //! Owner: work package `W2-harness-ledger-stats`.
 //!
-//! Deviation: Python's `scorer()` returns `fantasy_manager.scoring.PointsScoring`
-//! (`fm_engine::scoring`, owned by W2-valuation-base and not written yet). Until it lands this
-//! module carries [`PointsScorer`], a line-for-line copy of the two methods the backtest uses
-//! (`weights_for` and `value`); swap it for the engine type once available (see the report).
+//! `scorer()` returns the engine's `fm_engine::scoring::PointsScoring` (`PointsScorer` is kept as
+//! an alias of it).
 
-use std::borrow::Cow;
 use std::path::Path;
 use std::sync::LazyLock;
 
 use anyhow::{anyhow, bail, Context, Result};
 use fm_core::models::{ScoringConfig, ScoringKind};
 use fm_core::Map;
-use fm_pycompat::num::py_sum;
+use fm_engine::scoring::PointsScoring;
 use serde_json::Value;
 
 fn weights(pairs: &[(&str, f64)]) -> Map<String, f64> {
@@ -118,47 +115,18 @@ pub fn load_scoring(name_or_path: &str) -> Result<(String, ScoringConfig)> {
     Ok((stem, cfg))
 }
 
-/// Copy of `fm_engine::scoring::PointsScoring` (weights + goalie overrides).
-#[derive(Clone, Debug, PartialEq)]
-pub struct PointsScorer {
-    pub weights: Map<String, f64>,
-    pub goalie_weights: Map<String, f64>,
-}
+/// The backtest's scorer is the engine's points scoring (`scoring.PointsScoring`).
+pub type PointsScorer = PointsScoring;
 
-impl PointsScorer {
-    /// Stats that mark a stat dict as a goalie line (goalie_weights then apply).
-    pub const GOALIE_MARKERS: [&'static str; 4] = ["GS", "SA", "SV", "GA"];
-
-    /// `{**weights, **goalie_weights}` for a goalie-looking line, else the plain weights.
-    pub fn weights_for(&self, per_game_stats: &Map<String, f64>) -> Cow<'_, Map<String, f64>> {
-        if !self.goalie_weights.is_empty()
-            && Self::GOALIE_MARKERS.iter().any(|m| per_game_stats.contains_key(*m))
-        {
-            let mut w = self.weights.clone();
-            for (k, v) in &self.goalie_weights {
-                w.insert(k.clone(), *v);
-            }
-            return Cow::Owned(w);
-        }
-        Cow::Borrowed(&self.weights)
-    }
-
-    /// `sum(v * stats[k] for k, v in w.items() if k in stats)`.
-    pub fn value(&self, per_game_stats: &Map<String, f64>) -> f64 {
-        let w = self.weights_for(per_game_stats);
-        py_sum(w.iter().filter_map(|(k, v)| per_game_stats.get(k).map(|s| v * s)))
-    }
-}
-
-pub fn scorer(cfg: &ScoringConfig) -> Result<PointsScorer> {
+pub fn scorer(cfg: &ScoringConfig) -> Result<PointsScoring> {
     if cfg.kind != ScoringKind::Points {
         bail!("the backtest scores points leagues only");
     }
-    Ok(PointsScorer { weights: cfg.weights.clone(), goalie_weights: cfg.goalie_weights.clone() })
+    Ok(PointsScoring::new(cfg.weights.clone(), Some(cfg.goalie_weights.clone())))
 }
 
 /// Fantasy points per game of per-game rates (0.0 for empty rates).
-pub fn fpg(rates: Option<&Map<String, f64>>, scoring: &PointsScorer) -> f64 {
+pub fn fpg(rates: Option<&Map<String, f64>>, scoring: &PointsScoring) -> f64 {
     match rates {
         Some(r) if !r.is_empty() => scoring.value(r),
         _ => 0.0,

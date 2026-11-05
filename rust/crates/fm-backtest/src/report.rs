@@ -11,8 +11,7 @@
 //!   `PRODUCTION_CURVES`) as an explicit [`AppConstants`]; they are only read when `fitted` is
 //!   given. The caller fills it from `fm_engine` (those modules are written by W2-valuation-base
 //!   and W4-valuate).
-//! * `season_label` and `REPORT_AGES` are local copies (`backtest/data.py`, `backtest/fit.py`
-//!   belong to W3/W4 packages and are not written yet).
+//! * `season_label` and `REPORT_AGES` are re-exported from `data` / `fit`.
 //! * `write_report` writes `\n` line ends (Python's `write_text` writes `\r\n` on Windows).
 
 use std::path::{Path, PathBuf};
@@ -26,8 +25,8 @@ use serde_json::Value;
 use crate::evaluate::{head_to_head, summarize, ResultRow, INSEASON_MODELS};
 
 pub const PRESEASON_ORDER: [&str; 5] = ["naive", "marcel", "fm_current", "fm_fitted", "fm_multi"];
-/// `fit.REPORT_AGES`.
-pub const REPORT_AGES: [i64; 7] = [19, 21, 23, 25, 28, 31, 34];
+pub use crate::data::season_label;
+pub use crate::fit::REPORT_AGES;
 
 /// The valuation constants `recommendations` compares a fit against.
 #[derive(Clone, Debug, Default)]
@@ -40,14 +39,6 @@ pub struct AppConstants {
     pub recency_weights: Map<String, f64>,
     /// `dynasty.PRODUCTION_CURVES`: group -> (age, multiplier) anchors
     pub production_curves: Map<String, Vec<(f64, f64)>>,
-}
-
-/// `data.season_label`: 20232024 -> "2023-24".
-pub fn season_label(season: i64) -> String {
-    let y = season.div_euclid(10000);
-    let next = (y + 1).to_string();
-    let tail: String = next.chars().rev().take(2).collect::<Vec<_>>().into_iter().rev().collect();
-    format!("{y}-{tail}")
 }
 
 // --------------------------------------------------------------------------- python str()

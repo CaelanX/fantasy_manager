@@ -6,23 +6,29 @@
 //! the result rows, `Prediction`, the pooling helper, and the summaries (`summarize`,
 //! `head_to_head`) that `report.rs` consumes.
 //!
-//! NOT ported yet (blocked, they are written against types of later waves that are still stubs):
-//! `preseason_predictions`, `evaluate_preseason`, `inseason_observations`, `evaluate_inseason`
-//! need `SeasonTable` / `Windows` (`fm_backtest::data`, W3-harness-deploy-data), `Model`s
-//! (`fm_backtest::models`) and `fit_preseason` / `fit_inseason` / `InseasonObs`
-//! (`fm_backtest::fit`, both W4-backtest-models). Their package can add them to this file next to
-//! the pieces below; `Prediction`, `ResultRow`, `row()`, `pools()` and the metric helpers are
-//! the building blocks they use.
+//! W4-backtest-models finished the file: `preseason_predictions`, `evaluate_preseason`,
+//! `inseason_observations`, `evaluate_inseason`. `evaluate_preseason` / `evaluate_inseason` run
+//! their per-season fits on rayon and keep the Python result order.
 //!
 //! NaN: Python's `float("nan")` metrics stay `f64::NAN` here (they are `Option`-free fields);
 //! `ResultRow::to_dict` turns them into JSON `null` (the port-wide NaN rule).
 
+use anyhow::Result;
+use fm_core::models::{Split, StatLine};
 use fm_core::Map;
+use fm_engine::scoring::PointsScoring;
+use fm_engine::valuation::blend::{blend_recency, shrink_k, shrink_toward};
 use fm_pycompat::num::py_sum;
 use indexmap::IndexMap;
+use rayon::prelude::*;
 use serde::Serialize;
 use serde_json::Value;
 use std::cmp::Ordering;
+
+use crate::data::{prev_season, season_label, SeasonTable, WindowLine, Windows};
+use crate::fit::{fit_inseason, fit_preseason, inseason_projection, InseasonFit, InseasonObs};
+use crate::models::{app_baseline_rates, get_models, group_means, make_context, prior_lines, prior_rows, Model};
+use crate::scoring::fpg;
 
 pub const MIN_GP: i64 = 20;
 pub const MIN_GP_REST: i64 = 10;
@@ -204,6 +210,248 @@ pub fn pools<'a>(preds: &'a [Prediction]) -> Vec<((String, String), Vec<&'a Pred
     let mut v: Vec<_> = out.into_iter().collect();
     v.sort_by(|a, b| a.0.cmp(&b.0));
     v
+}
+
+pub fn preseason_predictions(
+    table: &SeasonTable,
+    scoring: &PointsScoring,
+    season: i64,
+    models: &[Box<dyn Model>],
+    min_gp_prev: i64,
+    min_gp: i64,
+) -> Vec<Prediction> {
+    let ctx = make_context(table, season, scoring, None);
+    let prev = prev_season(season);
+    // players are independent: evaluate them on rayon, concatenated in the table's order
+    let per_player: Vec<Vec<Prediction>> = table
+        .season_rows(season)
+        .par_iter()
+        .map(|row| {
+            let mut out = Vec::new();
+            let pid = row.player_id;
+            let Some(last) = table.get(pid, prev) else { return out };
+            if row.gp < min_gp || last.gp < min_gp_prev || last.group != row.group {
+                return out;
+            }
+            let history = table.history(pid, season);
+            let age = row.age.or_else(|| table.age(pid, season));
+            let actual = fpg(Some(&row.per_game()), scoring);
+            for m in models {
+                let Some(r) = m.rates(&history, age, &ctx) else { continue };
+                out.push(Prediction {
+                    season,
+                    player_id: pid,
+                    name: row.name.clone(),
+                    group: row.group.clone(),
+                    model: m.name().to_string(),
+                    projected: fpg(Some(&r), scoring),
+                    actual,
+                });
+            }
+            out
+        })
+        .collect();
+    per_player.into_iter().flatten().collect()
+}
+
+/// Rows per (season, model, pool) plus every prediction. `fm_fitted` / `fm_multi` are re-fitted
+/// for every N on pairs ending at N-1 (rolling origin, no look-ahead).
+pub fn evaluate_preseason(
+    table: &SeasonTable,
+    scoring: &PointsScoring,
+    seasons: &[i64],
+    model_names: Option<&[String]>,
+    min_gp_prev: i64,
+    min_gp: i64,
+    log: Option<&mut dyn FnMut(&str)>,
+) -> Result<(Vec<ResultRow>, Vec<Prediction>)> {
+    let table_seasons = table.seasons();
+    let first = table_seasons.iter().copied().min().unwrap_or(0);
+    let age_groups = ["F".to_string(), "D".to_string()];
+    let per_season: Vec<Result<(i64, Vec<ResultRow>, Vec<Prediction>)>> = seasons
+        .par_iter()
+        .map(|&n| {
+            let mut models = get_models(model_names)?;
+            if models.iter().any(|m| m.uses_params()) {
+                let train: Vec<i64> = table_seasons
+                    .iter()
+                    .copied()
+                    .filter(|&s| prev_season(s) >= first && s <= prev_season(n))
+                    .collect();
+                let (params, _) = fit_preseason(table, scoring, &train, 0, &age_groups);
+                for m in models.iter_mut() {
+                    if m.uses_params() {
+                        m.set_params(&params);
+                    }
+                }
+            }
+            let preds = preseason_predictions(table, scoring, n, &models, min_gp_prev, min_gp);
+            let mut rows = Vec::new();
+            for ((model, pool), ps) in pools(&preds) {
+                let pred: Vec<f64> = ps.iter().map(|p| p.projected).collect();
+                let act: Vec<f64> = ps.iter().map(|p| p.actual).collect();
+                rows.push(row("preseason", n, None, &model, &pool, &metrics(&pred, &act, pool == "skaters")));
+            }
+            Ok((n, rows, preds))
+        })
+        .collect();
+    let mut rows = Vec::new();
+    let mut all_preds = Vec::new();
+    let mut log = log;
+    for r in per_season {
+        let (n, rs, preds) = r?;
+        if let Some(l) = log.as_mut() {
+            let players: std::collections::HashSet<i64> = preds.iter().map(|p| p.player_id).collect();
+            l(&format!("{}: {} players projected", season_label(n), players.len()));
+        }
+        rows.extend(rs);
+        all_preds.extend(preds);
+    }
+    Ok((rows, all_preds))
+}
+
+// --------------------------------------------------------------------------- in-season
+
+/// One observation per (checkpoint, player) with the app's own in-season FPG attached.
+pub fn inseason_observations(
+    table: &SeasonTable,
+    windows: &Windows,
+    scoring: &PointsScoring,
+    seasons: &[i64],
+    min_gp_rest: i64,
+) -> Vec<InseasonObs> {
+    let mut out = Vec::new();
+    let empty: Map<String, Map<i64, WindowLine>> = Map::new();
+    let no_rows: Map<i64, WindowLine> = Map::new();
+    for &s in seasons {
+        let prev = prev_season(s);
+        let means = group_means(table, prev);
+        let Some(days) = windows.get(&s) else { continue };
+        let mut days: Vec<_> = days.iter().collect();
+        days.sort_by(|a, b| a.0.cmp(b.0));
+        for (day, wins) in days {
+            let _ = &empty;
+            let td = wins.get("to_date").unwrap_or(&no_rows);
+            let rest = wins.get("rest").unwrap_or(&no_rows);
+            for (pid, cur) in td {
+                let Some(after) = rest.get(pid) else { continue };
+                if after.gp < min_gp_rest || cur.gp < 1 {
+                    continue;
+                }
+                let Some(info) = table.get(*pid, s).or_else(|| table.get(*pid, prev)) else { continue };
+                let group = info.group.as_str();
+                let history = table.history(*pid, s);
+                let rows = prior_rows(&history, s, 3);
+                let latest = rows.iter().find_map(|r| *r);
+                let (base, has_base) = match latest {
+                    Some(l) if l.group == group => {
+                        // the app's preseason baseline: seasons N-1..N-3, fitted k, age factor
+                        let lines = prior_lines(&rows);
+                        let base = app_baseline_rates(l, &lines, &means, table.age(*pid, s));
+                        let hb = !base.is_empty();
+                        (base, hb)
+                    }
+                    // the app borrows the positional mean for a player with games but no baseline
+                    _ => {
+                        let m = means.get(group).cloned().unwrap_or_default();
+                        let hb = !m.is_empty();
+                        (m, hb)
+                    }
+                };
+                let is_goalie = group == "G";
+                let cur_rates = cur.per_game();
+                let shrunk = if has_base {
+                    shrink_toward(&cur_rates, cur.gp as f64, &base, shrink_k(is_goalie, None))
+                } else {
+                    cur_rates.clone()
+                };
+                let lines: Vec<(&str, Option<&WindowLine>)> = ["last30", "last15", "last7"]
+                    .iter()
+                    .map(|w| (*w, wins.get(*w).and_then(|m| m.get(pid))))
+                    .collect();
+                let sl: Vec<Option<StatLine>> = lines
+                    .iter()
+                    .zip([Split::Last30, Split::Last15, Split::Last7])
+                    .map(|((_, ln), sp)| ln.map(|l| l.statline(sp)))
+                    .collect();
+                let app_rates = blend_recency(&shrunk, sl[0].as_ref(), sl[1].as_ref(), sl[2].as_ref(), None);
+                let splits = lines
+                    .iter()
+                    .map(|(w, ln)| {
+                        let v = match ln {
+                            Some(l) => (l.gp, fpg(Some(&l.per_game()), scoring)),
+                            None => (0, 0.0),
+                        };
+                        (w.to_string(), v)
+                    })
+                    .collect();
+                out.push(InseasonObs {
+                    season: s,
+                    day: day.clone(),
+                    player_id: *pid,
+                    group: group.to_string(),
+                    gp_td: cur.gp,
+                    fpg_td: fpg(Some(&cur_rates), scoring),
+                    fpg_base: fpg(Some(&base), scoring),
+                    has_base,
+                    splits,
+                    gp_rest: after.gp,
+                    fpg_rest: fpg(Some(&after.per_game()), scoring),
+                    fpg_app: fpg(Some(&app_rates), scoring),
+                    ..Default::default()
+                });
+            }
+        }
+    }
+    out
+}
+
+/// Rows per (season, checkpoint, model, pool); fm_fitted is fitted leave-one-season-out.
+pub fn evaluate_inseason(obs: &[InseasonObs], cv: bool) -> (Vec<ResultRow>, Map<i64, InseasonFit>) {
+    let mut seasons: Vec<i64> = obs.iter().map(|o| o.season).collect();
+    seasons.sort();
+    seasons.dedup();
+    let fitted: Vec<(i64, InseasonFit)> = seasons
+        .par_iter()
+        .map(|&s| {
+            let train: Vec<InseasonObs> = if cv && seasons.len() > 1 {
+                obs.iter().filter(|o| o.season != s).cloned().collect()
+            } else {
+                obs.to_vec()
+            };
+            (s, fit_inseason(&train, 2))
+        })
+        .collect();
+    let fits: Map<i64, InseasonFit> = fitted.into_iter().collect();
+    let mut groups: std::collections::BTreeMap<(i64, String, String), Vec<&InseasonObs>> = Default::default();
+    for o in obs {
+        let pool = if o.group == "G" { "goalies" } else { "skaters" };
+        groups.entry((o.season, o.day.clone(), pool.to_string())).or_default().push(o);
+    }
+    let so: Map<String, f64> = [("season", 1.0), ("last30", 0.0), ("last15", 0.0), ("last7", 0.0)]
+        .iter()
+        .map(|(k, v)| (k.to_string(), *v))
+        .collect();
+    let mut rows = Vec::new();
+    for ((s, day, pool), os) in groups {
+        let f = &fits[&s];
+        let goalies = pool == "goalies";
+        let k_fit = if goalies { f.k_goalie } else { f.k_skater };
+        let k_shrink = shrink_k(goalies, None);
+        let preds: [(&str, Vec<f64>); 5] = [
+            ("preseason", os.iter().map(|o| if o.has_base { o.fpg_base } else { o.fpg_td }).collect()),
+            ("to_date", os.iter().map(|o| o.fpg_td).collect()),
+            ("fm_shrink_only", os.iter().map(|o| inseason_projection(o, k_shrink, &so)).collect()),
+            ("fm_current", os.iter().map(|o| o.fpg_app).collect()),
+            ("fm_fitted", os.iter().map(|o| inseason_projection(o, k_fit, &f.recency_weights)).collect()),
+        ];
+        let actual: Vec<f64> = os.iter().map(|o| o.fpg_rest).collect();
+        for model in INSEASON_MODELS {
+            let p = &preds.iter().find(|(n, _)| *n == model).expect("model").1;
+            rows.push(row("inseason", s, Some(&day), model, &pool, &metrics(p, &actual, !goalies)));
+        }
+    }
+    (rows, fits)
 }
 
 // --------------------------------------------------------------------------- summaries

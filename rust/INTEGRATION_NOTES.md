@@ -53,3 +53,10 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - Not yet parity-checked against the snapshot (needs valuate): TEAMMATE_OUT base shares, ROOKIE_BLEND rates/FPG text. Make values.json parity cover them.
 - `rookie_value(p, prior, signals, RookieInputs)`; signals are `&[impl AsSignal]`.
 
+
+## Follow-ups (from W4-backtest-models)
+- fm-backtest/src/models.rs has its own `baseline_rates` / `positional_means` (no-projection path only): re-point `group_means` and `FmCurrent` to `fm_engine::valuation::valuate` once W4-valuate lands (W11).
+- `pipeline::app_constants` builds PRODUCTION_CURVES from `params::dynasty_age_curves` + hard-coded G curve: switch to `dynasty::PRODUCTION_CURVES` when it exists (W11).
+- CLI (W10-cli-ops) must pass `now`/`today` and `Arc<HttpCache>` to `run_fit`/`run_evaluation`/`refresh_data`/`run_xg_backtest`.
+- xG backtest parity test needs `FM_XG_CACHE_DIR` = C:\Users\caela\.claude\jobs\e681cc9d\tmp\xgdata (MoneyPuck 2018-2025 CSVs).
+
