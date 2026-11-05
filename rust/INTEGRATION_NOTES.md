@@ -146,3 +146,10 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - Web views golden: `FM_PARITY_FIXTURES/_w9_golden/<league>.json` + `charts.json` (rust/parity/dump_web_views.py; needs offline cache.db).
 - KNOWN GAP being fixed (WFIX-picks): Fantrax keeper `trades::pick_assets` values ~0.1% off Python; web views test uses 0.5% tolerance on my_picks/their_picks/need_trades until fixed -> tighten to 1e-9 after.
 
+
+## Hand-offs (from W9-cli-core) -> W10-cli-analysis / W10-cli-ops / W10-web-app
+- Register commands in YOUR file: `impl crate::app::<Recs|Analysis|Harness|Backtest> { pub fn commands(&self) -> Vec<CommandSpec> { vec![crate::command_spec!("trades", 80, TradesArgs, "help", trades), ...] } }` (must be `pub`; inherent method overrides the empty fallback). Help order: `app::ORDER`. Sub-apps (harness, backtest): `CommandSpec { name, order, build, run }` with a hand-built clap Command.
+- Shared helpers in `common.rs`: `Cli` context (opts, load_all, load_many, load_context, cache, memo, now, history), `json_out`/`meta`/`footer`, `Table`, `safe`, `collect_logs`, `trade_wants`/`trade_offered`, `run_advise`, `fetch_news`/`match_news`, `explain`.
+- CLI parity tests run the prebuilt `target/<profile>/fm.exe` (or `FM_BIN`): `cargo build -p fm-cli` before `cargo test -p fm-parity`. W11: give fm-cli a lib target or bindeps.
+- `fm web`/`web-export` in `cmd_admin.rs` are placeholders: W10-web-app owns wiring those two functions.
+
