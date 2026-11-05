@@ -103,3 +103,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - Make `valuation::adjust::games_remaining` and `schedule_grid::group_of` pub and drop local copies in injuries.rs; also local copies of `PreseasonLine.summary`/`pts_per_game`.
 - `cli/alerts.json` merge/cap is W10's job (engine parts already at parity).
 
+
+## Hand-offs (from W7-trades)
+- W8: implement `fm_engine::recommend::trades::OutlookView` (`recommended()`, `direction(team_id)`) for `Outlook`; outlook `_lineup` can call `trades::greedy_lineup_value`.
+- W10 CLI/web: `recommend_trades(ctx, values, &TradeOpts{..}, future_only, sweet_spot)`; `exploit_opportunities(ctx, values, &opts, EXPLOIT_N, EXPLOIT_PER_TEAM)`; trade-eval = `evaluate_offer` + `offer_summary` with `find_players`/`find_team`/`find_pick`; trade blocks `trade_block_wants(ctx, &extras.trade_blocks)`.
+- Timing (release, 16 threads): recommend_trades ESPN 21.5s -> 46ms, Fantrax 19.7s -> 103ms; need trades 10.9s -> 29ms / 8.6s -> 70ms. `cargo bench -p fm-engine --bench trades`.
+
