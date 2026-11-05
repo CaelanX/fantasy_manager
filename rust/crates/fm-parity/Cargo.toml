@@ -18,6 +18,7 @@ indexmap.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
 regex.workspace = true
+tempfile.workspace = true
 
 # Stage tests (tests/stage_*.rs, tests/cli_*.rs) are owned by the packages that implement the
 # stage; every crate is available to them here.
