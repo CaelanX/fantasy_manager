@@ -12,6 +12,7 @@
 pub mod activity;
 pub mod calendar;
 pub mod config;
+pub mod dotenv;
 pub mod error;
 pub mod models;
 pub mod normalize;

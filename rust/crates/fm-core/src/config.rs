@@ -211,12 +211,14 @@ impl Settings {
         env_file: Option<&Path>,
         env: impl IntoIterator<Item = (String, String)>,
     ) -> anyhow::Result<Settings> {
+        let env: Vec<(String, String)> = env.into_iter().collect();
         let mut vals: HashMap<String, String> = HashMap::new();
         if let Some(path) = env_file {
             if path.is_file() {
-                for item in dotenvy::from_path_iter(path)? {
-                    let (k, v) = item?;
-                    if !v.is_empty() {
+                let content = String::from_utf8(std::fs::read(path)?)?;
+                let proc_env: HashMap<String, String> = env.iter().cloned().collect();
+                for (k, v) in crate::dotenv::dotenv_values(&content, &proc_env) {
+                    if let Some(v) = v.filter(|v| !v.is_empty()) {
                         vals.insert(k.to_lowercase(), v);
                     }
                 }
