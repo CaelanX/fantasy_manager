@@ -98,3 +98,8 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - CLI/web pass `now`/`today` and `RefitOptions` to capture/full_report/extend_league/calendar/TrackBook::load/run_refit.
 - Tests that mutate process-global params must take the same serial guard as metrics_refit.
 
+
+## Cleanup (W11), from W7-injuries-flags-alerts-matchup
+- Make `valuation::adjust::games_remaining` and `schedule_grid::group_of` pub and drop local copies in injuries.rs; also local copies of `PreseasonLine.summary`/`pts_per_game`.
+- `cli/alerts.json` merge/cap is W10's job (engine parts already at parity).
+
