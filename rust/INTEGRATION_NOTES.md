@@ -92,3 +92,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - goalie_week parity goldens: set `FM_W6_GOLDEN_DIR` = C:\Users\caela\.claude\jobs\e681cc9d\fixtures\_w6_golden (generator: rust/parity/dump_goalie_week.py). W11: fold into dump_fixtures as `<league>/analysis/goalie_week.json`.
 - Timing: ESPN matchup waivers Python ~9-11s -> Rust 0.05-0.12s; Fantrax ~4s -> 0.03-0.05s.
 
+
+## Hand-offs (from W6-harness-metrics-refit)
+- W8-outlook-playoffs-calib: after porting `harness::matchup_calib`, re-point `fm_harness::metrics::matchup_calibration` and `health::matchup_warning` (both return None now).
+- CLI/web pass `now`/`today` and `RefitOptions` to capture/full_report/extend_league/calendar/TrackBook::load/run_refit.
+- Tests that mutate process-global params must take the same serial guard as metrics_refit.
+
