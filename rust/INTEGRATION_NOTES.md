@@ -35,3 +35,8 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - News fetch callback is a 2-arg `FetchText(url, params)` in fm-sources/news.rs (not fm_http::FetchText).
 ## Cleanup (W11), more
 - fm-http: re-export `ParamValue` (and `tape::params_from_json`) at the crate root.
+
+## For W9/W10 CLI (from W3-espn)
+- ESPN warnings raised after load (activity, box_scores, trending) are only in `EspnProvider::warnings_now()`; the `trending` command must read them there.
+- `espn_scoreboard` / `espn_league_get` have no fixture coverage (tape lacks the mMatchup view): test them live once.
+
