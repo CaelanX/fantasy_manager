@@ -129,3 +129,10 @@ Requests and hand-offs raised by finished work packages, to include in later bri
   - remove `fantasy_manager/`, Python `tests/`, `pyproject.toml`; decide final layout (Cargo workspace at repo root vs keep `rust/`); move the data the Rust code embeds/loads (nhle_factors.json, fitted_params.json, web/templates, web/static, tests/fixtures used by Rust tests) under the Rust tree and fix `include_str!` / `CARGO_MANIFEST_DIR` paths.
   - parity dump scripts need Python: keep `rust/parity/*.py`, documented as run from a `legacy-python` checkout; fixtures stay checked in.
   - port Dockerfile, docker-compose.yml, .dockerignore, `.github/workflows/hosted.yml`, `deploy/` scripts to the Rust binary; update README (setup: rustup GNU toolchain + MinGW on Windows), docs/*.md commands, .env.example, `.claude/launch.json`.
+
+## Hand-offs (from W9-report-pregame)
+- `fm harness daily` (W10-cli-ops): call `fm_report::pregame::write_daily_snapshot(league, settings, ctx, values, &now)` after each league load.
+- `run_pregame(PregameOpts{loader, dfo, injuries_fetch, notifier, planner, sender})`; `default_loader` + full `run_pregame` flow untested: W11 must run `fm pregame` once on real data.
+- W11 check: ESPN injury refresh via `HttpCache::get_json` passes no headers/cookies; confirm cache key matches Python's.
+- Report golden: `FM_PARITY_FIXTURES/_w9_golden/report.json` (rust/parity/dump_report.py).
+
