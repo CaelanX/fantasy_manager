@@ -33,6 +33,7 @@ from fantasy_manager.providers.news import NewsItem  # noqa: E402
 from fantasy_manager.report import notify  # noqa: E402
 from fantasy_manager.report.digest import build_digest  # noqa: E402
 from fantasy_manager.valuation.valuate import PlayerValue  # noqa: E402
+from fantasy_manager.valuation.rookie import RookieEstimate  # noqa: E402
 from types import SimpleNamespace  # noqa: E402
 
 out.mkdir(parents=True, exist_ok=True)
@@ -53,7 +54,7 @@ def load(league):
     for cid, v in json.loads((fixtures / league / "values.json").read_text(encoding="utf-8")).items():
         v = dict(v)
         v.pop("cid", None)
-        v.pop("rookie", None)
+        v["rookie"] = RookieEstimate.model_validate(v["rookie"]) if v.get("rookie") else None
         vals[cid] = PlayerValue(player=players[cid], **v)
     recs = [Recommendation.model_validate(r) for r in
             json.loads((fixtures / league / "engines" / "advise_merged.json").read_text(encoding="utf-8"))]

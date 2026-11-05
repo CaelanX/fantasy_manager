@@ -1401,7 +1401,8 @@ pub fn report(cli: &mut Cli, a: &ReportArgs) -> Result<()> {
     .flatten();
     let headline = model_headline(&data_dir, &lc.provider);
     let health = model_health(&data_dir, &lc.provider);
-    let digest = build_digest(lc, &d.values, &recs, Some(&by_cid), &cli.now(), headline.as_deref(), health.as_deref(), week_plan.as_deref());
+    // Python: generated_at = datetime.now() (naive local): the stamp, title date and file name
+    let digest = build_digest(lc, &d.values, &recs, Some(&by_cid), &cli.now_local(), headline.as_deref(), health.as_deref(), week_plan.as_deref());
     let out_dir = a.out.clone().unwrap_or_else(|| data_dir.join("reports"));
     let (md_path, html_path) = match write_digest(&digest, &out_dir) {
         Ok(p) => p,

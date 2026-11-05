@@ -61,16 +61,7 @@ fn diff(path: &str, a: &Value, b: &Value, out: &mut Vec<String>) {
             let (x, y) = (x.as_f64().unwrap(), y.as_f64().unwrap());
             // documented set-order tolerance of the plan's win probabilities (ARCHITECTURE 4.3);
             // the page shows them as whole percents
-            // KNOWN W7 DEVIATION: `trades::pick_assets` values draft picks ~0.1% differently from
-            // Python in keeper (Fantrax) leagues (floats vs DynastyValue objects into value_picks),
-            // which also moves the need-trade scores; compared at 0.5% here (see the report).
-            let tol = if path.contains(".win_") {
-                1.5
-            } else if path.starts_with("fantrax.") && (path.contains("_picks") || path.contains("need_trades")) {
-                5e-3
-            } else {
-                1e-9
-            };
+            let tol = if path.contains(".win_") { 1.5 } else { 1e-9 };
             if (x - y).abs() > tol * (1.0 + x.abs().max(y.abs())) * if tol > 1.0 { 0.0 } else { 1.0 } && (x - y).abs() > tol {
                 out.push(format!("{path}: {x} vs {y}"));
             }

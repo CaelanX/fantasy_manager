@@ -121,6 +121,7 @@ def dump_league(league: str, fixtures: Path, out: Path, data_dir: Path, dfx: Any
     from fantasy_manager.report.news_match import match_news_to_players
     from fantasy_manager.valuation.dynasty import DynastyValue
     from fantasy_manager.valuation.valuate import PlayerValue
+    from fantasy_manager.valuation.rookie import RookieEstimate
     from fantasy_manager.web import app as webapp
     from fantasy_manager.web import views
 
@@ -150,7 +151,7 @@ def dump_league(league: str, fixtures: Path, out: Path, data_dir: Path, dfx: Any
     for cid, v in json.loads((fixtures / league / "values.json").read_text(encoding="utf-8")).items():
         v = dict(v)
         v.pop("cid", None)
-        v.pop("rookie", None)
+        v["rookie"] = RookieEstimate.model_validate(v["rookie"]) if v.get("rookie") else None
         vals[cid] = PlayerValue(player=players[cid], **v)
     raw = json.loads((fixtures / league / "dynasty.json").read_text(encoding="utf-8"))
     dyn = None

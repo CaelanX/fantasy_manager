@@ -179,7 +179,7 @@ impl Default for Settings {
             slack_webhook_url: None,
             odds_api_key: None,
             odds_region: "us".into(),
-            fm_data_dir: PathBuf::from("./data"),
+            fm_data_dir: py_path("./data"),
             fm_offline: false,
             fm_web_password: None,
             fm_web_secret: None,
@@ -188,6 +188,17 @@ impl Default for Settings {
             fm_web_trusted_proxies: "127.0.0.1,::1".into(),
             fields_set: BTreeSet::new(),
         }
+    }
+}
+
+/// `pathlib.Path(s)` normalization: "." components and repeated / trailing separators dropped
+/// (`Path("./data")` prints as `data`, which every path Python derives from it inherits).
+pub fn py_path(s: &str) -> PathBuf {
+    let p: PathBuf = Path::new(s).components().filter(|c| !matches!(c, std::path::Component::CurDir)).collect();
+    if p.as_os_str().is_empty() {
+        PathBuf::from(".")
+    } else {
+        p
     }
 }
 
@@ -290,7 +301,7 @@ impl Settings {
             s.odds_region = v;
         }
         if let Some(v) = get("fm_data_dir") {
-            s.fm_data_dir = PathBuf::from(v);
+            s.fm_data_dir = py_path(&v);
         }
         if let Some(v) = get("fm_offline") {
             s.fm_offline = parse_bool("fm_offline", &v)?;

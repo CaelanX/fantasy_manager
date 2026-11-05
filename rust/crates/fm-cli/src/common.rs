@@ -340,6 +340,11 @@ impl Cli {
         self.clock.utc()
     }
 
+    /// Python `datetime.now()`: naive local wall clock (pregame / daily snapshot stamps, "8:43 AM").
+    pub fn now_local(&self) -> PyDateTime {
+        PyDateTime::naive(self.clock.utc().with_timezone(&chrono::Local).naive_local())
+    }
+
     pub fn today(&self) -> NaiveDate {
         self.clock.today
     }
@@ -858,6 +863,23 @@ pub fn age_text(when: Option<DateTime<Utc>>, now: DateTime<Utc>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// W11b live regression: pregame / daily snapshot / report stamps are Python's naive local
+    /// `datetime.now()`; the CLI passed aware UTC, so pregame said "Pre-game 2:43 PM" at 8:43 AM CST.
+    #[test]
+    fn now_local_is_naive_local_wall_clock() {
+        let utc = DateTime::parse_from_rfc3339("2026-11-05T14:43:00Z").unwrap().with_timezone(&Utc);
+        let cli = Cli { league: "espn".into(), json: true, settings: Settings::default(), snapshot: None, clock: Clock::at(utc) };
+        let loc = cli.now_local();
+        assert!(!loc.is_aware());
+        assert_eq!(loc.local, utc.with_timezone(&chrono::Local).naive_local());
+        assert_eq!(fm_report::pregame::clock(&loc), {
+            use chrono::Timelike;
+            let l = utc.with_timezone(&chrono::Local);
+            format!("{}:{:02} {}", if l.hour() % 12 == 0 { 12 } else { l.hour() % 12 }, l.minute(), if l.hour() < 12 { "AM" } else { "PM" })
+        });
+        assert!(cli.now().is_aware());
+    }
 
     #[test]
     fn age_text_buckets() {

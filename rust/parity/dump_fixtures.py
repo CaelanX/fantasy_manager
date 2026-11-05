@@ -296,13 +296,22 @@ def run_cli(league: str, d: Any, raw: tuple[Any, Any], out_dir: Path, extra: lis
     orig = (cli._load_all, cli._load_context)
     cli._load_all = load_all
     cli._load_context = load_context
+    # The provider object is shared by every command; warnings one command raises after load (e.g.
+    # `trending` -> "ESPN trending players unavailable") must not leak into the next one's meta.
+    providers = [p for p in {id(d.provider): d.provider, id(raw[1]): raw[1]}.values() if hasattr(p, "warnings")]
+    saved = [list(p.warnings) for p in providers]
+
+    def reset() -> None:
+        for p, w in zip(providers, saved):
+            p.warnings[:] = w
     try:
-        return _invoke_all(league, out_dir, extra)
+        return _invoke_all(league, out_dir, extra, reset)
     finally:
         cli._load_all, cli._load_context = orig
 
 
-def _invoke_all(league: str, out_dir: Path, extra: list[tuple[str, list[str]]]) -> dict[str, str]:
+def _invoke_all(league: str, out_dir: Path, extra: list[tuple[str, list[str]]], reset=lambda: None
+                ) -> dict[str, str]:  # noqa: ANN001
     from typer.testing import CliRunner
 
     from fantasy_manager import cli
@@ -310,6 +319,7 @@ def _invoke_all(league: str, out_dir: Path, extra: list[tuple[str, list[str]]]) 
     runner = CliRunner()
     errors: dict[str, str] = {}
     for name, args in CLI_COMMANDS + extra:
+        reset()
         res = runner.invoke(cli.app, ["--league", league, "--json", *args], catch_exceptions=True)
         path = out_dir / "cli" / f"{name}.json"
         try:

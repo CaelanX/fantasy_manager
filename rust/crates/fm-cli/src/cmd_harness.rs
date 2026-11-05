@@ -276,7 +276,8 @@ fn daily_league(
     };
     let now = cli.now();
     if let Some(d) = &loaded {
-        let r = match fm_report::pregame::write_daily_snapshot(lg, &cli.settings, &d.lc, &d.values, &now) {
+        // Python stamps the snapshot with naive local `datetime.now()`
+        let r = match fm_report::pregame::write_daily_snapshot(lg, &cli.settings, &d.lc, &d.values, &cli.now_local()) {
             Ok(p) => format!("written ({})", p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()),
             Err(e) => format!("failed ({})", err_text(&e)),
         };
@@ -793,7 +794,9 @@ fn pregame_cmd(cli: &mut Cli, a: &PregameArgs) -> Result<()> {
     let news = news_step(cli);
     let mut results = Vec::new();
     let mut failures: Vec<(String, String)> = Vec::new();
-    let now = cli.now();
+    // Python's run_pregame uses naive local `datetime.now()`: the day, "Pre-game 8:43 AM" and the
+    // snapshot stamps are local wall clock (UTC here showed 2:43 PM and could roll the day over)
+    let now = cli.now_local();
     for (i, lg) in lgs.iter().enumerate() {
         let cache = cli.cache()?;
         let opts = PregameOpts { notify: a.notify, force_refresh: i == 0, quiet_if_unchanged: a.quiet_if_unchanged, ..PregameOpts::default() };

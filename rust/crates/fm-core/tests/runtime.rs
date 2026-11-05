@@ -73,7 +73,13 @@ fn settings_from_env() {
     assert_eq!(s.fm_llm_model, "openrouter/free");
     assert_eq!(s.fantrax_keepers, Some(3));
     assert_eq!(s.fantrax_keeper_horizon_years, 3);
-    assert_eq!(s.fm_data_dir, PathBuf::from("./data"));
+    // pathlib: Path("./data") is "data" (W11b live: `harness params` printed ".\data\harness\params")
+    assert_eq!(s.fm_data_dir.to_string_lossy(), "data");
+    assert_eq!(fm_core::config::py_path("./data/").to_string_lossy(), "data");
+    assert_eq!(fm_core::config::py_path(".").to_string_lossy(), ".");
+    if cfg!(windows) {
+        assert_eq!(fm_core::config::py_path("C:/x/./y").to_string_lossy(), r"C:\x\y");
+    }
     assert_eq!(s.fm_web_trusted_proxies, "127.0.0.1,::1");
     assert!(!s.fields_set.contains("fantrax_mode"));
 }

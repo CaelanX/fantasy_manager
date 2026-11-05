@@ -21,6 +21,7 @@ import dump_fixtures as dfx  # noqa: E402
 
 from fantasy_manager.models import LeagueContext  # noqa: E402
 from fantasy_manager.valuation.valuate import PlayerValue  # noqa: E402
+from fantasy_manager.valuation.rookie import RookieEstimate  # noqa: E402
 from fantasy_manager.valuation.dynasty import DynastyValue  # noqa: E402
 
 out.mkdir(parents=True, exist_ok=True)
@@ -39,7 +40,7 @@ for league in ("espn", "fantrax"):
     for cid, v in json.loads((fixtures / league / "values.json").read_text(encoding="utf-8")).items():
         v = dict(v)
         v.pop("cid", None)
-        v.pop("rookie", None)
+        v["rookie"] = RookieEstimate.model_validate(v["rookie"]) if v.get("rookie") else None
         vals[cid] = PlayerValue(player=players[cid], **v)
     raw = json.loads((fixtures / league / "dynasty.json").read_text(encoding="utf-8"))
     dyn = None

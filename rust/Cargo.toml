@@ -89,7 +89,9 @@ pretty_assertions = "1"
 opt-level = 3
 lto = "thin"
 codegen-units = 4
-debug = 1
+# No debuginfo: on windows-gnu it is embedded in fm.exe (230 MB vs 27 MB) and costs ~0.8 s on every
+# launch. For profiling: CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release.
+debug = 0
 
 # Parity tests run the full valuation / trade search: keep dependencies optimized in dev builds.
 [profile.dev.package."*"]
