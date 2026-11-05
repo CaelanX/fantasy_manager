@@ -12,7 +12,8 @@
 {$FM_DOMAIN:fantasy.example.com} {
 	encode zstd gzip
 
-	# The dashboard itself listens on 127.0.0.1:8765 only; uvicorn trusts X-Forwarded-* from here.
+	# The dashboard itself listens on 127.0.0.1:8765 only; fm trusts X-Forwarded-* from here
+	# (FM_WEB_TRUSTED_PROXIES, default 127.0.0.1,::1).
 	reverse_proxy {$FM_UPSTREAM:127.0.0.1:8765}
 
 	header {

@@ -23,11 +23,11 @@ includes the fitted-parameter section when `fitted_params.json` exists.
 
 ## How the app uses the fit
 
-The app reads `fantasy_manager/valuation/fitted_params.json`, a copy of the ESPN-scoring
-`fitted_params.json` shipped as package data, through `valuation/params.py` (typed accessors with
+The app reads `crates/fm-engine/data/fitted_params.json`, a copy of the ESPN-scoring
+`fitted_params.json` compiled into the binary, through `fm-engine/src/valuation/params.rs` (typed accessors with
 hard-coded fallbacks, so a missing or broken file never breaks valuation). `fm backtest fit`
 never overwrites it: it writes to `<FM_DATA_DIR>/backtest/` and prints the `copy` command to
-promote the new fit. After promoting, run the tests and `fm backtest run`.
+promote the new fit. After promoting, rebuild (`cargo build --release -p fm-cli`), run the tests and `fm backtest run`.
 
 What the app takes from the file:
 

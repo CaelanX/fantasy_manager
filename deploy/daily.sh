@@ -21,13 +21,13 @@ cd "$APP_DIR" || { echo "cannot cd to $APP_DIR" >&2; exit 1; }
 
 if [[ -n "${FM_BIN:-}" ]]; then
   FM="$FM_BIN"
-elif [[ -x "$APP_DIR/.venv/bin/fm" ]]; then
-  FM="$APP_DIR/.venv/bin/fm"
+elif [[ -x "$APP_DIR/bin/fm" ]]; then
+  FM="$APP_DIR/bin/fm"
 else
   FM="$(command -v fm || true)"
 fi
 if [[ -z "$FM" ]]; then
-  echo "fm not found (expected $APP_DIR/.venv/bin/fm); run deploy/install.sh first" >&2
+  echo "fm not found (expected $APP_DIR/bin/fm); run deploy/install.sh first" >&2
   exit 1
 fi
 

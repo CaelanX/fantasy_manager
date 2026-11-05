@@ -15,7 +15,7 @@ DATA_DIR="${FM_DATA_DIR:-$APP_DIR/data}"
 case "$DATA_DIR" in /*) ;; *) DATA_DIR="$APP_DIR/${DATA_DIR#./}" ;; esac
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/fantasy_manager}"
 KEEP="${KEEP:-14}"
-if [[ -x "$APP_DIR/.venv/bin/python" ]]; then PY="$APP_DIR/.venv/bin/python"; else PY="$(command -v python3)"; fi
+command -v sqlite3 >/dev/null || { echo "sqlite3 not found (apt-get install sqlite3)" >&2; exit 1; }
 
 [[ -d "$DATA_DIR" ]] || { echo "no data directory at $DATA_DIR" >&2; exit 1; }
 mkdir -p "$BACKUP_DIR"
@@ -35,15 +35,7 @@ while IFS= read -r -d '' db; do
   rel="${db#"$DATA_DIR"/}"
   [[ "$rel" == "cache.db" ]] && continue
   mkdir -p "$stage/data/$(dirname "$rel")"
-  "$PY" - "$db" "$stage/data/$rel" <<'PY'
-import sqlite3, sys
-src = sqlite3.connect(sys.argv[1], timeout=60)
-dst = sqlite3.connect(sys.argv[2])
-with dst:
-    src.backup(dst)
-dst.close()
-src.close()
-PY
+  sqlite3 -cmd ".timeout 60000" "$db" ".backup '$stage/data/$rel'"
 done < <(find "$DATA_DIR" -name '*.db' -type f -print0)
 
 # 3. Archive and prune.

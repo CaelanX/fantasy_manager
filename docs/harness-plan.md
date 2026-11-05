@@ -1,6 +1,6 @@
 # Self-correcting evaluation harness: plan of record
 
-Written 2026-09-28. Goal: keep a running bar on model performance, grade every recommendation (and every move the
+Written 2026-09-28, for the Python version (module paths like `harness/ledger.py` now live in`ncrates/fm-harness/src/*.rs`; the design is unchanged). Goal: keep a running bar on model performance, grade every recommendation (and every move the
 user actually made) against realized results, and auto-correct a bounded set of valuation parameters at intervals
 without chasing noise.
 

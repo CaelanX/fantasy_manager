@@ -310,7 +310,7 @@ thing to fit once there are enough cases.
 
 ## Constants
 
-All in `fantasy_manager/recommend/trades.py`:
+All in `crates/fm-engine/src/recommend/trades.rs` (and `trades/`):
 
 | constant | value | meaning |
 |---|---|---|
@@ -327,7 +327,7 @@ All in `fantasy_manager/recommend/trades.py`:
 | PRESSURE_PTS | 8 | the deal relieves their roster pressure (exploits) |
 | PRESSURE_WEAK_VORP, MIN_HEALTHY_GOALIES | -1, 2 | weak-slot and goalie-shortage pressure |
 | EXPLOIT_N, EXPLOIT_PER_TEAM | 8, 2 | exploit list size, deals per pressured team |
-| DEFAULT_GAMES_PER_WEEK, SEASON_GAMES (`recommend/base.py`) | 3.4, 82 | gain units without a schedule |
+| DEFAULT_GAMES_PER_WEEK, SEASON_GAMES (`recommend/base.rs`) | 3.4, 82 | gain units without a schedule |
 | CONTENDER_FUTURE_MULT, REBUILDER_VETERAN_MULT | 0.85, 0.85 | dynasty standing modifiers |
 | SWEET_MAX_PERCEIVED, SWEET_MIN_EDGE | 5, 0.4 | sweet-spot definition |
 | MARKET_PTS_TO_FPG | 0.05 | sweet-spot penalty per worth point |

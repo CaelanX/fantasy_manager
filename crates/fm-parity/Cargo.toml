@@ -1,0 +1,36 @@
+[package]
+name = "fm-parity"
+description = "Parity harness: load the Python fixtures (parity/fixtures), run Rust stages, compare with tolerance"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "parity-diff"
+path = "src/bin/parity-diff.rs"
+
+[dependencies]
+fm-pycompat.workspace = true
+fm-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+indexmap.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+regex.workspace = true
+tempfile.workspace = true
+
+# Stage tests (tests/stage_*.rs, tests/cli_*.rs) are owned by the packages that implement the
+# stage; every crate is available to them here.
+[dev-dependencies]
+fm-http.workspace = true
+fm-sources.workspace = true
+fm-engine.workspace = true
+fm-backtest.workspace = true
+fm-harness.workspace = true
+fm-providers.workspace = true
+fm-report.workspace = true
+fm-web.workspace = true
+pretty_assertions.workspace = true
+tempfile.workspace = true
+rayon.workspace = true

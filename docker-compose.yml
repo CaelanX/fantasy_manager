@@ -2,6 +2,7 @@
 # at 07:30 and a backup afterwards. See docs/hosting.md, "Docker alternative".
 #
 #   add FM_DOMAIN=fantasy.example.com (and optionally TZ=America/Toronto) to .env
+#   set FM_WEB_PASSWORD in .env: the dashboard refuses to start on 0.0.0.0 without it
 #   mkdir -p data backups && sudo chown -R 10001:10001 data backups   # containers run as uid 10001
 #   docker compose up -d --build
 #
@@ -16,10 +17,14 @@ services:
     environment:
       FM_DATA_DIR: /app/data
       TZ: ${TZ:-America/Toronto}
+      # X-Forwarded-For / -Proto are honoured from the caddy container only (fixed address below)
+      FM_WEB_TRUSTED_PROXIES: 172.30.87.10
     volumes:
       - ./data:/app/data
     expose:
       - "8765"          # reachable from caddy only; nothing is published on the host
+    networks:
+      - fm
     restart: unless-stopped
 
   caddy:
@@ -38,6 +43,9 @@ services:
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
       - caddy_logs:/var/log/caddy
+    networks:
+      fm:
+        ipv4_address: 172.30.87.10
     restart: unless-stopped
 
   cron:
@@ -54,9 +62,17 @@ services:
       - ./data:/app/data
       - ./backups:/app/backups
     command: ["bash", "/app/deploy/docker-cron.sh"]
+    networks:
+      - fm
     healthcheck:
       disable: true
     restart: unless-stopped
+
+networks:
+  fm:
+    ipam:
+      config:
+        - subnet: 172.30.87.0/24
 
 volumes:
   caddy_data:

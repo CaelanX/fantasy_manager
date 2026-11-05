@@ -1,0 +1,52 @@
+# Build and test on every push and pull request. Tests that need the big gitignored parity
+# fixtures (FM_PARITY_FIXTURES) or a legacy-python checkout (FM_LEGACY_ROOT) skip themselves here.
+#
+# The parity goldens were produced by the Python tool on Windows in America/Edmonton: local-time
+# strings ("starts Wed at 6:30 PM your time") and CPython's random.gauss (platform libm) only match
+# there. So the full suite runs on Windows with that time zone, and Linux (the deploy target:
+# Docker, hosted.yml, servers) builds the release binary and runs everything except those goldens.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Time zone of the parity goldens
+        run: tzutil /s "Mountain Standard Time"
+      # the CLI parity tests run the prebuilt debug binary
+      - name: Build
+        run: cargo build --locked --workspace
+      - name: Test
+        run: cargo test --locked --workspace --no-fail-fast
+
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Release build (what Docker / hosted.yml / deploy/build.sh ship)
+        run: cargo build --locked --release -p fm-cli
+      - name: Test (without the Windows-only parity goldens)
+        run: cargo test --locked --workspace --exclude fm-parity --no-fail-fast -- --skip golden_random_

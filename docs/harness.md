@@ -126,7 +126,7 @@ Graded weekly (as of Monday; only windows that have fully ended count):
 ## Matchup win probability
 
 `fm matchup`'s win probability (Monte Carlo with per-game SDs of 1.3·√FPG for skaters and
-2.5·√FPG for goalies, `analysis/matchup.py`) is graded too (`harness/matchup_calib.py`):
+2.5·√FPG for goalies, `crates/fm-engine/src/analysis/matchup.rs`) is graded too (`crates/fm-harness/src/matchup_calib.rs`):
 
 - **Capture.** `fm harness daily` stores one `matchup_snapshots` row per league per day (the first
   run of the day wins; a rerun changes nothing): period and dates, points so far, my and the
@@ -146,7 +146,7 @@ Graded weekly (as of Monday; only windows that have fully ended count):
   s > 1.1 means the SDs are too small (overconfident probabilities), s < 0.9 too large. It is
   fitted only from **8 completed matchups** ("insufficient data" before; provisional from 8,
   reliable from 20), and it is **never applied**: the report suggests constants (1.3·s, 2.5·s)
-  for a manual change to `analysis/matchup.py`. They are not valuation params, so nothing goes
+  for a manual change to `crates/fm-engine/src/analysis/matchup.rs`. They are not valuation params, so nothing goes
   into the params store.
 
 Shown by `fm harness status` (summary line + reliability table), `fm harness grade` (one line per

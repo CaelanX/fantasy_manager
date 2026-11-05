@@ -13,16 +13,17 @@
 #   APP_DIR    install location (default /opt/fantasy_manager)
 #   TIMEZONE   e.g. America/Toronto; sets the server clock zone used by the 07:30 and 17:00 timers
 #   ENABLE_UFW=1  open 22/80/443 in ufw and turn the firewall on (off by default: see docs/hosting.md)
+#   BUILD_JOBS parallel compile jobs for the fm binary (default 2; use 1 on a 1 GB server with swap)
 #
-# Layout: code + venv owned by root (the services can't modify them), data/ owned by the
-# `fantasy` service user (0700), .env owned root:fantasy (0640).
+# Layout: code + the fm binary ($APP_DIR/bin/fm, built by deploy/build.sh) owned by root (the
+# services can't modify them), data/ owned by the `fantasy` service user (0700), .env owned
+# root:fantasy (0640).
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/fantasy_manager}"
 APP_USER="fantasy"
 APP_HOME="/var/lib/fantasy"
 BACKUP_DIR="/var/backups/fantasy_manager"
-PYTHON="python3.12"
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UNITS=(fantasy-web.service fantasy-daily.service fantasy-daily.timer fantasy-pregame.service fantasy-pregame.timer
        fantasy-backup.service fantasy-backup.timer)
@@ -42,7 +43,7 @@ fi
 say "Installing system packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
-apt-get install -y -q "$PYTHON" "${PYTHON}-venv" git curl ca-certificates gnupg sqlite3 \
+apt-get install -y -q build-essential pkg-config libssl-dev git curl ca-certificates gnupg sqlite3 \
   debian-keyring debian-archive-keyring apt-transport-https
 
 if ! command -v caddy >/dev/null 2>&1; then
@@ -84,18 +85,18 @@ if [[ -d "$APP_DIR/.git" ]]; then
     echo "no git remote configured; skipping git pull"
   fi
 elif [[ -e "$APP_DIR" && "$SRC_DIR" != "$APP_DIR" ]]; then
-  [[ -f "$APP_DIR/pyproject.toml" ]] || die "$APP_DIR exists but is not a Fantasy Manager checkout"
+  [[ -f "$APP_DIR/Cargo.toml" ]] || die "$APP_DIR exists but is not a Fantasy Manager checkout"
   echo "$APP_DIR exists (not a git checkout); using it as is"
 elif [[ ! -e "$APP_DIR" && -n "${REPO_URL:-}" ]]; then
   git clone ${BRANCH:+--branch "$BRANCH"} "$REPO_URL" "$APP_DIR"
 elif [[ ! -e "$APP_DIR" ]]; then
-  [[ -f "$SRC_DIR/pyproject.toml" ]] || die "set REPO_URL, or run this script from a copy of the repo"
-  echo "copying $SRC_DIR (without .venv, data, .env)"
+  [[ -f "$SRC_DIR/Cargo.toml" ]] || die "set REPO_URL, or run this script from a copy of the repo"
+  echo "copying $SRC_DIR (without target, bin, data, .env)"
   mkdir -p "$APP_DIR"
-  tar -C "$SRC_DIR" --exclude=./.venv --exclude=./data --exclude=./.env --exclude='./.env.*' \
-      --exclude='__pycache__' -cf - . | tar -C "$APP_DIR" -xf -
+  tar -C "$SRC_DIR" --exclude=./target --exclude=./bin --exclude=./data --exclude=./.env --exclude='./.env.*' \
+      -cf - . | tar -C "$APP_DIR" -xf -
 fi
-[[ -f "$APP_DIR/pyproject.toml" ]] || die "no pyproject.toml in $APP_DIR"
+[[ -f "$APP_DIR/Cargo.toml" ]] || die "no Cargo.toml in $APP_DIR"
 find "$APP_DIR" -path "$APP_DIR/data" -prune -o -path "$APP_DIR/.env" -prune -o -exec chown root:root {} +
 chmod 755 "$APP_DIR"
 # A tree copied from Windows may have CRLF line endings, which bash and systemd reject.
@@ -103,13 +104,9 @@ for f in "$APP_DIR"/deploy/*; do
   if grep -q $'\r' "$f"; then sed -i 's/\r$//' "$f"; echo "fixed line endings: $f"; fi
 done
 
-# --------------------------------------------------------------------------- venv
-say "Python virtual environment"
-[[ -x "$APP_DIR/.venv/bin/python" ]] || "$PYTHON" -m venv "$APP_DIR/.venv"
-"$APP_DIR/.venv/bin/python" -m pip install -q --upgrade pip
-"$APP_DIR/.venv/bin/python" -m pip install -q -e "$APP_DIR[web]"
-"$APP_DIR/.venv/bin/python" -m compileall -q "$APP_DIR/fantasy_manager" >/dev/null || true
-"$APP_DIR/.venv/bin/fm" --help >/dev/null && echo "fm installed: $APP_DIR/.venv/bin/fm"
+# --------------------------------------------------------------------------- build
+say "Building the fm binary (Rust; a few minutes the first time)"
+APP_DIR="$APP_DIR" BUILD_JOBS="${BUILD_JOBS:-2}" bash "$APP_DIR/deploy/build.sh"
 
 # --------------------------------------------------------------------------- data, .env, backups
 say "Data directory, .env and backup folder"
@@ -144,7 +141,7 @@ done
 cat > /usr/local/bin/fm <<EOF
 #!/bin/sh
 # Run Fantasy Manager as the '$APP_USER' user from $APP_DIR (installed by deploy/install.sh).
-cd "$APP_DIR" && exec sudo -u $APP_USER "$APP_DIR/.venv/bin/fm" "\$@"
+cd "$APP_DIR" && exec sudo -u $APP_USER "$APP_DIR/bin/fm" "\$@"
 EOF
 chmod 755 /usr/local/bin/fm
 

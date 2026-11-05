@@ -11,7 +11,6 @@ User=fantasy
 Group=fantasy
 WorkingDirectory=/opt/fantasy_manager
 EnvironmentFile=/opt/fantasy_manager/.env
-Environment=PYTHONUNBUFFERED=1
 ExecStart=/bin/bash /opt/fantasy_manager/deploy/daily.sh
 TimeoutStartSec=45min
 Nice=5

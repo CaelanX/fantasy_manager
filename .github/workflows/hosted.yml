@@ -58,13 +58,14 @@ jobs:
           [ -n "$FM_SITE_PASSWORD" ] || missing="$missing FM_SITE_PASSWORD"
           if [ -n "$missing" ]; then echo "::error::missing repo secrets:$missing (docs/hosting.md)"; exit 1; fi
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install
-        run: pip install ".[web]"
+      - uses: Swatinem/rust-cache@v2   # compiled dependencies: later builds take ~1 minute
+
+      - name: Build fm
+        run: |
+          cargo build --release --locked -p fm-cli
+          echo "$GITHUB_WORKSPACE/target/release" >> "$GITHUB_PATH"
 
       - name: Write .env
         env:

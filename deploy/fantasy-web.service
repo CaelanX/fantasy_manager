@@ -1,4 +1,4 @@
-# Fantasy Manager web dashboard (uvicorn on 127.0.0.1:8765, behind Caddy).
+# Fantasy Manager web dashboard (fm web on 127.0.0.1:8765, behind Caddy).
 # Installed to /etc/systemd/system/ by deploy/install.sh. Logs: journalctl -u fantasy-web
 [Unit]
 Description=Fantasy Manager web dashboard
@@ -10,12 +10,12 @@ Type=simple
 User=fantasy
 Group=fantasy
 WorkingDirectory=/opt/fantasy_manager
-# The same .env the CLI reads (pydantic also reads it from WorkingDirectory). Keep values on one
+# The same .env the CLI reads (fm also reads it from WorkingDirectory). Keep values on one
 # line and unquoted; systemd does not expand $ in this file.
 EnvironmentFile=/opt/fantasy_manager/.env
-Environment=PYTHONUNBUFFERED=1
-# Only Caddy on this machine may set X-Forwarded-For / X-Forwarded-Proto.
-ExecStart=/opt/fantasy_manager/.venv/bin/uvicorn fantasy_manager.web.app:app --host 127.0.0.1 --port 8765 --proxy-headers --forwarded-allow-ips=127.0.0.1 --no-server-header
+# Only Caddy on this machine may set X-Forwarded-For / X-Forwarded-Proto (FM_WEB_TRUSTED_PROXIES,
+# default 127.0.0.1,::1).
+ExecStart=/opt/fantasy_manager/bin/fm web --host 127.0.0.1 --port 8765
 Restart=always
 RestartSec=5
 

@@ -6,13 +6,13 @@
 cookies.txt
 data/
 backups/
-.venv/
-venv/
+site/
 .git/
-**/__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
 .claude/
+# Build output (the image compiles its own) and what the binary doesn't need.
+target/
 tests/
+parity/
 docs/
+.venv/
+**/__pycache__/

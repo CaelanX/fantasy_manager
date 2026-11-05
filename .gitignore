@@ -7,26 +7,30 @@ cookies.txt
 fantrax_session.json
 
 # Local data: HTTP cache, crosswalk, status history, prefs, reports, archives, backtest tables
-data/
+/data/
 # docker-compose backup volume (deploy/backup.sh) and the dashboard session key
 backups/
 web_secret
 # static dashboard snapshot (fm web-export): league data in clear text
 site/
 
-# Python
+# Rust build output; bin/fm is the server install (deploy/build.sh)
+/target/
+/bin/
+
+# Parity fixtures that are too big or too private to commit (HTTP tapes ~5 MB each, the real
+# harness ledger): regenerate with parity/dump_fixtures.py (see README, "Parity tooling")
+parity/fixtures/*/tape.json.gz
+parity/fixtures/_datadir/harness.db*
+parity/fixtures/_datadir/fantrax_cache/
+# Rust-side parity outputs (diff reports)
+parity/out/
+
+# Python (parity scripts only)
 .venv/
 venv/
 __pycache__/
 *.py[cod]
-*.egg-info/
-build/
-dist/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
 
 # Claude Code / desktop app local config (launch config, local settings, permission grants)
 .claude/

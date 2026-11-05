@@ -30,12 +30,12 @@ Expect **about US$6-15 a month** in total. Prices change, so check the provider'
 
 ```
 phone/PC --HTTPS--> Caddy (ports 80/443, certificates, security headers)
-                      \--> uvicorn on 127.0.0.1:8765 (fantasy-web.service, user "fantasy")
+                      \--> fm web on 127.0.0.1:8765 (fantasy-web.service, user "fantasy")
 systemd timers: fantasy-daily.timer 07:30 -> deploy/daily.sh
                 fantasy-backup.timer 03:15 -> deploy/backup.sh -> /var/backups/fantasy_manager
 ```
 
-- Code and virtualenv: `/opt/fantasy_manager`, owned by root. The services can't modify them.
+- Code and the `fm` binary (`/opt/fantasy_manager/bin/fm`, built on the server by `deploy/build.sh`): `/opt/fantasy_manager`, owned by root. The services can't modify them.
 - Data (cache, harness ledger, archives, prefs, Fantrax session, logs): `/opt/fantasy_manager/data`, owned by the `fantasy` service user. This is the only folder the services can write to.
 - Settings: `/opt/fantasy_manager/.env`, readable by root and the `fantasy` group only.
 - The dashboard listens on `127.0.0.1` only. Nothing reaches it except through Caddy.
@@ -125,11 +125,11 @@ For a public repository, use `https://github.com/<you>/fantasy_manager.git` inst
 
 ### B. Copy it from your PC
 
-In **PowerShell**, in your project folder, pack the code without the virtualenv, data or secrets, then copy it up:
+In **PowerShell**, in your project folder, pack the code without the build output, data or secrets, then copy it up:
 
 ```powershell
 cd C:\code\personal\fantasy_manager
-tar --exclude=.venv --exclude=data --exclude=.env --exclude=__pycache__ -czf $env:TEMP\fm.tgz .
+tar --exclude=target --exclude=bin --exclude=data --exclude=.env -czf $env:TEMP\fm.tgz .
 scp $env:TEMP\fm.tgz root@203.0.113.25:/root/fm.tgz
 ```
 
@@ -153,9 +153,9 @@ sudo DOMAIN=fantasy.yourdomain.com TIMEZONE=America/Toronto bash /root/fantasy_m
 
 The installer is safe to run again at any time. It:
 
-1. installs Python 3.12, git, SQLite and Caddy (from Caddy's official apt repository);
+1. installs the build tools (`build-essential`, `pkg-config`, `libssl-dev`), git, SQLite and Caddy (from Caddy's official apt repository);
 2. creates the `fantasy` system user (no login shell);
-3. creates `/opt/fantasy_manager/.venv` and runs `pip install -e .[web]`;
+3. builds the `fm` binary with `deploy/build.sh`: installs the Rust toolchain (rustup, into `/usr/local/rustup` and `/usr/local/cargo`) the first time, runs `cargo build --release` and installs `/opt/fantasy_manager/bin/fm`. This takes about 3-5 minutes on 2 vCPUs (on a 1 GB server add swap first and pass `BUILD_JOBS=1`, see [Low memory](#low-memory-1-gb-servers));
 4. creates `data/` (mode 0700) and `/var/backups/fantasy_manager`, and copies `.env.example` to `.env` if there is no `.env` yet;
 5. installs and enables `fantasy-web.service`, `fantasy-daily.timer` and `fantasy-backup.timer`;
 6. writes `/etc/caddy/Caddyfile` for your domain (the old one is kept as `Caddyfile.orig`), checks it and reloads Caddy;
@@ -253,7 +253,7 @@ When there's new code:
 sudo bash /opt/fantasy_manager/deploy/update.sh
 ```
 
-It pulls, reinstalls the package, refreshes the systemd units if they changed, restarts the dashboard and checks that it answers. Your `.env` and `data/` are never touched.
+It pulls, rebuilds `fm` (`deploy/build.sh`, a minute or two once the dependencies are compiled), refreshes the systemd units if they changed, restarts the dashboard and checks that it answers. Your `.env` and `data/` are never touched.
 
 For option B, copy a fresh `fm.tgz` up as in step 4 (**PowerShell**), then on the server:
 
@@ -407,7 +407,7 @@ What you give up compared with a server:
    ```
 
    Without this the first run starts with an empty history.
-5. **Run it once.** **Actions > hosted > Run workflow**, job `daily`. It takes a few minutes. When it is green, open the address on the run's summary page, enter the dashboard passphrase and tick **Remember me**.
+5. **Run it once.** **Actions > hosted > Run workflow**, job `daily`. It takes a few minutes (the first run also compiles `fm`, about 5-10 minutes; later runs reuse the cached build). When it is green, open the address on the run's summary page, enter the dashboard passphrase and tick **Remember me**.
 
 Stop running the daily job on your PC once this works: both would write their own history. To move back to your PC, pull the data down first: `FM_DATA_KEY='...' bash deploy/gh-data.sh pull` (it unpacks into `data/`).
 
@@ -440,7 +440,7 @@ Upload and download files through the SSH window's menu instead of `scp`, or set
 
 ## Docker alternative
 
-If you prefer containers, `Dockerfile` and `docker-compose.yml` in the repo root run the same setup. The **web** container runs uvicorn, **caddy** provides HTTPS with the same `deploy/Caddyfile`, and a **cron** sidecar runs `deploy/daily.sh` at 07:30 and then `deploy/backup.sh`. On a server with Docker installed, in the project folder:
+If you prefer containers, `Dockerfile` and `docker-compose.yml` in the repo root run the same setup. The image is built in two stages (`cargo build --release`, then a slim Debian with just the `fm` binary and `deploy/`). The **web** container runs `fm web`, **caddy** provides HTTPS with the same `deploy/Caddyfile`, and a **cron** sidecar runs `deploy/daily.sh` at 07:30 and then `deploy/backup.sh`. On a server with Docker installed, in the project folder:
 
 ```bash
 # in .env, besides your usual settings:  FM_DOMAIN=fantasy.yourdomain.com  TZ=America/Toronto  FM_WEB_PASSWORD=...
@@ -451,11 +451,11 @@ docker compose exec web fm settings         # run any fm command
 git pull && docker compose up -d --build    # update
 ```
 
-The image never contains `.env` (`.dockerignore`); Compose passes it in at runtime. Compose treats `$` in `.env` values as a variable, so write a literal `$` as `$$`. Backups go to `./backups`. The Ubuntu + systemd path above remains the documented, primary one.
+The image never contains `.env` (`.dockerignore`); Compose passes it in at runtime. Set `FM_WEB_PASSWORD` before the first `up`: `fm web` binds `0.0.0.0` inside the container and refuses to start without a password. The caddy container gets a fixed address on the compose network so the dashboard can trust its `X-Forwarded-*` headers (`FM_WEB_TRUSTED_PROXIES`). Compose treats `$` in `.env` values as a variable, so write a literal `$` as `$$`. Backups go to `./backups`. The Ubuntu + systemd path above remains the documented, primary one.
 
 ## Low memory (1 GB servers)
 
-Add 2 GB of swap so a full league load can't run out of memory:
+Add 2 GB of swap so a full league load (and building `fm`: run the installer with `BUILD_JOBS=1`) can't run out of memory:
 
 ```bash
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Update Fantasy Manager in place: pull the code, reinstall the package, refresh the systemd units
+# Update Fantasy Manager in place: pull the code, rebuild the fm binary, refresh the systemd units
 # and restart the dashboard. Your .env and data/ are not touched.
 #
 #   sudo bash /opt/fantasy_manager/deploy/update.sh
@@ -25,10 +25,8 @@ for f in "$APP_DIR"/deploy/*; do
   if grep -q $'\r' "$f"; then sed -i 's/\r$//' "$f"; echo "fixed line endings: $f"; fi
 done
 
-echo "==> pip install -e .[web]"
-"$APP_DIR/.venv/bin/python" -m pip install -q --upgrade pip
-"$APP_DIR/.venv/bin/python" -m pip install -q -e "$APP_DIR[web]"
-"$APP_DIR/.venv/bin/python" -m compileall -q "$APP_DIR/fantasy_manager" >/dev/null || true
+echo "==> building fm"
+APP_DIR="$APP_DIR" bash "$APP_DIR/deploy/build.sh"
 
 echo "==> systemd units"
 changed=0

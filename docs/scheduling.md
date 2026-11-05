@@ -23,7 +23,7 @@ when repeated, so it is safe to rerun the task by hand after a failure; expect a
 
    ```powershell
    cd C:\code\personal\fantasy_manager
-   .\.venv\Scripts\fm.exe report --notify
+   .\target\release\fm.exe report --notify
    ```
 
 2. Put `DISCORD_WEBHOOK_URL` and/or `SLACK_WEBHOOK_URL` in `C:\code\personal\fantasy_manager\.env`.
@@ -31,8 +31,9 @@ when repeated, so it is safe to rerun the task by hand after a failure; expect a
 3. `.env` is read from the **current working directory**, so the scheduled task has to start in
    `C:\code\personal\fantasy_manager`. Both options below set that.
 
-The executable is the venv's console script:
-`C:\code\personal\fantasy_manager\.venv\Scripts\fm.exe`. You don't need to activate the venv.
+The executable is the release build of the Rust binary:
+`C:\code\personal\fantasy_manager\target\release\fm.exe` (`cargo build --release -p fm-cli`; see the
+[README](../README.md#setup)). Rebuild it while no task is running: Windows locks a running `fm.exe`.
 
 ## Option A: PowerShell (recommended)
 
@@ -43,7 +44,7 @@ off at that time, it runs as soon as it can.
 $repo = "C:\code\personal\fantasy_manager"
 function FmStep($fmArgs, $log) {
     New-ScheduledTaskAction -Execute "$env:ComSpec" `
-        -Argument "/c `"`"$repo\.venv\Scripts\fm.exe`" $fmArgs >> `"$repo\data\$log`" 2>&1`"" `
+        -Argument "/c `"`"$repo\target\release\fm.exe`" $fmArgs >> `"$repo\data\$log`" 2>&1`"" `
         -WorkingDirectory $repo
 }
 $actions = @(
@@ -80,10 +81,10 @@ logged on or not*.
 @echo off
 cd /d C:\code\personal\fantasy_manager
 if not exist data mkdir data
-".venv\Scripts\fm.exe" auth fantrax --ping >> data\auth.log 2>&1
-".venv\Scripts\fm.exe" backtest archive >> data\archive.log 2>&1
-".venv\Scripts\fm.exe" harness daily >> data\harness.log 2>&1
-".venv\Scripts\fm.exe" report --notify >> data\report.log 2>&1
+"target\release\fm.exe" auth fantrax --ping >> data\auth.log 2>&1
+"target\release\fm.exe" backtest archive >> data\archive.log 2>&1
+"target\release\fm.exe" harness daily >> data\harness.log 2>&1
+"target\release\fm.exe" report --notify >> data\report.log 2>&1
 ```
 
 Then register it:
@@ -101,7 +102,7 @@ see any of that, so register a second task at 17:00 local:
 ```powershell
 $repo = "C:\code\personal\fantasy_manager"
 $action = New-ScheduledTaskAction -Execute "$env:ComSpec" `
-    -Argument "/c `"`"$repo\.venv\Scripts\fm.exe`" harness pregame --league both --notify --quiet-if-unchanged >> `"$repo\data\pregame.log`" 2>&1`"" `
+    -Argument "/c `"`"$repo\target\release\fm.exe`" harness pregame --league both --notify --quiet-if-unchanged >> `"$repo\data\pregame.log`" 2>&1`"" `
     -WorkingDirectory $repo
 $trigger  = New-ScheduledTaskTrigger -Daily -At 5:00PM
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 15) `
@@ -118,14 +119,14 @@ useless. With the wrapper-script recipe (Option B), add a `run_pregame.cmd` next
 @echo off
 cd /d C:\code\personal\fantasy_manager
 if not exist data mkdir data
-".venv\Scripts\fm.exe" harness pregame --league both --notify --quiet-if-unchanged >> data\pregame.log 2>&1
+"target\release\fm.exe" harness pregame --league both --notify --quiet-if-unchanged >> data\pregame.log 2>&1
 ```
 
 ```bat
 schtasks /Create /TN "FantasyManagerPregame" /SC DAILY /ST 17:00 /TR "C:\code\personal\fantasy_manager\run_pregame.cmd" /F
 ```
 
-What it does (`fm harness pregame`, see `fantasy_manager/pregame.py`):
+What it does (`fm harness pregame`, see `crates/fm-report/src/pregame.rs`):
 
 - Refreshes the fast-moving sources first: the Daily Faceoff starting-goalies page and the ESPN
   injury feed skip the cache; the line pages of tonight's teams are refetched only when the cached
