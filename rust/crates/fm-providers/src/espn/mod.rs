@@ -32,7 +32,7 @@ use fm_core::models::{
 use fm_core::provider::LeagueProvider;
 use fm_core::snapshot::{EspnLeagueMeta, EspnLeagueSettings, ProviderExtras};
 use fm_core::{Map, ProviderError, PyDateTime};
-use fm_http::cache::ParamValue;
+use fm_http::ParamValue;
 use fm_http::{CacheMiss, HttpCache, Params};
 use serde_json::Value;
 

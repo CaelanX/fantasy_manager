@@ -19,8 +19,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use fm_core::Map;
-use fm_http::cache::ParamValue;
-use fm_http::{CachedResponse, HttpCache, Params};
+use fm_http::{CachedResponse, HttpCache, ParamValue, Params};
 use fm_pycompat::pyjson::{dumps, DumpOpts};
 use serde_json::Value;
 use thiserror::Error;

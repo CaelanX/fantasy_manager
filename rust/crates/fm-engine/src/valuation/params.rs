@@ -714,77 +714,18 @@ pub fn source(params: Option<&Value>) -> String {
 }
 
 /// `json.dumps(v, sort_keys=True, separators=(",", ":"))` (ensure_ascii, Python float repr).
-fn canonical_dumps(v: &Value, out: &mut String) {
-    match v {
-        Value::Null => out.push_str("null"),
-        Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
-        Value::Number(n) => {
-            if n.is_f64() {
-                out.push_str(&repr_f64(n.as_f64().unwrap_or(f64::NAN)));
-            } else {
-                out.push_str(&n.to_string());
-            }
-        }
-        Value::String(s) => dumps_str_ascii(s, out),
-        Value::Array(a) => {
-            out.push('[');
-            for (i, x) in a.iter().enumerate() {
-                if i > 0 {
-                    out.push(',');
-                }
-                canonical_dumps(x, out);
-            }
-            out.push(']');
-        }
-        Value::Object(m) => {
-            let mut keys: Vec<&String> = m.keys().collect();
-            keys.sort();
-            out.push('{');
-            for (i, k) in keys.into_iter().enumerate() {
-                if i > 0 {
-                    out.push(',');
-                }
-                dumps_str_ascii(k, out);
-                out.push(':');
-                canonical_dumps(&m[k], out);
-            }
-            out.push('}');
-        }
-    }
-}
-
-fn dumps_str_ascii(s: &str, out: &mut String) {
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\u{8}' => out.push_str("\\b"),
-            '\u{c}' => out.push_str("\\f"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c if (c as u32) < 0x7f => out.push(c),
-            c => {
-                let mut buf = [0u16; 2];
-                for u in c.encode_utf16(&mut buf) {
-                    out.push_str(&format!("\\u{:04x}", u));
-                }
-            }
-        }
-    }
-    out.push('"');
+fn canonical_dumps(v: &Value) -> String {
+    use fm_pycompat::pyjson::{dumps, DumpOpts};
+    dumps(v, &DumpOpts { sort_keys: true, ..DumpOpts::compact() })
 }
 
 /// sha1 of the effective params (canonical JSON, sorted keys); identifies the parameter set a
 /// snapshot was produced with (the built-in fallback hashes as '{}').
 pub fn params_hash(params: Option<&Value>) -> String {
-    let mut s = String::new();
-    match params {
-        Some(p) => canonical_dumps(p, &mut s),
-        None => canonical_dumps(&current().merged, &mut s),
-    }
+    let s = match params {
+        Some(p) => canonical_dumps(p),
+        None => canonical_dumps(&current().merged),
+    };
     let mut h = Sha1::new();
     h.update(s.as_bytes());
     hex::encode(h.finalize())

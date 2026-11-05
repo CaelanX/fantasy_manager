@@ -214,7 +214,7 @@ pub fn default_fetch_text(url: &str, params: &Params, _ttl: f64) -> Result<Strin
     let q: Vec<(&str, &str)> = params
         .iter()
         .filter_map(|(k, v)| match v {
-            fm_http::cache::ParamValue::Str(s) => Some((k.as_str(), s.as_str())),
+            fm_http::ParamValue::Str(s) => Some((k.as_str(), s.as_str())),
             _ => None,
         })
         .collect();

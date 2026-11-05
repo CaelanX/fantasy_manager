@@ -14,9 +14,9 @@ pub mod cache;
 pub mod fxpa;
 pub mod tape;
 
-pub use cache::{cache_key, CacheMiss, CachedResponse, HttpCache, HttpError, Params, KEY_HEADERS, USER_AGENT};
+pub use cache::{cache_key, CacheMiss, CachedResponse, HttpCache, HttpError, ParamValue, Params, KEY_HEADERS, USER_AGENT};
 pub use fxpa::{fxpa_key, FxpaFileCache};
-pub use tape::Tape;
+pub use tape::{params_from_json, Tape};
 
 /// `fetch_text(url, params, ttl) -> str` callables the Python source clients take
 /// (`MoneyPuckClient(fetch_text)`, `DailyFaceoffClient(fetch_text)`).

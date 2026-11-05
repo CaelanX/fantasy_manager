@@ -300,7 +300,7 @@ fn games_between(start: NaiveDate, end: NaiveDate, dates: &Dates, season_start: 
     days.max(0.0) * SEASON_GAMES as f64 / SEASON_DAYS as f64
 }
 
-fn games_remaining(as_of: NaiveDate, dates: &Dates, season_start: Option<NaiveDate>) -> f64 {
+fn games_remaining_in(as_of: NaiveDate, dates: &Dates, season_start: Option<NaiveDate>) -> f64 {
     if let Some(n) = dates.count(as_of, None) {
         if n != 0 {
             return n as f64;
@@ -312,6 +312,12 @@ fn games_remaining(as_of: NaiveDate, dates: &Dates, season_start: Option<NaiveDa
         }
         _ => SEASON_GAMES as f64,
     }
+}
+
+/// `_games_remaining`: the team's games from `as_of` on (its schedule), else the share of the
+/// 82-game season left (at least 1; the full season before it starts).
+pub fn games_remaining(as_of: NaiveDate, team_dates: Option<&[NaiveDate]>, season_start: Option<NaiveDate>) -> f64 {
+    games_remaining_in(as_of, &Dates::new(team_dates), season_start)
 }
 
 fn add_days(d: NaiveDate, days: i64) -> NaiveDate {
@@ -331,7 +337,7 @@ pub fn return_estimate(
         return None;
     }
     let dates = Dates::new(team_dates);
-    let remaining = games_remaining(as_of, &dates, season_start);
+    let remaining = games_remaining_in(as_of, &dates, season_start);
     let anchor = match season_start {
         Some(s) => as_of.max(s),
         None => as_of,

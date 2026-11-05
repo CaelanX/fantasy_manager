@@ -797,7 +797,7 @@ pub fn need_trades(res: &LoadResult, limit: usize) -> Arc<Vec<Value>> {
 /// `recommend.claims.plan_claims` on the loaded result (memoised); None when it fails.
 pub fn claim_plan(res: &LoadResult, provider: Option<&dyn LeagueProvider>) -> Arc<Option<ClaimPlan>> {
     res.memo.get_or("claims", || {
-        match plan_claims(&res.ctx, &res.values, res.dynasty.as_ref(), provider, &res.now, CLAIM_LIMIT, &res.sched, Some(&res.data_dir)) {
+        match plan_claims(&res.ctx, &res.values, res.dynasty.as_ref(), provider, &res.now, CLAIM_LIMIT, &res.sched) {
             Ok(p) => Some(p),
             Err(e) => {
                 res.warn(format!("Claims unavailable: {}: {}", match &e { CoreError::Lookup(_) => "LookupError", CoreError::Value(_) => "ValueError" }, e));

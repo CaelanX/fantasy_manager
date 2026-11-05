@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::NaiveDate;
 use fm_core::{Map, Player, PyDateTime};
-use fm_http::cache::ParamValue;
+use fm_http::ParamValue;
 use fm_http::Params;
 use fm_sources::matching::crosswalk::{
     candidates_of, nhl_candidates, parse_confirm, split_cid, Crosswalk, ResolveStats, SourceItem,

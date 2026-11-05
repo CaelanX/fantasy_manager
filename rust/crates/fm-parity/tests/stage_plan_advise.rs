@@ -133,7 +133,7 @@ fn run_league(league: &str) {
     let have_tape = tape.is_some();
     let prov = SnapshotProvider::new(&snap, tape, &data_dir);
     let t = Instant::now();
-    let cp = plan_claims(ctx, &values, dynasty.as_ref(), Some(&prov), now, CLAIM_LIMIT, &memo, Some(&data_dir)).expect("claims");
+    let cp = plan_claims(ctx, &values, dynasty.as_ref(), Some(&prov), now, CLAIM_LIMIT, &memo).expect("claims");
     let t_claims = t.elapsed();
     check(&mut failures, &format!("{test}_cli_claims"), &without_meta(fx.cli_output("claims")), &serde_json::to_value(&cp).unwrap(), &tol);
 

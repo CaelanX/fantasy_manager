@@ -20,7 +20,7 @@ use fm_pycompat::time::{date_fromisoformat, strptime};
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 
-use super::schedule_grid::{offnight_bonus, per_day, playoff_weeks, window_counts, Period, PlayoffWeeks, OFFNIGHT_THRESHOLD, UNAVAILABLE};
+use super::schedule_grid::{group_of as group, offnight_bonus, per_day, playoff_weeks, window_counts, Period, PlayoffWeeks, OFFNIGHT_THRESHOLD, UNAVAILABLE};
 use crate::recommend::lineup::{dp_idx, starting_slots};
 use crate::recommend::lineup_lock;
 
@@ -94,19 +94,6 @@ impl PlayoffPlan {
     /// `plan.model_dump(mode="json")`.
     pub fn to_json(&self) -> serde_json::Value {
         serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
-    }
-}
-
-/// `schedule_grid._group(p)`.
-fn group(p: &Player) -> &'static str {
-    if p.is_goalie() {
-        return "G";
-    }
-    let has = |x: &str| p.positions.iter().any(|q| q == x);
-    if has("D") && !(has("C") || has("LW") || has("RW") || has("F")) {
-        "D"
-    } else {
-        "F"
     }
 }
 

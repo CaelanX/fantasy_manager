@@ -11,10 +11,8 @@
 //!   stay atomic and fast exactly as in Python.
 //! * Statement parameters are positional only (`&[&dyn ToSql]`, see [`Params`]); Python also
 //!   allowed a mapping for named parameters, which no caller uses.
-//! * JSON text columns written here use a private `json.dumps` work-alike ([`json_dumps`]) with
+//! * JSON text columns written here use the `json.dumps` work-alike ([`json_dumps`], over `fm_pycompat::pyjson`) with
 //!   Python's default separators (`", "` / `": "`), `ensure_ascii` and optional `sort_keys`.
-//!   It should be replaced by `fm_pycompat::pyjson::dumps` once that is implemented (same
-//!   output; kept private so this module works before then).
 
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
@@ -481,73 +479,5 @@ pub fn json_to_sql(v: &Value) -> SqlValue {
 /// `json.dumps(value)` / `json.dumps(value, sort_keys=True)`: Python's default separators,
 /// `ensure_ascii`, floats via `repr`. Shared with `episode_match`.
 pub fn json_dumps(v: &Value, sort_keys: bool) -> String {
-    let mut out = String::new();
-    dump_value(v, sort_keys, &mut out);
-    out
-}
-
-fn dump_value(v: &Value, sort_keys: bool, out: &mut String) {
-    match v {
-        Value::Null => out.push_str("null"),
-        Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
-        Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                out.push_str(&i.to_string());
-            } else if let Some(u) = n.as_u64() {
-                out.push_str(&u.to_string());
-            } else {
-                out.push_str(&fm_pycompat::fmt::repr_f64(n.as_f64().unwrap_or(f64::NAN)));
-            }
-        }
-        Value::String(s) => dump_str(s, out),
-        Value::Array(a) => {
-            out.push('[');
-            for (i, x) in a.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                dump_value(x, sort_keys, out);
-            }
-            out.push(']');
-        }
-        Value::Object(m) => {
-            out.push('{');
-            let mut entries: Vec<(&String, &Value)> = m.iter().collect();
-            if sort_keys {
-                entries.sort_by(|a, b| a.0.cmp(b.0));
-            }
-            for (i, (k, x)) in entries.into_iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                dump_str(k, out);
-                out.push_str(": ");
-                dump_value(x, sort_keys, out);
-            }
-            out.push('}');
-        }
-    }
-}
-
-fn dump_str(s: &str, out: &mut String) {
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\u{8}' => out.push_str("\\b"),
-            '\u{c}' => out.push_str("\\f"),
-            ' '..='~' => out.push(c),
-            c => {
-                let mut buf = [0u16; 2];
-                for u in c.encode_utf16(&mut buf) {
-                    out.push_str(&format!("\\u{:04x}", u));
-                }
-            }
-        }
-    }
-    out.push('"');
+    fm_pycompat::pyjson::dumps(v, &fm_pycompat::pyjson::DumpOpts { sort_keys, ..Default::default() })
 }

@@ -28,10 +28,8 @@ pub const DEFAULT_LAST_N: usize = 5;
 pub const MIN_BASE_GP: usize = 5;
 pub const PP_UNITS_ON_ICE: f64 = 5.0;
 
-// valuation/schedule.py (see module note)
-pub const B2B_SECOND_NIGHT_P: f64 = 0.35;
-pub const B2B_MIN_SAMPLE: i64 = 5;
-pub const B2B_SHRINK_K: f64 = 5.0;
+// valuation/schedule.py
+pub use fm_engine::valuation::schedule::{B2B_MIN_SAMPLE, B2B_SECOND_NIGHT_P, B2B_SHRINK_K};
 
 pub const SUMMARY_KEYS: [&str; 13] = [
     "gp",

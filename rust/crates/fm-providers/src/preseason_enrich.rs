@@ -8,7 +8,7 @@
 //!
 //! Deviations: the `_REGISTRY` is `ctx.enrich.preseason`; `is_unproven` and its constants live
 //! in `fm_core::unproven` (re-exported here); `PreseasonLine` is `fm_core::snapshot::PreseasonLine`
-//! (its `pts_per_game` / `per_game` / `summary` helpers are free functions here). `models.Split`
+//! (its `pts_per_game` / `per_game` / `summary` helpers are `fm_core::snapshot::PreseasonLine` methods). `models.Split`
 //! has no "preseason", so [`statline`] is always None and [`attach`] never stores (as in Python).
 
 use std::collections::HashMap;
@@ -20,7 +20,6 @@ use fm_core::models::{LeagueContext, Player, StatLine};
 use fm_core::snapshot::PreseasonLine;
 use fm_core::Map;
 use fm_http::HttpCache;
-use fm_pycompat::fmt::fixed;
 use fm_sources::nhl::{current_season, NhlClient, NhlSkaterGameLine};
 use regex::Regex;
 
@@ -41,48 +40,6 @@ pub const SPLIT: &str = "preseason";
 fn gamecenter_re() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| Regex::new(r"/gamecenter/(\d+)/").expect("static regex"))
-}
-
-// --------------------------------------------------------------------------- PreseasonLine helpers
-
-/// `PreseasonLine.pts_per_game`.
-pub fn pts_per_game(line: &PreseasonLine) -> f64 {
-    if line.gp != 0 {
-        line.stats.get("PTS").copied().unwrap_or(0.0) / line.gp as f64
-    } else {
-        0.0
-    }
-}
-
-/// `PreseasonLine.per_game()`.
-pub fn per_game(line: &PreseasonLine) -> Map<String, f64> {
-    if line.gp <= 0 {
-        return Map::new();
-    }
-    line.stats.iter().filter(|(k, _)| *k != "GP").map(|(k, v)| (k.clone(), v / line.gp as f64)).collect()
-}
-
-/// `PreseasonLine.summary()`: "4 GP: 5 G, 3 A, 8 PTS, 12 SOG, 2 PPP, 16.4 TOI".
-pub fn summary(line: &PreseasonLine) -> String {
-    let s = &line.stats;
-    let g = |k: &str| s.get(k).copied().unwrap_or(0.0);
-    let mut parts = vec![
-        format!("{} G", fixed(g("G"), 0, false)),
-        format!("{} A", fixed(g("A"), 0, false)),
-        format!("{} PTS", fixed(g("PTS"), 0, false)),
-    ];
-    if let Some(v) = s.get("SOG") {
-        parts.push(format!("{} SOG", fixed(*v, 0, false)));
-    }
-    if let Some(v) = s.get("PPP") {
-        parts.push(format!("{} PPP", fixed(*v, 0, false)));
-    } else if let Some(v) = s.get("PPG") {
-        parts.push(format!("{} PPG", fixed(*v, 0, false)));
-    }
-    if let Some(t) = line.toi_per_game() {
-        parts.push(format!("{} TOI", fixed(t, 1, false)));
-    }
-    format!("{} GP: {}", line.gp, parts.join(", "))
 }
 
 // --------------------------------------------------------------------------- pure helpers
@@ -399,9 +356,9 @@ mod tests {
         for (k, v) in want {
             assert_eq!(ln.stats[k], v, "{k}");
         }
-        assert!((pts_per_game(ln) - 5.0 / 3.0).abs() < 1e-12);
+        assert!((ln.pts_per_game() - 5.0 / 3.0).abs() < 1e-12);
         assert!((ln.toi_per_game().unwrap() - (1337.0 + 923.0 + 817.0) / 3.0 / 60.0).abs() < 1e-12);
-        assert_eq!(summary(ln), "3 GP: 3 G, 2 A, 5 PTS, 8 SOG, 2 PPP, 17.1 TOI");
+        assert_eq!(ln.summary(), "3 GP: 3 G, 2 A, 5 PTS, 8 SOG, 2 PPP, 17.1 TOI");
     }
 
     #[test]

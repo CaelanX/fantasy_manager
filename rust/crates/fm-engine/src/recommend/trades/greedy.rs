@@ -18,7 +18,7 @@ use smallvec::SmallVec;
 use crate::valuation::replacement::eligible_slots;
 
 /// Player index into the engine's player table.
-pub(crate) type Pid = u32;
+pub type Pid = u32;
 /// Sorted, de-duplicated player indices: the memo key of a roster.
 pub(crate) type RosterKey = SmallVec<[Pid; 28]>;
 
@@ -55,7 +55,7 @@ pub fn eligible(positions: &[String], slot: &str) -> bool {
 
 /// The starting slot structure: slot types in `_starting_slots` order with their capacities.
 #[derive(Clone, Debug)]
-pub(crate) struct SlotSpec {
+pub struct SlotSpec {
     pub types: Vec<String>,
     pub caps: Vec<usize>,
     pub n_slots: usize,
@@ -96,7 +96,7 @@ impl SlotSpec {
 }
 
 /// Per-type starters: `held[t]` in assignment order.
-pub(crate) type Held = Vec<SmallVec<[Pid; 8]>>;
+pub type Held = Vec<SmallVec<[Pid; 8]>>;
 
 fn augment(p: Pid, seen: &mut u32, held: &mut Held, caps: &[usize], elig: &[u16]) -> bool {
     let nt = caps.len();
@@ -128,7 +128,7 @@ fn augment(p: Pid, seen: &mut u32, held: &mut Held, caps: &[usize], elig: &[u16]
 /// `_greedy_assignment(players)`: the starting lineup as per-type lists (BN/IR never start).
 /// Greedy by season FPG with an augmenting-path feasibility check over slot types with
 /// capacities, pruning saturated ("dead") types - the Python algorithm step by step.
-pub(crate) fn greedy_assignment(players: &[Pid], spec: &SlotSpec, fpg: &[f64], elig: &[u16]) -> Held {
+pub fn greedy_assignment(players: &[Pid], spec: &SlotSpec, fpg: &[f64], elig: &[u16]) -> Held {
     let nt = spec.types.len();
     let mut held: Held = vec![SmallVec::new(); nt];
     let mut order: SmallVec<[Pid; 32]> = SmallVec::from_slice(players);

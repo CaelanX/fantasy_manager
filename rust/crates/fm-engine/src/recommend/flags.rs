@@ -608,38 +608,6 @@ fn ramp(x: f64, x0: f64, x1: f64, y0: f64, y1: f64) -> f64 {
     y0 + (y1 - y0) * 1.0f64.min(0.0f64.max((x - x0) / (x1 - x0)))
 }
 
-/// `PreseasonLine.pts_per_game`.
-fn pre_pts_per_game(line: &PreseasonLine) -> f64 {
-    if line.gp != 0 {
-        line.stats.get("PTS").copied().unwrap_or(0.0) / line.gp as f64
-    } else {
-        0.0
-    }
-}
-
-/// `PreseasonLine.summary()`: "4 GP: 5 G, 3 A, 8 PTS, 12 SOG, 2 PPP, 16.4 TOI".
-fn pre_summary(line: &PreseasonLine) -> String {
-    let s = &line.stats;
-    let g = |k: &str| s.get(k).copied().unwrap_or(0.0);
-    let mut parts = vec![
-        format!("{} G", fixed(g("G"), 0, false)),
-        format!("{} A", fixed(g("A"), 0, false)),
-        format!("{} PTS", fixed(g("PTS"), 0, false)),
-    ];
-    if let Some(v) = s.get("SOG") {
-        parts.push(format!("{} SOG", fixed(*v, 0, false)));
-    }
-    if let Some(v) = s.get("PPP") {
-        parts.push(format!("{} PPP", fixed(*v, 0, false)));
-    } else if let Some(v) = s.get("PPG") {
-        parts.push(format!("{} PPG", fixed(*v, 0, false)));
-    }
-    if let Some(t) = line.toi_per_game() {
-        parts.push(format!("{} TOI", fixed(t, 1, false)));
-    }
-    format!("{} GP: {}", line.gp, parts.join(", "))
-}
-
 /// Thresholds and 4-6 strength of a preseason line.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Standout {
@@ -653,7 +621,7 @@ pub struct Standout {
 /// None when the line is not a standout.
 pub fn preseason_standout(line: Option<&PreseasonLine>) -> Option<Standout> {
     let line = line.filter(|l| l.gp >= PRESEASON_MIN_GP)?;
-    let (ppg, toi) = (pre_pts_per_game(line), line.toi_per_game());
+    let (ppg, toi) = (line.pts_per_game(), line.toi_per_game());
     let pts_hit = ppg >= PRESEASON_PTS_PG;
     let toi_hit = toi.is_some_and(|t| t >= PRESEASON_TOI);
     if !(pts_hit || toi_hit) {
@@ -744,7 +712,7 @@ pub fn recommend_preseason_alerts(
         );
         let mut reasons = vec![Reason {
             code: "PRESEASON".into(),
-            text: format!("Preseason {} ({} PTS/GP)", pre_summary(line), fixed(c.pts_pg, 2, false)),
+            text: format!("Preseason {} ({} PTS/GP)", line.summary(), fixed(c.pts_pg, 2, false)),
             value: Some(round_to(c.pts_pg, 4)),
             baseline: Some(PRESEASON_PTS_PG),
         }];
@@ -1105,6 +1073,6 @@ mod tests {
         let c = preseason_standout(Some(&ln)).unwrap();
         assert!(c.pts_hit && c.toi_hit);
         assert_eq!(c.strength, 5.75); // 1.5 PTS/GP -> 5.25, + 0.5 (TOI also hit)
-        assert_eq!(pre_summary(&ln), "4 GP: 3 G, 3 A, 6 PTS, 17.0 TOI");
+        assert_eq!(ln.summary(), "4 GP: 3 G, 3 A, 6 PTS, 17.0 TOI");
     }
 }

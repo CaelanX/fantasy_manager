@@ -10,7 +10,7 @@ use fm_core::config::Settings;
 use fm_core::models::{ActivityAction, Status};
 use fm_core::provider::LeagueProvider;
 use fm_core::Map;
-use fm_http::cache::{cache_key, ParamValue};
+use fm_http::{cache_key, ParamValue};
 use fm_http::tape::{TapeData, TapeHttp};
 use fm_http::{HttpCache, Params, Tape};
 use fm_providers::espn::api::{self, EspnFantasyRequests, League};

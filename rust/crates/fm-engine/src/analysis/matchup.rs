@@ -28,7 +28,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::analysis::schedule_grid::{
-    league_calendar, per_game_value, streaming_targets, PeriodCalendar, StreamingOpts, UNAVAILABLE,
+    group_of as group, league_calendar, per_game_value, streaming_targets, PeriodCalendar, StreamingOpts, UNAVAILABLE,
 };
 use crate::recommend::lineup::{daily_plan, opp_game, optimal_lineup, started, starting_slots, week_opp, DailyPlan};
 use crate::recommend::lineup_lock::lineup_lock_for;
@@ -197,19 +197,6 @@ fn pos(p: &Player) -> String {
         return p.positions.join("/");
     }
     "-".into()
-}
-
-/// `schedule_grid._group`.
-fn group(p: &Player) -> &'static str {
-    if p.is_goalie() {
-        return "G";
-    }
-    let fwd = p.positions.iter().any(|x| matches!(x.as_str(), "C" | "LW" | "RW" | "F"));
-    if p.has_position("D") && !fwd {
-        "D"
-    } else {
-        "F"
-    }
 }
 
 /// (starters with their slot, basis): the current starters when lineups are locked for the

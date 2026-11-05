@@ -808,9 +808,9 @@ pub fn default_fetch_text(url: &str, params: Option<&fm_http::Params>) -> anyhow
         let mut q: Vec<(String, String)> = Vec::new();
         for (k, v) in ps {
             match v {
-                fm_http::cache::ParamValue::Str(s) => q.push((k.clone(), s.clone())),
-                fm_http::cache::ParamValue::List(l) => q.extend(l.iter().map(|s| (k.clone(), s.clone()))),
-                fm_http::cache::ParamValue::None => {}
+                fm_http::ParamValue::Str(s) => q.push((k.clone(), s.clone())),
+                fm_http::ParamValue::List(l) => q.extend(l.iter().map(|s| (k.clone(), s.clone()))),
+                fm_http::ParamValue::None => {}
             }
         }
         req = req.query(&q);

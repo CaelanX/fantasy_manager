@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use chrono::NaiveDate;
 use fm_core::PyDateTime;
-use fm_http::cache::ParamValue;
+use fm_http::ParamValue;
 use fm_http::{Params, FetchJson};
 use fm_sources::dailyfaceoff as dfo;
 use fm_sources::injuries as inj;

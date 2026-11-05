@@ -3,8 +3,8 @@
 //!
 //! * `future_values` / `age` live in [`super::outlook_values`] (W7-trades) and are re-exported.
 //! * `_lineup` calls [`crate::recommend::trades::greedy_lineup_value`].
-//! * Python's `_greedy_assignment` (the set of starters, used by the sell/buy lists) is not
-//!   exported by the trade module, so [`greedy_starters`] is a local line-by-line copy of it.
+//! * Python's `_greedy_assignment` (the set of starters, used by the sell/buy lists) is the trade
+//!   module's [`greedy_assignment`] ([`greedy_starters`] wraps it).
 //! * `playoff_odds` reproduces Python's random draw order exactly: `Random(7)`, per simulated
 //!   week a `shuffle` then one `random()` per pair, then one `random()` per team (in team order)
 //!   as the third element of the sort key.
@@ -27,7 +27,7 @@ use serde_json::{json, Value};
 use super::schedule_grid::{playoff_weeks, OFFNIGHT_THRESHOLD};
 pub use super::outlook_values::{age, future_values, future_values_with, FUTURE_YEARS};
 use crate::recommend::base::{keeper_k, keeper_set};
-use crate::recommend::trades::{eligible, greedy_lineup_value, starting_slots, OutlookView};
+use crate::recommend::trades::{greedy_assignment, greedy_lineup_value, OutlookView, Pid, SlotSpec};
 use crate::valuation::dynasty::ProductionCurves;
 
 pub const SIMS: usize = 2000;
@@ -138,69 +138,15 @@ fn lineup(players: &[&Player], vals: &HashMap<&str, f64>, ctx: &LeagueContext) -
     greedy_lineup_value(players, |p| vals.get(p.cid.as_str()).copied(), &ctx.roster_shape)
 }
 
-/// The cids of the best greedy starting lineup (`_greedy_assignment`, season FPG): greedy by value
-/// with an augmenting-path feasibility check over slot types.
+/// The cids of the best greedy starting lineup (`_greedy_assignment`, season FPG): the trade
+/// engine's [`greedy_assignment`] over the players' season values.
 fn greedy_starters<'a>(players: &[&'a Player], values: &Map<Cid, PlayerValue>, ctx: &LeagueContext) -> Vec<&'a str> {
-    let slots = starting_slots(&ctx.roster_shape);
-    let mut types: Vec<&str> = Vec::new();
-    for s in &slots {
-        if !types.contains(&s.as_str()) {
-            types.push(s.as_str());
-        }
-    }
-    let cap: Vec<usize> = types.iter().map(|t| slots.iter().filter(|s| s.as_str() == *t).count()).collect();
-    let elig: Vec<Vec<usize>> = players
-        .iter()
-        .map(|p| (0..types.len()).filter(|&t| eligible(&p.positions, types[t])).collect())
-        .collect();
+    let spec = SlotSpec::new(&ctx.roster_shape);
     let vals: Vec<f64> = players.iter().map(|p| values.get(&p.cid).map_or(0.0, |pv| pv.fpg_season)).collect();
-    let mut held: Vec<Vec<usize>> = vec![vec![]; types.len()];
-
-    fn augment(p: usize, seen: &mut Vec<bool>, held: &mut Vec<Vec<usize>>, cap: &[usize], elig: &[Vec<usize>]) -> bool {
-        let ts: Vec<usize> = elig[p].iter().copied().filter(|&t| !seen[t]).collect();
-        for &t in &ts {
-            if held[t].len() < cap[t] {
-                held[t].push(p);
-                return true;
-            }
-        }
-        for &t in &ts {
-            if seen[t] {
-                continue;
-            }
-            seen[t] = true;
-            let mut i = 0;
-            while i < held[t].len() {
-                let q = held[t][i];
-                if augment(q, seen, held, cap, elig) {
-                    held[t][i] = p;
-                    return true;
-                }
-                i += 1;
-            }
-        }
-        false
-    }
-
-    let mut order: Vec<usize> = (0..players.len()).collect();
-    order.sort_by(|&a, &b| cmp_f64(vals[b], vals[a]));
-    let mut dead = vec![false; types.len()];
-    let mut filled = 0usize;
-    for p in order {
-        if filled >= slots.len() || vals[p] <= 0.0 {
-            break;
-        }
-        if elig[p].iter().all(|&t| dead[t]) {
-            continue;
-        }
-        let mut seen = dead.clone();
-        if augment(p, &mut seen, &mut held, &cap, &elig) {
-            filled += 1;
-        } else {
-            dead = seen;
-        }
-    }
-    held.iter().flat_map(|h| h.iter().map(|&i| players[i].cid.as_str())).collect()
+    let elig: Vec<u16> = players.iter().map(|p| spec.elig_mask(p)).collect();
+    let ids: Vec<Pid> = (0..players.len() as Pid).collect();
+    let held = greedy_assignment(&ids, &spec, &vals, &elig);
+    held.iter().flat_map(|h| h.iter().map(|&i| players[i as usize].cid.as_str())).collect()
 }
 
 // --------------------------------------------------------------------------- season length

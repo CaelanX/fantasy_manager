@@ -716,7 +716,7 @@ pub fn claims_cmd(cli: &mut Cli, a: &ClaimsArgs) -> Result<()> {
     let d = cli.load_all(&league, false, None)?;
     let lc = &d.lc;
     let dyn_values: Option<&Map<String, DynastyValue>> = d.dyn_values.as_ref();
-    let cp = plan_claims(lc, &d.values, dyn_values, Some(d.provider.as_ref()), &cli.now(), a.n, &cli.memo(), Some(cli.data_dir()))?;
+    let cp = plan_claims(lc, &d.values, dyn_values, Some(d.provider.as_ref()), &cli.now(), a.n, &cli.memo())?;
     if as_json {
         dump(&with_meta(to_json(&cp), lc));
         return Ok(());

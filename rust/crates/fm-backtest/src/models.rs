@@ -8,20 +8,19 @@
 //! Deviations from the Python:
 //! * `Model` is a trait; `get_models` returns boxed models. Python's `isinstance(m, (FmFitted,
 //!   FmMulti))` + `m.params = params` is [`Model::set_params`] (true for those two models).
-//! * `FmCurrent` and `group_means` need `valuate.baseline_rates` / `valuate.positional_means`,
-//!   whose Rust port (`fm_engine::valuation::valuate`, W4-valuate) is not available yet. The
-//!   no-projection path they use (a player carrying only `prior*` lines) is implemented here
-//!   directly on `PlayerSeason` rows ([`positional_means`], [`history_baseline_rates`]),
-//!   line for line from `valuate.py`; re-point once valuate lands.
+//! * `FmCurrent` and `group_means` go through `fm_engine::valuation::valuate`
+//!   (`positional_means`, `history_baseline`) on app-side `Player`s built by
+//!   `PlayerSeason::to_player`.
 
 use anyhow::{bail, Result};
-use fm_core::models::{Split, StatLine};
+use fm_core::models::{Player, Split, StatLine};
 use fm_core::Map;
 use fm_engine::scoring::PointsScoring;
 use fm_engine::valuation::blend::{
     multi_season_baseline, multi_season_sample, shrink_toward, MULTI_SEASON_WEIGHTS,
 };
 use fm_engine::valuation::params::{self, AgeYoy};
+use fm_engine::valuation::valuate;
 use serde_json::{json, Value};
 
 use crate::data::{prev_season, PlayerSeason, SeasonTable};
@@ -128,80 +127,30 @@ pub struct ProjectionContext<'a> {
 
 // --------------------------------------------------------------------------- valuate shims
 
-/// `valuate.position_group` of the app `Player` that `PlayerSeason.to_player` builds.
-fn position_group_of(r: &PlayerSeason) -> &'static str {
-    let pos = r.position.as_deref().unwrap_or(if r.is_goalie() { "G" } else { "C" });
-    match pos {
-        "G" => "G",
-        "D" => "D",
-        _ => "F",
-    }
-}
-
-fn min_gp_for_mean(group: &str) -> i64 {
-    if group == "G" {
-        10
-    } else {
-        20
-    }
-}
-
-/// `valuate.positional_means` over rows treated as `prior` lines: mean prior-season per-game
-/// rates by position group.
+/// The app's `positional_means` over `rows` treated as `prior` lines (mean prior-season per-game
+/// rates by position group): `valuate::positional_means` on the rows' app-side players.
 pub fn positional_means(rows: &[&PlayerSeason]) -> Map<String, Rates> {
-    let mut sums: Map<String, Rates> = Map::new();
-    let mut counts: Map<String, i64> = Map::new();
-    for r in rows {
-        let prior = r.statline(Split::Prior);
-        let g = position_group_of(r);
-        if prior.gp < min_gp_for_mean(g) {
-            continue;
-        }
-        *counts.entry(g.to_string()).or_insert(0) += 1;
-        let acc = sums.entry(g.to_string()).or_default();
-        for (k, v) in prior.per_game() {
-            let cur = acc.get(&k).copied().unwrap_or(0.0);
-            acc.insert(k, cur + v);
-        }
-    }
-    sums.into_iter()
-        .map(|(g, acc)| {
-            let n = counts[&g] as f64;
-            (g, acc.into_iter().map(|(k, v)| (k, v / n)).collect())
-        })
-        .collect()
+    let players: Vec<Player> =
+        rows.iter().map(|r| r.to_player(Split::Prior).expect("PlayerSeason.to_player")).collect();
+    let refs: Vec<&Player> = players.iter().collect();
+    valuate::positional_means(&refs)
 }
 
-/// `valuate.baseline_rates` for a player that carries only `prior` / `prior2` / `prior3` lines
-/// (no league projection, no current-season line): the multi-season history baseline
-/// (`history_baseline`); empty without prior games.
-pub fn history_baseline_rates(
-    group: &str,
-    lines: &[Option<StatLine>],
-    means: &Map<String, Rates>,
-    age: Option<f64>,
-) -> Rates {
-    let refs: Vec<Option<&StatLine>> = lines.iter().map(|l| l.as_ref()).collect();
-    if multi_season_sample(&refs, &MULTI_SEASON_WEIGHTS).is_none() {
-        return Rates::new();
-    }
-    let mut rates = multi_season_baseline(&refs, group, means, None);
-    let age_prev = age.map(|a| a - 1.0);
-    let f = params::age_factor(group, age_prev, None, None);
-    if (f - 1.0).abs() > 1e-9 {
-        rates = rates.into_iter().map(|(k, v)| (k, v * f)).collect();
-    }
-    rates
-}
-
-/// The app's `baseline_rates` of the player `latest.to_player("prior")` with lines `lines`.
+/// The app's `baseline_rates` of the player `latest.to_player("prior")` with lines `lines`
+/// (`prior` / `prior2` / `prior3`; no league projection, no current-season line): the
+/// multi-season history baseline; empty without prior games.
 pub fn app_baseline_rates(
     latest: &PlayerSeason,
     lines: &[Option<StatLine>],
     means: &Map<String, Rates>,
     age: Option<f64>,
 ) -> Rates {
-    history_baseline_rates(position_group_of(latest), lines, means, age)
+    let mut player = latest.to_player(Split::Prior).expect("PlayerSeason.to_player");
+    player.lines.clear();
+    for l in lines.iter().flatten() {
+        player.lines.insert(l.split.as_str().to_string(), l.clone());
+    }
+    valuate::history_baseline(&player, means, age).0
 }
 
 /// The app's `positional_means` over season `season`'s rows (as 'prior' lines).

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use fm_http::cache::ParamValue;
-use fm_http::tape::params_from_json;
+use fm_http::ParamValue;
+use fm_http::params_from_json;
 use fm_http::{cache_key, fxpa_key, CacheMiss, CachedResponse, FxpaFileCache, HttpCache, Params, Tape};
 use serde_json::{json, Value};
 

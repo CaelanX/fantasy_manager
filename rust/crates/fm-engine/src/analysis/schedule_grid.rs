@@ -284,7 +284,8 @@ pub fn week_rows(ctx: &LeagueContext, week_start: NaiveDate, threshold: i64, day
 
 // --------------------------------------------------------------------------- streaming
 
-fn group_of(p: &Player) -> &'static str {
+/// `schedule_grid._group`: G / D (a D with no forward position) / F.
+pub fn group_of(p: &Player) -> &'static str {
     if p.is_goalie() {
         return "G";
     }

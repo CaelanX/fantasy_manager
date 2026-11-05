@@ -42,6 +42,43 @@ pub struct PreseasonLine {
 }
 
 impl PreseasonLine {
+    /// `PreseasonLine.pts_per_game`.
+    pub fn pts_per_game(&self) -> f64 {
+        if self.gp != 0 {
+            self.stats.get("PTS").copied().unwrap_or(0.0) / self.gp as f64
+        } else {
+            0.0
+        }
+    }
+
+    /// `PreseasonLine.per_game()`: per-game rates ("GP" dropped); empty without games.
+    pub fn per_game(&self) -> Map<String, f64> {
+        if self.gp <= 0 {
+            return Map::new();
+        }
+        self.stats.iter().filter(|(k, _)| k.as_str() != "GP").map(|(k, v)| (k.clone(), v / self.gp as f64)).collect()
+    }
+
+    /// `PreseasonLine.summary()`: "4 GP: 5 G, 3 A, 8 PTS, 12 SOG, 2 PPP, 16.4 TOI".
+    pub fn summary(&self) -> String {
+        use fm_pycompat::fmt::fixed;
+        let s = &self.stats;
+        let g = |k: &str| fixed(s.get(k).copied().unwrap_or(0.0), 0, false);
+        let mut parts = vec![format!("{} G", g("G")), format!("{} A", g("A")), format!("{} PTS", g("PTS"))];
+        if s.contains_key("SOG") {
+            parts.push(format!("{} SOG", g("SOG")));
+        }
+        if s.contains_key("PPP") {
+            parts.push(format!("{} PPP", g("PPP")));
+        } else if s.contains_key("PPG") {
+            parts.push(format!("{} PPG", g("PPG")));
+        }
+        if let Some(t) = self.toi_per_game() {
+            parts.push(format!("{} TOI", fixed(t, 1, false)));
+        }
+        format!("{} GP: {}", self.gp, parts.join(", "))
+    }
+
     /// Minutes per game (games with a TOI value only).
     pub fn toi_per_game(&self) -> Option<f64> {
         if self.toi_games > 0 {

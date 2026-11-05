@@ -75,77 +75,9 @@ impl CachedResponse {
 }
 
 /// `json.dumps(value, sort_keys=...)` with Python's defaults (", " / ": " separators,
-/// ensure_ascii). Private so the cache keys do not depend on `fm_pycompat::pyjson` landing.
+/// ensure_ascii): [`fm_pycompat::pyjson::dumps`].
 pub(crate) fn py_dumps(v: &Value, sort_keys: bool) -> String {
-    let mut out = String::new();
-    dump_into(v, sort_keys, &mut out);
-    out
-}
-
-fn dump_str(s: &str, out: &mut String) {
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\u{8}' => out.push_str("\\b"),
-            '\u{c}' => out.push_str("\\f"),
-            ' '..='~' => out.push(c),
-            _ => {
-                let mut buf = [0u16; 2];
-                for u in c.encode_utf16(&mut buf) {
-                    out.push_str(&format!("\\u{:04x}", u));
-                }
-            }
-        }
-    }
-    out.push('"');
-}
-
-fn dump_into(v: &Value, sort_keys: bool, out: &mut String) {
-    match v {
-        Value::Null => out.push_str("null"),
-        Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
-        Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                out.push_str(&i.to_string());
-            } else if let Some(u) = n.as_u64() {
-                out.push_str(&u.to_string());
-            } else {
-                out.push_str(&fm_pycompat::fmt::repr_f64(n.as_f64().unwrap_or(f64::NAN)));
-            }
-        }
-        Value::String(s) => dump_str(s, out),
-        Value::Array(a) => {
-            out.push('[');
-            for (i, x) in a.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                dump_into(x, sort_keys, out);
-            }
-            out.push(']');
-        }
-        Value::Object(m) => {
-            out.push('{');
-            let mut entries: Vec<(&String, &Value)> = m.iter().collect();
-            if sort_keys {
-                entries.sort_by(|a, b| a.0.cmp(b.0));
-            }
-            for (i, (k, x)) in entries.into_iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                dump_str(k, out);
-                out.push_str(": ");
-                dump_into(x, sort_keys, out);
-            }
-            out.push('}');
-        }
-    }
+    fm_pycompat::pyjson::dumps(v, &fm_pycompat::pyjson::DumpOpts { sort_keys, ..Default::default() })
 }
 
 pub(crate) fn sha256_hex(s: &str) -> String {

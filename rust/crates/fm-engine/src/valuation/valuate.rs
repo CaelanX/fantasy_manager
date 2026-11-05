@@ -252,42 +252,6 @@ pub struct RatesOut {
     pub estimate: Option<RookieEstimate>,
 }
 
-/// `PreseasonLine.per_game()`.
-pub fn preseason_per_game(line: &PreseasonLine) -> Rates {
-    if line.gp <= 0 {
-        return Rates::new();
-    }
-    line.stats.iter().filter(|(k, _)| k.as_str() != "GP").map(|(k, v)| (k.clone(), v / line.gp as f64)).collect()
-}
-
-/// `PreseasonLine.pts_per_game`.
-pub fn preseason_pts_per_game(line: &PreseasonLine) -> f64 {
-    if line.gp != 0 {
-        line.stats.get("PTS").copied().unwrap_or(0.0) / line.gp as f64
-    } else {
-        0.0
-    }
-}
-
-/// `PreseasonLine.summary()`: '4 GP: 5 G, 3 A, 8 PTS, 12 SOG, 2 PPP, 16.4 TOI'.
-pub fn preseason_summary(line: &PreseasonLine) -> String {
-    let s = &line.stats;
-    let g = |k: &str| fixed(s.get(k).copied().unwrap_or(0.0), 0, false);
-    let mut parts = vec![format!("{} G", g("G")), format!("{} A", g("A")), format!("{} PTS", g("PTS"))];
-    if s.contains_key("SOG") {
-        parts.push(format!("{} SOG", g("SOG")));
-    }
-    if s.contains_key("PPP") {
-        parts.push(format!("{} PPP", g("PPP")));
-    } else if s.contains_key("PPG") {
-        parts.push(format!("{} PPG", g("PPG")));
-    }
-    if let Some(toi) = line.toi_per_game() {
-        parts.push(format!("{} TOI", fixed(toi, 1, false)));
-    }
-    format!("{} GP: {}", line.gp, parts.join(", "))
-}
-
 /// `_rates_for(p, means, scoring, age, params, history, explain, preseason, rookie)`.
 #[allow(clippy::too_many_arguments)]
 pub fn rates_for(
@@ -325,7 +289,7 @@ pub fn rates_for(
     if let Some(pre) = preseason.filter(|_| !p.is_goalie() && !base_rates.is_empty()) {
         pre_w = preseason_weight(pre.gp, gp);
         if pre_w > 0.0 {
-            let blended = blend_preseason(&base_rates, &preseason_per_game(pre), pre_w, &PRESEASON_STATS);
+            let blended = blend_preseason(&base_rates, &pre.per_game(), pre_w, &PRESEASON_STATS);
             pre_base = Some(std::mem::replace(&mut base_rates, blended));
         }
     }
@@ -520,8 +484,8 @@ fn preseason_reason(
     season_gp: i64,
     scoring: &dyn ScoringSystem,
 ) -> Reason {
-    let ppg = preseason_pts_per_game(line);
-    let mut text = format!("Preseason {} ({} PTS/GP)", preseason_summary(line), fixed(ppg, 2, false));
+    let ppg = line.pts_per_game();
+    let mut text = format!("Preseason {} ({} PTS/GP)", line.summary(), fixed(ppg, 2, false));
     match before {
         Some(before) if w > 0.0 => {
             text += &format!(

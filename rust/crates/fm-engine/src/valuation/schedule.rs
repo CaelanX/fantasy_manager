@@ -790,6 +790,11 @@ impl ScheduleMemo {
         ScheduleMemo { data_dir, ..Default::default() }
     }
 
+    /// An empty memo with the same odds data dir: Python's `_CTX_MEMO` entry of a new context.
+    pub fn fresh(&self) -> ScheduleMemo {
+        ScheduleMemo::new(self.data_dir.clone())
+    }
+
     /// `memo_window(ctx)`: [`context_window`] cached per (as_of, season start, schedule size).
     pub fn window(&self, ctx: &LeagueContext) -> Option<WeekWindow> {
         let k = (ctx.as_of, ctx.season_start, ctx.schedule.len(), ctx.games_per_day.len());

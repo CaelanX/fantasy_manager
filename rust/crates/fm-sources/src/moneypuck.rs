@@ -13,6 +13,8 @@ use chrono::{Datelike, NaiveDate};
 use fm_core::Map;
 use fm_http::{FetchText, HttpCache, Params};
 
+use crate::nhl::map_position;
+
 pub const CREDIT: &str = "Expected goals: MoneyPuck.com";
 pub const DATA_URL: &str = "https://moneypuck.com/data.htm";
 pub const BASE_URL: &str = "https://moneypuck.com/moneypuck/playerData/seasonSummary";
@@ -96,7 +98,7 @@ pub fn default_fetch_text(url: &str, params: &Params, _ttl: f64) -> Result<Strin
     let q: Vec<(&str, &str)> = params
         .iter()
         .filter_map(|(k, v)| match v {
-            fm_http::cache::ParamValue::Str(s) => Some((k.as_str(), s.as_str())),
+            fm_http::ParamValue::Str(s) => Some((k.as_str(), s.as_str())),
             _ => None,
         })
         .collect();
@@ -197,23 +199,6 @@ fn team(code: Option<&str>) -> Option<String> {
     } else {
         Some(fixed.to_string())
     }
-}
-
-/// `nhl.map_position` (private copy: C/L/LW/R/RW/D/G -> C/LW/RW/D/G).
-fn map_position(code: Option<&str>) -> Option<String> {
-    let c = code?;
-    if c.is_empty() {
-        return None;
-    }
-    match c.trim().to_uppercase().as_str() {
-        "C" => Some("C"),
-        "L" | "LW" => Some("LW"),
-        "R" | "RW" => Some("RW"),
-        "D" => Some("D"),
-        "G" => Some("G"),
-        _ => None,
-    }
-    .map(str::to_string)
 }
 
 // --------------------------------------------------------------------------- rows

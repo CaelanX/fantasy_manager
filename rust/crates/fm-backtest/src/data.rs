@@ -281,7 +281,7 @@ pub fn ttl_for(today: NaiveDate, params: &Params) -> f64 {
         .iter()
         .find(|(k, _)| k == "cayenneExp")
         .map(|(_, v)| match v {
-            fm_http::cache::ParamValue::Str(s) => s.clone(),
+            fm_http::ParamValue::Str(s) => s.clone(),
             _ => String::new(),
         })
         .unwrap_or_default();

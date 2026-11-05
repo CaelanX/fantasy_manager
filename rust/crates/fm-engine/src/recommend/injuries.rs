@@ -11,8 +11,6 @@
 //! * The clock (`now`) and the schedule memo are explicit (they are passed to the waiver engine,
 //!   which the IR-move step reruns on a copy of the context: `LeagueContext::clone`, cheap since
 //!   `enrich` is an `Arc`).
-//! * `valuation.adjust._games_remaining` is private in the Rust valuation module, so a local copy
-//!   ([`games_remaining`]) is used.
 //! * `StatusHistory.record(players, when=None)` takes `when: Option<f64>` (None / 0 = now).
 
 use std::path::{Path, PathBuf};
@@ -37,7 +35,7 @@ use crate::recommend::base::{
 };
 use crate::recommend::strength::{apply_ranks, apply_strength, IR_FLOOR};
 use crate::recommend::waivers::{recommend_waivers, WaiverOpts, DYNASTY_MIN_RATIO};
-use crate::valuation::adjust::{season_availability, SEASON_DAYS, SEASON_GAMES};
+use crate::valuation::adjust::{games_remaining, season_availability};
 use crate::valuation::schedule::ScheduleMemo;
 
 pub const IR_ELIGIBLE: [&str; 3] = ["ir", "ltir", "out"];
@@ -179,25 +177,6 @@ fn pos_text(p: &Player) -> String {
 
 fn healthy_like(p: &Player) -> bool {
     p.status.is_in(&["healthy", "unknown", "dtd"])
-}
-
-/// `valuation.adjust._games_remaining` (private there).
-pub fn games_remaining(as_of: NaiveDate, team_dates: Option<&[NaiveDate]>, season_start: Option<NaiveDate>) -> f64 {
-    if let Some(ds) = team_dates.filter(|d| !d.is_empty()) {
-        let mut v = ds.to_vec();
-        v.sort();
-        v.dedup();
-        let n = v.iter().filter(|d| **d >= as_of).count();
-        if n != 0 {
-            return n as f64;
-        }
-    }
-    match season_start {
-        Some(s) if as_of > s => {
-            (SEASON_GAMES as f64 * (1.0 - (as_of - s).num_days() as f64 / SEASON_DAYS as f64)).max(1.0)
-        }
-        _ => SEASON_GAMES as f64,
-    }
 }
 
 /// (best add, the waiver rec it came from or None for the open-spot fallback). Only no-drop adds

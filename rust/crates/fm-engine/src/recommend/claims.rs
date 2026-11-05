@@ -285,8 +285,8 @@ fn pick(
     Ok(None)
 }
 
-/// The ordered claim list (module docstring). `memo` is `ctx`'s schedule memo; `data_dir` (the
-/// settings data dir, odds archive) seeds the fresh memos of the processed rosters.
+/// The ordered claim list (module docstring). `memo` is `ctx`'s schedule memo (its odds data dir
+/// seeds the fresh memos of the processed rosters).
 #[allow(clippy::too_many_arguments)]
 pub fn plan_claims(
     ctx: &LeagueContext,
@@ -296,7 +296,6 @@ pub fn plan_claims(
     now: &PyDateTime,
     limit: usize,
     memo: &ScheduleMemo,
-    data_dir: Option<&std::path::Path>,
 ) -> Result<ClaimPlan, CoreError> {
     let (rules, priority) = rule_lines(ctx, provider);
     let mut plan = ClaimPlan { league: ctx.provider.clone(), rules, priority, moves_left: None, claims: vec![], notes: vec![] };
@@ -327,7 +326,7 @@ pub fn plan_claims(
         let claim = add.waiver_until.is_some_and(|wu| wu >= ctx.as_of);
         let effective = earliest(w, add, now);
         let after = apply(w, add, drop, to_ir);
-        let after_memo = ScheduleMemo::new(data_dir.map(|d| d.to_path_buf()));
+        let after_memo = memo.fresh();
         let mut item = ClaimItem {
             order: k as i64 + 1,
             kind: if claim { "claim" } else { "free agent" }.to_string(),
@@ -443,7 +442,7 @@ mod tests {
         let mut c = ctx.clone();
         let w: Map<String, f64> = [("G".to_string(), 1.0)].into_iter().collect();
         let values = valuate_league(&mut c, &PointsScoring::new(w, None));
-        plan_claims(ctx, &values, None, None, &now0(), CLAIM_LIMIT, &ScheduleMemo::new(None), None).unwrap()
+        plan_claims(ctx, &values, None, None, &now0(), CLAIM_LIMIT, &ScheduleMemo::new(None)).unwrap()
     }
 
     fn fas() -> Vec<Player> {

@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use anyhow::{anyhow, Result};
 use chrono::{Datelike, Duration, NaiveDate};
 use fm_core::{Map, PyDateTime};
-use fm_http::cache::ParamValue;
+use fm_http::ParamValue;
 use fm_http::{FetchJson, HttpCache, Params};
 use fm_pycompat::num::round_to;
 use regex::Regex;

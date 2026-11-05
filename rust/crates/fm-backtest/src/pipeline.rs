@@ -20,7 +20,7 @@ use anyhow::{anyhow, Result};
 use chrono::{NaiveDate, NaiveDateTime};
 use fm_core::Map;
 use fm_engine::valuation::blend::{k_baseline_snapshot, k_inseason_snapshot, recency_weights_snapshot};
-use fm_engine::valuation::params::dynasty_age_curves;
+use fm_engine::valuation::dynasty::ProductionCurves;
 use fm_http::HttpCache;
 use fm_pycompat::num::round_to;
 use fm_pycompat::pyjson::{dumps, DumpOpts};
@@ -58,15 +58,11 @@ pub fn packaged_params_path() -> String {
 /// `blend.K_BASELINE` etc. as the report's [`AppConstants`] (`dynasty.PRODUCTION_CURVES`: F / D
 /// from the packaged fit, G hand-set).
 pub fn app_constants() -> AppConstants {
-    let mut curves = dynasty_age_curves(None);
-    let g: Vec<(f64, f64)> = vec![(18.0, 0.55), (20.0, 0.65), (22.0, 0.75), (24.0, 0.85), (27.0, 1.0), (32.0, 1.0), (34.0, 0.85), (36.0, 0.70)];
+    let c = ProductionCurves::current();
     let mut production: Map<String, Vec<(f64, f64)>> = Map::new();
-    for grp in ["F", "D"] {
-        if let Some(c) = curves.swap_remove(grp) {
-            production.insert(grp.to_string(), c);
-        }
-    }
-    production.insert("G".to_string(), g);
+    production.insert("F".to_string(), c.f);
+    production.insert("D".to_string(), c.d);
+    production.insert("G".to_string(), c.g);
     AppConstants {
         k_baseline: k_baseline_snapshot().clone(),
         k_inseason: k_inseason_snapshot().clone(),

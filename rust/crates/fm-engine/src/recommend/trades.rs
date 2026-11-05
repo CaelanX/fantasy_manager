@@ -44,7 +44,7 @@ pub use accept::{
 };
 pub use engine::{dyn_weight, dynasty_scale, fairness, me_weight, season_weight, trade_values, EngineOpts, TradeData, TradeEngine, TradeEval};
 pub use exploit::{exploit_opportunities, exploit_text, relieves, team_pressures, Pressure};
-pub use greedy::{eligible, starting_slots};
+pub use greedy::{eligible, greedy_assignment, starting_slots, Held, Pid, SlotSpec};
 pub use need::{find_needs, pitch_of, pitch_text, recommend_need_trades, Need, OutlookView};
 pub use offer::{
     evaluate_offer, evaluate_trade, find_pick, find_players, find_team, offer_summary, pick_assets, trade_block_offered,
