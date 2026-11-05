@@ -136,3 +136,13 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - W11 check: ESPN injury refresh via `HttpCache::get_json` passes no headers/cookies; confirm cache key matches Python's.
 - Report golden: `FM_PARITY_FIXTURES/_w9_golden/report.json` (rust/parity/dump_report.py).
 
+
+## Hand-offs (from W9-web-views) -> W10-web-app
+- Reuse `fm_web::views::LoadResult` (carries now/today/data_dir/matchup_seed + typed Memo); don't redefine it.
+- Mark `charts::line_chart`/`legend` output and health chart `svg`/`legend` strings as safe HTML in minijinja.
+- `views::provider_for` not ported: W10 supplies the provider.
+- Templates call `date.strftime` / `date.isoformat` on ISO date strings: provide them in the template env.
+- `trade_eval_page` non-CoreError failures panic: catch at the route (Python had try/except).
+- Web views golden: `FM_PARITY_FIXTURES/_w9_golden/<league>.json` + `charts.json` (rust/parity/dump_web_views.py; needs offline cache.db).
+- KNOWN GAP being fixed (WFIX-picks): Fantrax keeper `trades::pick_assets` values ~0.1% off Python; web views test uses 0.5% tolerance on my_picks/their_picks/need_trades until fixed -> tighten to 1e-9 after.
+
