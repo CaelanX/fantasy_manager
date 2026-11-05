@@ -46,3 +46,10 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - fm-harness/src/ingest.rs: local `archive_dir` / `load_snapshot`; re-point to fm_engine::archive (W5-archive-outcomes owns that; tell it).
 - `pull_lineups` picks the ESPN path by `provider.name() == "espn"`.
 
+
+## For W4-valuate (from W3-valuation-schedule)
+- Pass `settings.data_dir` into `ScheduleMemo::new(Some(dir))` / `odds_fn` to get betting odds; `None` = no odds (goals-against fallback).
+- `ScheduleMemo` (Send+Sync) replaces Python's `_CTX_MEMO`; opponent table keyed by (as_of, opponents.len(), schedule.len()).
+- Not yet parity-checked against the snapshot (needs valuate): TEAMMATE_OUT base shares, ROOKIE_BLEND rates/FPG text. Make values.json parity cover them.
+- `rookie_value(p, prior, signals, RookieInputs)`; signals are `&[impl AsSignal]`.
+
