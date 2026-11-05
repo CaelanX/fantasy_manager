@@ -109,3 +109,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - W10 CLI/web: `recommend_trades(ctx, values, &TradeOpts{..}, future_only, sweet_spot)`; `exploit_opportunities(ctx, values, &opts, EXPLOIT_N, EXPLOIT_PER_TEAM)`; trade-eval = `evaluate_offer` + `offer_summary` with `find_players`/`find_team`/`find_pick`; trade blocks `trade_block_wants(ctx, &extras.trade_blocks)`.
 - Timing (release, 16 threads): recommend_trades ESPN 21.5s -> 46ms, Fantrax 19.7s -> 103ms; need trades 10.9s -> 29ms / 8.6s -> 70ms. `cargo bench -p fm-engine --bench trades`.
 
+
+## From W8-outlook-playoffs-calib
+- W11: make `trades::greedy` `greedy_assignment` (+ `SlotSpec`, `Held`) pub/re-exported; drop `outlook.rs::greedy_starters` copy.
+- Matchup-calibration golden: `FM_PARITY_FIXTURES/_w8_golden/matchup_calib.json` from rust/parity/dump_matchup_calib.py (synthetic rows; fixture harness.db has none).
+- `fm_report::health::data_health(ctx, now)` exists (web footer / digest).
+

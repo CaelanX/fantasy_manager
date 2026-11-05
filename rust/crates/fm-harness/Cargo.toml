@@ -25,6 +25,7 @@ hex.workspace = true
 rayon.workspace = true
 tempfile.workspace = true
 regex.workspace = true
+libm = "0.2.16"
 
 [dev-dependencies]
 pretty_assertions.workspace = true

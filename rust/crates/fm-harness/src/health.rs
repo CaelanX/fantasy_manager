@@ -6,8 +6,7 @@
 //! Deviations:
 //! * The clock is a parameter: `capture` / `extend_league` / `full_report` take `now` (Python
 //!   read `datetime.now()`), `calendar` / `full_report` take `today`.
-//! * `capture`'s matchup-SD warning needs `harness::matchup_calib` (W8-outlook-playoffs-calib, not
-//!   ported yet): [`matchup_warning`] returns None until it is.
+//! * `capture`'s matchup-SD warning comes from `harness::matchup_calib` ([`matchup_warning`]).
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
@@ -425,9 +424,17 @@ pub fn capture(ledger: &Ledger, league: &str, now: NaiveDateTime) -> Result<Valu
 }
 
 /// A capture warning when the fitted matchup SD scale says the win probabilities are mis-sized.
-/// `harness::matchup_calib` (W8-outlook-playoffs-calib) is not ported yet: None.
-pub fn matchup_warning(_ledger: &Ledger, _league: &str) -> Option<String> {
-    None
+pub fn matchup_warning(ledger: &Ledger, league: &str) -> Option<String> {
+    use crate::matchup_calib::{calibration_report, summary_line, MIN_MATCHUPS};
+    let rep = calibration_report(ledger, league, MIN_MATCHUPS).ok()?;
+    let sc = rep.get("scale").filter(|s| s.is_object())?;
+    let verdict = sc.get("verdict").and_then(|v| v.as_str()).unwrap_or("");
+    if verdict == "about right" {
+        return None;
+    }
+    let line = summary_line(&rep);
+    let tail = line.split_once(": ").map_or("", |x| x.1);
+    Some(format!("Matchup win probabilities look {verdict}: {tail}"))
 }
 
 // --------------------------------------------------------------------------- params

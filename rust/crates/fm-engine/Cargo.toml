@@ -26,6 +26,7 @@ rusqlite.workspace = true
 sha1.workspace = true
 hex.workspace = true
 tempfile.workspace = true
+libm = "0.2.16"
 
 [dev-dependencies]
 pretty_assertions.workspace = true

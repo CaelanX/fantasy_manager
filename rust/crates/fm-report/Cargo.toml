@@ -21,6 +21,7 @@ thiserror.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 reqwest.workspace = true
+regex.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true

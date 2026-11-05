@@ -6,8 +6,8 @@
 //! Deviations:
 //! * Rows / reports are JSON maps (`Row` / `Value`) with Python's key order.
 //! * `grade_week`'s shadow-scoring error text is `"Error: <message>"` (no Python exception type).
-//! * `league_report.matchup_calibration` comes from [`matchup_calibration`], which returns `None`
-//!   until `harness::matchup_calib` (W8-outlook-playoffs-calib) is ported; re-point it then.
+//! * `league_report.matchup_calibration` comes from [`matchup_calibration`]
+//!   (`harness::matchup_calib::calibration_report`, `None` on a failure).
 //! * Python `sum(floats)` is `py_sum` wherever Python used the builtin `sum`; explicit `+=` loops
 //!   (the bootstrap) stay plain loops.
 
@@ -1069,9 +1069,8 @@ pub fn league_report(ledger: &Ledger, league: &str) -> Result<Value> {
 }
 
 /// `harness.matchup_calib.calibration_report` (None on a failure: never breaks the bar).
-/// `harness::matchup_calib` belongs to W8-outlook-playoffs-calib and is not ported yet: None.
-pub fn matchup_calibration(_ledger: &Ledger, _league: &str) -> Option<Value> {
-    None
+pub fn matchup_calibration(ledger: &Ledger, league: &str) -> Option<Value> {
+    crate::matchup_calib::calibration_report(ledger, league, crate::matchup_calib::MIN_MATCHUPS).ok()
 }
 
 pub fn known_leagues(ledger: &Ledger) -> Result<Vec<String>> {
