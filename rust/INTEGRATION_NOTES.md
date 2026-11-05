@@ -72,3 +72,11 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - `value_picks` takes `Option<&Map<Cid, DynastyValue>>` (DynastyValue objects, not floats).
 - Hot loops elsewhere: build `ProductionCurves` once instead of calling `dynasty::trajectory_factor`/`growth_ratio` repeatedly.
 
+
+## Hand-offs (from W5-archive-outcomes, W5-recommend-base)
+- Archive writers need the clock: `archive_projections`/`archive_recommendations` take `now`; recs also `as_of` (W8 plan code, CLI).
+- `fm backtest score` -> `fm_harness::outcomes::score_archive(..)` (W10-cli-ops).
+- `DynastyChange<'a>` borrows `&Player` (kept_in/kept_out); `MarketPool<'a>` is immutable + Sync (safe for rayon in the trade search).
+- `game_rate` returns `Result<GameRate, CoreError>`; `streaming_targets(ctx, values, week_start, &StreamingOpts)`.
+- ESPN calendar needs `provider.espn_league()` populated.
+

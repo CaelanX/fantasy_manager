@@ -97,42 +97,8 @@ fn s_of<'a>(v: &'a Value, k: &str) -> Option<&'a str> {
     v.get(k).and_then(|x| x.as_str())
 }
 
-/// `<data_dir>/archive` (created).
-pub fn archive_dir(data_dir: &Path) -> Result<PathBuf> {
-    let p = data_dir.join("archive");
-    std::fs::create_dir_all(&p)?;
-    Ok(p)
-}
-
-/// Read an archive file (v1, v2 or v3); v2-only keys are filled with null / [] for v1 files.
-pub fn load_snapshot(path: &Path) -> Result<Value> {
-    let mut data: Value = serde_json::from_str(&std::fs::read_to_string(path)?)?;
-    let obj = data.as_object_mut().ok_or_else(|| anyhow!("{}: not a JSON object", path.display()))?;
-    obj.entry("version").or_insert(json!(1));
-    obj.entry("params_hash").or_insert(Value::Null);
-    obj.entry("code_hash").or_insert(Value::Null);
-    if obj.contains_key("players") {
-        obj.entry("position_means").or_insert(Value::Null);
-    }
-    if let Some(Value::Array(players)) = obj.get_mut("players") {
-        for rec in players.iter_mut() {
-            if let Some(o) = rec.as_object_mut() {
-                o.entry("inputs").or_insert(Value::Null);
-            }
-        }
-    }
-    if let Some(Value::Array(recs)) = obj.get_mut("recommendations") {
-        for rec in recs.iter_mut() {
-            if let Some(o) = rec.as_object_mut() {
-                for k in ["predicted_gain", "gain_units", "horizon_days", "strength"] {
-                    o.entry(k).or_insert(Value::Null);
-                }
-                o.entry("subjects").or_insert(json!([]));
-            }
-        }
-    }
-    Ok(data)
-}
+// Archive paths and reader: shared with the writer in fm-engine.
+pub use fm_engine::archive::{archive_dir, load_snapshot};
 
 /// (kind, league, day, path) of every archive file, projections before recs per day.
 pub fn archive_files(
