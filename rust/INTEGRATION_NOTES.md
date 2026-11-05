@@ -60,3 +60,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - CLI (W10-cli-ops) must pass `now`/`today` and `Arc<HttpCache>` to `run_fit`/`run_evaluation`/`refresh_data`/`run_xg_backtest`.
 - xG backtest parity test needs `FM_XG_CACHE_DIR` = C:\Users\caela\.claude\jobs\e681cc9d\tmp\xgdata (MoneyPuck 2018-2025 CSVs).
 
+
+## Perf follow-up (from W4-enrich) -> W5-provider-pipeline / W11
+- Enrichment network fan-out is still sequential: independent fetch steps (NHL stats seasons, Daily Faceoff teams, MoneyPuck CSVs, news feeds, injuries) can run concurrently (rayon scope or threads; results merged in Python's order). Biggest live-load win.
+- Optional: record `fetched_at` per tape response so freshness notes are checkable in parity.
+- Deployment-ledger `fetched_at` treats naive timestamps as chrono::Local (machine timezone).
+
