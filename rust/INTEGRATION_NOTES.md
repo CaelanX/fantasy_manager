@@ -153,3 +153,7 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - CLI parity tests run the prebuilt `target/<profile>/fm.exe` (or `FM_BIN`): `cargo build -p fm-cli` before `cargo test -p fm-parity`. W11: give fm-cli a lib target or bindeps.
 - `fm web`/`web-export` in `cmd_admin.rs` are placeholders: W10-web-app owns wiring those two functions.
 
+
+## For W11 (from WFIX-picks)
+- Pick-value 'gap' is a golden artifact: `rust/parity/dump_web_views.py` (~line 250) pops `rookie` from values.json, so Python's fresh apply_dynasty skips rookie-confidence scaling. Fix: keep `rookie` (rebuild RookieEstimate), regenerate `_w9_golden`, then remove the 5e-3 branch in `rust/crates/fm-web/tests/views.rs` lines 64-70 (fantrax `_picks`/`need_trades`). Engine verified correct (3.382065850317684 on all paths).
+

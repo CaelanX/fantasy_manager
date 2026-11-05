@@ -727,6 +727,36 @@ fn keeper_trade_values() {
 }
 
 #[test]
+fn keeper_pick_values_use_float_v_and_fresh_keeper_flags() {
+    // Python's engine passes plain floats V into value_picks: slots come from V, the keeper pool
+    // (flags, ages, rookie confidence) from a fresh `apply_dynasty(values, ctx)`, not from the
+    // supplied DynastyValue objects.
+    let (mut ctx, values, dyn_) = trade_league(Some(2), false, false);
+    for (tid, orig) in [("me", "A"), ("A", "me")] {
+        let rounds: Vec<serde_json::Value> = (1..=3).map(|r| json!({"round": r, "original_owner": orig})).collect();
+        let by_year: Map<i64, Vec<fm_core::models::DraftPickRef>> =
+            [(2027, serde_json::from_value(json!(rounds)).unwrap())].into_iter().collect();
+        ctx.draft_picks.insert(tid.to_string(), by_year);
+    }
+    let got = pick_assets(&ctx, &values, Some(&dyn_));
+    let (v, units, _) = trade_values(&ctx, &values, Some(&dyn_));
+    assert_eq!(units, "dynasty");
+    let mut fresh = crate::valuation::dynasty::apply_dynasty(&values, &ctx, None, None);
+    for (c, d) in fresh.iter_mut() {
+        d.value = v[c];
+    }
+    let want = crate::valuation::picks::picks_by_holder(crate::valuation::picks::value_picks(&ctx, &values, Some(&fresh)));
+    assert!(!got.is_empty());
+    assert_eq!(got.len(), want.len());
+    for (h, ps) in &want {
+        for (a, b) in ps.iter().zip(&got[h]) {
+            assert_eq!((a.year, a.round, &a.original), (b.year, b.round, &b.original));
+            assert!((a.value - b.value).abs() < 1e-9 && (a.net - b.net).abs() < 1e-9, "{} vs {}", a.value, b.value);
+        }
+    }
+}
+
+#[test]
 fn keeper_roster_spot_costs_this_season_only() {
     let (mut ctx, values, dyn_) = trade_league(Some(2), false, false);
     ctx.roster_shape.insert("BN".into(), 4);
