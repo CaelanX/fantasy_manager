@@ -28,3 +28,10 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - fm-backtest/src/scoring.rs `PointsScorer` duplicates `fm_engine::scoring::PointsScoring` (now real): re-export instead.
 - fm-harness/src/ledger.rs private `json_dumps` -> `fm_pycompat::pyjson::dumps`.
 - `write_report` writes LF; Python on Windows writes CRLF (decide; LF is fine unless byte-compat needed).
+
+## For W4-enrich (from W2-news-odds-llm, W2-nhl-matching)
+- Map `FM_NEWS_ROLES_LLM=0` to `llm=None`; pass `now` explicitly into `extract_role_signals` / `refine_with_llm` / news store functions (clock is a parameter in the Rust port).
+- Install `providers.enrich.ttl_for` into the NHL client with `NhlClient::with_ttl_for` (`cached_nhl_fetch(Arc<HttpCache>)` wires the cache).
+- News fetch callback is a 2-arg `FetchText(url, params)` in fm-sources/news.rs (not fm_http::FetchText).
+## Cleanup (W11), more
+- fm-http: re-export `ParamValue` (and `tape::params_from_json`) at the crate root.
