@@ -86,3 +86,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - Web refresh: `load_base` + `install_params(settings)`; `finish` (advise) belongs to W10.
 - `FM_FETCH_WORKERS` (default 12; 1 = sequential). Live cold enrich ESPN: >=99.6s sequential -> 20.7s concurrent; offline pipeline ~1.9s -> ~0.9s/league.
 
+
+## Hand-offs (from W6-lineup-waivers)
+- Callers (W7 trades, W8 plan/claims, matchup, playoffs, CLI, web) pass `now: &PyDateTime` and a `ScheduleMemo` into `recommend_lineup`/`daily_plan`/waivers/`goalie_week`. Use `lineup::dp`/`dp_idx` for Python `_dp` and `lineup_lock::lock` for `_lock`.
+- goalie_week parity goldens: set `FM_W6_GOLDEN_DIR` = C:\Users\caela\.claude\jobs\e681cc9d\fixtures\_w6_golden (generator: rust/parity/dump_goalie_week.py). W11: fold into dump_fixtures as `<league>/analysis/goalie_week.json`.
+- Timing: ESPN matchup waivers Python ~9-11s -> Rust 0.05-0.12s; Fantrax ~4s -> 0.03-0.05s.
+
