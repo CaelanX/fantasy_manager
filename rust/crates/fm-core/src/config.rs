@@ -1,9 +1,9 @@
 //! `config.py`: runtime settings from the environment / `.env`. The struct is COMPLETE;
-//! `Settings::load` is implemented by work package `W2-core-runtime`.
+//! `Settings::load` is implemented by work package `W1-core-runtime`.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::{Datelike, NaiveDate};
 
@@ -196,7 +196,143 @@ impl Settings {
     /// case-insensitive names, empty values ignored, unknown keys ignored; bools accept
     /// 1/0/true/false/yes/no/on/off/t/f/y/n; `fantrax_mode` stripped + lowercased;
     /// `fantrax_points` via `parse_points`; `espn_year` defaulted from `today`.
-    pub fn load(_today: NaiveDate) -> anyhow::Result<Settings> {
-        todo!("W2-core-runtime")
+    pub fn load(today: NaiveDate) -> anyhow::Result<Settings> {
+        let env: Vec<(String, String)> = std::env::vars_os()
+            .filter_map(|(k, v)| Some((k.into_string().ok()?, v.into_string().ok()?)))
+            .collect();
+        Settings::load_from(today, Some(Path::new(".env")), env)
+    }
+
+    /// `load` with an explicit env file (`Settings(_env_file=...)`; a missing file is fine) and
+    /// explicit process-env pairs. Env values override the file's; empty values are ignored in
+    /// both (`env_ignore_empty`).
+    pub fn load_from(
+        today: NaiveDate,
+        env_file: Option<&Path>,
+        env: impl IntoIterator<Item = (String, String)>,
+    ) -> anyhow::Result<Settings> {
+        let mut vals: HashMap<String, String> = HashMap::new();
+        if let Some(path) = env_file {
+            if path.is_file() {
+                for item in dotenvy::from_path_iter(path)? {
+                    let (k, v) = item?;
+                    if !v.is_empty() {
+                        vals.insert(k.to_lowercase(), v);
+                    }
+                }
+            }
+        }
+        for (k, v) in env {
+            if !v.is_empty() {
+                vals.insert(k.to_lowercase(), v);
+            }
+        }
+        Settings::from_values(today, &vals)
+    }
+
+    fn from_values(today: NaiveDate, vals: &HashMap<String, String>) -> anyhow::Result<Settings> {
+        let mut s = Settings::default();
+        let mut fs: BTreeSet<String> = BTreeSet::new();
+        let mut get = |name: &str| -> Option<String> {
+            let v = vals.get(name).cloned();
+            if v.is_some() {
+                fs.insert(name.to_string());
+            }
+            v
+        };
+        let secret = |v: Option<String>| v.map(Secret::new);
+
+        s.espn_league_id = get("espn_league_id").map(|v| parse_int("espn_league_id", &v)).transpose()?;
+        s.espn_year = get("espn_year").map(|v| parse_int("espn_year", &v)).transpose()?;
+        s.espn_s2 = secret(get("espn_s2"));
+        s.espn_swid = secret(get("espn_swid"));
+        s.espn_team = get("espn_team");
+        s.fantrax_league_id = get("fantrax_league_id");
+        s.fantrax_cookie = secret(get("fantrax_cookie"));
+        s.fantrax_username = secret(get("fantrax_username"));
+        s.fantrax_password = secret(get("fantrax_password"));
+        s.fantrax_cookie_file = get("fantrax_cookie_file").map(PathBuf::from);
+        s.fantrax_team = get("fantrax_team");
+        if let Some(v) = get("fantrax_points") {
+            s.fantrax_points = parse_points(&v)?;
+        }
+        if let Some(v) = get("fantrax_dynasty") {
+            s.fantrax_dynasty = parse_bool("fantrax_dynasty", &v)?;
+        }
+        if let Some(v) = get("fantrax_keeper_horizon_years") {
+            s.fantrax_keeper_horizon_years = parse_int("fantrax_keeper_horizon_years", &v)?;
+        }
+        s.fantrax_keepers = get("fantrax_keepers").map(|v| parse_int("fantrax_keepers", &v)).transpose()?;
+        if let Some(v) = get("fantrax_mode") {
+            s.fantrax_mode = DynastyMode::parse(&v).ok_or_else(|| {
+                CoreError::Value(format!(
+                    "fantrax_mode: Input should be 'contend', 'balanced' or 'rebuild' [input_value={:?}]",
+                    v.trim().to_lowercase()
+                ))
+            })?;
+        }
+        s.openrouter_api_key = secret(get("openrouter_api_key"));
+        if let Some(v) = get("fm_llm_model") {
+            s.fm_llm_model = v;
+        }
+        if let Some(v) = get("fm_llm_fallbacks") {
+            s.fm_llm_fallbacks = v;
+        }
+        if let Some(v) = get("fm_llm_allow_paid") {
+            s.fm_llm_allow_paid = parse_bool("fm_llm_allow_paid", &v)?;
+        }
+        s.discord_webhook_url = secret(get("discord_webhook_url"));
+        s.slack_webhook_url = secret(get("slack_webhook_url"));
+        s.odds_api_key = secret(get("odds_api_key"));
+        if let Some(v) = get("odds_region") {
+            s.odds_region = v;
+        }
+        if let Some(v) = get("fm_data_dir") {
+            s.fm_data_dir = PathBuf::from(v);
+        }
+        if let Some(v) = get("fm_offline") {
+            s.fm_offline = parse_bool("fm_offline", &v)?;
+        }
+        s.fm_web_password = secret(get("fm_web_password"));
+        s.fm_web_secret = secret(get("fm_web_secret"));
+        if let Some(v) = get("fm_web_allow_insecure") {
+            s.fm_web_allow_insecure = parse_bool("fm_web_allow_insecure", &v)?;
+        }
+        if let Some(v) = get("fm_web_session_days") {
+            s.fm_web_session_days = parse_int("fm_web_session_days", &v)?;
+        }
+        if let Some(v) = get("fm_web_trusted_proxies") {
+            s.fm_web_trusted_proxies = v;
+        }
+        if s.espn_year.is_none() {
+            s.espn_year = Some(default_espn_year(today));
+            // pydantic: the after-validator's assignment marks the field as set
+            fs.insert("espn_year".to_string());
+        }
+        s.fields_set = fs;
+        Ok(s)
+    }
+}
+
+/// pydantic lax `int` from a string: surrounding whitespace ok, `3.0` ok, `3.5` is an error.
+fn parse_int(name: &str, raw: &str) -> Result<i64, CoreError> {
+    let t = raw.trim();
+    if let Ok(n) = t.parse::<i64>() {
+        return Ok(n);
+    }
+    if let Ok(f) = t.parse::<f64>() {
+        if f.is_finite() && f.fract() == 0.0 && f.abs() < 9.0e18 {
+            return Ok(f as i64);
+        }
+    }
+    Err(CoreError::Value(format!("{name}: Input should be a valid integer [input_value={raw:?}]")))
+}
+
+/// pydantic lax `bool` from a string.
+fn parse_bool(name: &str, raw: &str) -> Result<bool, CoreError> {
+    match raw.trim().to_lowercase().as_str() {
+        "1" | "true" | "t" | "yes" | "y" | "on" => Ok(true),
+        "0" | "false" | "f" | "no" | "n" | "off" => Ok(false),
+        _ => Err(CoreError::Value(format!("{name}: Input should be a valid boolean [input_value={raw:?}]"))),
     }
 }
