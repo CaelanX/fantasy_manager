@@ -30,3 +30,4 @@ tracing-subscriber.workspace = true
 clap.workspace = true
 comfy-table.workspace = true
 tokio.workspace = true
+rusqlite.workspace = true

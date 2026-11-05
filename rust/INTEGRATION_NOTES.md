@@ -157,3 +157,9 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 ## For W11 (from WFIX-picks)
 - Pick-value 'gap' is a golden artifact: `rust/parity/dump_web_views.py` (~line 250) pops `rookie` from values.json, so Python's fresh apply_dynasty skips rookie-confidence scaling. Fix: keep `rookie` (rebuild RookieEstimate), regenerate `_w9_golden`, then remove the 5e-3 branch in `rust/crates/fm-web/tests/views.rs` lines 64-70 (fantrax `_picks`/`need_trades`). Engine verified correct (3.382065850317684 on all paths).
 
+
+## For W11 (from W10-cli-ops / W10-cli-analysis)
+- Live runs needed (no fixture coverage): `fm harness pregame`, `fm harness odds`, `daily` refit-day auto-apply path, `backtest data/run/fit/grade` with real data (xG data: C:\Users\caela\.claude\jobs\e681cc9d\tmp\xgdata), `lines <TEAM>`, `ask`, `report --notify`, `news`, `trending`, `goalies --week`.
+- `harness params` knob `value` prints float where Python may print int.
+- CLI parity fixture normalizations (dump artifacts, not Rust): trending warning leaking into later meta; NHL player pages request count in `schedule`; `days[*].goalies` order. W11 may fix dump_fixtures.py to remove them.
+
