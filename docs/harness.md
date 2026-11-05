@@ -20,6 +20,7 @@ Other commands:
 | `fm harness status` | The bar (accuracy, hit rates, trust labels) and what the ledger holds |
 | `fm harness grade [--week YYYY-MM-DD]` | Grade matured outcomes and compute a week's bar (`daily` does this on Mondays) |
 | `fm harness ledger` | Recent recommendation episodes and whether you acted on them |
+| `fm harness review [-n 20] [--regrade]` | How right the model was: every suggestion (taken or not) and your own moves marked against what the players scored so far, and whether its top free agents beat the market's (see "How right was the model?") |
 | `fm harness params [--history]` | Active valuation params, refittable values and the version history |
 | `fm harness refit --dry-run` | Fit and gate a candidate, write nothing (`--force` ignores the calendar lock only) |
 | `fm harness refit [--apply]` | Store a passing candidate as a proposal (`--apply`: also activate it) |
@@ -43,7 +44,11 @@ Everything lives in `<FM_DATA_DIR>/harness.db` (sqlite). `fm harness daily` runs
    one **episode**.
 3. **Pull transactions** from the last 7 days (adds, drops, trades, pending Fantrax trades) for
    every team, and **lineups** (ESPN box scores for yesterday, a Fantrax roster snapshot).
-4. **Pull yesterday's NHL results** for every player.
+4. **Pull yesterday's NHL results** for every player, and **catch up on missed days**: every day
+   since the first archived day (at most 60 days back) that has no results or deployment yet is
+   pulled too, so a skipped run leaves no hole in the graded windows. NHL results never go away;
+   only the suggestions, your moves (provider activity feeds are short) and lineups have to be
+   captured on the day.
 5. **Match** episodes to your moves: *followed* (you did exactly what it said), *partial* (part
    of it), *proposed* (a trade you offered), *expired* (you didn't; graded as *ignored*). Your
    moves that no recommendation explains are *your own moves* (`user_only`). Waiver, trade,
@@ -65,7 +70,8 @@ Then, once for both leagues:
    hour before puck drop: run `fm advise` / `fm goalies` (or open the dashboard) before games.
 8. **Betting odds** (with `ODDS_API_KEY`).
 
-On Mondays it also grades; on refit days it runs the refit. A second run the same day changes
+Every run re-marks the graded outcomes against the newest results (for `fm harness review`).
+On Mondays it also grades the weekly bar; on refit days it runs the refit. A second run the same day changes
 nothing. Provider problems become warnings, never a failed run for the other league.
 
 **New archived signals (archive v3, from 2026-09-29).** Each projection's `inputs` also carries,
@@ -100,6 +106,32 @@ Every other alert (a positive note on your own player, a goalie start, a player 
 roster) expires as before but is never graded, so it never counts in a hit-rate denominator. A
 move that followed an alert is not also counted as one of your own moves. Alerts only exist in
 the ledger when the day's archived recommendations include them.
+
+## How right was the model?
+
+`fm harness review` and the **How right was the model?** section of the Health tab answer that
+question without waiting for the bar's sample thresholds.
+
+**Moves.** Every suggestion is graded whether or not you took it (one you didn't take is a paper
+move), and so is every move of your own. Each gets one line on its main window: 7 days for
+lineups and this-week moves, 28 days otherwise, from the day you acted when you did, else the day
+it was first suggested. The verdict is *right* / *wrong* once the window has finished and the move
+gained / lost points, and *ahead* / *behind* while it is still running, marked on the days played
+so far ("early" under 7 graded days of a 28-day window). *No result* means nobody involved played
+or a player could not be matched. Next to it: the predicted gain pro-rated to the days graded, the
+points the move actually added, and for your own moves what the model's pick of that day did.
+Sell-high / buy-low flags compare his points per game in the window with his last 15 days
+instead. The summary splits suggestions you took, suggestions you didn't and your own moves,
+with a 95% Wilson interval on the final hit rate.
+
+**Free-agent ranking.** Each archived day, the players on no fantasy roster that day (from the
+captured lineups) are ranked three ways: the model's FPG, % rostered (the market) and
+season-to-date points per game (hot hand). For the next 7, 14 and 28 days the table shows the
+average points of each ranker's top 10, the best possible top 10 and the median free agent, and
+on how many days the model's top 10 beat the market's and the hot hand's. A day counts once its
+window has been played and pulled. Every day adds a whole pool of players, so this is readable
+after a few weeks instead of months, but consecutive days share most of their window: under 14
+evaluated days it is labelled an early read.
 
 ## What the bar means
 

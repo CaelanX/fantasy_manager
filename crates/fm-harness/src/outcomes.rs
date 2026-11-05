@@ -440,7 +440,7 @@ pub fn predicted_pts(gain: Option<f64>, units: Option<&str>, n_days: i64, rate: 
     }
 }
 
-fn fpg_of(line: Option<&Value>, sc: &PointsScoring) -> Option<f64> {
+pub fn fpg_of(line: Option<&Value>, sc: &PointsScoring) -> Option<f64> {
     let line = line?;
     let gp = line.get("gp").and_then(|g| g.as_f64()).filter(|g| *g != 0.0)?;
     Some(sc.value(&stats_of(line.get("stats").unwrap_or(&Value::Null))) / gp)

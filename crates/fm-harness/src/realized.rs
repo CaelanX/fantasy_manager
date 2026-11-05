@@ -205,3 +205,38 @@ pub fn pull_transactions(
 pub fn yesterday(today: NaiveDate) -> NaiveDate {
     today - Duration::days(1)
 }
+
+/// Furthest back a daily run catches up on missed NHL days.
+pub const BACKFILL_MAX_DAYS: i64 = 60;
+
+/// Days from `from` through `through` that `table` (`realized_pulls` or `deployment_pulls`) has
+/// not marked pulled yet, oldest first.
+pub fn unpulled_days(ledger: &Ledger, table: &str, from: NaiveDate, through: NaiveDate) -> Result<Vec<NaiveDate>> {
+    let (f, t) = (iso(from), iso(through));
+    let done: std::collections::HashSet<String> = ledger
+        .query(&format!("SELECT game_date FROM {table} WHERE game_date >= ? AND game_date <= ?"), &[&f, &t])?
+        .iter()
+        .filter_map(|r| r.get("game_date").and_then(|v| v.as_str()).map(String::from))
+        .collect();
+    let mut out = Vec::new();
+    let mut d = from;
+    while d <= through {
+        if !done.contains(&iso(d)) {
+            out.push(d);
+        }
+        d += Duration::days(1);
+    }
+    Ok(out)
+}
+
+/// Where catching up starts: the first archived projection or recommendation day (nothing before
+/// it can be graded), at most `BACKFILL_MAX_DAYS` before `through`; None with an empty ledger.
+pub fn backfill_start(ledger: &Ledger, through: NaiveDate) -> Result<Option<NaiveDate>> {
+    let rows = ledger.query("SELECT MIN(d) AS d FROM (SELECT MIN(as_of) AS d FROM projections UNION ALL SELECT MIN(as_of) FROM recs)", &[])?;
+    let first = rows
+        .first()
+        .and_then(|r| r.get("d"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
+    Ok(first.map(|f| f.max(through - Duration::days(BACKFILL_MAX_DAYS))))
+}
