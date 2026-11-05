@@ -163,3 +163,11 @@ Requests and hand-offs raised by finished work packages, to include in later bri
 - `harness params` knob `value` prints float where Python may print int.
 - CLI parity fixture normalizations (dump artifacts, not Rust): trending warning leaking into later meta; NHL player pages request count in `schedule`; `days[*].goalies` order. W11 may fix dump_fixtures.py to remove them.
 
+
+## From W10-web-app
+- BLOCKER (WFIX-dotenv): fm-core Settings fails on the real C:\code\fantasy_manager\.env (`Error parsing line ... line index 22`: the Fantrax cookie value); python-dotenv accepts it. Every `fm` command fails from the repo root.
+- `finish` follows Python's web (plain `advise` defaults incl. trades, no trade-block wants), not the CLI merge.
+- Background refresher: reload ~90s before the 600s TTL if the league was viewed in the last 3h.
+- Web HTML golden: `FM_PARITY_FIXTURES/_w10_golden` (rust/parity/dump_web_html.py). 60/64 pages byte-identical; `/` and `/plan` need set-order masks.
+- Timing (release, offline): warm-up 1.1s/league; warm pages 1.4-3.7ms (moves page 30ms, health 15ms); cold overview ~190ms.
+

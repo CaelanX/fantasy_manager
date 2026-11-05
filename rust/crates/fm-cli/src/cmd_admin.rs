@@ -1,12 +1,9 @@
 //! Admin commands of `fantasy_manager/cli.py`: `mode`, `auth fantrax` (`_ts`), `web`,
 //! `web-export`. Owner: work package `W9-cli-core`.
 //!
-//! `web` / `web-export` are wired to the not-yet-ported `fm_web::app` (W10-web-app): until it
-//! exists they fail like Python's missing-extras path ("the web dashboard is not available").
-//! Hook-up when W10-web-app lands: in [`web`] call `fm_web::app::run(host, port, league,
-//! &cli.settings)` (map `InsecureBindError` to `fail`), in [`web_export`] build the auth-less
-//! router and call `fm_web::export::export_site(router, out, &["espn", "fantrax"], limit)` on a
-//! tokio runtime, then print as below.
+//! `web` / `web-export` (wired by W10-web-app) call `fm_web::app::run` (the axum server: real
+//! pipeline, auth from the settings, both leagues warmed at startup) and `fm_web::app::export`
+//! (the auth-less router crawled by `fm_web::export::export_site`).
 
 use std::path::PathBuf;
 
@@ -272,12 +269,13 @@ pub struct WebArgs {
 
 
 pub fn web(cli: &mut Cli, a: &WebArgs) -> Result<()> {
-    let (_league, _) = cli.opts(&LeagueOpts { league: a.league, json: false });
+    let (league, _) = cli.opts(&LeagueOpts { league: a.league, json: false });
     let password_set = cli.settings.fm_web_password.as_ref().is_some_and(|p| !p.expose().is_empty());
     if let Err(e) = fm_web::auth::check_bind(&a.host, password_set, cli.settings.fm_web_allow_insecure) {
         return Err(fail(e));
     }
-    Err(fail("the web dashboard is not available (fm_web::app is not ported yet; use the Python `fm web`)"))
+    // run() prints the URL once the access checks pass, then serves until Ctrl+C
+    fm_web::app::run(&a.host, a.port, &league, &cli.settings).map_err(|e| fail(format!("{e:#}")))
 }
 
 #[derive(Args, Clone, Debug)]
@@ -291,9 +289,21 @@ pub struct WebExportArgs {
 }
 
 
-pub fn web_export(_cli: &mut Cli, a: &WebExportArgs) -> Result<()> {
-    let _ = (&a.out, a.limit);
-    Err(fail("the web dashboard is not available (fm_web::app is not ported yet; use the Python `fm web-export`)"))
+pub fn web_export(cli: &mut Cli, a: &WebExportArgs) -> Result<()> {
+    let res = fm_web::app::export(&a.out, a.limit, &cli.settings).map_err(|e| fail(format!("{e:#}")))?;
+    println!(
+        "{} pages written to {}{}",
+        res.pages,
+        a.out.display(),
+        if res.truncated { " (page limit reached)" } else { "" }
+    );
+    for e in res.errors.iter().take(20) {
+        eprintln!("  {e}");
+    }
+    if res.pages == 0 {
+        return Err(Exit(1).into());
+    }
+    Ok(())
 }
 
 impl crate::app::Admin {
