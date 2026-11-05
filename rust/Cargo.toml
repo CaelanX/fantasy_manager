@@ -1,0 +1,99 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/fm-pycompat",
+    "crates/fm-core",
+    "crates/fm-http",
+    "crates/fm-sources",
+    "crates/fm-engine",
+    "crates/fm-backtest",
+    "crates/fm-harness",
+    "crates/fm-providers",
+    "crates/fm-report",
+    "crates/fm-cli",
+    "crates/fm-web",
+    "crates/fm-parity",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[workspace.dependencies]
+# internal
+fm-pycompat = { path = "crates/fm-pycompat" }
+fm-core = { path = "crates/fm-core" }
+fm-http = { path = "crates/fm-http" }
+fm-sources = { path = "crates/fm-sources" }
+fm-engine = { path = "crates/fm-engine" }
+fm-backtest = { path = "crates/fm-backtest" }
+fm-harness = { path = "crates/fm-harness" }
+fm-providers = { path = "crates/fm-providers" }
+fm-report = { path = "crates/fm-report" }
+fm-web = { path = "crates/fm-web" }
+
+# data model / serialization
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+indexmap = { version = "2", features = ["serde", "rayon"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
+chrono-tz = "0.10"
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# I/O
+rusqlite = { version = "0.32", features = ["bundled"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "native-tls", "cookies", "gzip"] }
+flate2 = "1"
+csv = "1"
+tempfile = "3"
+dotenvy = "0.15"
+
+# text
+regex = "1"
+fancy-regex = "0.14"
+unicode-normalization = "0.1"
+quick-xml = "0.37"
+htmlize = { version = "1", features = ["unescape"] }
+
+# hashing / auth
+sha2 = "0.10"
+sha1 = "0.10"
+hmac = "0.12"
+hex = "0.4"
+base64 = "0.22"
+rand = "0.8"
+
+# compute
+rayon = "1"
+dashmap = "6"
+smallvec = { version = "1", features = ["serde"] }
+
+# apps
+clap = { version = "4", features = ["derive", "env"] }
+comfy-table = "7"
+axum = { version = "0.8", features = ["form", "query", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
+tower-http = { version = "0.6", features = ["fs"] }
+minijinja = { version = "2", features = ["loader", "json", "urlencode", "builtins"] }
+minijinja-contrib = { version = "2", features = ["datetime"] }
+
+# test
+pretty_assertions = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+debug = 1
+
+# Parity tests run the full valuation / trade search: keep dependencies optimized in dev builds.
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.test]
+opt-level = 1

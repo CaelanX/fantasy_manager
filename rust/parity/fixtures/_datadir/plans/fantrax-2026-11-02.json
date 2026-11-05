@@ -1,0 +1,151 @@
+[
+ {
+  "created": "2026-11-04T04:51:22+00:00",
+  "as_of": "2026-11-03",
+  "moves_left": 3,
+  "moves": [
+   {
+    "day": "2026-11-03",
+    "effective": "2026-11-04",
+    "add": {
+     "cid": "fantrax:051wf",
+     "name": "Dustin Wolf",
+     "positions": [
+      "G"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "positions": [
+      "G"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 10.77,
+    "waiver": null
+   },
+   {
+    "day": "2026-11-04",
+    "effective": "2026-11-04",
+    "add": {
+     "cid": "fantrax:05ylt",
+     "name": "Zach Benson",
+     "positions": [
+      "F"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:04lo0",
+     "name": "Quinton Byfield",
+     "positions": [
+      "F"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 4.4,
+    "waiver": null
+   },
+   {
+    "day": "2026-11-06",
+    "effective": "2026-11-07",
+    "add": {
+     "cid": "fantrax:03ra8",
+     "name": "Timo Meier",
+     "positions": [
+      "F"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:05ylt",
+     "name": "Zach Benson",
+     "positions": [
+      "F"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 5.45,
+    "waiver": null
+   }
+  ],
+  "today": [
+   "Activate Owen Tippett from IR",
+   "Activate Owen Tippett from IR (healthy)"
+  ],
+  "roster": {
+   "fantrax:04lo0": {
+    "name": "Quinton Byfield",
+    "ir": false
+   },
+   "fantrax:03924": {
+    "name": "Jack Eichel",
+    "ir": false
+   },
+   "fantrax:051yz": {
+    "name": "Dylan Holloway",
+    "ir": false
+   },
+   "fantrax:03bfj": {
+    "name": "Artemi Panarin",
+    "ir": false
+   },
+   "fantrax:06psl": {
+    "name": "Ivar Stenberg",
+    "ir": false
+   },
+   "fantrax:04lbz": {
+    "name": "Quinn Hughes",
+    "ir": false
+   },
+   "fantrax:0243f": {
+    "name": "Seth Jones",
+    "ir": false
+   },
+   "fantrax:03eer": {
+    "name": "Jake Middleton",
+    "ir": false
+   },
+   "fantrax:059e0": {
+    "name": "Jake Sanderson",
+    "ir": false
+   },
+   "fantrax:05gvq": {
+    "name": "Seth Jarvis",
+    "ir": false
+   },
+   "fantrax:04amg": {
+    "name": "Alexis Lafreniere",
+    "ir": false
+   },
+   "fantrax:02yjj": {
+    "name": "William Nylander",
+    "ir": false
+   },
+   "fantrax:05ymj": {
+    "name": "Jimmy Snuggerud",
+    "ir": false
+   },
+   "fantrax:03as6": {
+    "name": "Jared McCann",
+    "ir": true
+   },
+   "fantrax:03yh8": {
+    "name": "Owen Tippett",
+    "ir": true
+   },
+   "fantrax:03mbn": {
+    "name": "Mackenzie Blackwood",
+    "ir": false
+   },
+   "fantrax:031pl": {
+    "name": "Juuse Saros",
+    "ir": false
+   },
+   "fantrax:05oxs": {
+    "name": "Jakub Dobes",
+    "ir": false
+   }
+  },
+  "signature": "[[\"[\\\"fantrax:03ra8\\\", \\\"fantrax:05ylt\\\", null]\", \"[\\\"fantrax:051wf\\\", \\\"fantrax:05oxs\\\", null]\", \"[\\\"fantrax:05ylt\\\", \\\"fantrax:04lo0\\\", null]\"], [[\"fantrax:0243f\", false], [\"fantrax:02yjj\", false], [\"fantrax:031pl\", false], [\"fantrax:03924\", false], [\"fantrax:03as6\", true], [\"fantrax:03bfj\", false], [\"fantrax:03eer\", false], [\"fantrax:03mbn\", false], [\"fantrax:03yh8\", true], [\"fantrax:04amg\", false], [\"fantrax:04lbz\", false], [\"fantrax:04lo0\", false], [\"fantrax:051yz\", false], [\"fantrax:059e0\", false], [\"fantrax:05gvq\", false], [\"fantrax:05oxs\", false], [\"fantrax:05ymj\", false], [\"fantrax:06psl\", false]]]"
+ }
+]

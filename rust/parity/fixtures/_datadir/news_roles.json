@@ -1,0 +1,26 @@
+{
+ "nhl594191": {
+  "at": "2026-09-29T20:33:54+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": [
+   {
+    "confidence": 0.9,
+    "direction": 1,
+    "kind": "nhl_roster",
+    "quote": "Marchenko (not injury related) will play against Montreal on Tuesday"
+   }
+  ]
+ },
+ "nhl595629": {
+  "at": "2026-10-12T22:10:32+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": [
+   {
+    "confidence": 0.9,
+    "direction": 0,
+    "kind": "injury",
+    "quote": "he didn't sustain an injury"
+   }
+  ]
+ }
+}

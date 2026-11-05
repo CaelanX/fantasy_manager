@@ -1,0 +1,7 @@
+target/
+# HTTP tapes (~5 MB each): regenerate with parity/dump_fixtures.py
+parity/fixtures/*/tape.json.gz
+parity/fixtures/_datadir/harness.db*
+parity/fixtures/_datadir/fantrax_cache/
+# Rust-side parity outputs (diff reports)
+parity/out/

@@ -1,0 +1,161 @@
+[
+ {
+  "created": "2026-11-04T04:49:46+00:00",
+  "as_of": "2026-11-03",
+  "moves_left": 2,
+  "moves": [
+   {
+    "day": "2026-11-04",
+    "effective": "2026-11-05",
+    "add": {
+     "cid": "espn:4755684",
+     "name": "Judd Caulfield",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    },
+    "drop": {
+     "cid": "espn:3775",
+     "name": "Claude Giroux",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 4.18,
+    "waiver": null
+   },
+   {
+    "day": "2026-11-05",
+    "effective": "2026-11-06",
+    "add": {
+     "cid": "espn:2593315",
+     "name": "Jason Zucker",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    },
+    "drop": {
+     "cid": "espn:3042056",
+     "name": "Tyler Bertuzzi",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 1.65,
+    "waiver": null
+   }
+  ],
+  "today": [
+   "Zach Hyman now IR (was healthy)",
+   "Zach Hyman due back Sat Nov 7: activate him from IR then",
+   "Patrick Kane now OUT (was healthy)",
+   "Cut Patrick Kane, add Valeri Nichushkin: +52 pts rest of season"
+  ],
+  "roster": {
+   "espn:3114727": {
+    "name": "Leon Draisaitl",
+    "ir": false
+   },
+   "espn:3648002": {
+    "name": "Jack Eichel",
+    "ir": false
+   },
+   "espn:5509": {
+    "name": "Zach Hyman",
+    "ir": true
+   },
+   "espn:3891952": {
+    "name": "Artemi Panarin",
+    "ir": false
+   },
+   "espn:4996097": {
+    "name": "Brandon Bussi",
+    "ir": false
+   },
+   "espn:4874722": {
+    "name": "Brandt Clarke",
+    "ir": false
+   },
+   "espn:3151187": {
+    "name": "Brayden Point",
+    "ir": false
+   },
+   "espn:5342529": {
+    "name": "Gavin McKenna",
+    "ir": false
+   },
+   "espn:2976833": {
+    "name": "Morgan Rielly",
+    "ir": false
+   },
+   "espn:3652964": {
+    "name": "Noah Hanifin",
+    "ir": false
+   },
+   "espn:3735": {
+    "name": "Patrick Kane",
+    "ir": false
+   },
+   "espn:3020225": {
+    "name": "Connor Hellebuyck",
+    "ir": false
+   },
+   "espn:3042056": {
+    "name": "Tyler Bertuzzi",
+    "ir": false
+   },
+   "espn:3852": {
+    "name": "Brad Marchand",
+    "ir": true
+   },
+   "espn:3539": {
+    "name": "Kris Letang",
+    "ir": false
+   },
+   "espn:4565255": {
+    "name": "Shane Pinto",
+    "ir": false
+   },
+   "espn:3114717": {
+    "name": "Aaron Ekblad",
+    "ir": false
+   },
+   "espn:3775": {
+    "name": "Claude Giroux",
+    "ir": false
+   },
+   "espn:2563054": {
+    "name": "Boone Jenner",
+    "ir": false
+   },
+   "espn:4268767": {
+    "name": "Stuart Skinner",
+    "ir": false
+   },
+   "espn:2564164": {
+    "name": "Nick Seeler",
+    "ir": false
+   },
+   "espn:4697468": {
+    "name": "Will Cuylle",
+    "ir": false
+   },
+   "espn:3069687": {
+    "name": "Josh Anderson",
+    "ir": false
+   },
+   "espn:3899951": {
+    "name": "Lawson Crouse",
+    "ir": false
+   }
+  },
+  "signature": "[[\"[\\\"espn:2593315\\\", \\\"espn:3042056\\\", null]\", \"[\\\"espn:4755684\\\", \\\"espn:3775\\\", null]\"], [[\"espn:2563054\", false], [\"espn:2564164\", false], [\"espn:2976833\", false], [\"espn:3020225\", false], [\"espn:3042056\", false], [\"espn:3069687\", false], [\"espn:3114717\", false], [\"espn:3114727\", false], [\"espn:3151187\", false], [\"espn:3539\", false], [\"espn:3648002\", false], [\"espn:3652964\", false], [\"espn:3735\", false], [\"espn:3775\", false], [\"espn:3852\", true], [\"espn:3891952\", false], [\"espn:3899951\", false], [\"espn:4268767\", false], [\"espn:4565255\", false], [\"espn:4697468\", false], [\"espn:4874722\", false], [\"espn:4996097\", false], [\"espn:5342529\", false], [\"espn:5509\", true]]]"
+ }
+]

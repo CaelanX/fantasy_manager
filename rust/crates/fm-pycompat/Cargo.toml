@@ -1,0 +1,14 @@
+[package]
+name = "fm-pycompat"
+description = "Python-exact numeric, formatting, JSON, RNG and ordering helpers (the parity bedrock)"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+indexmap.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

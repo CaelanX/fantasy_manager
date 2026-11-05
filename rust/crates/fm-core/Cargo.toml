@@ -1,0 +1,23 @@
+[package]
+name = "fm-core"
+description = "Shared data model (models.py, PlayerValue/DynastyValue/PickAsset, snapshot + provider extras), settings, prefs, name normalization"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+fm-pycompat.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+indexmap.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+dotenvy.workspace = true
+regex.workspace = true
+fancy-regex.workspace = true
+unicode-normalization.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

@@ -1,0 +1,32 @@
+[package]
+name = "fm-cli"
+description = "The `fm` command line (typer CLI port), incl. harness / backtest sub-commands and `fm web`"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "fm"
+path = "src/main.rs"
+
+[dependencies]
+fm-pycompat.workspace = true
+fm-core.workspace = true
+fm-http.workspace = true
+fm-sources.workspace = true
+fm-engine.workspace = true
+fm-backtest.workspace = true
+fm-harness.workspace = true
+fm-providers.workspace = true
+fm-report.workspace = true
+fm-web.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+indexmap.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap.workspace = true
+comfy-table.workspace = true
+tokio.workspace = true

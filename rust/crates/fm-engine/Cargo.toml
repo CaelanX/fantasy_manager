@@ -1,0 +1,31 @@
+[package]
+name = "fm-engine"
+description = "Pure computation: scoring, valuation, recommend engines, analysis (schedule grid, matchup, outlook, playoffs, goalie plan), archive files"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+fm-pycompat.workspace = true
+fm-core.workspace = true
+fm-sources.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+indexmap.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+regex.workspace = true
+fancy-regex.workspace = true
+rayon.workspace = true
+dashmap.workspace = true
+smallvec.workspace = true
+rusqlite.workspace = true
+sha1.workspace = true
+hex.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
