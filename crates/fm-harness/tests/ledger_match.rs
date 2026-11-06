@@ -261,6 +261,31 @@ fn add_outside_window_is_user_only_and_episode_expires() {
 }
 
 #[test]
+fn same_day_add_and_drop_logged_separately_are_one_move() {
+    // ESPN: the drop and the add that replaced him are two transactions
+    let r = run(
+        vec![],
+        vec![
+            tx("DROP", "z", d(2026, 10, 9), "g-drop", ME, None),
+            tx("ADD", "c", d(2026, 10, 9), "g-add", ME, None),
+            tx("ADD", "l", d(2026, 10, 31), "g-later", ME, None),
+            tx("IR", "h", d(2026, 10, 9), "g-ir", ME, None),
+        ],
+        vec![],
+    );
+    let dec = &r.res.decisions;
+    assert_eq!(dec.len(), 3, "{dec:?}");
+    assert_eq!(dec[0]["decision_id"], json!("tx:espn:g-add+g-drop"));
+    assert_eq!(dec[0]["group_id"], json!("g-add,g-drop"));
+    assert_eq!((&dec[0]["adds_json"], &dec[0]["drops_json"]), (&json!("[\"c\"]"), &json!("[\"z\"]")));
+    assert_eq!(dec[0]["kind"], json!("waiver"));
+    // another day's add is its own move; an IR move the same day stays its own decision
+    assert_eq!(dec[1]["decision_id"], json!("tx:espn:g-later"));
+    assert_eq!(dec[2]["decision_id"], json!("tx:espn:g-ir"));
+    assert_eq!(dec[2]["kind"], json!("injury"));
+}
+
+#[test]
 fn other_teams_moves_are_not_mine() {
     let r = run(
         vec![epk("waiver", d(2026, 10, 5), &["a"], &[])],
