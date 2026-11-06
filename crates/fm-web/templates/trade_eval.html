@@ -39,20 +39,62 @@
 {% endif %}
 {%- endmacro %}
 
+{% macro deal_side(rows, picks, title, cls, dyn) -%}
+<div class="te-col {{ cls }}">
+  <h3 class="te-col-h">{{ title }}</h3>
+  {% if rows or picks %}
+  <table class="te-tbl">
+    <caption class="sr-only">{{ title }}</caption>
+    <thead><tr><th scope="col">Player</th><th scope="col" class="n">{{ vlabel }}</th><th scope="col" class="n">VORP</th>{% if dyn %}<th scope="col" class="n">Dyn</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for x in rows %}
+    <tr><th scope="row"><span class="te-pname">{{ x.name }}</span>
+      <small class="muted">{{ x.pos }} &middot; {{ x.team }}{% if x.slot in ('IR', 'IR+') %} &middot; IR{% endif %}</small>{% if x.status not in ('healthy', 'unknown') %} {{ pill(x.status) }}{% endif %}</th>
+      <td class="n">{{ x.fpg|n1 }}</td><td class="n">{{ x.vorp|n1 }}</td>{% if dyn %}<td class="n">{{ x.dyn|n1 }}</td>{% endif %}</tr>
+    {% endfor %}
+    {% for a in picks %}
+    <tr><th scope="row"><span class="te-pname">{{ a.label }} pick</span> <small class="muted">net {{ a.net|n1 }}</small></th>
+      <td class="n">-</td><td class="n">-</td>{% if dyn %}<td class="n">{{ a.value|n1 }}</td>{% endif %}</tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><th scope="row">{{ 'Players total' if picks else 'Total' }}</th>
+      <td class="n">{{ rows|map(attribute='fpg')|reject('none')|sum|n1 }}</td>
+      <td class="n">{{ rows|map(attribute='vorp')|reject('none')|sum|n1 }}</td>
+      {% if dyn %}<td class="n">{{ rows|map(attribute='dyn')|reject('none')|sum|n1 }}</td>{% endif %}</tr></tfoot>
+  </table>
+  {% else %}<p class="empty">Nothing.</p>{% endif %}
+</div>
+{%- endmacro %}
+
 {% set r = result %}
 {% if r %}
 <section id="te-result" aria-labelledby="h-te-result" class="te-result te-{{ r.verdict }}">
   <h2 id="h-te-result">Verdict: {{ r.verdict|capitalize }} <span class="aside">trade with {{ r.team }}</span></h2>
-  <p class="te-deal">You send <b>{% for p in r.give %}{{ p.name }}{% if not loop.last or r.give_picks %}, {% endif %}{% endfor %}{% for a in r.give_picks %}your {{ a.label }} pick{% if not loop.last %}, {% endif %}{% endfor %}{% if not r.give and not r.give_picks %}nothing{% endif %}</b>;
-    you get <b>{% for p in r['get'] %}{{ p.name }}{% if not loop.last or r.get_picks %}, {% endif %}{% endfor %}{% for a in r.get_picks %}their {{ a.label }} pick{% if not loop.last %}, {% endif %}{% endfor %}{% if not r['get'] and not r.get_picks %}nothing{% endif %}</b>.</p>
+  {% set dyn = r.mode is not none %}
+  <div class="te-vs">
+    {{ deal_side(my_rows|selectattr('checked')|list, my_picks|selectattr('checked')|list, 'You send', 'te-out', dyn) }}
+    <div class="te-arrow" aria-hidden="true">&#8644;</div>
+    {{ deal_side(their_rows|selectattr('checked')|list, their_picks|selectattr('checked')|list, 'You get from ' ~ r.team, 'te-in', dyn) }}
+  </div>
   <ul class="te-why">
     {% for w in r.verdict_reasons %}<li>{{ w }}</li>{% endfor %}
     {% if r.counter %}<li><b>Counter:</b> {{ r.counter }}</li>{% endif %}
   </ul>
+  <div class="tbl"><table class="r te-cmp">
+    <caption class="sr-only">What the trade does for you and for {{ r.team }}</caption>
+    <thead><tr><th scope="col"></th><th scope="col" class="n">You</th><th scope="col" class="n">{{ r.team }}</th></tr></thead>
+    <tbody>
+    <tr><th scope="row">Lineup change, pts/game</th>
+      <td class="n {{ 'te-up' if r.my_gain.fpg > 0 else ('te-down' if r.my_gain.fpg < 0 else '') }}">{{ '%+.2f'|format(r.my_gain.fpg) }}</td>
+      <td class="n {{ 'te-up' if r.their_gain.fpg > 0 else ('te-down' if r.their_gain.fpg < 0 else '') }}">{{ '%+.2f'|format(r.their_gain.fpg) }}</td></tr>
+    <tr><th scope="row">Your lineup, pts/week &middot; rest of season</th>
+      <td class="n">{{ '%+.1f'|format(r.my_gain.week) }} &middot; {{ '%+.0f'|format(r.my_gain.season) }}</td><td class="n muted">-</td></tr>
+    <tr><th scope="row">{{ 'Dynasty value' if r.units == 'dynasty' else 'Season VORP' }} received</th>
+      <td class="n">{{ '%.2f'|format(r.fairness.value_in) }}</td><td class="n">{{ '%.2f'|format(r.fairness.value_out) }}</td></tr>
+    </tbody>
+  </table></div>
+  {% if r.fairness.model_gap is not none %}<p class="small muted">Model fairness gap {{ '%.0f'|format(r.fairness.model_gap * 100) }}%{% if r.fairness.model_fair %} (inside the fair band){% endif %}.</p>{% endif %}
   <dl class="te-kv">
-    <div><dt>Your lineup</dt><dd>{{ '%+.2f'|format(r.my_gain.fpg) }} pts/game &middot; {{ '%+.1f'|format(r.my_gain.week) }} pts/week &middot; {{ '%+.0f'|format(r.my_gain.season) }} rest of season</dd></div>
-    <div><dt>Their lineup</dt><dd>{{ '%+.2f'|format(r.their_gain.fpg) }} pts/game (our model)</dd></div>
-    <div><dt>Fairness (model)</dt><dd>you get {{ '%.2f'|format(r.fairness.value_in) }}, send {{ '%.2f'|format(r.fairness.value_out) }} {{ 'dynasty value' if r.units == 'dynasty' else 'season VORP' }}{% if r.fairness.model_gap is not none %} (gap {{ '%.0f'|format(r.fairness.model_gap * 100) }}%){% endif %}</dd></div>
     {% if r.fairness.market_label %}<div><dt>Fairness (market)</dt><dd>{{ r.fairness.market_label }} ({{ '%+.0f'|format(r.fairness.market_to_them) }} worth pts to them); they would accept ~{{ '%.0f'|format(r.fairness.p_accept * 100) }}%</dd></div>{% endif %}
     {% if r.dynasty_delta %}<div><dt>Dynasty value</dt><dd>{{ '%+.2f'|format(r.dynasty_delta.value) }} ({{ '%+.2f'|format(r.dynasty_delta.fpg_equiv) }} FPG-equivalent); {{ r.mode }} edge {{ '%+.2f'|format(r.my_edge) }}</dd></div>{% endif %}
     <div><dt>Roster</dt><dd>{{ r.roster|replace('Roster: ', '') }}</dd></div>

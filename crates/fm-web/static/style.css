@@ -821,6 +821,23 @@ table.r.season-t { font-size: .78rem; }
 .te-decline { border-left-color: var(--bad); }
 .te-decline h2 { color: var(--bad); }
 .te-deal { margin: 0 0 8px; }
+.te-vs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 0 0 14px; }
+@media (min-width: 760px) { .te-vs { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; } }
+.te-col { border: 1px solid var(--rule); border-top: 4px solid var(--ink-3); border-radius: var(--r-card); padding: 10px 12px; min-width: 0; }
+.te-out { border-top-color: var(--bad); }
+.te-in { border-top-color: var(--good); }
+.te-col-h { font: 700 1.05rem/1.2 var(--display); margin: 0 0 6px; }
+.te-arrow { align-self: center; justify-self: center; font-size: 1.6rem; color: var(--ink-3); }
+.te-tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.te-tbl th, .te-tbl td { padding: 6px 4px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+.te-tbl th.n, .te-tbl td.n { text-align: right; white-space: nowrap; }
+.te-tbl tbody th { font-weight: 400; }
+.te-tbl tbody th small { display: block; }
+.te-pname { font-weight: 600; overflow-wrap: anywhere; }
+.te-tbl tfoot th, .te-tbl tfoot td { font-weight: 700; border-bottom: 0; }
+.te-cmp { margin: 0 0 6px; }
+.te-up { color: var(--good); font-weight: 700; }
+.te-down { color: var(--bad); font-weight: 700; }
 .te-why { margin: 0 0 12px; padding-left: 1.2em; }
 .te-kv { display: grid; gap: 6px; margin: 0; }
 .te-kv > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 14px; padding: 6px 0; border-top: 1px solid var(--rule); }
