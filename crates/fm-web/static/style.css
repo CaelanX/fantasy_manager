@@ -846,3 +846,25 @@ table.r.season-t { font-size: .78rem; }
 .te-kv dd { margin: 0; font-variant-numeric: tabular-nums; }
 .te-all { margin-top: 12px; }
 .te-all summary { cursor: pointer; color: var(--accent); font-size: .9rem; min-height: 44px; display: flex; align-items: center; }
+
+/* player card (static/card.js, templates/player_card.html) */
+.pcard-dialog { width: min(640px, calc(100vw - 16px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--rule);
+  border-radius: var(--r-card); background: var(--paper); color: var(--ink); overflow: auto; }
+.pcard-dialog::backdrop { background: rgb(0 0 0 / .45); }
+.pcard { padding: 14px 16px 16px; }
+.pcard-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.pcard-name { font: 700 1.35rem/1.15 var(--display); margin: 0 0 4px; }
+.pcard-sub { margin: 0 0 2px; font-size: .88rem; color: var(--ink-2); }
+.pcard-x { min-width: 44px; min-height: 44px; font-size: 1.6rem; line-height: 1; background: none; border: 0; color: var(--ink-2); cursor: pointer; }
+.pcard-note { margin: 8px 0; }
+.pcard-tiles { margin: 10px 0; }
+.pcard-splits { font-size: .86rem; }
+.pcard-news .news-item { margin-bottom: 8px; }
+.pcard-more { margin: 12px 0 0; text-align: right; }
+.pcard-loading { padding: 24px; text-align: center; color: var(--ink-2); }
+.glog-chart { margin: 4px 0 8px; }
+.glog-t { font-size: .84rem; }
+.glog-pts { font-weight: 700; }
+.glog-more summary { cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; }
+a.pl { color: inherit; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
+a.pl:hover { text-decoration-color: currentColor; }

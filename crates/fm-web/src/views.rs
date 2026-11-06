@@ -1247,6 +1247,87 @@ pub fn trade_eval_page(
     Value::Object(out)
 }
 
+// --------------------------------------------------------------------------- player card: game log
+
+/// Columns of the game log, in order, when the player has them.
+const LOG_SKATER: [&str; 8] = ["G", "A", "PM", "SOG", "PPP", "HIT", "BLK", "PIM"];
+const LOG_GOALIE: [&str; 5] = ["SA", "SV", "GA", "SO", "W"];
+
+/// This season's games, newest first: opponent, home/away and ice time from the NHL game log, the
+/// full stat line from the harness ledger's nightly NHL results when it has that day (the NHL game
+/// log has no hits or blocks), and fantasy points under the league's scoring (points leagues).
+/// Empty when the player has no NHL id or nothing could be read.
+pub fn game_log(res: &LoadResult, p: &Player) -> Vec<Value> {
+    let Some(nhl_id) = p.nhl_id() else { return Vec::new() };
+    let entries = res.memo.get_or(&format!("game_log:{nhl_id}"), || -> Vec<fm_sources::nhl::NhlGameLogEntry> {
+        let fetch = || -> anyhow::Result<Vec<fm_sources::nhl::NhlGameLogEntry>> {
+            let cache = std::sync::Arc::new(fm_http::HttpCache::open(&res.data_dir, false)?);
+            let client = fm_sources::nhl::NhlClient::new(fm_sources::nhl::cached_nhl_fetch(cache), None, res.today);
+            client.game_log(nhl_id, None, 2)
+        };
+        fetch().unwrap_or_else(|e| {
+            tracing::warn!("game log for {nhl_id}: {e:#}");
+            Vec::new()
+        })
+    });
+    let ledger_rows: std::collections::HashMap<NaiveDate, Map<String, f64>> = (|| -> anyhow::Result<_> {
+        let led = fm_harness::ledger::Ledger::open(&res.data_dir)?;
+        let mut out = std::collections::HashMap::new();
+        for r in led.query("SELECT game_date, stats_json FROM realized_daily WHERE nhl_id=?", &[&nhl_id])? {
+            let (Some(d), Some(s)) = (r.get("game_date").and_then(|v| v.as_str()), r.get("stats_json").and_then(|v| v.as_str())) else {
+                continue;
+            };
+            let (Ok(day), Ok(stats)) = (NaiveDate::parse_from_str(d, "%Y-%m-%d"), serde_json::from_str::<Map<String, f64>>(s)) else {
+                continue;
+            };
+            out.insert(day, stats);
+        }
+        Ok(out)
+    })()
+    .unwrap_or_default();
+    let scoring = (res.ctx.scoring.kind.as_str() == "points").then(|| {
+        fm_engine::scoring::PointsScoring::new(res.ctx.scoring.weights.clone(), Some(res.ctx.scoring.goalie_weights.clone()))
+    });
+    let cols: &[&str] = if p.is_goalie() { &LOG_GOALIE } else { &LOG_SKATER };
+    entries
+        .iter()
+        .map(|e| {
+            let full = if e.is_goalie { None } else { ledger_rows.get(&e.date) };
+            let stats = full.unwrap_or(&e.stats);
+            let toi = e.toi_seconds.map(|s| format!("{}:{:02}", (s as i64) / 60, (s as i64) % 60));
+            let line: Map<String, Value> = cols.iter().map(|c| (c.to_string(), stats.get(*c).map_or(Value::Null, |v| json!(v)))).collect();
+            json!({
+                "date": e.date.format("%Y-%m-%d").to_string(),
+                "opp": e.opponent, "home": e.home, "toi": toi, "decision": e.decision,
+                "stats": line,
+                "fpts": scoring.as_ref().map(|s| s.value(stats)),
+                // without the ledger's line the points miss stats the game log lacks (hits, blocks)
+                "partial": full.is_none() && !e.is_goalie,
+            })
+        })
+        .collect()
+}
+
+/// Fantasy points per game over this season's games (oldest first) with the model's FPG as a
+/// dashed reference line; None for categories leagues or fewer than 2 games.
+pub fn game_log_chart(p: &Player, log: &[Value], model_fpg: Option<f64>) -> Option<Value> {
+    let pts: Vec<(String, f64)> =
+        log.iter().rev().filter_map(|g| Some((g["date"].as_str()?.to_string(), g["fpts"].as_f64()?))).collect();
+    if pts.len() < 2 {
+        return None;
+    }
+    let x: Vec<String> = pts.iter().map(|(d, _)| d.clone()).collect();
+    let mut lines = vec![crate::charts::Line::new("fpts", "Fantasy points", pts.iter().map(|(_, v)| Some(*v)).collect(), "main", "")];
+    if let Some(f) = model_fpg {
+        lines.push(crate::charts::Line::new("model", "Model FPG", vec![Some(f); pts.len()], "base", crate::charts::DASHES[1]));
+    }
+    let fmt = |v: f64| fm_pycompat::fmt::fixed(v, 1, false);
+    let opts = crate::charts::ChartOpts { y_fmt: &fmt, zero_line: true, ..Default::default() };
+    let id = format!("gl-{}", p.cid);
+    let svg = crate::charts::line_chart(&id, &x, &lines, &format!("{} fantasy points per game", p.name), "One point per game this season; the dashed line is the model's points per game.", &opts);
+    Some(json!({"svg": svg, "legend": crate::charts::legend(&lines, None), "n": pts.len()}))
+}
+
 // --------------------------------------------------------------------------- player page
 
 /// Stat splits as rows with per-game columns and totals; FPG from the league weights.

@@ -553,13 +553,16 @@ pub fn injury_note(r: &InjuryReport) -> Option<String> {
     if let Some(c) = comment {
         parts.push(c.to_string());
     }
-    if let Some(d) = r.return_date {
-        parts.push(format!("(est. return {})", d.format("%Y-%m-%d")));
-    }
+    // the return date is what valuation reads: shorten the comment, never cut the date
+    let ret = r.return_date.map(|d| format!("(est. return {})", d.format("%Y-%m-%d")));
+    let limit = 220 - ret.as_ref().map_or(0, |x| x.len() + 1);
     let joined = parts.join(" ");
     let mut note = fm_pycompat::text::py_strip(&joined).to_string();
-    if note.chars().count() > 220 {
-        note = format!("{}...", py_rstrip(py_slice_str(&note, None, Some(217))));
+    if note.chars().count() > limit {
+        note = format!("{}...", py_rstrip(py_slice_str(&note, None, Some(limit as isize - 3))));
+    }
+    if let Some(x) = ret {
+        note = if note.is_empty() { x } else { format!("{note} {x}") };
     }
     (!note.is_empty()).then_some(note)
 }
@@ -2160,6 +2163,19 @@ mod tests {
 
     fn j(s: &str) -> Value {
         serde_json::from_str(s).unwrap()
+    }
+
+    #[test]
+    fn long_injury_note_keeps_the_return_date() {
+        let r: InjuryReport = serde_json::from_value(json!({
+            "player_name": "Patrick Kane", "status_raw": "Out", "status": "out", "injury_type": "Upper Body",
+            "return_date": "2026-11-12", "comment": "x ".repeat(200)})).unwrap();
+        let note = injury_note(&r).unwrap();
+        assert!(note.ends_with("... (est. return 2026-11-12)"), "{note}");
+        assert!(note.chars().count() <= 220);
+        let short: InjuryReport = serde_json::from_value(json!({
+            "player_name": "A", "status_raw": "Out", "status": "out", "return_date": "2026-11-12", "comment": "Hip."})).unwrap();
+        assert_eq!(injury_note(&short).unwrap(), "Hip. (est. return 2026-11-12)");
     }
 
     type Urls = Arc<Mutex<Vec<String>>>;

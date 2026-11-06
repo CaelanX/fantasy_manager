@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import move_list, pill, news_item, reasons_table, prospect_mark, team_chip with context %}
+{% from "_macros.html" import move_list, pill, news_item, reasons_table, prospect_mark, team_chip, game_log_block with context %}
 {% block heading %}
 <p class="sc dateline">{% if team %}{{ team.name }} &middot; slot {{ slot }}{% else %}Free agent{% endif %}{% if p.pct_owned is not none %} &middot; {{ p.pct_owned|n1 }}% rostered{% endif %}</p>
 <h1>{{ p.name }}{{ prospect_mark(row.prospect) }}</h1>
@@ -136,6 +136,11 @@
   {% else %}
   <p class="empty">{% if p.team %}No games in the next 14 days (or no schedule loaded).{% else %}No NHL team, so no schedule.{% endif %}</p>
   {% endif %}
+</section>
+
+<section aria-labelledby="h-glog">
+  <h2 id="h-glog" class="sr-only">Game log</h2>
+  {{ game_log_block(game_log, gl_chart, p) }}
 </section>
 
 <section aria-labelledby="h-stats">

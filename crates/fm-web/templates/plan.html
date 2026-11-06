@@ -18,7 +18,7 @@
   <div class="act-main">
     {% if mv.status %}<p class="act-status"><span class="tag tag-{{ mv.status }}">{{ {'new': 'New', 'kept': 'Kept from your last plan'}.get(mv.status, mv.status) }}</span></p>{% endif %}
     {% if mv.note %}<p class="act-note">{% if mv.role %}<span class="role role-{{ mv.role }}">{{ {'rental': 'Rental', 'swap': 'Swap'}.get(mv.role, mv.role) }}</span>{% endif %}{{ mv.note }}</p>{% endif %}
-    <p class="act-do">{{ 'Claim' if mv.claim else 'Add' }} {{ mv.add.name }}{% if mv.drop %}, drop {{ mv.drop.name }}{% elif mv.to_ir %}, {{ mv.to_ir.name }} to IR{% endif %}</p>
+    <p class="act-do">{{ 'Claim' if mv.claim else 'Add' }} {{ plinks(mv.add.name) }}{% if mv.drop %}, drop {{ plinks(mv.drop.name) }}{% elif mv.to_ir %}, {{ plinks(mv.to_ir.name) }} to IR{% endif %}</p>
     <p class="act-why">{{ mv.headline }}</p>
     {% if mv.timing %}<p class="act-when">{{ mv.timing }}</p>{% endif %}
     {% if (not show_day and mv.effective != mv.day) or mv.market or mv.win_delta is not none %}
@@ -101,7 +101,7 @@
     {% for a in plan.today %}
     <li class="act">
       <div class="act-main">
-        <p class="act-do">{{ a.title }}</p>
+        <p class="act-do">{{ plinks(a.title) }}</p>
         {% if a.headline %}<p class="act-why">{{ a.headline }}</p>{% endif %}
         {{ did_form(a.title) }}
       </div>
@@ -146,10 +146,10 @@
           <span class="d-pts"><b>{{ d.pts_plan|n1 }}</b><small>{{ d.pts_as_set|n1 }}</small></span>
         </summary>
         <div class="d-body">
-          {% for mv in d.moves %}<p><b>{{ 'Claim' if mv.claim else 'Add' }} {{ mv.add.name }}</b>{% if mv.drop %}, drop {{ mv.drop.name }}{% endif %}</p>{% endfor %}
-          {% if d.ins %}<p class="d-k">Start instead of quick lineup</p><ul>{% for x in d.ins %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
-          {% if d.outs %}<p class="d-k">Bench</p><ul>{% for x in d.outs %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
-          {% if d.goalies %}<p class="d-k">Goalies</p><ul>{% for x in d.goalies %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+          {% for mv in d.moves %}<p><b>{{ 'Claim' if mv.claim else 'Add' }} {{ plinks(mv.add.name) }}</b>{% if mv.drop %}, drop {{ plinks(mv.drop.name) }}{% endif %}</p>{% endfor %}
+          {% if d.ins %}<p class="d-k">Start instead of quick lineup</p><ul>{% for x in d.ins %}<li>{{ plinks(x) }}</li>{% endfor %}</ul>{% endif %}
+          {% if d.outs %}<p class="d-k">Bench</p><ul>{% for x in d.outs %}<li>{{ plinks(x) }}</li>{% endfor %}</ul>{% endif %}
+          {% if d.goalies %}<p class="d-k">Goalies</p><ul>{% for x in d.goalies %}<li>{{ plinks(x) }}</li>{% endfor %}</ul>{% endif %}
           {% if d.quick_ok and not d.moves %}<p class="muted">Quick lineup is fine.</p>{% endif %}
           {% if d.note %}<p class="muted">{{ d.note }}</p>{% endif %}
         </div>
