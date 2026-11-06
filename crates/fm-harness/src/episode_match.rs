@@ -714,24 +714,43 @@ pub fn match_rows(
             "created_at": now_iso(),
         })));
     }
-    let mut groups_tx: IndexMap<&str, Vec<&TxRow>> = IndexMap::new();
+    let mut by_group: IndexMap<&str, Vec<&TxRow>> = IndexMap::new();
     for t in &mine {
-        if t.action == "PROPOSED" || Some(t.team_id.as_str()) != my_team {
+        if t.action == "PROPOSED" || Some(t.team_id.as_str()) != my_team || consumed.contains(t.group()) {
             continue;
         }
-        groups_tx.entry(t.group()).or_default().push(t);
+        by_group.entry(t.group()).or_default().push(t);
     }
-    for (gid, ts) in groups_tx {
-        if consumed.contains(gid) {
-            continue;
-        }
+    // ESPN logs an add and the drop that made room for it as two transactions: like
+    // `drops_with`, pure add / drop groups of the same day are one move
+    let mut groups_tx: IndexMap<String, Vec<&TxRow>> = IndexMap::new();
+    let mut waiver_day: HashMap<NaiveDate, String> = HashMap::new();
+    for (gid, ts) in by_group {
+        let waiver_only = ts.iter().all(|t| t.action == "ADD" || t.action == "DROP");
+        let day = ts.iter().map(|t| t.day).min().expect("group has rows");
+        let key = match waiver_day.get(&day) {
+            Some(k) if waiver_only => k.clone(),
+            _ => {
+                if waiver_only {
+                    waiver_day.insert(day, gid.to_string());
+                }
+                gid.to_string()
+            }
+        };
+        groups_tx.entry(key).or_default().extend(ts);
+    }
+    for (_, ts) in groups_tx {
+        let mut gids: Vec<&str> = ts.iter().map(|t| t.group()).collect();
+        gids.sort_unstable();
+        gids.dedup();
+        let gid = gids.join(",");
         let actions: BTreeSet<&str> = ts.iter().map(|t| t.action.as_str()).collect();
         let pick = |names: [&str; 2]| -> BTreeSet<String> {
             ts.iter().filter(|t| names.contains(&t.action.as_str())).map(|t| t.cid.clone()).collect()
         };
         let day = ts.iter().map(|t| t.day).min().expect("group has rows");
         res.decisions.push(row(json!({
-            "decision_id": format!("tx:{league}:{gid}"),
+            "decision_id": format!("tx:{league}:{}", gids.join("+")),
             "league": league,
             "day": day.to_string(),
             "origin": "user_only",

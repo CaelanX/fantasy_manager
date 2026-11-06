@@ -461,6 +461,43 @@ fn user_only_move_has_the_models_view_and_alternative() {
 }
 
 #[test]
+fn dropped_player_without_an_id_is_matched_by_a_unique_name() {
+    let e = led();
+    let l = &e.led;
+    let day = d(2026, 10, 8);
+    // "zz" was dropped before any ESPN projection was archived: no id in this league
+    l.upsert(
+        "transactions",
+        &[row(json!({"league": "espn", "tx_id": "t1", "action": "DROP", "cid": "zz", "team_id": "1", "ts": "2026-10-08T11:00:00",
+            "day": iso(day), "player_name": "Zed Player", "is_me": 1}))],
+        &["league", "tx_id", "action", "cid", "team_id"],
+    )
+    .unwrap();
+    proj(l, day, "a", json!({}));
+    // the other league knows him
+    for (cid, name, id) in [("f1", "Zed Player", 77)] {
+        l.upsert(
+            "projections",
+            &[row(json!({"league": "fantrax", "as_of": iso(day), "cid": cid, "name": name, "nhl_id": id, "fpg": 1.0}))],
+            &["league", "as_of", "cid"],
+        )
+        .unwrap();
+    }
+    l.upsert(
+        "decisions",
+        &[row(json!({"decision_id": "tx:espn:t1", "league": "espn", "day": iso(day), "origin": "user_only",
+            "kind": "waiver", "adds_json": "[\"a\"]", "drops_json": "[\"zz\"]"}))],
+        &["decision_id"],
+    )
+    .unwrap();
+    pull(l, &days(d(2026, 10, 9), 7), &[(1, d(2026, 10, 9), json!({"G": 1})), (77, d(2026, 10, 10), json!({"A": 1}))]);
+    grade_outcomes(l, "espn", d(2026, 10, 20)).unwrap();
+    let r = one(l, &[("decision_id", json!("tx:espn:t1")), ("window", json!("7d"))]);
+    assert_eq!(r["detail"]["unmatched"], json!([]));
+    assert_eq!(gain(&r), 3.0 - 2.0);
+}
+
+#[test]
 fn scoring_from_archive_header_then_meta() {
     let tmp = tempfile::tempdir().unwrap();
     let arch = tmp.path().join("archive");

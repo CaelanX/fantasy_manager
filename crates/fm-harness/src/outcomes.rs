@@ -336,6 +336,23 @@ pub fn load_players(ledger: &Ledger, league: &str) -> Result<Players> {
             }
         }
     }
+    // a player dropped before any projection was archived has no id in this league: take it from
+    // a unique exact name among the ids the ledger knows (any league)
+    let mut by_name: HashMap<String, BTreeSet<i64>> = HashMap::new();
+    for r in ledger.query("SELECT DISTINCT name, nhl_id FROM projections WHERE nhl_id IS NOT NULL AND name IS NOT NULL", &[])? {
+        if let (Some(n), Some(id)) = (s_of(&r, "name"), i_of(&r, "nhl_id")) {
+            by_name.entry(normalize_name(&n)).or_default().insert(id);
+        }
+    }
+    for r in ledger.query("SELECT DISTINCT cid, player_name FROM transactions WHERE league=? AND player_name IS NOT NULL", &[&l])? {
+        let (Some(c), Some(n)) = (s_of(&r, "cid"), s_of(&r, "player_name")) else { continue };
+        if pl.nhl.contains_key(&c) {
+            continue;
+        }
+        if let Some(ids) = by_name.get(&normalize_name(&n)).filter(|ids| ids.len() == 1) {
+            pl.nhl.insert(c, *ids.iter().next().expect("one id"));
+        }
+    }
     for r in ledger.query(
         "SELECT as_of, cid, nhl_id, fpg, vorp, games_next7, positions, inputs_json FROM projections WHERE league=?",
         &[&l],
