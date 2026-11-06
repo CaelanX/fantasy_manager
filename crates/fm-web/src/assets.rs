@@ -19,6 +19,7 @@ pub const TEMPLATES: &[(&str, &str)] = embed_str!(
     "base.html",
     "error.html",
     "health.html",
+    "keepers.html",
     "login.html",
     "matchup.html",
     "news.html",

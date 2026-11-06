@@ -75,8 +75,8 @@ pub const EXPLAIN_FAILED: &str =
 pub const NAME_SUFFIXES: [&str; 7] = ["jr", "jr.", "sr", "sr.", "ii", "iii", "iv"];
 pub const NUMBER_WORDS: [&str; 11] = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
 pub const LEAD_VERBS: [&str; 8] = ["move", "add", "start", "trade", "activate", "bench", "sell", "buy"];
-const PAGE_PATHS: [&str; 10] =
-    ["/", "/plan", "/overview", "/roster", "/recommendations", "/news", "/health", "/schedule", "/matchup", "/trade-eval"];
+const PAGE_PATHS: [&str; 11] =
+    ["/", "/plan", "/overview", "/roster", "/recommendations", "/news", "/health", "/schedule", "/matchup", "/trade-eval", "/keepers"];
 
 /// (env var, Settings attribute, requirement note) shown on the setup page.
 pub fn setup_vars(league: &str) -> &'static [(&'static str, &'static str, &'static str)] {
@@ -1211,6 +1211,7 @@ impl App {
             "/plan" if get => self.plan(&req),
             "/overview" if get => self.overview(&req),
             "/roster" if get => self.roster(&req),
+            "/keepers" if get => self.keepers(&req),
             "/recommendations" if get => self.recommendations(&req),
             "/news" if get => self.news(&req),
             "/schedule" if get => self.schedule(&req),
@@ -1231,7 +1232,7 @@ impl App {
                 let cid = p["/player/".len()..].to_string();
                 self.player(&req, &cid)
             }
-            "/healthz" | "/" | "/plan" | "/overview" | "/roster" | "/recommendations" | "/news" | "/schedule" | "/trade-eval"
+            "/healthz" | "/" | "/plan" | "/overview" | "/roster" | "/keepers" | "/recommendations" | "/news" | "/schedule" | "/trade-eval"
             | "/matchup" | "/health" | "/api/recs.json" | "/api/claims.json" | "/api/roster.json" | "/api/health.json"
             | "/api/mode.json" | "/explain" | "/refresh" | "/moved" | "/mode" | "/params/rollback" => {
                 Ok(detail(405, "Method Not Allowed".into()))
@@ -1437,9 +1438,20 @@ impl App {
                 "has_pct": rows.iter().any(|r| r.get("pct").is_some_and(|v| !v.is_null())),
             })
         });
-        let mut ctxv: Ctx = cx![("res", ResObj::value(res.clone())), ("view", Value::from(view)), ("title", Value::from("Roster"))];
+        let keepers = memo_mj(&res, &format!("keepers:{key}"), || crate::keepers_view::roster_panel(&res, chosen));
+        let mut ctxv: Ctx = cx![("res", ResObj::value(res.clone())), ("view", Value::from(view)), ("title", Value::from("Roster")), ("keepers", keepers)];
         spread_mj(&mut ctxv, &bundle);
         Ok(self.render(req, "roster.html", &league, 200, ctxv))
+    }
+
+    fn keepers(&self, req: &Req) -> Result<Resp, Resp> {
+        let league = self.league_q(req)?;
+        let page = self.load_or_error(req, &league)?;
+        let res = page.res.clone();
+        let bundle = memo_mj(&res, "keepers_page", || crate::keepers_view::keepers_page(&res));
+        let mut ctxv: Ctx = cx![("res", ResObj::value(res.clone())), ("title", Value::from("Keepers"))];
+        spread_mj(&mut ctxv, &bundle);
+        Ok(self.render(req, "keepers.html", &league, 200, ctxv))
     }
 
     fn recommendations(&self, req: &Req) -> Result<Resp, Resp> {

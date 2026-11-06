@@ -3,6 +3,7 @@
 pub mod adjust;
 pub mod blend;
 pub mod dynasty;
+pub mod keepers;
 pub mod params;
 pub mod picks;
 pub mod regression;
