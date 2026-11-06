@@ -2,8 +2,13 @@
 {% from "_macros.html" import pill, reasons_table with context %}
 {% block heading %}
 <p class="sc dateline">{{ res.ctx.name }} &middot; same scoring as Moves</p>
-<h1>Trade evaluator</h1>
-<p class="sub">Got an offer? Tick what you send and what you get. You get your lineup's gain, theirs, fairness by our model and by market value, and a verdict.</p>
+<h1>Trades</h1>
+<p class="sub">{% if mode == 'shop' %}Shopping one of your players? See the best packages each team would give for him, ranked by what they are worth to you.{% elif mode == 'get' %}Want someone else's player? See the cheapest packages of yours they would likely take for him.{% else %}Got an offer? Tick what you send and what you get. You get your lineup's gain, theirs, fairness by our model and by market value, and a verdict.{% endif %}</p>
+<nav class="seg tr-seg" aria-label="Trade tools">
+  <a class="mode-btn" href="/trade-eval?league={{ league }}"{% if mode == 'eval' %} aria-current="page"{% endif %}>Evaluate an offer</a>
+  <a class="mode-btn" href="/trade-eval?league={{ league }}&amp;mode=shop"{% if mode == 'shop' %} aria-current="page"{% endif %}>Shop a player</a>
+  <a class="mode-btn" href="/trade-eval?league={{ league }}&amp;mode=get"{% if mode == 'get' %} aria-current="page"{% endif %}>Get a player</a>
+</nav>
 {% endblock %}
 {% block content %}
 {% macro side_list(rows, name, legend) -%}
@@ -48,7 +53,7 @@
     <thead><tr><th scope="col">Player</th><th scope="col" class="n">{{ vlabel }}</th><th scope="col" class="n">VORP</th>{% if dyn %}<th scope="col" class="n">Dyn</th>{% endif %}</tr></thead>
     <tbody>
     {% for x in rows %}
-    <tr><th scope="row"><span class="te-pname">{{ x.name }}</span>
+    <tr><th scope="row"><span class="te-pname"><a class="pl" href="/player/{{ x.cid|q }}?league={{ league }}">{{ x.name }}</a></span>
       <small class="muted">{{ x.pos }} &middot; {{ x.team }}{% if x.slot in ('IR', 'IR+') %} &middot; IR{% endif %}</small>{% if x.status not in ('healthy', 'unknown') %} {{ pill(x.status) }}{% endif %}</th>
       <td class="n">{{ x.fpg|n1 }}</td><td class="n">{{ x.vorp|n1 }}</td>{% if dyn %}<td class="n">{{ x.dyn|n1 }}</td>{% endif %}</tr>
     {% endfor %}
@@ -66,6 +71,7 @@
 </div>
 {%- endmacro %}
 
+{% if mode == 'eval' %}
 {% set r = result %}
 {% if r %}
 <section id="te-result" aria-labelledby="h-te-result" class="te-result te-{{ r.verdict }}">
@@ -141,4 +147,62 @@
   {% endif %}
   <p class="foot-note">Verdict: accept when your edge (lineup pts/game; in dynasty leagues the {{ data_mode }} blend with dynasty value) is at least +0.1 and the deal keeps your mode's this-season floor; decline below -0.3, when your roster would be illegal or a protected prospect must be dropped; counter in between, or when you hand over far more market value than a small edge justifies. Same CLI: <code>fm trade-eval</code>.</p>
 </section>
+{% else %}
+{% set shop = mode == 'shop' %}
+<section id="tr-pick" aria-labelledby="h-tr-pick">
+  <h2 id="h-tr-pick" class="sr-only">{{ 'Pick your player' if shop else 'Pick their player' }}</h2>
+  <form method="get" action="/trade-eval" class="filterbar tr-form">
+    <input type="hidden" name="league" value="{{ league }}">
+    <input type="hidden" name="mode" value="{{ mode }}">
+    <span class="fgroup"><label for="tr-cid">{{ 'Your player' if shop else 'Their player' }}</label>
+    <select id="tr-cid" name="cid">
+      <option value="">Choose a player</option>
+      {% if shop %}
+      {% for x in my_players %}<option value="{{ x.cid }}"{% if x.selected %} selected{% endif %}>{{ x.name }} &middot; {{ x.pos }} &middot; {{ x.fpg|n1 }}</option>{% endfor %}
+      {% else %}
+      {% for g in groups %}<optgroup label="{{ g.team }}">
+        {% for x in g.players %}<option value="{{ x.cid }}"{% if x.selected %} selected{% endif %}>{{ x.name }} &middot; {{ x.pos }} &middot; {{ x.fpg|n1 }}</option>{% endfor %}
+      </optgroup>{% endfor %}
+      {% endif %}
+    </select></span>
+    <button type="submit" class="btn">{{ 'Shop him' if shop else 'Find packages' }}</button>
+  </form>
+</section>
+{% if error %}<p class="flash flash-warn" role="status">{{ error }}</p>{% endif %}
+{% if not target %}
+<p class="empty">{{ 'Pick one of your players to see what teams would give.' if shop else 'Pick a player on another team to see what it would take to get him.' }}</p>
+{% elif deals is not none %}
+<section id="tr-deals" aria-labelledby="h-tr-deals">
+  <h2 id="h-tr-deals" class="tr-h">{{ 'What teams would give for' if shop else 'What it takes to get' }}
+    <a class="pl" href="/player/{{ target.cid|q }}?league={{ league }}">{{ target.name }}</a>{% if not shop %} <span class="aside">from {{ target.owner }}</span>{% endif %}</h2>
+  {% if deals %}
+  <p class="small muted">{% if shop %}Ranked by expected value: your gain x the chance they accept, at most 2 per team.{% else %}Cheapest package they would likely accept (50% or better) first, then the one that leaves you the most.{% endif %}</p>
+  <ol class="tr-deals">
+    {% for d in deals %}
+    <li class="tr-deal te-{{ d.verdict }}">
+      <div class="tr-deal-h"><span class="tr-n">{{ loop.index }}</span> <b>{{ d.team }}</b>
+        <span class="pill {{ 'pill-ok' if d.verdict == 'accept' else ('pill-dtd' if d.verdict == 'counter' else 'pill-out') }}">{{ d.verdict|capitalize }}</span></div>
+      <div class="te-vs">
+        {{ deal_side(d.give, d.give_picks, 'You send', 'te-out', d.dyn_mode is not none) }}
+        <div class="te-arrow" aria-hidden="true">&#8644;</div>
+        {{ deal_side(d.get, d.get_picks, 'You get', 'te-in', d.dyn_mode is not none) }}
+      </div>
+      <dl class="tr-stats">
+        <div><dt>Your lineup</dt><dd class="{{ 'te-up' if d.my_fpg > 0 else ('te-down' if d.my_fpg < 0 else '') }}">{{ '%+.2f'|format(d.my_fpg) }}/g &middot; {{ '%+.1f'|format(d.my_week) }}/wk</dd></div>
+        <div><dt>Their lineup</dt><dd>{{ '%+.2f'|format(d.their_fpg) }}/g</dd></div>
+        <div><dt>They accept</dt><dd>~{{ '%.0f'|format(d.p * 100) }}%</dd></div>
+        {% if d.dyn_mode %}<div><dt>Your {{ d.dyn_mode }} edge</dt><dd>{{ '%+.2f'|format(d.my_edge) }}</dd></div>{% endif %}
+      </dl>
+      <p class="tr-why">{{ d.why|join('; ') }}{% if d.counter %}; {{ d.counter }}{% endif %}</p>
+      <a class="tr-eval" href="/trade-eval?league={{ league }}&amp;{{ d.eval_q }}">Evaluate this deal &rarr;</a>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="flash" role="status">{% if shop %}No team would give a fair package for {{ target.name }} right now: nothing gains you more than +0.3 pts/game with at least a 25% chance they accept.{% else %}No package of yours gets {{ target.name }} with at least a 25% chance they accept while still leaving you better off.{% endif %}</p>
+  {% endif %}
+  <p class="foot-note">1 or 2 players a side, plus a draft pick where one makes the deal (dynasty leagues with pick data); each deal is scored exactly like the evaluator. Searched in {{ seconds }} s. Same CLI: <code>fm trades {{ '--shop' if shop else '--target' }} "{{ target.name }}"</code>.</p>
+</section>
+{% endif %}
+{% endif %}
 {% endblock %}

@@ -7,7 +7,8 @@
 //! Submodules: `greedy` (slot structure, greedy lineup, memo keys), `accept` (market worth and
 //! the acceptance curve), `engine` (`_TradeEngine`, `TradeEval`), `rec` (`_to_rec`, `diverse`),
 //! `search` (`recommend_trades`), `offer` (`evaluate_trade` / `evaluate_offer` /
-//! `offer_summary`, trade blocks, name resolution), `exploit`, `need`.
+//! `offer_summary`, trade blocks, name resolution), `exploit`, `need`, `target` (`shop_player` /
+//! `acquire_player`).
 //!
 //! Performance (the hot path of the app): the engine is built once per league; counterparties
 //! and their candidates are evaluated in parallel with rayon and merged back in Python's order
@@ -36,6 +37,7 @@ mod need;
 mod offer;
 mod rec;
 mod search;
+mod target;
 
 pub use crate::recommend::market::CLEAR_FAVOR_PTS;
 pub use accept::{
@@ -52,6 +54,7 @@ pub use offer::{
 };
 pub use rec::{diverse, keeper_delta_text, market_label, pct_text, roster_text, to_rec, DEFAULT_RATE};
 pub use search::{recommend_trades, TradeOpts};
+pub use target::{acquire_player, shop_player, TARGET_EVALS, TARGET_LIKELY_P, TARGET_PER_TEAM};
 
 /// `_greedy_lineup_value(players, values, roster_shape)` on the season horizon (also used by
 /// `analysis.outlook` with its own per-player values): total per-game value of the best starting

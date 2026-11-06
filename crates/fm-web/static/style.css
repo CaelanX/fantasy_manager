@@ -880,3 +880,28 @@ a.pl:hover { text-decoration-color: currentColor; }
 .keep-card.mine { border-color: var(--accent); background: var(--accent-wash); }
 .keep-card h3 { font-size: 1.05rem; margin-bottom: 4px; }
 .ub.kb { background: none; border: 1px solid var(--accent); color: var(--accent); }
+/* trades: shop / get */
+.tr-seg { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; margin-top: 14px; }
+.tr-seg .mode-btn { display: inline-flex; align-items: center; text-decoration: none; padding: 9px 14px; }
+.tr-seg .mode-btn[aria-current="page"] { background: var(--paper); color: var(--ink); box-shadow: 0 0 0 1px var(--rule-2); }
+.tr-seg .mode-btn:hover:not([aria-current="page"]) { color: var(--ink); }
+@media (max-width: 430px) { .tr-seg .mode-btn { padding: 8px 10px; font-size: .9rem; } }
+.tr-form select { max-width: 100%; min-width: 0; }
+.tr-form .fgroup { flex-wrap: wrap; max-width: 100%; }
+.tr-h { display: block; }
+.tr-h a.pl { font: inherit; color: inherit; }
+.tr-deals { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.tr-deal { border: 1px solid var(--rule); border-left: 6px solid var(--ink-3); border-radius: var(--r-card); background: var(--paper);
+  padding: 12px 14px; min-width: 0; }
+.tr-deal.te-accept { border-left-color: var(--good); }
+.tr-deal.te-counter { border-left-color: var(--warn); }
+.tr-deal-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 10px; font-size: 1.05rem; }
+.tr-n { font: 700 .9rem/1 var(--display); color: var(--ink-3); }
+.tr-deal-h .pill { margin-left: auto; }
+.tr-deal .te-vs { margin-bottom: 10px; }
+.tr-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; margin: 0 0 8px; }
+@media (min-width: 640px) { .tr-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tr-stats dt { font-size: .8rem; color: var(--ink-3); }
+.tr-stats dd { margin: 0; font-variant-numeric: tabular-nums; }
+.tr-why { font-size: .88rem; color: var(--ink-2); margin: 0 0 6px; }
+.tr-eval { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }

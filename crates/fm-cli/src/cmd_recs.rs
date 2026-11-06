@@ -19,8 +19,9 @@ use fm_engine::recommend::flags::recommend_flags;
 use fm_engine::recommend::injuries::History;
 use fm_engine::recommend::plan::{build_week_plan, plan_summary, PlanOpts};
 use fm_engine::recommend::trades::{
-    evaluate_offer, exploit_opportunities, find_needs, find_pick, find_players, find_team, offer_summary, pick_assets, pitch_of,
-    recommend_need_trades, recommend_trades, EngineOpts, OutlookView, PickRef, TradeOpts, EXPLOIT_PER_TEAM, NEED_PER_TEAM,
+    acquire_player, evaluate_offer, exploit_opportunities, find_needs, find_pick, find_players, find_team, offer_summary, pick_assets,
+    pitch_of, recommend_need_trades, recommend_trades, shop_player, EngineOpts, OfferEval, OutlookView, PickRef, TradeOpts,
+    EXPLOIT_PER_TEAM, NEED_PER_TEAM,
 };
 use fm_harness::metrics::HIT_KINDS;
 use fm_harness::track::{as_json as track_json, rec_record, record_text, TrackBook, TRACK_DAYS};
@@ -71,6 +72,12 @@ pub struct TradesArgs {
     /// Trade finder by need: deals that fill your weakest slots with partners heading the other way, each with a pitch to send.
     #[arg(long = "need")]
     pub need: bool,
+    /// Shop one of your players (fuzzy name): the best packages each team would give for him.
+    #[arg(long = "shop", conflicts_with_all = ["need", "target"])]
+    pub shop: Option<String>,
+    /// Get another team's player (fuzzy name): the cheapest packages of yours they would likely take for him.
+    #[arg(long = "target", conflicts_with = "need")]
+    pub target: Option<String>,
     #[command(flatten)]
     pub lo: LeagueOpts,
 }
@@ -205,6 +212,9 @@ pub fn trades(cli: &mut Cli, a: &TradesArgs) -> Result<()> {
     if a.need {
         return need_trades_out(&d, wants.as_ref(), offered.as_ref(), a.limit, as_json, errors);
     }
+    if a.shop.is_some() || a.target.is_some() {
+        return targeted_trades_out(&d, wants.as_ref(), offered.as_ref(), a, as_json);
+    }
     let engine = EngineOpts { wants: wants.as_ref(), offered: offered.as_ref(), ..EngineOpts::default() };
     let topts = TradeOpts { dynasty_values: d.dyn_values.as_ref(), max_per_team: a.per_team, limit: a.limit, engine, ..TradeOpts::default() };
     let mut future: Vec<Recommendation> = Vec::new();
@@ -318,6 +328,70 @@ fn need_trades_out(
         say(format!("  {}. {}", i + 1, pitch_of(r).unwrap_or("")));
     }
     footer(lc, &errors);
+    Ok(())
+}
+
+/// `fm trades --shop NAME` / `--target NAME`: deals built around one player.
+fn targeted_trades_out(
+    d: &fm_providers::pipeline::Loaded,
+    wants: Option<&Map<String, Vec<String>>>,
+    offered: Option<&Map<String, Vec<String>>>,
+    a: &TradesArgs,
+    as_json: bool,
+) -> Result<()> {
+    let lc = &d.lc;
+    let shop = a.shop.is_some();
+    let query = a.shop.as_deref().or(a.target.as_deref()).unwrap_or_default();
+    let engine = EngineOpts { wants, offered, ..EngineOpts::default() };
+    let outcome = (|| -> Result<(Player, Vec<OfferEval<'_>>)> {
+        let me = lc.my_team()?;
+        let pool: Vec<&Player> = if shop {
+            me.players_iter().collect()
+        } else {
+            lc.teams.iter().filter(|t| t.team_id != me.team_id).flat_map(|t| t.players_iter()).collect()
+        };
+        let p = find_players(&[query], &pool)?.into_iter().next().ok_or_else(|| lookup("name a player"))?;
+        let offers = if shop {
+            shop_player(lc, &d.values, &p.cid, d.dyn_values.as_ref(), &engine, a.limit)?
+        } else {
+            acquire_player(lc, &d.values, &p.cid, d.dyn_values.as_ref(), &engine, a.limit)?
+        };
+        Ok((p.clone(), offers))
+    })();
+    let (p, offers) = match outcome {
+        Ok(x) => x,
+        Err(e) => match core_msg(&e) {
+            Some(m) => return Err(fail_code(m, 2)),
+            None => return Err(e),
+        },
+    };
+    let recs: Vec<Recommendation> = offers.iter().map(|o| o.rec.clone()).collect();
+    if as_json {
+        json_out(
+            json!({"mode": if shop { "shop" } else { "get" }, "player": {"cid": p.cid, "name": p.name},
+                   "offers": offers.iter().map(offer_summary).collect::<Vec<_>>(), "trades": recs_json(&recs)}),
+            Some(lc),
+            &d.errors,
+        );
+        return Ok(());
+    }
+    if recs.is_empty() {
+        say(if shop {
+            format!("No team gives a fair package for {}: nothing gains you more than +0.3 with at least a 25% chance of being accepted.", p.name)
+        } else {
+            format!("No package of yours gets {} with at least a 25% chance of being accepted and leaves you better off.", p.name)
+        });
+        footer(lc, &d.errors);
+        return Ok(());
+    }
+    if shop {
+        trade_table(&format!("Shopping {}: what teams would give, ranked by expected value (your gain x acceptance chance)", p.name), &recs, false).print();
+    } else {
+        trade_table(&format!("Getting {}: cheapest packages they would likely accept first (50%+), then your gain", p.name), &recs, false).print();
+    }
+    let verdicts: Vec<String> = offers.iter().enumerate().map(|(i, o)| format!("{}. {}", i + 1, o.verdict)).collect();
+    say(format!("Verdicts (as fm trade-eval would judge each): {}", verdicts.join(" · ")));
+    footer(lc, &d.errors);
     Ok(())
 }
 

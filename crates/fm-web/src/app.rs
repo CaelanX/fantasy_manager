@@ -1624,7 +1624,14 @@ impl App {
         let evaluate = req.q("switch").is_none_or(|s| s.is_empty());
         let team = req.q("team");
         let pv = page.provider.clone();
-        let out = catch_unwind(AssertUnwindSafe(|| views::trade_eval_page(&res, team, &give, &get, &gp, &tp, pv.as_deref(), evaluate)));
+        let mode = match req.q("mode") {
+            Some(m @ ("shop" | "get")) => m,
+            _ => "eval",
+        };
+        let out = catch_unwind(AssertUnwindSafe(|| match mode {
+            "eval" => views::trade_eval_page(&res, team, &give, &get, &gp, &tp, pv.as_deref(), evaluate),
+            m => crate::trades_view::trades_mode_page(&res, m, req.q("cid"), pv.as_deref()),
+        }));
         let pagev = match out {
             Ok(v) => v,
             Err(p) => {
@@ -1639,7 +1646,7 @@ impl App {
                 ));
             }
         };
-        let mut ctx: Ctx = cx![("res", ResObj::value(res.clone())), ("title", Value::from("Trade evaluator"))];
+        let mut ctx: Ctx = cx![("res", ResObj::value(res.clone())), ("title", Value::from("Trades")), ("mode", Value::from(mode))];
         spread(&mut ctx, &pagev, &res);
         Ok(self.render(req, "trade_eval.html", &league, 200, ctx))
     }

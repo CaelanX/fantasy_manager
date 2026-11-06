@@ -838,3 +838,61 @@ fn bench_trades_fixtures() {
         );
     }
 }
+
+// -- shop a player / get a player ------------------------------------------------------------
+
+#[test]
+fn shop_player_lists_what_teams_give_for_him() {
+    for greedy_only in [false, true] {
+        let (ctx, values) = build();
+        let opts = EngineOpts { greedy_only, ..EngineOpts::default() };
+        let offers = shop_player(&ctx, &values, "m_c2", None, &opts, 10).unwrap();
+        assert!(!offers.is_empty());
+        assert!(offers.iter().any(|o| o.ev.team.team_id == "A" && o.ev.get.iter().any(|p| ["a_d1", "a_d2"].contains(&p.cid.as_str()))));
+        for o in &offers {
+            assert_eq!(cids(&o.ev.give)[0], "m_c2");
+            assert!(o.ev.give.len() <= 2 && (1..=2).contains(&o.ev.get.len()));
+            assert!(o.ev.accepted() && o.ev.listable() && o.verdict != "decline");
+            assert!(o.rec.rank_in_kind.is_some());
+        }
+        for t in ["A", "B"] {
+            assert!(offers.iter().filter(|o| o.ev.team.team_id == t).count() <= TARGET_PER_TEAM);
+        }
+        let scores: Vec<f64> = offers.iter().map(|o| o.ev.score()).collect();
+        assert!(scores.windows(2).all(|w| w[0] >= w[1]));
+        // no padded deal: a bigger package never sits beside a sub-deal of it that does as well
+        for a in &offers {
+            for b in &offers {
+                let inside = a.ev.give.len() + a.ev.get.len() < b.ev.give.len() + b.ev.get.len()
+                    && a.ev.team.team_id == b.ev.team.team_id
+                    && cids(&a.ev.give).iter().all(|c| cids(&b.ev.give).contains(c))
+                    && cids(&a.ev.get).iter().all(|c| cids(&b.ev.get).contains(c));
+                assert!(!(inside && a.ev.score() >= b.ev.score()));
+            }
+        }
+    }
+}
+
+#[test]
+fn acquire_player_ranks_likely_cheap_packages_first() {
+    let (ctx, values) = build();
+    let offers = acquire_player(&ctx, &values, "a_d1", None, &EngineOpts::default(), 10).unwrap();
+    assert!(!offers.is_empty());
+    for o in &offers {
+        assert_eq!(o.ev.team.team_id, "A");
+        assert_eq!(cids(&o.ev.get), ["a_d1"]);
+        assert!((1..=2).contains(&o.ev.give.len()));
+        assert!(o.ev.p() >= MIN_P_ACCEPT - 1e-9 && o.ev.my_edge() > 0.0 && o.verdict != "decline");
+    }
+    let key: Vec<(bool, f64)> = offers.iter().map(|o| (o.ev.p() >= TARGET_LIKELY_P - 1e-9, o.ev.my_edge())).collect();
+    assert!(key.windows(2).all(|w| w[0].0 > w[1].0 || (w[0].0 == w[1].0 && w[0].1 >= w[1].1 - 1e-9)));
+}
+
+#[test]
+fn shop_and_acquire_reject_players_on_the_wrong_side() {
+    let (ctx, values) = build();
+    let err = |r: anyhow::Result<Vec<OfferEval<'_>>>| r.err().map(|e| e.to_string()).unwrap_or_default();
+    assert!(err(shop_player(&ctx, &values, "a_d1", None, &greedy(), 10)).contains("not on your roster"));
+    assert!(err(acquire_player(&ctx, &values, "m_c1", None, &greedy(), 10)).contains("another team"));
+    assert!(err(acquire_player(&ctx, &values, "fa_c", None, &greedy(), 10)).contains("another team"));
+}

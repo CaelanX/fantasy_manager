@@ -229,7 +229,7 @@ pub fn verdict(ev: &TradeEval<'_>) -> (&'static str, Vec<String>) {
 
 /// `_counter_pick(eng, ev)`: the cheapest of their picks that turns a counter into an accept
 /// they plausibly take.
-fn counter_pick<'a>(eng: &TradeEngine<'a, '_>, ev: &TradeEval<'a>) -> Option<PickAsset> {
+pub(crate) fn counter_pick<'a>(eng: &TradeEngine<'a, '_>, ev: &TradeEval<'a>) -> Option<PickAsset> {
     if eng.mode.is_none() || !ev.give_picks.is_empty() || !ev.get_picks.is_empty() {
         return None;
     }
