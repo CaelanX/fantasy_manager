@@ -17,6 +17,20 @@
 {% endblock %}
 {% block content %}
 {% set tq = ('&team=' ~ (team.team_id|q)) if team and not team.owner_is_me else '' %}
+{% if keepers %}
+<section class="strip keep-panel" aria-labelledby="h-keepers">
+<h2 id="h-keepers">{{ 'Your keepers' if keepers.me else 'Predicted keepers' }} <span class="aside">top {{ keepers.k }} by keeper surplus</span></h2>
+{% if keepers.keepers %}
+<ol class="keep-list">
+  {% for c in keepers.keepers %}<li>{{ plink(c, league) }} <span class="keep-meta"><b>{{ c.surplus|n1 }}</b> surplus{% if c.age is not none %} &middot; age {{ c.age|int }}{% endif %}</span></li>{% endfor %}
+</ol>
+{% else %}
+<p class="empty">Nobody here is worth more long term than a waiver-level player.</p>
+{% endif %}
+{% if keepers.bubble %}<p class="keep-bubble"><b>On the bubble:</b> {% for c in keepers.bubble %}{{ plink(c, league) }}{% if c.gap is not none %} <small>{{ c.gap|n1 }} behind {{ c.behind }}</small>{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</p>{% endif %}
+<p class="foot-note">Keeper surplus is a player's long-term value (the seasons after this one) over a waiver-level roster spot; each team keeps its {{ keepers.k }} highest and everyone else goes back into the redraft. <a href="/keepers?league={{ league }}">League keepers &rarr;</a></p>
+</section>
+{% endif %}
 <section aria-labelledby="h-roster">
 <h2 id="h-roster">Roster <span class="aside">{{ slots|length }} players &middot; as of {{ res.ctx.as_of }}{% if week %} &middot; lineup {{ week.current|n1 }} of {{ week.optimal|n1 }} {{ week.units }} possible{% endif %}</span></h2>
 {% if empty_starting %}<p class="warn-box"><b>{{ empty_starting|length }} empty starting slot{{ 's' if empty_starting|length != 1 else '' }}</b> ({{ empty_starting|join(', ') }}): nobody is set to play there today.</p>{% endif %}
@@ -49,7 +63,7 @@
     <tr class="grp"><th scope="colgroup" colspan="{{ ncols }}">{{ label }} &middot; {{ items|length }}</th></tr>
     {% for x in items %}
     <tr{% if not x.starting %} class="bench"{% endif %}>
-      <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}{{ unit_badges(x) }}<small>{{ x.pos }} {{ team_chip(x.team) }}</small></th>
+      <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}{% if keepers and x.p.cid in keepers.cids %}<span class="ub kb" title="Predicted keeper">K</span>{% endif %}{{ unit_badges(x) }}<small>{{ x.pos }} {{ team_chip(x.team) }}</small></th>
       <td data-label="Slot" class="slot">{{ x.slot }}</td>
       <td data-label="Status" class="wrap">{{ pill(x.status) }}{% if x.note %}<small class="note-s" title="{{ x.note }}">{{ x.note|truncate(34) }}</small>{% endif %}</td>
       <td data-label="Age" class="n">{{ x.age|int if x.age is not none else '-' }}</td>
@@ -81,7 +95,7 @@
   <tbody>
     {% for x in rows %}
     <tr{% if not x.starting %} class="bench"{% endif %}>
-      <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}<small>{{ x.pos }} {{ team_chip(x.team) }}</small></th>
+      <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}{% if keepers and x.p.cid in keepers.cids %}<span class="ub kb" title="Predicted keeper">K</span>{% endif %}<small>{{ x.pos }} {{ team_chip(x.team) }}</small></th>
       <td data-label="Slot" class="slot">{{ x.slot }}</td>
       <td data-label="Status">{{ pill(x.status) }}</td>
       <td data-label="GP" class="n">{{ x.gp }}</td>

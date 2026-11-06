@@ -165,7 +165,7 @@ pub fn next_season_fpg(ctx: &LeagueContext, pv: &PlayerValue, dv: Option<&Dynast
     next_season_fpg_with(&ProductionCurves::current(), ctx, pv, dv)
 }
 
-fn next_season_fpg_with(curves: &ProductionCurves, ctx: &LeagueContext, pv: &PlayerValue, dv: Option<&DynastyValue>) -> f64 {
+pub(crate) fn next_season_fpg_with(curves: &ProductionCurves, ctx: &LeagueContext, pv: &PlayerValue, dv: Option<&DynastyValue>) -> f64 {
     let p = &pv.player;
     let healthy = healthy_fpg(pv);
     let (age, ped) = match dv {

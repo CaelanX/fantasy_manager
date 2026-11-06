@@ -978,6 +978,7 @@ impl crate::app::League {
         vec![
             crate::command_spec!("settings", 10, SettingsArgs, "Show detected league settings: scoring, point values, roster shape, teams.", settings),
             crate::command_spec!("picks", 20, PicksArgs, "Every team's draft picks with their dynasty value (dynasty leagues with pick data, Fantrax).", picks),
+            crate::command_spec!("keepers", 25, crate::cmd_keepers::KeepersArgs, "Predicted keepers for every team, your bubble, the redraft pool and what your picks could land (keeper leagues).", crate::cmd_keepers::keepers),
             crate::command_spec!("roster", 30, RosterArgs, "Show roster(s) with per-game value, week projection, VORP (and dynasty value).", roster),
             crate::command_spec!("waivers", 40, WaiversArgs, "Free-agent pickups that beat your weakest same-position player.", waivers),
             crate::command_spec!("lineup", 50, LineupArgs, "Optimal starting lineup and start/sit changes.", lineup),
