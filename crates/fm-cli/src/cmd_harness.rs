@@ -417,7 +417,8 @@ fn catch_up_step(cli: &Cli, ledger: &Ledger, through: NaiveDate, skip: NaiveDate
     let mut out = JMap::new();
     let mut errors: Vec<String> = Vec::new();
     let res: Result<()> = (|| {
-        let Some(start) = backfill_start(ledger, through)? else { return Ok(()) };
+        let season_start = schedule.and_then(|s| s.values().flatten().min().copied());
+        let Some(start) = backfill_start(ledger, through, season_start)? else { return Ok(()) };
         let cache = cli.cache()?;
         let client = nhl_client(&cache, cli.today());
         let mut done = Vec::new();

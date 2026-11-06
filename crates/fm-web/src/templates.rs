@@ -1062,6 +1062,51 @@ fn g_need_trades(state: &State, args: Rest<Value>) -> Result<Value, Error> {
     Ok(memo_value(&res, &format!("need_trades:{limit}"), || J::Array((*views::need_trades(&res, limit)).clone())))
 }
 
+/// `plinks(text)`: `text` HTML-escaped, with every league player's full name in it turned into a
+/// link to his page (the dashboard opens it as a player card). Longest names win; no overlaps.
+fn g_plinks(state: &State, args: Rest<Value>) -> Value {
+    let text = py_str(&arg(&args, 0));
+    let Some(res) = res_of(state, args.get(1..).unwrap_or(&[])) else { return safe(escape_html(&text)) };
+    let league = state.lookup("league").map(|l| py_str(&l)).unwrap_or_default();
+    let names = res.memo.get_or("plinks_names", || {
+        let mut v: Vec<(String, String)> = res
+            .ctx
+            .all_players()
+            .iter()
+            .filter(|p| p.name.chars().count() >= 5 && p.name.contains(' '))
+            .map(|p| (escape_html(&p.name), p.cid.clone()))
+            .collect();
+        v.sort_by(|a, b| b.0.len().cmp(&a.0.len()).then_with(|| a.0.cmp(&b.0)));
+        v.dedup_by(|a, b| a.0 == b.0);
+        v
+    });
+    let esc = escape_html(&text);
+    let mut hits: Vec<(usize, usize, &str)> = Vec::new();
+    for (name, cid) in names.iter() {
+        let mut from = 0;
+        while let Some(i) = esc[from..].find(name.as_str()).map(|i| i + from) {
+            let end = i + name.len();
+            let boundary = |c: Option<char>| c.is_none_or(|c| !c.is_alphanumeric());
+            if boundary(esc[..i].chars().next_back()) && boundary(esc[end..].chars().next())
+                && !hits.iter().any(|(s, e, _)| i < *e && *s < end)
+            {
+                hits.push((i, end, cid));
+            }
+            from = end;
+        }
+    }
+    hits.sort_unstable();
+    let mut out = String::with_capacity(esc.len() + hits.len() * 48);
+    let mut at = 0;
+    for (s, e, cid) in hits {
+        out.push_str(&esc[at..s]);
+        out.push_str(&format!("<a class=\"pl\" href=\"/player/{}?league={}\">{}</a>", quote(cid, ":"), escape_html(&league), &esc[s..e]));
+        at = e;
+    }
+    out.push_str(&esc[at..]);
+    safe(out)
+}
+
 fn g_team_color(abbr: Value) -> Value {
     opt_str(views::team_color(abbr.as_str()).map(str::to_string))
 }
@@ -1211,6 +1256,7 @@ pub fn build_env(opts: &EnvOptions) -> Environment<'static> {
     env.add_function("track_strip", g_track_strip);
     env.add_function("need_trades", g_need_trades);
     env.add_function("team_color", g_team_color);
+    env.add_function("plinks", g_plinks);
     env
 }
 

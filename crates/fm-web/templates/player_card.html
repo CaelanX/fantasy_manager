@@ -1,0 +1,44 @@
+{# The player card: a compact view of /player/<cid> opened in a popup by static/card.js
+   (/player/<cid>?card=1). A fragment, not a page: no base layout. #}
+{% from "_macros.html" import pill, team_chip, news_item, game_log_block with context %}
+<article class="pcard" aria-labelledby="pcard-name">
+  <header class="pcard-head">
+    <div>
+      <h2 id="pcard-name" class="pcard-name">{{ p.name }}</h2>
+      <p class="pcard-sub">{{ p|pos }} &middot; {% if p.team %}{{ team_chip(p.team) }}{% else %}no NHL team{% endif %}
+        &middot; {% if team %}{{ team.name }}{% else %}Free agent{% endif %}{% if p.pct_owned is not none %} &middot; {{ p.pct_owned|n1 }}% rostered{% endif %}</p>
+      <p class="pcard-sub">{{ pill(p.status) }}{% if row.age is not none %} &middot; age {{ row.age|n1 }}{% endif %}</p>
+    </div>
+    <button type="button" class="pcard-x" data-card-close aria-label="Close">&times;</button>
+  </header>
+  {% if p.status_note %}<p class="note pcard-note">{{ p.status_note }}</p>{% endif %}
+  {% if pv %}
+  <dl class="tiles pcard-tiles">
+    <div><dt title="{{ vlabel_title }}">{{ vlabel }} healthy</dt><dd>{{ pv.fpg|n1 }}</dd></div>
+    <div><dt title="{{ vlabel_title }}">{{ vlabel }} season</dt><dd>{{ pv.fpg_season|n1 }}</dd></div>
+    <div><dt title="{{ vlabel_title }}">{{ vlabel }} week</dt><dd>{{ pv.fpg_week|n1 }}{% if pv.games_next7 is defined and pv.games_next7 is not none %} <small>{{ pv.games_next7 }} gm</small>{% endif %}</dd></div>
+    <div><dt>VORP</dt><dd class="{{ 'pos' if pv.vorp > 0 else ('neg' if pv.vorp < 0 else '') }}">{{ pv.vorp|n1(True) }}</dd></div>
+    {% if dyn %}<div><dt>Dynasty</dt><dd>{{ dyn.value|n1 }}</dd></div>{% endif %}
+  </dl>
+  {% endif %}
+  {% set split_rows = rows|selectattr('label', 'in', ['Season', 'Last 7', 'Last 30', 'This season', 'Last 7 days', 'Last 30 days'])|list %}
+  {% if split_rows %}
+  <div class="tbl"><table class="r pcard-splits">
+    <caption class="sr-only">Season and recent per-game stats</caption>
+    <thead><tr><th scope="col">Split</th><th scope="col" class="n">GP</th>{% if weights %}<th scope="col" class="n">{{ vlabel }}</th>{% endif %}
+      {% for c in cols[:6] %}<th scope="col" class="n">{{ RATE_LABEL.get(c, c) }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for r in split_rows %}
+      <tr><th scope="row">{{ r.label }}</th><td class="n">{{ r.gp }}</td>{% if weights %}<td class="n">{{ r.fpg|n1 }}</td>{% endif %}
+        {% for c in cols[:6] %}<td class="n">{{ r.tot.get(c)|num(0) }}</td>{% endfor %}</tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  {{ game_log_block(game_log, gl_chart, p, 5) }}
+  {% if news %}
+  <section class="pcard-news" aria-label="Recent news">
+    <h3 class="sub-h">Recent news</h3>
+    {% for n in news[:2] %}{{ news_item(n, league) }}{% endfor %}
+  </section>
+  {% endif %}
+  <p class="pcard-more"><a href="/player/{{ p.cid|q }}?league={{ league }}" data-nocard>Full player page &rarr;</a></p>
+</article>

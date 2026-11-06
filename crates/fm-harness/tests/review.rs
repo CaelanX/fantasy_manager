@@ -167,15 +167,18 @@ fn ranking_skips_days_without_rosters() {
 fn catch_up_finds_missed_days_from_the_first_archived_day() {
     let (_t, l) = ledger();
     let through = d(2026, 11, 4);
-    assert_eq!(backfill_start(&l, through).unwrap(), None);
+    assert_eq!(backfill_start(&l, through, None).unwrap(), None);
     proj(&l, d(2026, 10, 16), "a", 1, 1.0, 1.0);
-    assert_eq!(backfill_start(&l, through).unwrap(), Some(d(2026, 10, 16)));
+    assert_eq!(backfill_start(&l, through, None).unwrap(), Some(d(2026, 10, 16)));
     pull(&l, d(2026, 10, 16), 3, &[]);
     let missing = unpulled_days(&l, "realized_pulls", d(2026, 10, 16), through).unwrap();
     assert_eq!(missing.first(), Some(&d(2026, 10, 19)));
     assert_eq!(missing.last(), Some(&through));
     assert_eq!(missing.len(), 17);
+    // the season's first game day reaches back further, the cap still applies
+    assert_eq!(backfill_start(&l, through, Some(d(2026, 10, 7))).unwrap(), Some(d(2026, 10, 7)));
+    assert_eq!(backfill_start(&l, through, Some(d(2026, 11, 20))).unwrap(), Some(d(2026, 10, 16)));
     // never further back than the cap
     proj(&l, d(2026, 6, 1), "a", 1, 1.0, 1.0);
-    assert_eq!(backfill_start(&l, through).unwrap(), Some(through - Duration::days(BACKFILL_MAX_DAYS)));
+    assert_eq!(backfill_start(&l, through, None).unwrap(), Some(through - Duration::days(BACKFILL_MAX_DAYS)));
 }

@@ -179,7 +179,7 @@
   <span class="rank" aria-hidden="true">{{ rank }}</span>
   <div class="m-body">
     <div class="m-kind"><span>{{ KIND_LABEL.get(r.kind, r.kind) }}</span>{% if r.counterparty and r.counterparty.strip() %}<span class="m-cp">&middot; with {{ r.counterparty.strip() }}</span>{% endif %}{% set mk = market_info(r) %}{% if mk %}<span class="mk {{ 'mk-no' if mk.disagrees else 'mk-ok' }}" title="{{ mk.title }}">{{ mk.label }}</span>{% endif %}{% if st.rank_text %}<span class="m-rank">{{ st.rank_text }}</span>{% endif %}</div>
-    <h3 class="do">{{ action }}</h3>
+    <h3 class="do">{{ plinks(action) }}</h3>
     {% if r.headline %}<p class="m-head">{{ r.headline }}</p>{% endif %}
     {% set note = r|action_note %}{% if note %}<p class="m-title">{{ note }}</p>{% endif %}
     {{ gain_block(r, res) }}
@@ -248,4 +248,41 @@
   {% if n.blurb %}<p>{{ n.blurb|truncate(360) }}</p>{% endif %}
   {% if n.tags %}<p class="tags">{% for t in n.tags %}<span class="tag">{{ t }}</span>{% endfor %}</p>{% endif %}
 </article>
+{%- endmacro %}
+
+{# This season's games (newest first) and the fantasy-points chart: the player card shows `limit`
+   games with the rest behind "All games"; the player page shows them all. #}
+{% macro game_log_block(log, chart, p, limit=none) -%}
+<section class="glog" aria-label="Game log">
+  <h3 class="sub-h">Game log <span class="aside">{{ log|length }} game{{ '' if log|length == 1 else 's' }} this season</span></h3>
+  {% if chart %}
+  <figure class="chart glog-chart">
+    {{ chart.svg }}
+    {{ chart.legend }}
+  </figure>
+  {% endif %}
+  {% if log %}
+  {% set cols = log[0].stats.keys()|list %}
+  {% macro glog_rows(items) %}{% for g in items %}
+    <tr><th scope="row">{{ g.date[5:]|replace('-', '/') }}</th><td>{{ '' if g.home else '@' }}{{ g.opp or '-' }}</td><td class="n">{{ g.toi or '-' }}</td>
+      {% for c in cols %}<td class="n">{{ g.stats.get(c)|num(0) }}</td>{% endfor %}
+      {% if g.fpts is not none %}<td class="n glog-pts">{{ g.fpts|n1 }}{% if g.partial %}<span title="hits / blocks not loaded for this game yet">*</span>{% endif %}</td>{% endif %}</tr>
+  {% endfor %}{% endmacro %}
+  {% set head %}<thead><tr><th scope="col">Date</th><th scope="col">Opp</th><th scope="col" class="n">TOI</th>
+    {% for c in cols %}<th scope="col" class="n">{{ RATE_LABEL.get(c, c) }}</th>{% endfor %}{% if log[0].fpts is not none %}<th scope="col" class="n">FPTS</th>{% endif %}</tr></thead>{% endset %}
+  <div class="tbl"><table class="r glog-t">
+    <caption class="sr-only">Game log for {{ p.name }}, newest first</caption>
+    {{ head }}
+    <tbody>{{ glog_rows(log[:limit] if limit else log) }}</tbody>
+  </table></div>
+  {% if limit and log|length > limit %}
+  <details class="glog-more"><summary>All {{ log|length }} games</summary>
+    <div class="tbl"><table class="r glog-t"><caption class="sr-only">Every game this season</caption>{{ head }}<tbody>{{ glog_rows(log[limit:]) }}</tbody></table></div>
+  </details>
+  {% endif %}
+  {% if log|selectattr('partial')|list %}<p class="foot-note">* points without hits and blocks: the harness hasn't stored that night's full stats.</p>{% endif %}
+  {% else %}
+  <p class="empty">No NHL games this season.</p>
+  {% endif %}
+</section>
 {%- endmacro %}

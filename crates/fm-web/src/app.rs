@@ -1563,7 +1563,13 @@ impl App {
         let schedule: Vec<J> = views::team_games(ctx, p.team.as_deref(), start, 14).iter().map(|g| g.to_value()).collect();
         let news: Vec<J> = res.news_by_cid.get(cid).map(|v| v.iter().take(20).cloned().collect()).unwrap_or_default();
         let dynv = res.dynasty.as_ref().and_then(|d| d.get(cid));
+        let log = views::game_log(&res, p);
+        let chart = views::game_log_chart(p, &log, pv.filter(|_| weights.is_some()).map(|v| v.fpg));
+        let card = req.q("card") == Some("1");
         let ctxv: Ctx = cx![
+            ("game_log", to_mj(&J::Array(log), None)),
+            ("gl_chart", chart.map(|c| templates::safe_charts(&c)).unwrap_or(Value::from(()))),
+            ("card", Value::from(card)),
             ("res", ResObj::value(res.clone())),
             ("p", to_mj(&serde_json::to_value(p).unwrap_or(J::Null), Some(&res))),
             ("pv", templates::pv_value(&res, cid)),
@@ -1584,7 +1590,7 @@ impl App {
             ("news", to_mj(&J::Array(news), None)),
             ("title", Value::from(p.name.as_str())),
         ];
-        Ok(self.render(req, "player.html", &league, 200, ctxv))
+        Ok(self.render(req, if card { "player_card.html" } else { "player.html" }, &league, 200, ctxv))
     }
 
     fn schedule(&self, req: &Req) -> Result<Resp, Resp> {

@@ -230,13 +230,19 @@ pub fn unpulled_days(ledger: &Ledger, table: &str, from: NaiveDate, through: Nai
 }
 
 /// Where catching up starts: the first archived projection or recommendation day (nothing before
-/// it can be graded), at most `BACKFILL_MAX_DAYS` before `through`; None with an empty ledger.
-pub fn backfill_start(ledger: &Ledger, through: NaiveDate) -> Result<Option<NaiveDate>> {
+/// it can be graded) or, when earlier, the season's first game day (`season_start`: the player
+/// card's game log reads every night's full stats), at most `BACKFILL_MAX_DAYS` before `through`;
+/// None with an empty ledger.
+pub fn backfill_start(ledger: &Ledger, through: NaiveDate, season_start: Option<NaiveDate>) -> Result<Option<NaiveDate>> {
     let rows = ledger.query("SELECT MIN(d) AS d FROM (SELECT MIN(as_of) AS d FROM projections UNION ALL SELECT MIN(as_of) FROM recs)", &[])?;
     let first = rows
         .first()
         .and_then(|r| r.get("d"))
         .and_then(|v| v.as_str())
         .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
+    let first = match (first, season_start.filter(|s| *s <= through)) {
+        (Some(f), Some(s)) => Some(f.min(s)),
+        (f, _) => f,
+    };
     Ok(first.map(|f| f.max(through - Duration::days(BACKFILL_MAX_DAYS))))
 }

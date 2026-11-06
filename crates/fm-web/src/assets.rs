@@ -25,6 +25,7 @@ pub const TEMPLATES: &[(&str, &str)] = embed_str!(
     "overview.html",
     "plan.html",
     "player.html",
+    "player_card.html",
     "recommendations.html",
     "roster.html",
     "schedule.html",
@@ -36,6 +37,7 @@ pub const TEMPLATES: &[(&str, &str)] = embed_str!(
 pub const STATIC: &[(&str, &[u8])] = embed_bytes!(
     "style.css",
     "moved.js",
+    "card.js",
     "fonts/OFL.txt",
     "fonts/barlow-400.woff2",
     "fonts/barlow-500.woff2",
