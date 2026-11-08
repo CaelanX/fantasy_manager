@@ -32,15 +32,31 @@ pub struct Line {
     /// "main" | "base"
     pub role: String,
     pub dash: String,
+    /// extra CSS class on the line, its points and its legend sample (per-series colours)
+    pub class: Option<String>,
 }
 
 impl Line {
     pub fn new(key: &str, label: &str, values: Vec<Option<f64>>, role: &str, dash: &str) -> Line {
-        Line { key: key.into(), label: label.into(), values, role: role.into(), dash: dash.into() }
+        Line { key: key.into(), label: label.into(), values, role: role.into(), dash: dash.into(), class: None }
+    }
+
+    pub fn with_class(mut self, class: &str) -> Line {
+        self.class = Some(class.into());
+        self
     }
 
     fn is_main(&self) -> bool {
         self.role == "main"
+    }
+
+    /// "ch-main" / "ch-base", plus the line's own class.
+    fn css(&self) -> String {
+        let role = if self.is_main() { "ch-main" } else { "ch-base" };
+        match &self.class {
+            Some(c) => format!("{role} {c}"),
+            None => role.to_string(),
+        }
     }
 }
 
@@ -297,10 +313,14 @@ pub fn line_chart(chart_id: &str, x: &[String], lines: &[Line], title: &str, des
         if d.is_empty() {
             continue;
         }
-        let cls = if ln.is_main() { "ch-main" } else { "ch-base" };
+        let cls = ln.css();
         let dash = if ln.dash.is_empty() { String::new() } else { format!(" stroke-dasharray=\"{}\"", ln.dash) };
         svg.push(format!("<path class=\"{cls}\" d=\"{d}\"{dash} data-key=\"{}\" aria-hidden=\"true\"/>", e(&ln.key)));
         if ln.is_main() {
+            let pt_cls = match &ln.class {
+                Some(c) => format!("ch-pt {c}"),
+                None => "ch-pt".to_string(),
+            };
             for (i, p) in pts.iter().enumerate() {
                 let Some(p) = p else { continue };
                 let xl = x.get(i).cloned().unwrap_or_else(|| i.to_string());
@@ -311,7 +331,7 @@ pub fn line_chart(chart_id: &str, x: &[String], lines: &[Line], title: &str, des
                     }
                 }
                 svg.push(format!(
-                    "<g class=\"ch-pt\"><circle class=\"ch-hit\" cx=\"{cx}\" cy=\"{cy}\" r=\"9\"/><circle class=\"ch-dot\" cx=\"{cx}\" cy=\"{cy}\" r=\"3.5\"/><title>{}</title></g>",
+                    "<g class=\"{pt_cls}\"><circle class=\"ch-hit\" cx=\"{cx}\" cy=\"{cy}\" r=\"9\"/><circle class=\"ch-dot\" cx=\"{cx}\" cy=\"{cy}\" r=\"3.5\"/><title>{}</title></g>",
                     e(&lab),
                     cx = g(p.0),
                     cy = g(p.1)
@@ -329,7 +349,7 @@ pub fn legend(lines: &[Line], band_label: Option<&str>) -> String {
     order.sort_by_key(|l| !l.is_main());
     let mut items: Vec<String> = Vec::new();
     for ln in order {
-        let cls = if ln.is_main() { "ch-main" } else { "ch-base" };
+        let cls = ln.css();
         let dash = if ln.dash.is_empty() { String::new() } else { format!(" stroke-dasharray=\"{}\"", ln.dash) };
         items.push(format!(
             "<li><svg viewBox=\"0 0 22 8\" width=\"22\" height=\"8\" aria-hidden=\"true\"><line x1=\"1\" x2=\"21\" y1=\"4\" y2=\"4\" class=\"{cls}\"{dash}/></svg>{}</li>",
@@ -369,6 +389,19 @@ mod tests {
         assert_eq!(escape("a<b>&'\""), "a&lt;b&gt;&amp;&#39;&#34;");
         assert_eq!(slug("My Chart #1"), "my-chart-1");
         assert_eq!(slug(""), "chart");
+    }
+
+    #[test]
+    fn line_class_is_optional() {
+        let x = vec!["a".to_string(), "b".to_string()];
+        let opts = ChartOpts::default();
+        let plain = Line::new("k", "K", vec![Some(1.0), Some(2.0)], "main", "");
+        let svg = line_chart("c", &x, &[plain.clone()], "t", "d", &opts);
+        assert!(svg.contains("<path class=\"ch-main\" d=") && svg.contains("<g class=\"ch-pt\">"));
+        let coloured = plain.with_class("ch-s2");
+        let svg = line_chart("c", &x, &[coloured.clone()], "t", "d", &opts);
+        assert!(svg.contains("<path class=\"ch-main ch-s2\" d=") && svg.contains("<g class=\"ch-pt ch-s2\">"));
+        assert!(legend(&[coloured], None).contains("class=\"ch-main ch-s2\""));
     }
 
     #[test]

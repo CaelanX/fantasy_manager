@@ -7,6 +7,7 @@ pub mod cmd_admin;
 pub mod cmd_analysis;
 pub mod cmd_backtest;
 pub mod cmd_harness;
+pub mod cmd_keepers;
 pub mod cmd_league;
 pub mod cmd_recs;
 pub mod common;

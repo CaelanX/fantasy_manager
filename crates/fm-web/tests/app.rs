@@ -554,6 +554,28 @@ fn moved_redirects_to_plan_with_banner_params() {
 }
 
 #[test]
+fn trades_page_modes_shop_and_get() {
+    let dir = tempfile::tempdir().unwrap();
+    let (a, _) = test_app(dir.path(), None);
+    let r = a.router();
+    let rt = rt();
+    let (s, _, _, body) = rt.block_on(send(&r, "GET", "/trade-eval?league=espn", None));
+    assert_eq!(s, 200, "{body}");
+    assert!(body.contains("<h1>Trades</h1>") && body.contains("Evaluate an offer") && body.contains(r#"name="give""#));
+    let (s, _, _, body) = rt.block_on(send(&r, "GET", "/trade-eval?league=espn&mode=shop", None));
+    assert_eq!(s, 200, "{body}");
+    assert!(body.contains("Pick one of your players to see what teams would give") && body.contains(r#"value="espn:1""#));
+    let (s, _, _, body) = rt.block_on(send(&r, "GET", "/trade-eval?league=espn&mode=shop&cid=espn:1", None));
+    assert_eq!(s, 200, "{body}");
+    assert!(body.contains("What teams would give for") && body.contains("No team would give a fair package"), "{body}");
+    assert!(body.contains(r#"href="/player/espn:1?league=espn""#));
+    let (s, _, _, body) = rt.block_on(send(&r, "GET", "/trade-eval?league=espn&mode=get&cid=espn:1", None));
+    assert_eq!(s, 200, "{body}");
+    assert!(body.contains("not on another team"), "{body}");
+    assert!(body.contains(r#"<optgroup label="Theirs">"#));
+}
+
+#[test]
 fn rollback_requires_confirmation() {
     let dir = tempfile::tempdir().unwrap();
     let (a, _) = test_app(dir.path(), None);

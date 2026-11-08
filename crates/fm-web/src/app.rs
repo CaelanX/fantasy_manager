@@ -75,8 +75,8 @@ pub const EXPLAIN_FAILED: &str =
 pub const NAME_SUFFIXES: [&str; 7] = ["jr", "jr.", "sr", "sr.", "ii", "iii", "iv"];
 pub const NUMBER_WORDS: [&str; 11] = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
 pub const LEAD_VERBS: [&str; 8] = ["move", "add", "start", "trade", "activate", "bench", "sell", "buy"];
-const PAGE_PATHS: [&str; 10] =
-    ["/", "/plan", "/overview", "/roster", "/recommendations", "/news", "/health", "/schedule", "/matchup", "/trade-eval"];
+const PAGE_PATHS: [&str; 13] =
+    ["/", "/plan", "/overview", "/roster", "/recommendations", "/news", "/health", "/schedule", "/matchup", "/trade-eval", "/keepers", "/players", "/compare"];
 
 /// (env var, Settings attribute, requirement note) shown on the setup page.
 pub fn setup_vars(league: &str) -> &'static [(&'static str, &'static str, &'static str)] {
@@ -1211,6 +1211,7 @@ impl App {
             "/plan" if get => self.plan(&req),
             "/overview" if get => self.overview(&req),
             "/roster" if get => self.roster(&req),
+            "/keepers" if get => self.keepers(&req),
             "/recommendations" if get => self.recommendations(&req),
             "/news" if get => self.news(&req),
             "/schedule" if get => self.schedule(&req),
@@ -1227,11 +1228,16 @@ impl App {
             "/moved" if post => Ok(self.moved(&req)),
             "/mode" if post => Ok(self.set_mode(&req)),
             "/params/rollback" if post => Ok(self.rollback_params(&req)),
+            "/players" if get => self.players(&req),
+            "/compare" if get => self.compare(&req),
+            "/watch" if post => Ok(self.watch(&req)),
+            "/watch/seen" if post => Ok(self.watch_seen(&req)),
+            "/players" | "/compare" | "/watch" | "/watch/seen" => Ok(detail(405, "Method Not Allowed".into())),
             p if get && p.starts_with("/player/") => {
                 let cid = p["/player/".len()..].to_string();
                 self.player(&req, &cid)
             }
-            "/healthz" | "/" | "/plan" | "/overview" | "/roster" | "/recommendations" | "/news" | "/schedule" | "/trade-eval"
+            "/healthz" | "/" | "/plan" | "/overview" | "/roster" | "/keepers" | "/recommendations" | "/news" | "/schedule" | "/trade-eval"
             | "/matchup" | "/health" | "/api/recs.json" | "/api/claims.json" | "/api/roster.json" | "/api/health.json"
             | "/api/mode.json" | "/explain" | "/refresh" | "/moved" | "/mode" | "/params/rollback" => {
                 Ok(detail(405, "Method Not Allowed".into()))
@@ -1296,6 +1302,8 @@ impl App {
         }
         let mut ctx: Ctx = cx![("res", ResObj::value(res.clone())), ("title", Value::from("This week")), ("no_mode", Value::from(true))];
         spread(&mut ctx, &pagev, &res);
+        let watch = crate::players_view::watch_changes(&res, &self.settings().fm_data_dir, &league);
+        ctx.push(("watch_changes".into(), to_mj(&J::Array(watch), None)));
         Ok(self.render(req, "plan.html", &league, 200, ctx))
     }
 
@@ -1437,9 +1445,20 @@ impl App {
                 "has_pct": rows.iter().any(|r| r.get("pct").is_some_and(|v| !v.is_null())),
             })
         });
-        let mut ctxv: Ctx = cx![("res", ResObj::value(res.clone())), ("view", Value::from(view)), ("title", Value::from("Roster"))];
+        let keepers = memo_mj(&res, &format!("keepers:{key}"), || crate::keepers_view::roster_panel(&res, chosen));
+        let mut ctxv: Ctx = cx![("res", ResObj::value(res.clone())), ("view", Value::from(view)), ("title", Value::from("Roster")), ("keepers", keepers)];
         spread_mj(&mut ctxv, &bundle);
         Ok(self.render(req, "roster.html", &league, 200, ctxv))
+    }
+
+    fn keepers(&self, req: &Req) -> Result<Resp, Resp> {
+        let league = self.league_q(req)?;
+        let page = self.load_or_error(req, &league)?;
+        let res = page.res.clone();
+        let bundle = memo_mj(&res, "keepers_page", || crate::keepers_view::keepers_page(&res));
+        let mut ctxv: Ctx = cx![("res", ResObj::value(res.clone())), ("title", Value::from("Keepers"))];
+        spread_mj(&mut ctxv, &bundle);
+        Ok(self.render(req, "keepers.html", &league, 200, ctxv))
     }
 
     fn recommendations(&self, req: &Req) -> Result<Resp, Resp> {
@@ -1566,7 +1585,9 @@ impl App {
         let log = views::game_log(&res, p);
         let chart = views::game_log_chart(p, &log, pv.filter(|_| weights.is_some()).map(|v| v.fpg));
         let card = req.q("card") == Some("1");
+        let watched = crate::players_view::load(&self.settings().fm_data_dir, &league).contains_key(cid);
         let ctxv: Ctx = cx![
+            ("watched", Value::from(watched)),
             ("game_log", to_mj(&J::Array(log), None)),
             ("gl_chart", chart.map(|c| templates::safe_charts(&c)).unwrap_or(Value::from(()))),
             ("card", Value::from(card)),
@@ -1612,7 +1633,14 @@ impl App {
         let evaluate = req.q("switch").is_none_or(|s| s.is_empty());
         let team = req.q("team");
         let pv = page.provider.clone();
-        let out = catch_unwind(AssertUnwindSafe(|| views::trade_eval_page(&res, team, &give, &get, &gp, &tp, pv.as_deref(), evaluate)));
+        let mode = match req.q("mode") {
+            Some(m @ ("shop" | "get")) => m,
+            _ => "eval",
+        };
+        let out = catch_unwind(AssertUnwindSafe(|| match mode {
+            "eval" => views::trade_eval_page(&res, team, &give, &get, &gp, &tp, pv.as_deref(), evaluate),
+            m => crate::trades_view::trades_mode_page(&res, m, req.q("cid"), pv.as_deref()),
+        }));
         let pagev = match out {
             Ok(v) => v,
             Err(p) => {
@@ -1627,7 +1655,7 @@ impl App {
                 ));
             }
         };
-        let mut ctx: Ctx = cx![("res", ResObj::value(res.clone())), ("title", Value::from("Trade evaluator"))];
+        let mut ctx: Ctx = cx![("res", ResObj::value(res.clone())), ("title", Value::from("Trades")), ("mode", Value::from(mode))];
         spread(&mut ctx, &pagev, &res);
         Ok(self.render(req, "trade_eval.html", &league, 200, ctx))
     }
@@ -1950,6 +1978,103 @@ impl App {
         self.reload_params();
         self.drop_league(None);
         Resp::Redirect(safe_next(Some(&nxt), &league, &[("msg", format!("rollback-ok-{from}-{to}"))]))
+    }
+
+    // ----------------------------------------------------------------------- player tools
+
+    fn players(&self, req: &Req) -> Result<Resp, Resp> {
+        let league = self.league_q(req)?;
+        let page = self.load_or_error(req, &league)?;
+        let res = page.res.clone();
+        let f = crate::players_view::Filters::parse(req.q("q"), req.q("pos"), req.q("own"), req.q("sort"), res.dynasty.is_some());
+        let pagev = crate::players_view::players_page(&res, &self.settings().fm_data_dir, &league, &f);
+        let mut ctx: Ctx = cx![("res", ResObj::value(res.clone())), ("title", Value::from("Players"))];
+        spread(&mut ctx, &pagev, &res);
+        Ok(self.render(req, "players.html", &league, 200, ctx))
+    }
+
+    fn compare(&self, req: &Req) -> Result<Resp, Resp> {
+        let league = self.league_q(req)?;
+        let page = self.load_or_error(req, &league)?;
+        let res = page.res.clone();
+        let cids = crate::players_view::valid_cids(&res, &req.all("p"));
+        let add: Option<String> = req.q("q").map(|s| py_strip(s).chars().take(60).collect::<String>()).filter(|s| !s.is_empty());
+        let mut candidates = J::Null;
+        if let Some(q) = &add {
+            match crate::players_view::resolve_add(&res, &league, &cids, q) {
+                Ok(next) => return Ok(Resp::Redirect(crate::players_view::compare_href(&league, &next))),
+                Err(c) => candidates = J::Array(c),
+            }
+        }
+        let pagev = crate::players_view::compare_page(&res, &league, &cids);
+        let mut ctx: Ctx = cx![
+            ("res", ResObj::value(res.clone())),
+            ("title", Value::from("Compare players")),
+            ("add_q", add.map(Value::from).unwrap_or(Value::from(()))),
+            ("candidates", to_mj(&candidates, None)),
+        ];
+        spread(&mut ctx, &pagev, &res);
+        if let Some(c) = pagev.get("chart").filter(|c| !c.is_null()) {
+            ctx.push(("chart".into(), templates::safe_charts(c)));
+        }
+        Ok(self.render(req, "compare.html", &league, 200, ctx))
+    }
+
+    /// Star / unstar a player (`on=1|0`); `format=json` answers JSON instead of redirecting
+    /// (static/players.js).
+    fn watch(&self, req: &Req) -> Resp {
+        let f = req.fields();
+        let league = match self.form_league(&f) {
+            Ok(l) => l,
+            Err(r) => return r,
+        };
+        let Some(cid) = f.get("cid").filter(|c| !c.is_empty()) else { return detail(422, "cid is required".into()) };
+        let on = f.get("on").map(String::as_str) != Some("0");
+        let data_dir = self.settings().fm_data_dir.clone();
+        let saved = if !on {
+            crate::players_view::unwatch(&data_dir, &league, cid)
+        } else if crate::players_view::load(&data_dir, &league).contains_key(cid) {
+            Ok(())
+        } else {
+            let page = match self.get_result(&league) {
+                Ok(p) => p,
+                Err(e) => return detail(503, format!("could not load the {league} league: {e}")),
+            };
+            let added = naive_iso(local_naive(&self.now()));
+            let Some(entry) = crate::players_view::current_entry(&page.res, cid, &added) else {
+                return detail(404, format!("No player with id {} in this league.", py_str_repr(cid)));
+            };
+            crate::players_view::watch(&data_dir, &league, cid, entry)
+        };
+        if let Err(e) = saved {
+            tracing::error!("saving the watchlist failed: {e:#}");
+            return detail(500, format!("could not save the watchlist: {e}"));
+        }
+        if f.get("format").map(String::as_str) == Some("json") {
+            return Resp::Json(200, json!({"cid": cid, "on": on}));
+        }
+        Resp::Redirect(safe_next(f.get("next").map(String::as_str), &league, &[]))
+    }
+
+    /// Mark every watchlist change seen (the snapshots become the current data).
+    fn watch_seen(&self, req: &Req) -> Resp {
+        let f = req.fields();
+        let league = match self.form_league(&f) {
+            Ok(l) => l,
+            Err(r) => return r,
+        };
+        let page = match self.get_result(&league) {
+            Ok(p) => p,
+            Err(e) => return detail(503, format!("could not load the {league} league: {e}")),
+        };
+        let data_dir = self.settings().fm_data_dir.clone();
+        let now = crate::players_view::current_snapshots(&page.res, &crate::players_view::load(&data_dir, &league));
+        if let Err(e) = crate::players_view::mark_seen(&data_dir, &league, &now) {
+            tracing::error!("saving the watchlist failed: {e:#}");
+            return detail(500, format!("could not save the watchlist: {e}"));
+        }
+        let nxt = f.get("next").filter(|s| !s.is_empty()).cloned().unwrap_or_else(|| "/players".into());
+        Resp::Redirect(format!("{}#watchlist", safe_next(Some(&nxt), &league, &[])))
     }
 
     // ----------------------------------------------------------------------- background

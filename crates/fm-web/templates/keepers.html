@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_macros.html" import plink with context %}
+{% block heading %}
+<p class="sc dateline">{{ res.ctx.name }} &middot; keepers</p>
+<h1>Keepers</h1>
+{% endblock %}
+{% block content %}
+{% if not plan %}
+<p class="lede">{{ res.ctx.name }} is not a keeper league, so there are no keepers to plan.</p>
+{% else %}
+<p class="lede">Predictions from the model's long-term values: each team keeps the {{ plan.k }} players with the most <b>keeper surplus</b> (value over the seasons after this one, above a waiver-level roster spot). Everyone else goes back into the redraft.</p>
+<section aria-labelledby="h-kteams">
+<h2 id="h-kteams">Predicted keepers <span class="aside">{{ plan.teams|length }} teams &middot; {{ plan.k }} each &middot; surplus &middot; age</span></h2>
+<div class="keep-grid">
+  {% for t in plan.teams %}
+  <article class="keep-card{% if t.me %} mine{% endif %}" aria-label="{{ t.name }}">
+    <h3>{{ t.name }}{% if t.me %} <span class="me-tag">me</span>{% endif %}</h3>
+    {% if t.keepers %}
+    <ol class="keep-list">
+      {% for c in t.keepers %}<li>{{ plink(c, league) }} <span class="keep-meta"><b>{{ c.surplus|n1 }}</b>{% if c.age is not none %} &middot; {{ c.age|int }}{% endif %}</span></li>{% endfor %}
+    </ol>
+    {% else %}
+    <p class="empty">Nobody beats a waiver-level spot long term.</p>
+    {% endif %}
+    {% if t.bubble %}<p class="keep-bubble">Next: {% for c in t.bubble %}{{ plink(c, league) }}{% if c.gap is not none %} <small>{{ c.gap|n1 }} behind</small>{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</p>{% endif %}
+  </article>
+  {% endfor %}
+</div>
+</section>
+<section aria-labelledby="h-pool">
+<h2 id="h-pool">Draft pool preview <span class="aside">best {{ plan.pool|length }} of {{ plan.pool_size }} players not predicted to be kept</span></h2>
+<div class="tbl"><table class="r stack keep-pool">
+  <caption class="sr-only">Best players expected in the redraft, by next-season value</caption>
+  <thead><tr><th scope="col">Player</th><th scope="col" class="n"><abbr title="Overall pick this value would go at">Rank</abbr></th><th scope="col">Now</th><th scope="col" class="n">Age</th><th scope="col" class="n"><abbr title="Next season's value, as the draft pick model counts it">Next-season value</abbr></th></tr></thead>
+  <tbody>
+    {% for x in plan.pool %}
+    <tr>
+      <th scope="row" class="pname" data-label="Player">{{ plink(x, league) }}</th>
+      <td data-label="Rank" class="n">{{ x.overall }}</td>
+      <td data-label="Now">{{ x.team or 'Free agent' }}</td>
+      <td data-label="Age" class="n">{{ x.age|int if x.age is not none else '-' }}</td>
+      <td data-label="Next-season value" class="n">{{ x.value|n1 }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+</section>
+{% if plan.picks %}
+<section aria-labelledby="h-kpicks">
+<h2 id="h-kpicks">Your draft picks <span class="aside">{{ plan.picks|length }} picks &middot; value {{ plan.picks|sum(attribute='value')|n1 }}</span></h2>
+<div class="tbl"><table class="r stack picks">
+  <caption class="sr-only">Your draft picks and who they could land</caption>
+  <thead><tr><th scope="col">Pick</th><th scope="col" class="n">Overall</th><th scope="col" class="n">Value</th><th scope="col">Could land</th></tr></thead>
+  <tbody>
+    {% for k in plan.picks %}
+    <tr>
+      <th scope="row" data-label="Pick">{{ k.label }}{% if k.inferred %} <small>(assumed)</small>{% endif %}</th>
+      <td data-label="Overall" class="n">{{ k.overall|round|int }}</td>
+      <td data-label="Value" class="n">{{ k.value|n1 }}</td>
+      <td data-label="Could land">{% if k.land %}{{ plink(k.land, league) }}{% else %}-{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+<p class="foot-note">Could land: the pool player ranked at the pick's expected overall spot in the next redraft (later drafts are too far out to name). Pick values come from the draft pick model, the same as on the Roster page.</p>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

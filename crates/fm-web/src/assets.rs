@@ -16,9 +16,12 @@ macro_rules! embed_bytes {
 /// `(name, source)` of every template.
 pub const TEMPLATES: &[(&str, &str)] = embed_str!(
     "_macros.html",
+    "_player_tools.html",
     "base.html",
+    "compare.html",
     "error.html",
     "health.html",
+    "keepers.html",
     "login.html",
     "matchup.html",
     "news.html",
@@ -26,6 +29,7 @@ pub const TEMPLATES: &[(&str, &str)] = embed_str!(
     "plan.html",
     "player.html",
     "player_card.html",
+    "players.html",
     "recommendations.html",
     "roster.html",
     "schedule.html",
@@ -38,6 +42,7 @@ pub const STATIC: &[(&str, &[u8])] = embed_bytes!(
     "style.css",
     "moved.js",
     "card.js",
+    "players.js",
     "fonts/OFL.txt",
     "fonts/barlow-400.woff2",
     "fonts/barlow-500.woff2",
