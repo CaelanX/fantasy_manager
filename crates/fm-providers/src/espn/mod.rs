@@ -649,6 +649,7 @@ pub fn new_context(
         game_starts: Map::new(),
         season_start: None,
         lineup_lock: None,
+        lock_per_game: true,
         goalie_actual_starts: Map::new(),
         b2b_second_night: Map::new(),
         nhl_goalies: Map::new(),

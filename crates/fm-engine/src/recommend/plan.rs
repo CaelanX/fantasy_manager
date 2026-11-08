@@ -585,7 +585,11 @@ pub fn earliest(ctx: &LeagueContext, p: &Player, now: &PyDateTime) -> NaiveDate 
     if let Some(w) = p.waiver_until.filter(|w| *w >= today) {
         return w + Duration::days(1);
     }
-    let late = if ctx.provider == "fantrax" { first_game_started(ctx, today, now) } else { started(ctx, p, today, now) };
+    let late = if ctx.provider == "fantrax" && !ctx.lock_per_game {
+        first_game_started(ctx, today, now)
+    } else {
+        started(ctx, p, today, now)
+    };
     if late {
         today + Duration::days(1)
     } else {
@@ -685,6 +689,11 @@ fn timing(ctx: &LeagueContext, mv: &PlanMove) -> (String, NaiveDate) {
         }
     }
     let when = if eff == today { "today".to_string() } else { wd(eff) };
+    if ctx.lock_per_game {
+        if let Some(g) = game_time(ctx, &mv.add, eff) {
+            return (format!("Make this move before {}'s game {when} ({} your time)", mv.add.name, clock(&g)), mv.day);
+        }
+    }
     match first_game(ctx, eff) {
         None => (format!("Make this move by {when}"), mv.day),
         Some(first) => (format!("Make this move before {when}'s first game ({} your time)", clock(&first)), mv.day),
@@ -1750,11 +1759,11 @@ fn day_text(line: &PlanDayLine) -> String {
 fn assumption_notes(ctx: &LeagueContext) -> Vec<String> {
     let mut out = Vec::new();
     if ctx.provider == "fantrax" {
-        out.push(
-            "Fantrax free-agent adds count the same day when made before the day's first game (else from the next day); \
+        let lock = if ctx.lock_per_game { "the player's own game locks" } else { "the day's first game" };
+        out.push(format!(
+            "Fantrax free-agent adds count the same day when made before {lock} (else from the next day); \
              waiver claims from the day after they clear."
-                .to_string(),
-        );
+        ));
     }
     out
 }
@@ -1986,6 +1995,21 @@ pub(crate) mod tests {
         let fa = ctx.free_agents[0].clone();
         assert_eq!(earliest(&ctx, &fa, &PyDateTime::from_utc(first - Duration::hours(1))), mon());
         assert_eq!(earliest(&ctx, &fa, &PyDateTime::from_utc(first + Duration::minutes(5))), d(1));
+    }
+
+    #[test]
+    fn fantrax_per_game_lock_add_counts_today_until_his_own_game() {
+        let mut ctx = streaming_ctx(1, "fantrax");
+        ctx.lock_per_game = true;
+        let first = Utc.with_ymd_and_hms(2026, 10, 5, 17, 0, 0).unwrap();
+        let mut gs: Map<String, Map<NaiveDate, PyDateTime>> = Map::new();
+        gs.insert("MON".into(), [(mon(), PyDateTime::from_utc(first))].into_iter().collect());
+        gs.insert("TW".into(), [(mon(), PyDateTime::from_utc(first + Duration::hours(6)))].into_iter().collect());
+        ctx.game_starts = gs;
+        let fa = ctx.free_agents[0].clone();
+        // the day's first game has started but his own has not: the add still counts today
+        assert_eq!(earliest(&ctx, &fa, &PyDateTime::from_utc(first + Duration::hours(1))), mon());
+        assert_eq!(earliest(&ctx, &fa, &PyDateTime::from_utc(first + Duration::hours(7))), d(1));
     }
 
     #[test]

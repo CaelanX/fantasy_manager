@@ -445,6 +445,11 @@ pub struct LeagueContext {
     pub season_start: Option<NaiveDate>,
     #[serde(default)]
     pub lineup_lock: Option<LineupLock>,
+    /// Daily lineups lock each player at his own game's start (ESPN; Fantrax when the Rules page
+    /// says "locked ... before scheduled start-time of game"). False: the whole day locks at its
+    /// first game, the conservative Fantrax assumption when the Rules page does not say.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub lock_per_game: bool,
     /// goalie cid -> (starts, team games) this season (harness ledger)
     #[serde(default)]
     pub goalie_actual_starts: Map<String, (i64, i64)>,

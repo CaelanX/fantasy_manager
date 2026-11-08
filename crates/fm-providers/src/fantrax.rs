@@ -2066,6 +2066,8 @@ pub fn parse_draft_picks(data: &Value) -> Map<i64, Vec<DraftPickRef>> {
 
 static RULE_HEAD_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?is)<h[36][^>]*>(.*?)</h[36]>").expect("regex"));
 static RULE_SPAN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?is)<span[^>]*>(.*?)</span>").expect("regex"));
+static RULE_LOCK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?is)Lineups will become locked(.*?)(?:</li|<li|</ul|<br|<div)").expect("regex"));
 static RULE_VALUE_END: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)<span|<li|</li|</ul|<br|<h\d|<div|<table|<b>\s*&bull;").expect("regex"));
 static SCORING_ROW_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -2125,6 +2127,10 @@ pub fn parse_league_rules(content: &str) -> LeagueRules {
             None => html_text(char_prefix(rest, 300)),
         };
         rules.settings.entry(section(m.start())).or_default().insert(label, value);
+    }
+    if let Some(c) = RULE_LOCK_RE.captures(content) {
+        let pos = c.get(0).map_or(0, |m| m.start());
+        rules.settings.entry(section(pos)).or_default().insert(LINEUP_LOCK_RULE.to_string(), html_text(&c[1]));
     }
     for c in SCORING_ROW_RE.captures_iter(content) {
         let name = html_text(&c[2]);
@@ -2588,6 +2594,17 @@ fn fantrax_periods(list: &[Value]) -> Vec<(i64, NaiveDate, NaiveDate)> {
 }
 
 pub const LINEUP_RULE: &str = "Lineup changes are executed";
+/// Rules-page sentence (no label of its own) saying when daily lineups lock, stored under this
+/// key with the rest of the sentence as its value: "0:05 (hours:minutes) before scheduled
+/// start-time of game".
+pub const LINEUP_LOCK_RULE: &str = "Lineups will become locked";
+
+/// The lock sentence says each game locks on its own ("before scheduled start-time of game"),
+/// not at the day's first game. Missing or other wording -> false.
+pub fn parse_lock_per_game(text: Option<&str>) -> bool {
+    let t = py_lower(text.unwrap_or(""));
+    t.contains("start-time of game") && !t.contains("first")
+}
 
 /// "daily" or "weekly" from the Rules page's "Lineup changes are executed" value; unknown /
 /// missing -> "weekly" (the conservative assumption).
@@ -2982,6 +2999,7 @@ impl FantraxProvider {
             game_starts: Map::new(),
             season_start: None,
             lineup_lock: Some(if self.lineup_lock() == "daily" { LineupLock::Daily } else { LineupLock::Weekly }),
+            lock_per_game: parse_lock_per_game(self.rules.as_ref().and_then(|r| r.get(LINEUP_LOCK_RULE))),
             goalie_actual_starts: Map::new(),
             b2b_second_night: Map::new(),
             nhl_goalies: Map::new(),

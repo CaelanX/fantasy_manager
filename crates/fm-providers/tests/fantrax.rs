@@ -919,6 +919,18 @@ fn goalie_pool_positions_stats_owned_age() {
 }
 
 #[test]
+fn league_rules_parse_per_game_lock() {
+    let html = r#"<h6 title="lineups">Lineups</h6><ul class="rules"><li><span>Lineup changes are executed:</span>                        Daily </li>                  <li> Lineups will become locked 0:05 (hours:minutes) before scheduled start-time of game</li> </ul>"#;
+    let rules = parse_league_rules(html);
+    assert_eq!(rules.get(LINEUP_RULE), Some("Daily"));
+    let lock = rules.get(LINEUP_LOCK_RULE);
+    assert_eq!(lock, Some("0:05 (hours:minutes) before scheduled start-time of game"));
+    assert!(parse_lock_per_game(lock));
+    assert!(!parse_lock_per_game(Some("0:05 (hours:minutes) before scheduled start-time of first game of the day")));
+    assert!(!parse_lock_per_game(None));
+}
+
+#[test]
 fn league_rules_parse() {
     let rules = parse_league_rules(fx("league_rules")["content"].as_str().unwrap());
     assert_eq!(rules.get("Maximum Total Players"), Some("16"));
