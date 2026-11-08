@@ -31,6 +31,7 @@
       })
       .then(function (html) {
         d.innerHTML = html;
+        document.dispatchEvent(new CustomEvent("fm:card")); // players.js: compare button state
         var x = d.querySelector("[data-card-close]");
         if (x) x.focus();
       })

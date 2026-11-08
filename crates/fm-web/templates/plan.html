@@ -64,6 +64,7 @@
 </section>
 {% endblock %}
 {% block content %}
+{% if watch_changes %}<p class="watch-strip"><a href="/players?league={{ league }}#watchlist">Watchlist</a>: {% for c in watch_changes %}{{ c.name }} {{ c.phrase }}{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>{% endif %}
 {% if not plan.available %}
 <p class="lede">{% for n in plan.notes %}{{ n }} {% endfor %}</p>
 {% else %}

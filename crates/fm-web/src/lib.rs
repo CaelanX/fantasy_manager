@@ -7,6 +7,7 @@ pub mod charts;
 pub mod export;
 pub mod health_view;
 pub mod keepers_view;
+pub mod players_view;
 pub mod templates;
 pub mod trades_view;
 pub mod views;

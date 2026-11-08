@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pill, plink, team_chip, unit_badges, prospect_mark with context %}
+{% from "_player_tools.html" import watch_form, compare_btn with context %}
+{% block content %}
+{% set sort_label = {'vorp': 'VORP', 'fpg_season': vlabel ~ ' season', 'fpg_week': vlabel ~ ' this week', 'pct': '% rostered', 'dyn': 'Dynasty value'} %}
+<section id="watchlist" class="wl" aria-labelledby="h-watch">
+  <h2 id="h-watch">Watchlist{% if watch %} <span class="aside">{{ watch|length }} player{{ '' if watch|length == 1 else 's' }}{% if watch_unseen %}, {{ watch_unseen }} with news{% endif %}</span>{% endif %}</h2>
+  {% if watch %}
+  <ul class="wl-list">
+    {% for w in watch %}
+    <li class="wl-i{{ ' wl-chg' if w.changes }}">
+      <div class="wl-main">
+        <p class="wl-name">{% if w.found %}{{ plink(w, league) }} <small>{{ w.pos }} {{ team_chip(w.team) }}</small>{% else %}{{ w.name }} <small>not in this league's player pool right now</small>{% endif %}</p>
+        {% if w.found %}
+        <p class="wl-meta">{% if w.mine %}<span class="me-tag">You</span>{% else %}{{ w.owner or 'Free agent' }}{% endif %} &middot; {{ pill(w.status) }}{% if w.return_date %} &middot; back {{ w.return_date }}{% endif %}{{ unit_badges(w) }}</p>
+        {% endif %}
+        {% if w.changes %}<ul class="chg-list" aria-label="Changes since you last looked">{% for c in w.changes %}<li class="chg">{{ c.text }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+      <form method="post" action="/watch" class="wl-x" data-watch hx-boost="false">
+        <input type="hidden" name="league" value="{{ league }}">
+        <input type="hidden" name="cid" value="{{ w.cid }}">
+        <input type="hidden" name="on" value="0">
+        <input type="hidden" name="next" value="{{ here }}">
+        <button type="submit" class="mini-btn" aria-label="Stop watching {{ w.name }}">Unwatch</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if watch_unseen %}
+  <form method="post" action="/watch/seen" class="wl-seen">
+    <input type="hidden" name="league" value="{{ league }}">
+    <input type="hidden" name="next" value="{{ here }}">
+    <button type="submit" class="ghost-btn">Mark all seen</button>
+  </form>
+  {% endif %}
+  {% else %}
+  <p class="empty">Nobody on your watchlist yet. Tap the <span aria-hidden="true">&#9733;</span> star next to a player below, or <b>Watch</b> on a player card, to follow him: when he changes teams, gets hurt or healthy, gets a new return date or moves up a line, it shows here and on This week.</p>
+  {% endif %}
+</section>
+
+<section id="find" aria-labelledby="h-find">
+  <h2 id="h-find">Find a player</h2>
+  <form method="get" action="/players" class="pl-form" role="search" aria-label="Search players"
+        hx-get="/players" hx-trigger="submit, change, input changed delay:250ms from:#pl-q" hx-target="#pl-results"
+        hx-select="#pl-results" hx-swap="outerHTML" hx-push-url="true" hx-sync="this:replace">
+    <input type="hidden" name="league" value="{{ league }}">
+    <div class="pl-search">
+      <label for="pl-q" class="sr-only">Player name</label>
+      <input id="pl-q" name="q" type="search" value="{{ filter.q or '' }}" placeholder="Search by name" autocomplete="off" enterkeyhint="search">
+      <button type="submit" class="btn">Search</button>
+    </div>
+    <fieldset class="chips pl-chips">
+      <legend class="sr-only">Position</legend>
+      {% for k in [''] + positions %}
+      <label class="chip-r"><input type="radio" name="pos" value="{{ k }}"{% if (filter.pos or '') == k %} checked{% endif %}><span>{{ k or 'All' }}</span></label>
+      {% endfor %}
+    </fieldset>
+    <fieldset class="chips pl-chips">
+      <legend class="sr-only">Who owns him</legend>
+      {% for k, label in ownership %}
+      <label class="chip-r"><input type="radio" name="own" value="{{ k }}"{% if filter.own == k %} checked{% endif %}><span>{{ label }}</span></label>
+      {% endfor %}
+    </fieldset>
+    <span class="fgroup"><label for="pl-sort">Sort by</label>
+    <select id="pl-sort" name="sort">
+      {% for k in sorts %}<option value="{{ k }}"{% if filter.sort == k %} selected{% endif %}>{{ sort_label[k] }}</option>{% endfor %}
+    </select></span>
+    {% if filter.active %}<a class="reset" href="/players?league={{ league }}">Clear</a>{% endif %}
+  </form>
+
+  <div id="pl-results">
+    <p class="pl-count" role="status">{% if total %}{{ total }} player{{ '' if total == 1 else 's' }}{% if total > results|length %}, top {{ results|length }} by {{ sort_label[filter.sort] }}{% endif %}{% else %}No players match.{% endif %}</p>
+    {% if results %}
+    <div class="tbl"><table class="r stack pl-t">
+      <caption class="sr-only">Players matching the search, by {{ sort_label[filter.sort] }}</caption>
+      <thead><tr>
+        <th scope="col">Player</th><th scope="col">Fantasy team</th><th scope="col">Status</th>
+        <th scope="col" class="n"><span title="{{ vlabel_title }}">{{ vlabel }} szn</span></th>
+        <th scope="col" class="n"><span title="{{ vlabel_title }}">{{ vlabel }} wk</span></th>
+        <th scope="col" class="n">VORP</th>
+        {% if has_pct %}<th scope="col" class="n">% ros</th>{% endif %}
+        {% if has_dyn %}<th scope="col" class="n">Dynasty</th>{% endif %}
+        <th scope="col"><span class="sr-only">Watch and compare</span></th>
+      </tr></thead>
+      <tbody>
+        {% for x in results %}
+        <tr{% if x.mine %} class="mine"{% endif %}>
+          <th scope="row" class="pname" data-label="Player">{{ plink(x.p, league) }}{{ prospect_mark(x.prospect) }}{{ unit_badges(x) }}<small>{{ x.pos }} {{ team_chip(x.team if x.team != 'FA' else none) }}</small></th>
+          <td data-label="Fantasy team">{% if x.mine %}<span class="me-tag">You</span>{% else %}{{ x.owner or 'Free agent' }}{% endif %}</td>
+          <td data-label="Status"{% if x.note %} title="{{ x.note }}"{% endif %}>{{ pill(x.status) }}</td>
+          <td data-label="{{ vlabel }} season" class="n">{{ x.fpg_season|n1 }}</td>
+          <td data-label="{{ vlabel }} this week" class="n">{{ x.fpg_week|n1 }}</td>
+          <td data-label="VORP" class="n{% if x.vorp is not none and x.vorp > 0 %} pos-val{% elif x.vorp is not none and x.vorp < 0 %} neg-val{% endif %}">{{ x.vorp|n1(True) }}</td>
+          {% if has_pct %}<td data-label="% rostered" class="n">{{ (x.pct|n1 ~ '%') if x.pct is not none else '-' }}</td>{% endif %}
+          {% if has_dyn %}<td data-label="Dynasty" class="n">{{ x.dyn|n1 }}</td>{% endif %}
+          <td class="pl-acts">{{ watch_form(x.cid, x.name, x.watched, here) }}{{ compare_btn(x.cid, x.name, True) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

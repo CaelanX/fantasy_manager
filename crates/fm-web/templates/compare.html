@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pill, plink, team_chip, unit_badges, game_log_block with context %}
+{% macro cell(m, c) -%}
+{% set v = c.v %}
+<td class="n{{ ' best' if c.best }}">{% if v is none %}-{% elif m.fmt == 'n1s' %}{{ v|n1(True) }}{% elif m.fmt == 'int' %}{{ v|int }}{% elif m.fmt == 'pct' %}{{ v|n1 }}%{% elif m.fmt.startswith('rate:') %}{{ v|rate(m.stat) }}{% else %}{{ v|n1 }}{% endif %}{% if c.best %}<span class="sr-only"> (best)</span>{% endif %}</td>
+{%- endmacro %}
+{% block content %}
+<div id="cmp-page">
+  <form method="get" action="/compare" class="filterbar cmp-add" role="search" aria-label="Add a player to the comparison">
+    <input type="hidden" name="league" value="{{ league }}">
+    {% for c in cols %}<input type="hidden" name="p" value="{{ c.cid }}">{% endfor %}
+    <span class="fgroup"><label for="cmp-q">Add a player</label>
+    <input id="cmp-q" name="q" type="search" value="{{ add_q or '' }}" placeholder="name" autocomplete="off"{% if full %} disabled{% endif %}></span>
+    <button type="submit" class="btn"{% if full %} disabled{% endif %}>Add</button>
+    {% if full %}<span class="filter-help">Four players is the most: remove one to add another.</span>{% endif %}
+  </form>
+  {% if add_q and candidates %}
+  <div class="cmp-cands">
+    <p>More than one player matches &ldquo;{{ add_q }}&rdquo;. Pick one:</p>
+    <ul>{% for c in candidates %}<li><a href="{{ c.href }}">{{ c.name }}</a> <small>{{ c.pos }} {{ team_chip(c.team if c.team != 'FA' else none) }} &middot; {{ c.owner or 'Free agent' }}</small></li>{% endfor %}</ul>
+  </div>
+  {% elif add_q %}
+  <p class="empty">No player matches &ldquo;{{ add_q }}&rdquo;.</p>
+  {% endif %}
+
+  {% if not cols %}
+  <p class="empty">Nobody to compare yet. Tap <b>+ Compare</b> on a player card or on the <a href="/players?league={{ league }}">Players</a> list (up to four players), or add one by name above.</p>
+  {% else %}
+  {% if cols|length == 1 %}<p class="note cmp-hint">Add up to three more players to compare with {{ cols[0].name }}.</p>{% endif %}
+  <div class="tbl cmp-wrap"><table class="r cmpx">
+    <caption class="sr-only">Players side by side; the best value in each row is highlighted</caption>
+    <thead><tr>
+      <th scope="col"><span class="sr-only">Metric</span></th>
+      {% for c in cols %}
+      <th scope="col" class="cmpx-p" data-compare-col data-cid="{{ c.cid }}" data-name="{{ c.name }}">
+        <div class="cmpx-h"><span class="sw sw-{{ loop.index }}" aria-hidden="true"></span>{{ plink(c, league) }}<a class="cmpx-x" href="{{ c.remove_href }}" aria-label="Remove {{ c.name }}">&times;</a></div>
+        <small>{{ c.pos }} {{ team_chip(c.team if c.team != 'FA' else none) }}{{ unit_badges(c) }}</small>
+      </th>
+      {% endfor %}
+    </tr></thead>
+    <tbody>
+      <tr><th scope="row">Fantasy team</th>{% for c in cols %}<td>{% if c.mine %}<span class="me-tag">You</span>{% else %}{{ c.owner or 'Free agent' }}{% endif %}</td>{% endfor %}</tr>
+      <tr><th scope="row">Status</th>{% for c in cols %}<td class="st-cell">{{ pill(c.status) }}{% if c.return_date %}<small class="note-s">back {{ c.return_date }}</small>{% endif %}</td>{% endfor %}</tr>
+      {% for m in metrics %}
+      <tr><th scope="row">{{ m.label }}</th>{% for c in m.cells %}{{ cell(m, c) }}{% endfor %}</tr>
+      {% endfor %}
+      {% if rates %}
+      <tr class="grp"><th scope="rowgroup" colspan="{{ cols|length + 1 }}">Per game (model rates)</th></tr>
+      {% for m in rates %}
+      <tr><th scope="row">{{ m.label }}</th>{% for c in m.cells %}{{ cell(m, c) }}{% endfor %}</tr>
+      {% endfor %}
+      {% endif %}
+    </tbody>
+  </table></div>
+
+  <section class="cmp-chart" aria-labelledby="h-roll">
+    <h2 id="h-roll">Form <span class="aside">fantasy points per game, rolling 5-game average</span></h2>
+    {% if chart %}
+    <figure class="chart">
+      {{ chart.svg }}
+      {{ chart.legend }}
+    </figure>
+    {% elif not points %}
+    <p class="empty">This league scores categories, so there are no fantasy points to chart.</p>
+    {% else %}
+    <p class="empty">Not enough games this season to chart yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="cmp-logs" aria-labelledby="h-logs">
+    <h2 id="h-logs">Game logs</h2>
+    {% for c in cols %}
+    <details class="cmp-log">
+      <summary><span class="sw sw-{{ loop.index }}" aria-hidden="true"></span>{{ c.name }} <span class="muted">({{ c.log|length }} game{{ '' if c.log|length == 1 else 's' }})</span></summary>
+      {{ game_log_block(c.log, none, c) }}
+    </details>
+    {% endfor %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

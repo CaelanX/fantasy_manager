@@ -1,0 +1,23 @@
+{# Watch and compare controls (static/players.js) for /players, /compare and the player card. #}
+
+{# Star toggle: a plain form (POST /watch) that players.js submits with fetch and updates in
+   place. `text` = the labelled card button ("★ Watch" / "★ Watching"), else an icon star. #}
+{% macro watch_form(cid, name, on, next, text=False) -%}
+<form method="post" action="/watch" class="watch-form" data-watch hx-boost="false">
+  <input type="hidden" name="league" value="{{ league }}">
+  <input type="hidden" name="cid" value="{{ cid }}">
+  <input type="hidden" name="on" value="{{ '0' if on else '1' }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  {% if text %}
+  <button type="submit" class="ghost-btn watch-btn{{ ' is-on' if on }}" data-on-text="Watching" data-off-text="Watch"><span class="w-ico" aria-hidden="true">&#9733;</span> <span class="w-txt">{{ 'Watching' if on else 'Watch' }}</span></button>
+  {% else %}
+  <button type="submit" class="star-btn watch-btn{{ ' is-on' if on }}" aria-pressed="{{ 'true' if on else 'false' }}" aria-label="Watch {{ name }}" title="Watchlist"><span class="w-ico" aria-hidden="true">&#9733;</span></button>
+  {% endif %}
+</form>
+{%- endmacro %}
+
+{# "+ Compare": adds / removes the player in the compare tray (players.js keeps it in
+   localStorage). Hidden until the script shows it. #}
+{% macro compare_btn(cid, name, small=False) -%}
+<button type="button" class="{{ 'mini-btn' if small else 'ghost-btn' }} cmp-btn" data-compare="{{ cid }}" data-name="{{ name }}" data-league="{{ league }}" aria-pressed="false" hidden>+ Compare</button>
+{%- endmacro %}
