@@ -119,7 +119,10 @@
     var ul = el("ul", "cmp-chips");
     list.forEach(function (x) {
       var li = el("li", "cmp-chip");
-      li.appendChild(el("span", "", lastName(x.name)));
+      var shared = list.filter(function (y) {
+        return lastName(y.name) === lastName(x.name);
+      }).length > 1;
+      li.appendChild(el("span", "", shared ? x.name : lastName(x.name)));
       var rm = el("button", "cmp-chip-x", "×");
       rm.type = "button";
       rm.dataset.trayRemove = x.cid;

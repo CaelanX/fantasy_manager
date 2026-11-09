@@ -1591,6 +1591,7 @@ impl App {
             ("game_log", to_mj(&J::Array(log), None)),
             ("gl_chart", chart.map(|c| templates::safe_charts(&c)).unwrap_or(Value::from(()))),
             ("card", Value::from(card)),
+            ("keeper", to_mj(&crate::keepers_view::keeper_status(&res, cid).unwrap_or(J::Null), None)),
             ("res", ResObj::value(res.clone())),
             ("p", to_mj(&serde_json::to_value(p).unwrap_or(J::Null), Some(&res))),
             ("pv", templates::pv_value(&res, cid)),

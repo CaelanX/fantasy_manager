@@ -1020,3 +1020,5 @@ table.r.cmpx { font-size: .9rem; }
 .cmp-btn[hidden] { display: none; }
 .ghost-btn.watch-btn .w-ico { color: var(--ink-3); }
 .ghost-btn.watch-btn.is-on .w-ico { color: #d99800; }
+.kbadge { font-size: .82rem; font-weight: 600; color: var(--ink-2); }
+.kbadge-on { color: var(--good); }

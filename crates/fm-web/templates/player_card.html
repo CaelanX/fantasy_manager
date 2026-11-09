@@ -8,7 +8,7 @@
       <h2 id="pcard-name" class="pcard-name">{{ p.name }}</h2>
       <p class="pcard-sub">{{ p|pos }} &middot; {% if p.team %}{{ team_chip(p.team) }}{% else %}no NHL team{% endif %}
         &middot; {% if team %}{{ team.name }}{% else %}Free agent{% endif %}{% if p.pct_owned is not none %} &middot; {{ p.pct_owned|n1 }}% rostered{% endif %}</p>
-      <p class="pcard-sub">{{ pill(p.status) }}{% if row.age is not none %} &middot; age {{ row.age|n1 }}{% endif %}</p>
+      <p class="pcard-sub">{{ pill(p.status) }}{% if row.age is not none %} &middot; age {{ row.age|n1 }}{% endif %}{% if keeper and keeper.rank %} &middot; <span class="kbadge{{ ' kbadge-on' if keeper.keeper }}" title="Keeper surplus {{ keeper.surplus|n1 }}: long-term value over a waiver-level spot">{% if keeper.keeper %}Keeper #{{ keeper.rank }} of {{ keeper.of }}{% else %}Not a keeper (#{{ keeper.rank }}){% endif %}{% if keeper.team %} on {{ keeper.team }}{% endif %}</span>{% elif keeper and keeper.keeper %} &middot; <span class="kbadge" title="Would rank in your top {{ keeper.of }} keepers">Keeper-worthy free agent</span>{% endif %}</p>
     </div>
     <button type="button" class="pcard-x" data-card-close aria-label="Close">&times;</button>
   </header>
