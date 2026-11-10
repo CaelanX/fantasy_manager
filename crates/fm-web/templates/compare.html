@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import pill, plink, team_chip, unit_badges, game_log_block with context %}
+{% from "_macros.html" import pill, plink, team_chip, unit_badges, game_log_block, ask_box with context %}
 {% macro cell(m, c) -%}
 {% set v = c.v %}
 <td class="n{{ ' best' if c.best }}">{% if v is none %}-{% elif m.fmt == 'n1s' %}{{ v|n1(True) }}{% elif m.fmt == 'int' %}{{ v|int }}{% elif m.fmt == 'pct' %}{{ v|n1 }}%{% elif m.fmt.startswith('rate:') %}{{ v|rate(m.stat) }}{% else %}{{ v|n1 }}{% endif %}{% if c.best %}<span class="sr-only"> (best)</span>{% endif %}</td>
@@ -26,6 +26,7 @@
   {% if not cols %}
   <p class="empty">Nobody to compare yet. Tap <b>+ Compare</b> on a player card or on the <a href="/players?league={{ league }}">Players</a> list (up to four players), or add one by name above.</p>
   {% else %}
+  {{ ask_box('Ask about these players', cols|map(attribute='cid')|join(','), '', 'Which of these players should I want most, and why?' if cols|length > 1 else '') }}
   {% if cols|length == 1 %}<p class="note cmp-hint">Add up to three more players to compare with {{ cols[0].name }}.</p>{% endif %}
   <div class="tbl cmp-wrap"><table class="r cmpx">
     <caption class="sr-only">Players side by side; the best value in each row is highlighted</caption>

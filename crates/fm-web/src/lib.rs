@@ -4,6 +4,7 @@ pub mod app;
 pub mod assets;
 pub mod auth;
 pub mod charts;
+pub mod chats;
 pub mod export;
 pub mod health_view;
 pub mod keepers_view;

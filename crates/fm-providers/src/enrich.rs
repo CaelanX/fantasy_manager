@@ -1353,8 +1353,37 @@ fn value_str(v: &Value) -> Option<String> {
     }
 }
 
+/// Statuses a player cannot play with.
+const UNAVAILABLE: [&str; 4] = ["out", "ir", "ltir", "suspended"];
+
+/// cid -> `(local ISO date, unavailable)` for every status the dashboard and daily runs have
+/// recorded, oldest first (`<FM_DATA_DIR>/status_history.db`; empty without one).
+fn status_days(settings: &Settings) -> Map<String, Vec<(String, bool)>> {
+    if !settings.fm_data_dir.join("status_history.db").is_file() {
+        return Map::new();
+    }
+    let by_player = fm_engine::recommend::injuries::StatusHistory::new(&settings.fm_data_dir).and_then(|h| h.by_player());
+    let by_player = match by_player {
+        Ok(m) => m,
+        Err(e) => {
+            tracing::warn!("status history unreadable, goalie start shares ignore past injuries: {e}");
+            return Map::new();
+        }
+    };
+    let day = |seen_at: f64| {
+        chrono::DateTime::from_timestamp(seen_at as i64, 0)
+            .map(|t| t.with_timezone(&chrono::Local).format("%Y-%m-%d").to_string())
+            .unwrap_or_default()
+    };
+    by_player
+        .into_iter()
+        .map(|(cid, snaps)| (cid, snaps.iter().map(|s| (day(s.seen_at), UNAVAILABLE.contains(&s.status.as_str()))).collect()))
+        .collect()
+}
+
 /// Step 8: TOI / PP deployment per skater, and (ledger with >= 5 team games) goalie starts and
-/// back-to-back second-night rates for valuation.
+/// back-to-back second-night rates for valuation. A goalie's starts are measured against the
+/// team games he was there and fit for (`TeamGoalieCounts::games_available`).
 pub fn deployment_step(
     ctx: &mut LeagueContext,
     settings: &Settings,
@@ -1379,6 +1408,7 @@ pub fn deployment_step(
             ctx.b2b_second_night.insert((*t).clone(), r);
         }
     }
+    let recorded = status_days(settings);
     let mut actual: Vec<(String, (i64, i64))> = Vec::new();
     for p in ctx.all_players() {
         let Some(team) = normalize_team(p.team.as_deref()) else { continue };
@@ -1387,7 +1417,10 @@ pub fn deployment_step(
             continue;
         }
         let Some(d) = ready.get(&team) else { continue };
-        actual.push((p.cid.clone(), (d.starts.get(&nid).copied().unwrap_or(0), d.games)));
+        // his recorded statuses, then today's
+        let mut statuses = recorded.get(&p.cid).cloned().unwrap_or_default();
+        statuses.push((as_of.format("%Y-%m-%d").to_string(), p.status.is_in(&UNAVAILABLE)));
+        actual.push((p.cid.clone(), (d.starts.get(&nid).copied().unwrap_or(0), d.games_available(nid, &statuses))));
     }
     for (cid, v) in actual {
         ctx.goalie_actual_starts.insert(cid, v);

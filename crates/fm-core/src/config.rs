@@ -133,6 +133,9 @@ pub struct Settings {
     pub fm_llm_model: String,
     pub fm_llm_fallbacks: String,
     pub fm_llm_allow_paid: bool,
+    /// an OpenAI-compatible server to use instead of OpenRouter (e.g. Ollama's
+    /// `http://localhost:11434/v1`); no API key or free-only guard applies to it
+    pub fm_llm_base_url: Option<String>,
     pub discord_webhook_url: Option<Secret>,
     pub slack_webhook_url: Option<Secret>,
     // odds
@@ -175,6 +178,7 @@ impl Default for Settings {
             fm_llm_model: "openrouter/free".into(),
             fm_llm_fallbacks: String::new(),
             fm_llm_allow_paid: false,
+            fm_llm_base_url: None,
             discord_webhook_url: None,
             slack_webhook_url: None,
             odds_api_key: None,
@@ -294,6 +298,7 @@ impl Settings {
         if let Some(v) = get("fm_llm_allow_paid") {
             s.fm_llm_allow_paid = parse_bool("fm_llm_allow_paid", &v)?;
         }
+        s.fm_llm_base_url = get("fm_llm_base_url");
         s.discord_webhook_url = secret(get("discord_webhook_url"));
         s.slack_webhook_url = secret(get("slack_webhook_url"));
         s.odds_api_key = secret(get("odds_api_key"));

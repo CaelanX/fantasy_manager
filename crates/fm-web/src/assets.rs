@@ -17,6 +17,7 @@ macro_rules! embed_bytes {
 pub const TEMPLATES: &[(&str, &str)] = embed_str!(
     "_macros.html",
     "_player_tools.html",
+    "ask.html",
     "base.html",
     "compare.html",
     "error.html",
@@ -43,6 +44,7 @@ pub const STATIC: &[(&str, &[u8])] = embed_bytes!(
     "moved.js",
     "card.js",
     "players.js",
+    "ask.js",
     "fonts/OFL.txt",
     "fonts/barlow-400.woff2",
     "fonts/barlow-500.woff2",

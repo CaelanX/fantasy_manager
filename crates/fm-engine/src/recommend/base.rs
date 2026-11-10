@@ -26,6 +26,7 @@ use fm_pycompat::num::py_sum;
 use fm_pycompat::order::cmp_f64;
 use fm_pycompat::time::strftime_date;
 
+use crate::valuation::adjust::SeasonLength;
 use crate::valuation::dynasty::{apply_dynasty, keeper_total};
 use crate::valuation::replacement::{eligible_slots, DEFAULT_SLOTS};
 
@@ -793,9 +794,10 @@ pub fn lineup_players(team: &FantasyTeam) -> Vec<&Player> {
 /// My starters' average NHL games per week and games remaining ([`GameRate`]). From
 /// `ctx.schedule`: each starter's team games from max(as_of, first game) to the last regular-season
 /// game, averaged over the starters whose team is on the schedule; per week = that / max(1, weeks
-/// left). Without a schedule: DEFAULT_GAMES_PER_WEEK and SEASON_GAMES x the fraction of the season
-/// still to play. `players` None = my current starters (errors, like Python's `LookupError`, when
-/// no team is mine).
+/// left). When no starter's team is on it: DEFAULT_GAMES_PER_WEEK and the fraction of the season
+/// still to play x the schedule's games per team (SEASON_GAMES without a schedule; Python always
+/// used SEASON_GAMES). `players` None = my current starters (errors, like Python's `LookupError`,
+/// when no team is mine).
 pub fn game_rate(ctx: &LeagueContext, players: Option<&[&Player]>) -> Result<GameRate, CoreError> {
     let (first, last) = season_bounds(ctx);
     let start = ctx.as_of.max(first);
@@ -823,7 +825,8 @@ pub fn game_rate(ctx: &LeagueContext, players: Option<&[&Player]>) -> Result<Gam
         return Ok(GameRate { per_week: remaining / weeks.max(1.0), remaining, source: "schedule" });
     }
     let frac = (days as f64 / ((last - first).num_days() + 1).max(1) as f64).max(0.0).min(1.0);
-    Ok(GameRate { per_week: DEFAULT_GAMES_PER_WEEK, remaining: SEASON_GAMES as f64 * frac, source: "default" })
+    let season_games = SeasonLength::of(&ctx.schedule).games;
+    Ok(GameRate { per_week: DEFAULT_GAMES_PER_WEEK, remaining: season_games * frac, source: "default" })
 }
 
 /// Lineup FPG -> fantasy points per week.

@@ -9,11 +9,12 @@
 <link rel="stylesheet" href="/static/style.css">
 <script src="/static/card.js" defer></script>
 <script src="/static/players.js" defer></script>
+<script src="/static/ask.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body hx-boost="true">
 <a class="skip" href="#main">Skip to content</a>
-{% set sections = [(PLAN_HREF, "This week"), (OVERVIEW_HREF, "Overview"), ("/roster", "Roster"), ("/players", "Players"), ("/recommendations", "Moves"), ("/trade-eval", "Trades"), ("/matchup", "Matchup"), ("/schedule", "Schedule"), ("/news", "News"), ("/health", "Health")] %}
+{% set sections = [(PLAN_HREF, "This week"), (OVERVIEW_HREF, "Overview"), ("/roster", "Roster"), ("/players", "Players"), ("/recommendations", "Moves"), ("/trade-eval", "Trades"), ("/matchup", "Matchup"), ("/schedule", "Schedule"), ("/news", "News"), ("/ask", "Ask"), ("/health", "Health")] %}
 {% macro is_here(href, label) -%}{{ 'y' if path == href or (path == "/plan" and label == "This week") or (path == "/overview" and label == "Overview") else '' }}{%- endmacro %}
 <header class="topbar">
   <div class="wrap mast">
@@ -106,11 +107,11 @@
   {% for href, label, icon in primary %}
   <a href="{{ href }}?league={{ league }}" class="tb tb-{{ icon }}"{% if is_here(href, label) %} aria-current="page"{% endif %}><span class="tb-i" aria-hidden="true"></span>{{ label }}</a>
   {% endfor %}
-  {% set more_here = path in ("/overview", "/players", "/compare", "/keepers", "/trade-eval", "/schedule", "/news", "/health") or (path == "/" and HOME != "plan") %}
+  {% set more_here = path in ("/overview", "/players", "/compare", "/keepers", "/trade-eval", "/schedule", "/news", "/ask", "/health") or (path == "/" and HOME != "plan") %}
   <details class="tb-more">
     <summary class="tb tb-mo"{% if more_here %} aria-current="page"{% endif %}><span class="tb-i" aria-hidden="true"></span>More</summary>
     <div class="tb-sheet">
-      {% for href, label in [("/players", "Players"), ("/trade-eval", "Trades"), (OVERVIEW_HREF, "Overview"), ("/schedule", "Schedule"), ("/news", "News"), ("/health", "Model health")] %}
+      {% for href, label in [("/players", "Players"), ("/trade-eval", "Trades"), (OVERVIEW_HREF, "Overview"), ("/schedule", "Schedule"), ("/news", "News"), ("/ask", "Ask"), ("/health", "Model health")] %}
       <a href="{{ href }}?league={{ league }}"{% if is_here(href, label) or (label == 'Model health' and path == '/health') %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}
     </div>

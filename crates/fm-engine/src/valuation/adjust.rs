@@ -12,6 +12,7 @@ use std::sync::{LazyLock, OnceLock};
 use chrono::{Datelike, Duration, NaiveDate};
 use fancy_regex::Regex as FancyRegex;
 use fm_core::values::Horizon;
+use fm_core::Map;
 use fm_pycompat::fmt::fixed;
 use fm_pycompat::num::py_round_i64;
 use regex::{Captures, Regex};
@@ -19,6 +20,8 @@ use serde_json::Value;
 
 use super::params;
 
+/// games per NHL team and days of a regular season when no schedule is loaded (the 82-game
+/// seasons through 2025-26)
 pub const SEASON_GAMES: i64 = 82;
 pub const SEASON_DAYS: i64 = 186;
 pub const FLOOR: f64 = 0.05;
@@ -249,6 +252,31 @@ fn parse(note: &str, as_of: NaiveDate) -> Option<(Parsed, String)> {
 
 // --------------------------------------------------------------------------- schedule helpers
 
+/// Length of the regular season, for a player whose own team has no dates on the schedule.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SeasonLength {
+    /// games per NHL team
+    pub games: f64,
+    /// days from the first game to the last, inclusive
+    pub days: f64,
+}
+
+impl SeasonLength {
+    /// SEASON_GAMES in SEASON_DAYS: no schedule loaded.
+    pub const DEFAULT: SeasonLength = SeasonLength { games: SEASON_GAMES as f64, days: SEASON_DAYS as f64 };
+
+    /// Read from the loaded schedule (team -> regular-season game dates): the most game dates any
+    /// team has, over the days from the league's first game to its last. DEFAULT when it is empty.
+    /// Python always assumed 82 games in 186 days; the 2026-27 schedule has 84 in 194.
+    pub fn of(schedule: &Map<String, Vec<NaiveDate>>) -> SeasonLength {
+        let mut all = schedule.values().flatten();
+        let Some(&first) = all.next() else { return SeasonLength::DEFAULT };
+        let (lo, hi) = all.fold((first, first), |(lo, hi), &d| (lo.min(d), hi.max(d)));
+        let games = schedule.values().map(|ds| Dates::new(Some(ds)).0.len()).max().unwrap_or(0);
+        SeasonLength { games: games as f64, days: ((hi - lo).num_days() + 1) as f64 }
+    }
+}
+
 /// `set(team_dates)` sorted; empty = no schedule.
 struct Dates(Vec<NaiveDate>);
 
@@ -288,7 +316,13 @@ impl Dates {
     }
 }
 
-fn games_between(start: NaiveDate, end: NaiveDate, dates: &Dates, season_start: Option<NaiveDate>) -> f64 {
+fn games_between(
+    start: NaiveDate,
+    end: NaiveDate,
+    dates: &Dates,
+    season_start: Option<NaiveDate>,
+    season: SeasonLength,
+) -> f64 {
     if let Some(n) = dates.count(start, Some(end)) {
         return n as f64;
     }
@@ -297,10 +331,10 @@ fn games_between(start: NaiveDate, end: NaiveDate, dates: &Dates, season_start: 
         None => start,
     };
     let days = (end - first).num_days() as f64;
-    days.max(0.0) * SEASON_GAMES as f64 / SEASON_DAYS as f64
+    days.max(0.0) * season.games / season.days
 }
 
-fn games_remaining_in(as_of: NaiveDate, dates: &Dates, season_start: Option<NaiveDate>) -> f64 {
+fn games_remaining_in(as_of: NaiveDate, dates: &Dates, season_start: Option<NaiveDate>, season: SeasonLength) -> f64 {
     if let Some(n) = dates.count(as_of, None) {
         if n != 0 {
             return n as f64;
@@ -308,16 +342,21 @@ fn games_remaining_in(as_of: NaiveDate, dates: &Dates, season_start: Option<Naiv
     }
     match season_start {
         Some(s) if as_of > s => {
-            (SEASON_GAMES as f64 * (1.0 - (as_of - s).num_days() as f64 / SEASON_DAYS as f64)).max(1.0)
+            (season.games * (1.0 - (as_of - s).num_days() as f64 / season.days)).max(1.0)
         }
-        _ => SEASON_GAMES as f64,
+        _ => season.games,
     }
 }
 
 /// `_games_remaining`: the team's games from `as_of` on (its schedule), else the share of the
-/// 82-game season left (at least 1; the full season before it starts).
-pub fn games_remaining(as_of: NaiveDate, team_dates: Option<&[NaiveDate]>, season_start: Option<NaiveDate>) -> f64 {
-    games_remaining_in(as_of, &Dates::new(team_dates), season_start)
+/// season (`season`) left (at least 1; the full season before it starts).
+pub fn games_remaining(
+    as_of: NaiveDate,
+    team_dates: Option<&[NaiveDate]>,
+    season_start: Option<NaiveDate>,
+    season: SeasonLength,
+) -> f64 {
+    games_remaining_in(as_of, &Dates::new(team_dates), season_start, season)
 }
 
 fn add_days(d: NaiveDate, days: i64) -> NaiveDate {
@@ -325,19 +364,20 @@ fn add_days(d: NaiveDate, days: i64) -> NaiveDate {
 }
 
 /// The sized absence of a player with `status`; None when healthy / unknown or when nothing can be
-/// inferred (the flat multiplier applies).
+/// inferred (the flat multiplier applies). `season` sizes the games of a team without dates.
 pub fn return_estimate(
     status: &str,
     note: Option<&str>,
     as_of: NaiveDate,
     team_dates: Option<&[NaiveDate]>,
     season_start: Option<NaiveDate>,
+    season: SeasonLength,
 ) -> Option<ReturnEstimate> {
     if !OUT_STATUSES.contains(&status) {
         return None;
     }
     let dates = Dates::new(team_dates);
-    let remaining = games_remaining_in(as_of, &dates, season_start);
+    let remaining = games_remaining_in(as_of, &dates, season_start, season);
     let anchor = match season_start {
         Some(s) => as_of.max(s),
         None => as_of,
@@ -387,7 +427,7 @@ pub fn return_estimate(
                     Parsed::Games(_) => unreachable!(),
                 };
                 ret = Some(r);
-                missed = if r > as_of { games_between(as_of, r, &dates, season_start) } else { 0.0 };
+                missed = if r > as_of { games_between(as_of, r, &dates, season_start, season) } else { 0.0 };
             }
         }
         src = s;
@@ -396,12 +436,12 @@ pub fn return_estimate(
         let r = add_days(anchor, DAY_TO_DAY_DAYS);
         ret = Some(r);
         src = format!("{why}, ~{DAY_TO_DAY_DAYS} days assumed");
-        missed = games_between(as_of, r, &dates, season_start);
+        missed = games_between(as_of, r, &dates, season_start, season);
     } else if status == "ir" {
         let r = add_days(anchor, IR_DEFAULT_DAYS);
         ret = Some(r);
         src = format!("IR without a timetable, {IR_DEFAULT_DAYS} days assumed");
-        missed = games_between(as_of, r, &dates, season_start);
+        missed = games_between(as_of, r, &dates, season_start, season);
     } else if status == "ltir" {
         ret = None;
         src = "LTIR without a timetable: rest of the season assumed".to_string();
@@ -425,8 +465,9 @@ pub fn expected_return(
     as_of: NaiveDate,
     team_dates: Option<&[NaiveDate]>,
     season_start: Option<NaiveDate>,
+    season: SeasonLength,
 ) -> (Option<NaiveDate>, Option<f64>) {
-    match return_estimate(status, note, as_of, team_dates, season_start) {
+    match return_estimate(status, note, as_of, team_dates, season_start, season) {
         None => (None, None),
         Some(e) => (e.return_date, Some(e.games_missed)),
     }
@@ -439,9 +480,10 @@ pub fn season_availability(
     as_of: NaiveDate,
     team_dates: Option<&[NaiveDate]>,
     season_start: Option<NaiveDate>,
+    season: SeasonLength,
     params: Option<&Value>,
 ) -> (f64, Option<ReturnEstimate>) {
-    match return_estimate(status, note, as_of, team_dates, season_start) {
+    match return_estimate(status, note, as_of, team_dates, season_start, season) {
         None => (availability_multiplier(status, Horizon::Season, params), None),
         Some(e) => (e.multiplier, Some(e)),
     }

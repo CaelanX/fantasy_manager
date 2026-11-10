@@ -31,7 +31,7 @@ use fm_pycompat::num::{py_sum, round_to};
 use serde::Serialize;
 use serde_json::Value;
 
-use super::adjust::{availability_multiplier, return_estimate, ReturnEstimate};
+use super::adjust::{availability_multiplier, return_estimate, ReturnEstimate, SeasonLength};
 use super::params;
 use crate::analysis::team_factors::{odds_fn, team_ga_factors, DayOdds, OddsFn, TeamFactors};
 
@@ -521,7 +521,14 @@ pub fn teammate_shares(
         let mut info: Map<String, TeammateAbsence> = Map::new();
         for (cid, a) in &absent {
             let status = a.status.as_str();
-            let est = return_estimate(status, a.status_note.as_deref(), ctx.as_of, Some(team_dates), ctx.season_start);
+            let est = return_estimate(
+                status,
+                a.status_note.as_deref(),
+                ctx.as_of,
+                Some(team_dates),
+                ctx.season_start,
+                SeasonLength::of(&ctx.schedule),
+            );
             let season_frac = match &est {
                 Some(e) => {
                     if e.games_remaining > 0.0 {

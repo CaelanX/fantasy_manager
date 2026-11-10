@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block heading %}
+<p class="sc dateline">{{ res.ctx.name }} &middot; answered from this site's data</p>
+<h1>Ask</h1>
+<p class="sub">Ask about your team in plain words. The model reads your roster, the top moves, recent news, the best free agents and the other teams, and the full detail on any player you name.</p>
+{% endblock %}
+{% block content %}
+{% if not llm_ok %}
+<p class="flash flash-warn" role="status">No model is set up. In <code>.env</code>, set <code>FM_LLM_BASE_URL</code> and <code>FM_LLM_MODEL</code> for a model on your own PC, or <code>OPENROUTER_API_KEY</code> for OpenRouter.</p>
+{% endif %}
+<div class="chat-layout">
+  <aside class="chat-list" aria-labelledby="h-chats">
+    <h2 id="h-chats">Chats <span class="aside">{{ chats|length }}</span></h2>
+    <a class="btn btn-ghost" href="/ask?league={{ league }}">New chat</a>
+    {% if chats %}
+    <ul>
+      {% for c in chats %}
+      <li><a href="/ask?league={{ league }}&amp;chat={{ c.id }}"{% if chat and c.id == chat.id %} aria-current="true"{% endif %}>{{ c.title }}</a>
+        <small class="muted">{{ c.turns }} question{{ 's' if c.turns != 1 }} &middot; {{ c.updated[:16]|replace('T', ' ') }}</small></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="empty">Nothing saved yet. Chats are kept on this PC.</p>{% endif %}
+  </aside>
+  <section class="chat-main" aria-labelledby="h-chat">
+    <h2 id="h-chat">{{ chat.title if chat else 'New chat' }}</h2>
+    {% if focus_names or (chat and pasted) %}
+    <details class="chat-given"><summary>What this chat was given</summary>
+      {% if focus_names %}<p>Players: {{ focus_names|join(', ') }}</p>{% endif %}
+      {% if chat and pasted %}<pre>{{ pasted }}</pre>{% endif %}
+    </details>
+    {% endif %}
+    {% if chat %}
+    <ol class="chat-turns">
+      {% for t in chat.turns %}
+      <li{% if loop.last and not chat.pending %} id="latest"{% endif %}>
+        <p class="chat-q">{{ t.question }}</p>
+        <div class="chat-a">{{ t.answer }}</div>
+        <p class="chat-by">{{ t.model or 'model' }} &middot; {{ t.at[:16]|replace('T', ' ') }}</p>
+      </li>
+      {% endfor %}
+      {% if chat.pending %}
+      {# static/ask.js fills this in from /ask/stream, then loads the saved turn #}
+      <li id="latest" class="chat-pending" data-ask-stream="/ask/stream?league={{ league }}&amp;chat={{ chat.id }}" data-ask-done="/ask?league={{ league }}&amp;chat={{ chat.id }}#latest">
+        <p class="chat-q">{{ chat.pending }}</p>
+        <details class="chat-think" hidden><summary>Thinking</summary><div class="chat-think-body"></div></details>
+        <div class="chat-a" aria-live="polite" hidden></div>
+        <p class="chat-status" role="status">Reading the league data&hellip; the first answer in a chat takes a minute or two on your own PC.</p>
+        <div class="chat-retry inline-form" hidden>
+          <a class="ghost-btn" href="/ask?league={{ league }}&amp;chat={{ chat.id }}" hx-boost="false">Try again</a>
+          <form method="post" action="/ask/discard"><input type="hidden" name="league" value="{{ league }}"><input type="hidden" name="chat" value="{{ chat.id }}">
+            <button type="submit" class="ghost-btn">Drop this question</button></form>
+        </div>
+      </li>
+      {% endif %}
+    </ol>
+    {% endif %}
+    {% if error %}<p class="flash flash-warn" role="status">{{ error }}</p>{% endif %}
+    {% if llm_ok and not (chat and chat.pending) %}
+    <form method="post" action="/ask" class="ask-form">
+      <input type="hidden" name="league" value="{{ league }}">
+      {% if chat %}<input type="hidden" name="chat" value="{{ chat.id }}">{% else %}<input type="hidden" name="cids" value="{{ cids }}">{% endif %}
+      <label for="ask-q">{{ 'Follow-up' if chat else 'Question' }}</label>
+      <textarea id="ask-q" name="question" rows="3" maxlength="1000" required placeholder="{{ 'Ask a follow-up' if chat else 'Should I trade X for Y?' }}">{{ question }}</textarea>
+      {% if not chat %}
+      <label for="ask-ctx">Extra context <small class="muted">optional, up to {{ max_paste }} characters, kept for the whole chat</small></label>
+      <textarea id="ask-ctx" name="context" rows="6" maxlength="{{ max_paste }}" placeholder="Paste a trade offer, an article or a league chat message.">{{ pasted }}</textarea>
+      {% endif %}
+      <p class="te-submit"><button type="submit" class="btn">{{ 'Send' if chat else 'Ask' }}</button></p>
+    </form>
+    {% endif %}
+    <p class="foot-note">The model only knows what is on this site and what you paste, so check the numbers on the pages before you act. Each question is answered from the current data, not the data at the time the chat started.</p>
+    {% if chat %}
+    <details class="chat-manage"><summary>Rename or delete this chat</summary>
+      <form method="post" action="/ask/rename" class="inline-form">
+        <input type="hidden" name="league" value="{{ league }}"><input type="hidden" name="chat" value="{{ chat.id }}">
+        <label for="chat-title">Name</label>
+        <input id="chat-title" type="text" name="title" value="{{ chat.title }}" maxlength="60" required>
+        <button type="submit" class="ghost-btn">Rename</button>
+      </form>
+      <form method="post" action="/ask/delete" class="inline-form" hx-confirm="Delete this chat? This cannot be undone.">
+        <input type="hidden" name="league" value="{{ league }}"><input type="hidden" name="chat" value="{{ chat.id }}">
+        <button type="submit" class="ghost-btn">Delete chat</button>
+      </form>
+    </details>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -418,7 +418,7 @@ fn dates() -> Vec<NaiveDate> {
     v
 }
 fn est(status: &str, note: Option<&str>, as_of: NaiveDate) -> Option<ReturnEstimate> {
-    return_estimate(status, note, as_of, Some(&dates()), Some(start()))
+    return_estimate(status, note, as_of, Some(&dates()), Some(start()), SeasonLength::DEFAULT)
 }
 
 #[test]
@@ -440,7 +440,14 @@ fn suspension_is_about_seven_games() {
     assert_close!(e.multiplier, 1.0 - 7.0 / 82.0);
     assert!(e.text().contains("est. return 2026-10-17") && e.text().contains("~7 of 82"));
     assert_eq!(
-        expected_return("suspended", Some("suspension (est. return 2026-10-17)"), AS_OF(), Some(&dates()), Some(start())),
+        expected_return(
+            "suspended",
+            Some("suspension (est. return 2026-10-17)"),
+            AS_OF(),
+            Some(&dates()),
+            Some(start()),
+            SeasonLength::DEFAULT
+        ),
         (Some(d(2026, 10, 17)), Some(7.0))
     );
 }
@@ -499,7 +506,7 @@ fn defaults_and_flat_fallback() {
     let back = est("dtd", Some("Lower Body: day-to-day (est. return 2026-10-02)"), AS_OF()).unwrap();
     assert_eq!((back.games_missed, back.multiplier), (0.0, 1.0));
     assert!(est("out", Some("OUT"), AS_OF()).is_none());
-    assert_eq!(season_availability("out", Some("OUT"), AS_OF(), None, None, None).0, 0.6);
+    assert_eq!(season_availability("out", Some("OUT"), AS_OF(), None, None, SeasonLength::DEFAULT, None).0, 0.6);
     assert!(est("healthy", Some("est. return 2026-12-01"), AS_OF()).is_none());
     // not injury related
     let today = d(2026, 10, 26);
@@ -510,10 +517,29 @@ fn defaults_and_flat_fallback() {
     assert!(e.multiplier > 0.95 && e.source.contains("not injury related"));
     assert!(est("out", Some("Lower Body: Hellebuyck (lower body) is out indefinitely"), today).is_none());
     // no schedule: games from days
-    let e = return_estimate("suspended", Some("suspension (est. return 2026-10-17)"), AS_OF(), None, Some(start())).unwrap();
+    let note = Some("suspension (est. return 2026-10-17)");
+    let e = return_estimate("suspended", note, AS_OF(), None, Some(start()), SeasonLength::DEFAULT).unwrap();
     assert_eq!(e.games_remaining, 82.0);
     assert_close!(e.games_missed, 11.0 * 82.0 / 186.0);
     let _ = adjust::availability_snapshot();
+}
+
+#[test]
+fn season_length_comes_from_the_schedule() {
+    assert_eq!(SeasonLength::of(&Map::new()), SeasonLength { games: 82.0, days: 186.0 });
+    // AAA plays 4 dates and BBB 3, between Oct 1 and Oct 10: 4 games per team in 10 days
+    let mut sched: Map<String, Vec<NaiveDate>> = Map::new();
+    sched.insert("AAA".into(), [1, 3, 5, 10].iter().map(|x| d(2026, 10, *x)).collect());
+    sched.insert("BBB".into(), [2, 4, 6].iter().map(|x| d(2026, 10, *x)).collect());
+    assert_eq!(SeasonLength::of(&sched), SeasonLength { games: 4.0, days: 10.0 });
+    // a player whose team has no dates, in an 84-game season of 194 days (2026-27)
+    let season = SeasonLength { games: 84.0, days: 194.0 };
+    let note = Some("suspension (est. return 2026-10-17)");
+    let e = return_estimate("suspended", note, AS_OF(), None, Some(start()), season).unwrap();
+    assert_eq!(e.games_remaining, 84.0);
+    assert_close!(e.games_missed, 11.0 * 84.0 / 194.0);
+    // 97 days in: half the season is left
+    assert_close!(games_remaining(start() + Duration::days(97), None, Some(start()), season), 42.0);
 }
 
 // ----------------------------------------------------------------------------- regression

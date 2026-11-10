@@ -539,6 +539,95 @@ fn explain_without_key_leaves_inline_note() {
     assert_eq!(loc, "/x?league=espn");
 }
 
+/// Answers with what it was sent, so the page test can see the prompt.
+struct EchoLlm;
+
+impl fm_sources::llm::SupportsComplete for EchoLlm {
+    fn available(&self) -> bool {
+        true
+    }
+    fn model(&self) -> Option<String> {
+        Some("stub-model".into())
+    }
+    fn complete(&self, system: &str, user: &str, _: fm_sources::llm::CompleteOpts) -> anyhow::Result<String> {
+        if user.contains("QUESTION: fail") {
+            return Err(fm_sources::llm::LLMError::new("Could not reach the LLM server at http://x. Is it running?").into());
+        }
+        Ok(format!(
+            "<b>focus {}</b> paste {} history {}",
+            user.contains("## PLAYERS THIS CHAT IS ABOUT") && user.contains("  owner: MY TEAM (slot C)"),
+            system.contains("PASTED BY THE MANAGER") && user.contains("Makar for Tkachuk"),
+            user.contains("MANAGER: Take it?\nASSISTANT: <b>focus true</b>")
+        ))
+    }
+}
+
+#[test]
+fn ask_chats_answer_follow_up_and_are_managed() {
+    let dir = tempfile::tempdir().unwrap();
+    let rt = rt();
+    // no model configured: a setup note, no form, and no Ask boxes on other pages
+    let (a, _) = test_app(dir.path(), None);
+    let (s, _, _, body) = rt.block_on(send(&a.router(), "GET", "/ask?league=espn", None));
+    assert!(s == 200 && body.contains("FM_LLM_BASE_URL") && !body.contains("<textarea"), "{body}");
+    assert!(!rt.block_on(send(&a.router(), "GET", "/recommendations?league=espn", None)).3.contains("ask-box"));
+
+    let loader: Arc<dyn Loader> = Arc::new(CountingLoader { page: Mutex::new(Some(minimal_page(dir.path()))), calls: AtomicUsize::new(0), fail: None });
+    let mut cfg = AppConfig::new(Settings { fm_data_dir: dir.path().into(), fm_offline: true, ..Settings::default() });
+    cfg.llm = Some(Arc::new(|_| Some(Box::new(EchoLlm))));
+    cfg.clock = Arc::new(|| PyDateTime::parse("2026-11-04T17:00:00+00:00").unwrap());
+    let r = App::new(loader, cfg).router();
+    let (s, _, _, body) = rt.block_on(send(&r, "GET", "/ask?league=espn", None));
+    assert!(s == 200 && body.contains(r#"<form method="post" action="/ask""#) && body.contains("Nothing saved yet"), "{body}");
+    assert!(body.contains(r#"<a href="/ask?league=espn" aria-current="page">Ask</a>"#));
+    // the moves page hands a move over to a new chat
+    let (_, _, _, body) = rt.block_on(send(&r, "GET", "/recommendations?league=espn", None));
+    assert!(body.contains(r#"class="ask-box""#) && body.contains("Suggested move: Move Sidney &lt;Crosby&gt; to IR. Reasons: on IR"), "{body}");
+
+    let chat_id = |loc: &str| loc.strip_prefix("/ask?league=espn&chat=").and_then(|x| x.strip_suffix("#latest")).unwrap_or_else(|| panic!("{loc}")).to_string();
+    let stream = |id: &str| rt.block_on(send(&r, "GET", &format!("/ask/stream?league=espn&chat={id}"), None));
+
+    // a question is saved as pending; the page then streams the answer. A failure leaves it
+    // pending until it is dropped, which removes a chat that never got an answer.
+    let (s, _, loc, _) = rt.block_on(send(&r, "POST", "/ask", Some("league=espn&question=fail")));
+    assert_eq!(s, 303);
+    let bad = chat_id(&loc);
+    let (_, _, _, body) = rt.block_on(send(&r, "GET", &format!("/ask?league=espn&chat={bad}"), None));
+    assert!(body.contains(&format!(r#"data-ask-stream="/ask/stream?league=espn&amp;chat={bad}""#)) && !body.contains("<textarea"), "{body}");
+    let (s, ct, _, body) = stream(&bad);
+    assert_eq!((s, ct.as_str()), (200, "text/event-stream"));
+    assert_eq!(body, "event: fail\ndata: \"Could not reach the LLM server at http://x. Is it running?\"\n\n");
+    assert_eq!(rt.block_on(send(&r, "POST", "/ask/discard", Some(&format!("league=espn&chat={bad}")))).0, 303);
+    assert!(rt.block_on(send(&r, "GET", "/ask?league=espn", None)).3.contains("Nothing saved yet"));
+
+    // a new chat about a player, with pasted text; then a follow-up in the same chat
+    let (s, _, loc, _) = rt.block_on(send(&r, "POST", "/ask", Some("league=espn&question=Take+it%3F&context=Makar+for+Tkachuk&cids=espn:1,")));
+    assert_eq!(s, 303);
+    let id = chat_id(&loc);
+    assert_eq!(stream(&id).3, "event: answer\ndata: \"<b>focus true</b> paste true history false\"\n\nevent: done\ndata: \"\"\n\n");
+    assert_eq!(stream(&id).3, "event: done\ndata: \"\"\n\n", "nothing pending: no second run");
+    let (s, _, loc2, _) = rt.block_on(send(&r, "POST", "/ask", Some(&format!("league=espn&chat={id}&question=And+next+week%3F&context=ignored"))));
+    assert_eq!((s, loc2.as_str()), (303, loc.as_str()));
+    assert!(stream(&id).3.contains("history true"));
+    let (_, _, _, body) = rt.block_on(send(&r, "GET", &format!("/ask?league=espn&chat={id}"), None));
+    assert!(!body.contains("data-ask-stream") && body.contains("<textarea"), "answered: the follow-up box is back: {body}");
+    assert!(body.contains("&lt;b&gt;focus true&lt;/b&gt; paste true history false"), "first turn, escaped: {body}");
+    assert!(body.contains("&lt;b&gt;focus true&lt;/b&gt; paste true history true"), "the follow-up saw the first turn: {body}");
+    assert!(body.contains("Players: Sidney &lt;Crosby&gt;") && body.contains("<pre>Makar for Tkachuk</pre>") && body.contains("stub-model &middot; 2026-11-04"));
+    assert!(body.contains(&format!(r#"chat={id}" aria-current="true">Take it?</a>"#)) && body.contains("2 questions"), "{body}");
+
+    let (s, _, loc, _) = rt.block_on(send(&r, "POST", "/ask/rename", Some(&format!("league=espn&chat={id}&title=Makar+deal"))));
+    assert_eq!((s, loc), (303, format!("/ask?league=espn&chat={id}")));
+    assert!(rt.block_on(send(&r, "GET", "/ask?league=espn", None)).3.contains(">Makar deal</a>"));
+    let (s, _, loc, _) = rt.block_on(send(&r, "POST", "/ask/delete", Some(&format!("league=espn&chat={id}"))));
+    assert_eq!((s, loc.as_str()), (303, "/ask?league=espn"));
+    assert!(rt.block_on(send(&r, "GET", &format!("/ask?league=espn&chat={id}"), None)).3.contains("Nothing saved yet"));
+
+    assert_eq!(rt.block_on(send(&r, "POST", "/ask", Some("league=yahoo&question=x"))).0, 422);
+    assert_eq!(rt.block_on(send(&r, "POST", "/ask/delete", Some("league=espn"))).0, 422);
+    assert_eq!(rt.block_on(send(&r, "GET", "/ask/delete", None)).0, 405);
+}
+
 #[test]
 fn moved_redirects_to_plan_with_banner_params() {
     let dir = tempfile::tempdir().unwrap();

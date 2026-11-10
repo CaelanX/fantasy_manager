@@ -1,6 +1,7 @@
 //! Rust port of `fantasy_manager/llm/` (OpenRouter client, narration, `fm ask`, prompt context).
 //! Owner: work package `W2-news-odds-llm`. The LLM provider is OpenRouter (default model
-//! `openrouter/free`, free-only guard) - never the Claude API (user decision).
+//! `openrouter/free`, free-only guard) - never the Claude API (user decision) - or the
+//! OpenAI-compatible server in `FM_LLM_BASE_URL` (a model on the user's own PC).
 
 pub mod context;
 pub mod openrouter;
@@ -31,4 +32,18 @@ pub trait SupportsComplete {
         None
     }
     fn complete(&self, system: &str, user: &str, opts: CompleteOpts) -> anyhow::Result<String>;
+    /// `complete`, handing the reply over as it is written; returns the whole answer. `on`
+    /// returns false to stop early (the reader went away). The default sends it in one piece.
+    fn complete_stream(&self, system: &str, user: &str, opts: CompleteOpts, on: &mut dyn FnMut(StreamPart) -> bool) -> anyhow::Result<String> {
+        let text = self.complete(system, user, opts)?;
+        on(StreamPart::Answer(&text));
+        Ok(text)
+    }
+}
+
+/// A piece of a streamed reply: the model's reasoning before the answer, or the answer itself.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum StreamPart<'a> {
+    Thinking(&'a str),
+    Answer(&'a str),
 }

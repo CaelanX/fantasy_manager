@@ -749,6 +749,11 @@ fn game_rate_schedule_and_default() {
     let r2 = game_rate(&ctx2, None).unwrap();
     assert_eq!((r2.per_week, r2.remaining, r2.source), (3.4, 82.0, "default"));
     assert_eq!(season_bounds(&ctx2), (d(2026, 10, 7), d(2027, 4, 16)));
+    // a schedule without my starters' teams: its games per team (5) x the share of its days left
+    // (Oct 9..12 of Oct 5..12 = 4 of 8)
+    ctx.as_of = d(2026, 10, 9);
+    let r3 = game_rate(&ctx, Some(&[&nosched])).unwrap();
+    assert_eq!((r3.per_week, r3.remaining, r3.source), (3.4, 2.5, "default"));
     // no team of mine
     let mut none = ctx2.clone();
     none.teams[0].owner_is_me = false;

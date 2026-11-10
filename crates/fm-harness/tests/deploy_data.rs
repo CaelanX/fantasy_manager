@@ -444,6 +444,29 @@ fn b2b_rate_and_start_counts_from_ledger() {
     assert_eq!(a.starts, Map::from_iter([(1, 8), (2, 4)]));
     assert_eq!((a.starter, a.b2b, a.b2b_starter), (Some(1), 6, 2));
     assert_eq!(goalie_start_counts(&led, 1, as_of, None).unwrap(), (8, 12));
+    // #2 first appeared in the team's 6th game: a late arrival, measured against the 7 games
+    // from then on, not the 5 before he was there
+    assert_eq!(a.since_first, Map::from_iter([(1, 12), (2, 7)]));
+    assert_eq!((a.games_for(1), a.games_for(2), a.games_for(3)), (12, 7, 12));
+    assert_eq!(goalie_start_counts(&led, 2, as_of, None).unwrap(), (4, 7));
+    // one game earlier and he is a backup waiting for a start: the whole season counts
+    let early = fm_harness::deployment::TeamGoalieCounts { since_first: Map::from_iter([(2, 8)]), ..a.clone() };
+    assert_eq!(early.games_for(2), 12);
+    // games missed through injury are left out. The team plays days 0,1 3,4 6,7 9,10 12,13 15,16;
+    // #1 played days 0,1,3,4,6,9,12,15 and sat the second nights on days 7, 10, 13 and 16.
+    let day = |n: i64| (start + Duration::days(n)).format("%Y-%m-%d").to_string();
+    assert_eq!(a.games_available(1, &[]), 12);
+    // recorded out on day 7: that game is not charged to him. He played again on day 9, so the
+    // record is stale from then on and day 10 is a healthy night off.
+    assert_eq!(a.games_available(1, &[(day(7), true), (day(11), false)]), 11);
+    assert_eq!(a.games_available(1, &[(day(0), true)]), 12, "a record he has played since excuses nothing");
+    // recorded out on day 14, after the injury: day 13, since his last game, is excused too
+    assert_eq!(a.games_available(1, &[(day(14), true)]), 11);
+    // still out at the end: everything after his last game on day 15
+    assert_eq!(a.games_available(1, &[(day(16), true)]), 11);
+    // #2 (a late arrival: days 7,9,10,12,13,15,16 count) played 7,10,13,16; out on day 11
+    assert_eq!(a.games_available(2, &[(day(11), true)]), 6, "day 12 only");
+    assert_eq!(a.games_available(2, &[(day(0), true), (day(7), false)]), 7);
     assert_eq!(goalie_start_counts(&led, 3, as_of, Some("AAA")).unwrap(), (0, 12));
     assert_eq!(goalie_start_counts(&led, 3, as_of, None).unwrap(), (0, 0));
     let (p, n) = b2b_second_night_rate(&led, "AAA", as_of, None).unwrap();
@@ -907,7 +930,7 @@ fn snapshot_deployment_fields_recomputed_from_the_ledger_equal_the_snapshot() {
                 continue;
             }
             expect += 1;
-            let got = json!([c.starts.get(nhl).copied().unwrap_or(0), c.games]);
+            let got = json!([c.starts.get(nhl).copied().unwrap_or(0), c.games_for(*nhl)]);
             assert_eq!(actual.get(cid), Some(&got), "{league} goalie_actual_starts {cid}");
         }
         assert_eq!(actual.len(), expect, "{league} goalie_actual_starts count");

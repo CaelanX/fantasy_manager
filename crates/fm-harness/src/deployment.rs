@@ -510,12 +510,71 @@ pub struct TeamGoalieCounts {
     pub games: i64,
     /// nhl_id -> starts for that team
     pub starts: Map<i64, i64>,
+    /// nhl_id -> team games from that goalie's first appearance for the team onward
+    pub since_first: Map<i64, i64>,
+    /// the team's game dates (ISO)
+    pub dates: BTreeSet<String>,
+    /// nhl_id -> the dates that goalie appeared for the team
+    pub appeared: Map<i64, BTreeSet<String>>,
     /// second nights
     pub b2b: i64,
     /// second nights the team's #1 (most starts) started
     pub b2b_starter: i64,
     /// the #1's nhl_id
     pub starter: Option<i64>,
+}
+
+/// Team games a goalie must have missed before his first appearance to count as a late arrival
+/// (a trade, a call-up, a holdout or a long injury) rather than a backup waiting for a start.
+pub const LATE_ARRIVAL_GAMES: i64 = 5;
+
+impl TeamGoalieCounts {
+    /// The team games a goalie's starts are measured against. The whole season, except for a
+    /// late arrival: the games before he joined say nothing about his share of the starts, so
+    /// only the games from his first appearance count.
+    pub fn games_for(&self, nhl_id: i64) -> i64 {
+        match self.since_first.get(&nhl_id) {
+            Some(n) if self.games - n >= LATE_ARRIVAL_GAMES => *n,
+            _ => self.games,
+        }
+    }
+
+    /// [`Self::games_for`], less the games the goalie could not play in. A game missed through
+    /// injury says nothing about his share of the starts when he is fit, and the time he is
+    /// still expected to miss is discounted separately, so counting it here too would charge
+    /// the injury twice.
+    ///
+    /// `statuses` = his recorded `(ISO date, unavailable)` statuses, oldest first, the current
+    /// one included. They are recorded only on days the app ran, so they can be days stale, and
+    /// an appearance is the better evidence that he was fit. A game he did not appear in is
+    /// left out when
+    /// * the latest record on or before it says unavailable and he has not played since that
+    ///   record, or
+    /// * the next record after it says unavailable and he did not play in between (he was hurt
+    ///   some time after his last game; the record came later).
+    pub fn games_available(&self, nhl_id: i64, statuses: &[(String, bool)]) -> i64 {
+        let none = BTreeSet::new();
+        let appeared = self.appeared.get(&nhl_id).unwrap_or(&none);
+        let counted = self.games_for(nhl_id) as usize;
+        let window = self.dates.iter().skip(self.dates.len().saturating_sub(counted));
+        window
+            .filter(|d| {
+                let d: &String = d;
+                if appeared.contains(d) {
+                    return true;
+                }
+                let out_since = match statuses.iter().rev().find(|(day, _)| day <= d) {
+                    Some((day, true)) => appeared.range::<String, _>(day..d).next().is_none(),
+                    _ => false,
+                };
+                let out_soon = match statuses.iter().find(|(day, _)| day > d) {
+                    Some((day, true)) => appeared.range::<String, _>(d..day).next().is_none(),
+                    _ => false,
+                };
+                !(out_since || out_soon)
+            })
+            .count() as i64
+    }
 }
 
 fn truthy(v: Option<&Value>) -> bool {
@@ -540,18 +599,27 @@ pub fn team_goalie_counts(ledger: &Ledger, as_of: NaiveDate) -> Result<Map<Strin
     let mut dates: HashMap<String, BTreeSet<String>> = HashMap::new();
     let mut b2b_dates: HashMap<String, BTreeSet<String>> = HashMap::new();
     let mut starters_on: HashMap<(String, String), BTreeSet<i64>> = HashMap::new();
+    let mut first_seen: HashMap<(String, i64), String> = HashMap::new();
     for r in &rows {
         let t = r["team"].as_str().unwrap_or("").to_string();
         let gd = r["game_date"].as_str().unwrap_or("").to_string();
         let id = r["nhl_id"].as_i64().unwrap_or(0);
+        let first = first_seen.entry((t.clone(), id)).or_insert_with(|| gd.clone());
+        if gd < *first {
+            *first = gd.clone();
+        }
         let d = out.entry(t.clone()).or_insert(TeamGoalieCounts {
             games: 0,
             starts: Map::new(),
+            since_first: Map::new(),
+            dates: BTreeSet::new(),
+            appeared: Map::new(),
             b2b: 0,
             b2b_starter: 0,
             starter: None,
         });
         dates.entry(t.clone()).or_default().insert(gd.clone());
+        d.appeared.entry(id).or_default().insert(gd.clone());
         if truthy(r.get("started")) {
             *d.starts.entry(id).or_insert(0) += 1;
             starters_on.entry((t.clone(), gd.clone())).or_default().insert(id);
@@ -562,7 +630,15 @@ pub fn team_goalie_counts(ledger: &Ledger, as_of: NaiveDate) -> Result<Map<Strin
     }
     let empty = BTreeSet::new();
     for (t, d) in out.iter_mut() {
-        d.games = dates.get(t).map(|s| s.len()).unwrap_or(0) as i64;
+        let team_dates = dates.get(t).unwrap_or(&empty);
+        d.games = team_dates.len() as i64;
+        d.dates = team_dates.clone();
+        for ((team, id), first) in &first_seen {
+            if team == t {
+                d.since_first.insert(*id, team_dates.range(first.clone()..).count() as i64);
+            }
+        }
+        d.since_first.sort_keys();
         if !d.starts.is_empty() {
             // max(sorted(starts), key=starts.get): first maximum in id order
             let mut ids: Vec<i64> = d.starts.keys().copied().collect();
@@ -588,7 +664,8 @@ pub fn team_goalie_counts(ledger: &Ledger, as_of: NaiveDate) -> Result<Map<Strin
     Ok(out)
 }
 
-/// (starts for `team`, `team` games) this season up to `as_of`; `team` defaults to the goalie's
+/// (starts for `team`, the `team` games they are measured against: see
+/// [`TeamGoalieCounts::games_for`]) this season up to `as_of`; `team` defaults to the goalie's
 /// most recent team in the ledger. (0, 0) when unknown.
 pub fn goalie_start_counts(ledger: &Ledger, nhl_id: i64, as_of: NaiveDate, team: Option<&str>) -> Result<(i64, i64)> {
     let team: Option<String> = match team {
@@ -606,7 +683,7 @@ pub fn goalie_start_counts(ledger: &Ledger, nhl_id: i64, as_of: NaiveDate, team:
     let Some(team) = team.filter(|t| !t.is_empty()) else { return Ok((0, 0)) };
     let counts = team_goalie_counts(ledger, as_of)?;
     Ok(match counts.get(&team) {
-        Some(d) => (d.starts.get(&nhl_id).copied().unwrap_or(0), d.games),
+        Some(d) => (d.starts.get(&nhl_id).copied().unwrap_or(0), d.games_for(nhl_id)),
         None => (0, 0),
     })
 }

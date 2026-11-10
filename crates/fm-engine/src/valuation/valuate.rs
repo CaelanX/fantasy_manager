@@ -32,7 +32,7 @@ use fm_pycompat::num::round_to;
 use rayon::prelude::*;
 use serde_json::Value;
 
-use super::adjust::{availability_multiplier, season_availability};
+use super::adjust::{availability_multiplier, season_availability, SeasonLength};
 use super::blend::{
     baseline_k, blend_preseason, blend_rates, blend_recency, multi_season_baseline, multi_season_sample,
     preseason_weight, projection_blend_weight, projection_k, recency_weights, shrink_baseline, shrink_k,
@@ -53,6 +53,8 @@ use super::schedule::{
 };
 use crate::scoring::{fit_to_context, Scoring, ScoringSystem};
 
+/// team games of a prior season (2025-26 and the seasons before it had 82); this season's count
+/// comes from the schedule ([`SeasonLength`])
 pub const PRIOR_TEAM_GAMES: i64 = 82;
 pub const PROJ_SHARE_K: i64 = 20;
 /// season GP before the xG goal shrink applies (regression.MIN_CURRENT_GP)
@@ -563,11 +565,12 @@ pub fn team_games_played(ctx: &LeagueContext) -> Map<String, i64> {
     out
 }
 
-/// Start-share denominators per split: this season's team GP, a full season otherwise.
-pub fn goalie_team_games(p: &Player, team_gp: &Map<String, i64>) -> Map<String, f64> {
+/// Start-share denominators per split: this season's team GP, a full season otherwise (last
+/// season's 82 for "prior", this season's `season_games` for "projected"; Python used 82 for both).
+pub fn goalie_team_games(p: &Player, team_gp: &Map<String, i64>, season_games: f64) -> Map<String, f64> {
     let mut out: Map<String, f64> = Map::new();
     out.insert("prior".into(), PRIOR_TEAM_GAMES as f64);
-    out.insert("projected".into(), PRIOR_TEAM_GAMES as f64);
+    out.insert("projected".into(), season_games);
     if let Some(team) = normalize_team(p.team.as_deref()) {
         if let Some(n) = team_gp.get(&team) {
             out.insert("season".into(), *n as f64);
@@ -577,18 +580,25 @@ pub fn goalie_team_games(p: &Player, team_gp: &Map<String, i64>) -> Map<String, 
 }
 
 /// Goalie workload from a full-season projection: (start share, projected fantasy points per
-/// team game or None, reason text), or None without a usable projection.
-pub fn projected_workload(p: &Player, team_gp: Option<&Map<String, i64>>) -> Option<(f64, Option<f64>, String)> {
+/// team game or None, reason text), or None without a usable projection. The projection covers
+/// this season, so its starts and points are spread over `season_games` (the schedule's games per
+/// team), where Python divided by 82.
+pub fn projected_workload(
+    p: &Player,
+    team_gp: Option<&Map<String, i64>>,
+    season_games: f64,
+) -> Option<(f64, Option<f64>, String)> {
     if !p.is_goalie() {
         return None;
     }
     let proj = p.lines.get("projected").filter(|l| l.gp > 0)?;
     let starts = proj.stats.get("GS").copied().unwrap_or(proj.gp as f64);
-    let share = (starts / PRIOR_TEAM_GAMES as f64).min(1.0);
+    let share = (starts / season_games).min(1.0);
     let mut text = format!(
-        "Projected start share {} ({} projected starts / {PRIOR_TEAM_GAMES})",
+        "Projected start share {} ({} projected starts / {})",
         percent(share, 0, false),
-        fixed(starts, 0, false)
+        fixed(starts, 0, false),
+        fixed(season_games, 0, false)
     );
     let team = normalize_team(p.team.as_deref());
     let mut tg = match (&team, team_gp) {
@@ -609,18 +619,23 @@ pub fn projected_workload(p: &Player, team_gp: Option<&Map<String, i64>>) -> Opt
         return Some((blended, None, text));
     }
     let fpts = proj.stats.get("FPTS").copied();
-    let per_team_game = fpts.map(|f| f / PRIOR_TEAM_GAMES as f64);
+    let per_team_game = fpts.map(|f| f / season_games);
     if let Some(f) = fpts {
-        text += &format!("; projected {} FPts / {PRIOR_TEAM_GAMES} team games", fixed(f, 0, false));
+        text += &format!(
+            "; projected {} FPts / {} team games",
+            fixed(f, 0, false),
+            fixed(season_games, 0, false)
+        );
     }
     Some((share, per_team_game, text))
 }
 
-/// The projection's own start share: projected GS (else GP) / 82 (0 without a projection).
-pub fn projection_share(p: &Player) -> f64 {
+/// The projection's own start share: projected GS (else GP) / `season_games`, this season's games
+/// per team (0 without a projection).
+pub fn projection_share(p: &Player, season_games: f64) -> f64 {
     match p.lines.get("projected").filter(|l| l.gp > 0) {
         None => 0.0,
-        Some(proj) => (proj.stats.get("GS").copied().unwrap_or(proj.gp as f64) / PRIOR_TEAM_GAMES as f64).min(1.0),
+        Some(proj) => (proj.stats.get("GS").copied().unwrap_or(proj.gp as f64) / season_games).min(1.0),
     }
 }
 
@@ -777,16 +792,16 @@ fn ledger_actual(ctx: &LeagueContext, cid: &str) -> Option<(i64, i64)> {
 
 /// (start share before teammate adjustments, has evidence) - the same share `valuate_league`
 /// computes. `has evidence` is false when the share is the bare prior.
-pub fn goalie_base_share(p: &Player, ctx: &LeagueContext, team_gp: &Map<String, i64>) -> (f64, bool) {
-    let work = projected_workload(p, Some(team_gp));
+pub fn goalie_base_share(p: &Player, ctx: &LeagueContext, team_gp: &Map<String, i64>, season_games: f64) -> (f64, bool) {
+    let work = projected_workload(p, Some(team_gp), season_games);
     let actual = ledger_actual(ctx, &p.cid);
     if let Some(work) = work {
         if let Some((s, g)) = actual {
-            return (actual_start_share(projection_share(p), s as f64, g as f64, ACTUAL_SHARE_K), true);
+            return (actual_start_share(projection_share(p, season_games), s as f64, g as f64, ACTUAL_SHARE_K), true);
         }
         return (work.0, true);
     }
-    let tg = goalie_team_games(p, team_gp);
+    let tg = goalie_team_games(p, team_gp, season_games);
     if let Some((s, g)) = actual {
         return (start_share(p, None, None, Some(&tg), Some((s as f64, g as f64)), ACTUAL_SHARE_K), true);
     }
@@ -803,11 +818,12 @@ pub fn teammate_share_lookup(
 ) -> Map<String, TeammateShare> {
     let mut base: Map<String, f64> = Map::new();
     let mut weights: Map<String, f64> = Map::new();
+    let season_games = SeasonLength::of(&ctx.schedule).games;
     for p in ctx.all_players() {
         if !p.is_goalie() {
             continue;
         }
-        let (share, evidence) = goalie_base_share(p, ctx, team_gp);
+        let (share, evidence) = goalie_base_share(p, ctx, team_gp, season_games);
         base.insert(p.cid.clone(), share);
         if !evidence {
             weights.insert(p.cid.clone(), share.min(ROSTER_ONLY_SHARE));
@@ -872,6 +888,7 @@ struct League<'a> {
     scoring: &'a (dyn ScoringSystem + Sync),
     means: Means,
     team_gp: Map<String, i64>,
+    season: SeasonLength,
     window: Option<WeekWindow>,
     teammates: Map<String, TeammateShare>,
     preseason: HashMap<String, &'a PreseasonLine>,
@@ -943,7 +960,7 @@ impl League<'_> {
         let team_dates: &[NaiveDate] = ctx.schedule.get(&team_key).map(|v| v.as_slice()).unwrap_or(&[]);
         let status = p.status.as_str();
         let (a_season, ret_est) =
-            season_availability(status, p.status_note.as_deref(), ctx.as_of, Some(team_dates), ctx.season_start, None);
+            season_availability(status, p.status_note.as_deref(), ctx.as_of, Some(team_dates), ctx.season_start, self.season, None);
         let mut a_week = availability_multiplier(status, Horizon::Week, None);
         let ret_day = ret_est.as_ref().and_then(|e| e.return_date).filter(|_| WEEK_OUT_STATUSES.contains(&status));
         if let (Some(ret_day), Some(window)) = (ret_day, &self.window) {
@@ -990,7 +1007,7 @@ impl League<'_> {
         let mut share_team_games: Option<f64> = None;
         if p.is_goalie() {
             let (ss_prior, ss_k) = (self.ss_prior, self.ss_k);
-            let work = projected_workload(p, Some(&self.team_gp));
+            let work = projected_workload(p, Some(&self.team_gp), self.season.games);
             let actual = ledger_actual(ctx, &p.cid);
             if let Some((w_share, mut per_team_game, text)) = work {
                 share = w_share;
@@ -1000,7 +1017,7 @@ impl League<'_> {
                 }
                 if let Some((a0, a1)) = actual {
                     // this season's ledger starts replace the stat-line blend (k=10)
-                    let proj_share = projection_share(p);
+                    let proj_share = projection_share(p, self.season.games);
                     let new_share = actual_start_share(proj_share, a0 as f64, a1 as f64, ACTUAL_SHARE_K);
                     if let Some(ptg) = per_team_game.as_mut() {
                         if share > 0.0 {
@@ -1042,7 +1059,7 @@ impl League<'_> {
                     );
                 }
             } else {
-                let tg_map = goalie_team_games(p, &self.team_gp);
+                let tg_map = goalie_team_games(p, &self.team_gp, self.season.games);
                 let (s, gs, tg) = start_share_parts(p, None, None, Some(&tg_map), &["season", "prior"]);
                 share = s;
                 if let Some((a0, a1)) = actual {
@@ -1294,6 +1311,7 @@ pub fn valuate_league_with(
         scoring,
         means,
         team_gp,
+        season: SeasonLength::of(&ctx.schedule),
         window,
         teammates,
         preseason,
@@ -1542,10 +1560,46 @@ mod tests {
         let mut g = goalie("g", 10, 0.91, 0.5, "season", Some(10.0));
         g.lines.insert("projected".into(), serde_json::from_value(line("projected", 41, json!({"GP": 41}))).unwrap());
         let tg: Map<String, i64> = [("EDM".to_string(), 12)].into_iter().collect();
-        let (share, per_game, _) = projected_workload(&g, Some(&tg)).unwrap();
+        let (share, per_game, _) = projected_workload(&g, Some(&tg), 82.0).unwrap();
         assert!(per_game.is_none());
         close(share, (10.0 + PROJ_SHARE_K as f64 * 0.5) / (12.0 + PROJ_SHARE_K as f64));
-        assert!(projected_workload(&dman("d", 50, 0.5), None).is_none());
+        assert!(projected_workload(&dman("d", 50, 0.5), None, 82.0).is_none());
+    }
+
+    /// An 84-game schedule for EDM: every other day from 2026-10-01.
+    fn schedule_84() -> Map<String, Vec<NaiveDate>> {
+        let first = NaiveDate::from_ymd_opt(2026, 10, 1).unwrap();
+        let dates = (0..84).map(|i| first + chrono::Duration::days(2 * i)).collect();
+        [("EDM".to_string(), dates)].into_iter().collect()
+    }
+
+    #[test]
+    fn goalie_projection_is_spread_over_the_schedules_games_per_team() {
+        let blackwood = proj_goalie("blackwood", 39, 42, 42.0 * 6.5);
+        let plain = goalie("plain", 50, 0.905, 0.5, "prior", None);
+        let fillers: Vec<Player> = (0..3).map(|i| goalie(&format!("f{i}"), 40, 0.900, 0.5, "prior", None)).collect();
+        let mut rost = vec![&blackwood, &plain];
+        rost.extend(fillers.iter());
+        let mut c = qctx(&rost, &[], false);
+        c.schedule = schedule_84();
+        let vals = val(&mut c, &goalie_w());
+        let b = &vals["blackwood"];
+        close(b.start_share.unwrap(), 42.0 / 84.0);
+        close(b.fpg_season, 42.0 * 6.5 / 84.0);
+        let text = &b.reason("START_SHARE").unwrap().text;
+        assert!(text.contains("50% (42 projected starts / 84)") && text.contains("273 FPts / 84 team games"), "{text}");
+        // last season's starts are still counted against last season's 82 team games
+        close(vals["plain"].start_share.unwrap(), (50.0 + 5.0) / (82.0 + 10.0));
+        assert_eq!(vals["plain"].share_team_games, Some(82.0));
+        // ledger starts shrink toward the same 84-game projected share
+        let mut g = proj_goalie("g", 39, 63, 63.0 * 6.5);
+        g.lines.shift_remove("prior");
+        let mut c = qctx(&[&g], &[], false);
+        c.schedule = schedule_84();
+        c.goalie_actual_starts.insert("g".into(), (2, 10));
+        let expect = (2.0 + 10.0 * (63.0 / 84.0)) / (10.0 + 10.0);
+        close(val(&mut c, &goalie_w())["g"].start_share.unwrap(), expect);
+        close(goalie_base_share(&g, &c, &team_games_played(&c), 84.0).0, expect);
     }
 
     fn fwd(cid: &str, lines: &[(&str, i64, f64)], birth: Option<&str>) -> Player {
@@ -1725,7 +1779,7 @@ mod tests {
         assert!(has(&v, "START_ACTUAL") && !has(&v, "START_SHARE"));
         assert!(v.start_share < plain.start_share);
         close(v.fpg_season, v.fpg * expect);
-        let (s, ev) = goalie_base_share(&g, &c, &team_games_played(&c));
+        let (s, ev) = goalie_base_share(&g, &c, &team_games_played(&c), 82.0);
         close(s, expect);
         assert!(ev);
         c.goalie_actual_starts.insert("g".into(), (2, 4));

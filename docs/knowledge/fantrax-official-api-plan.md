@@ -1,0 +1,148 @@
+# Fantrax official API: integration plan
+
+Produced on 2026-11-10 by a mapping pass over the Fantrax provider, the official API's real responses for our league, and the engine code that consumes them. It is a plan; none of it is built. The endpoint reference is in [fantrax-official-api.md](fantrax-official-api.md). File and line references were read on that date and will drift as the code changes.
+
+## Summary
+
+- Where the official API and the private endpoint carry the same fact they agreed on 2026-11-10, so this is not a correction to today's numbers.
+- It adds average draft position (never loaded for Fantrax), structured period dates and playoff settings, a load that survives an expired login, and the real remaining schedule.
+- Player statistics, projections, rostered percentage, free agents, transactions, waiver order and trade blocks stay on the private endpoint.
+- Every official read should be: try it, otherwise fall back to the private path and add one warning. No official call may be required for a load to succeed.
+
+## Where each kind of data should come from
+
+| Data | Primary source | Fallback or cross-check | Reason |
+|---|---|---|---|
+| Scoring-period calendar (period numbers and dates) and the claims-budget period | Official getLeagueInfo.scoringPeriods | Fallback: private getTeamRosterInfo view GAMES_PER_POS, then Monday-Sunday weeks as today | Structured dates replace a regex over display text (crates\fm-engine\src\analysis\schedule_grid.rs:570-613, 664-688; crates\fm-providers\src\fantrax.rs:3010-3025). The date rule was verified against the private result for period 6. |
+| Playoff start period and number of playoff teams | Official getLeagueInfo.playoffs | Fallback: Rules page label, then FM_PLAYOFF_START_PERIOD, then the default 25 (schedule_grid.rs:626-656). Keep the environment override ahead of everything if it is set today for a reason (unverified) | Removes the hard-coded default; sample values 25 and 6 match what the Rules page gives. |
+| Head-to-head schedule and current-period live scores | Official getLeagueInfo.matchups for the opponent, getMatchupScores for points | Fallback: private getStandings view SCHEDULE (crates\fm-engine\src\analysis\matchup.rs:640-681). Finished-period finals for the harness stay private until a past-period official response is proven | Typed ids and numbers instead of caption and column parsing; playoff periods hold seed placeholders so the playoff flag must come from firstPlayoffPeriod. |
+| Draft pick ownership for all teams | Official getDraftPicks.futureDraftPicks | Fallback and cross-check: draftPicksData inside the private roster responses (fantrax.rs:2889, 2955-2958) | One call covers every team and removes the 'inferred holder' path; 360 of 360 picks agree today (failure-history check, not repeated by me). |
+| Standings: rank, win-loss-tie, points for | Official getStandings | Private getStandings stays mandatory-if-available for waiver_order and points_against, and is the fallback and cross-check for W-L-T | claims.rs:171-172 needs waiver_order, which official lacks; records feed playoff odds, trade labels and pick slots, so a mismatch deserves a warning. |
+| Roster membership and slot (active / bench / IR) for every team | Private getTeamRosterInfo rows (they also carry stats, age, injuries, rostered percentage) | Cross-check against official getTeamRosters with period=N and warn naming the players on mismatch; official becomes the source only in the degraded load when private fails | Official rows have only id, position and status and no empty slots, so they cannot build players; but they are the cheapest proof that the private rosters are right. |
+| Scoring point values | Official getLeagueInfo.scoringSystem.scoringCategorySettings | Fallback: Rules page table, then FANTRAX_POINTS, then FP/G (fantrax.rs:3182-3241 per the provider map). Cross-check official against the Rules page and keep the FP/G check on private stat rows | Numeric and structured; equal to the parsed weights today including the goalie assist override. Only the scoring_source label changes, and only on the live path. |
+| Roster limits (max roster, active maxima per position, bench size) | Official getLeagueInfo.rosterInfo | Rules page stays the only source for IR maximum, minors, per-position totals; fallback for the rest is the current roster-derived shape | Official has 16 / 12 / 6 and F6 D4 G2 but no IR count. |
+| League name, team ids and names, season | Private getFantasyLeagueInfo and roster response (unchanged) | Cross-check team ids against official teamInfo; official is the source only in degraded mode (season from the year of endDate) | Private order and labels are what every stored artefact uses; seasonYear is the start year and would mislabel. |
+| ADP | Official getAdp (the only source) | None; leave None when absent or 10000.0. Off by default until the owner decides | New input to valuations, not a replacement. |
+| Player stats, Fantrax fantasy points, projections, rostered percentage and its change, ages, injury icons, waiver clear date, free-agent pool | Private endpoint only (getTeamRosterInfo, getPlayerStats) | Optional cross-check of on-waivers status against getLeagueInfo.playerInfo status 'WW' | None of these exist in any official sample (knowledge note line 37). |
+| Transactions, pending trades, trade blocks, waiver order, claim limits, lineup-lock rule, IR size, keeper type, trade deadline, owner's team (myTeamIds), session ping | Private endpoint only | None | Not in the official API; these calls are already best effort except the first batch. |
+
+## Build steps, in order
+
+Step 0 (the probes) was done on 2026-11-10; the results are in the reference file under "Checked with real calls".
+
+### 0. Probe the three unknowns with real calls before writing code (owner approval needed because it uses the network): getMatchupScores with period=6, getTeamRosters with period=42, and getLeagueInfo with a wrong league id and with excludePlayerInfo=true. Save the bodies next to the existing samples.
+
+- **Size:** small
+- **Files:** No repository files. Output into the scratchpad fxea folder.
+- **How to verify:** Period 6 scores equal the harness's stored final for that period; period 42 roster equals the lineup rows stored for 2026-11-09; the wrong-id body shows the real error shape (HTTP status and whether an 'error' field appears).
+
+### 1. Add a thin official client: one function per endpoint over HttpCache::get_json, with per-endpoint TTLs, body validation, removal of a cached error body, and plain typed parsers (periods with the minus-one-day rule, playoffs, matchups skipping seed/bye sides, standings 'W-L-T' split, draft picks, rosters, scoring weights, roster limits, ADP with the 10000 sentinel).
+
+- **Size:** medium
+- **Files:** New crates\fm-providers\src\fantrax_official.rs; crates\fm-providers\src\lib.rs (module line); new trimmed fixtures tests\fixtures\fantrax\fxea_*.json; new crates\fm-providers\tests\fantrax_official.rs using the tape-backed HttpCache pattern from crates\fm-providers\tests\espn.rs:82.
+- **How to verify:** Unit tests parse the trimmed real samples: 27 periods with period 6 = 2026-11-02..2026-11-08 and period 27 ending 2027-04-10, playoff start 25, 6 matchups in period 7, 360 picks, weights equal to raw_ctx.json scoring. An error-body fixture yields an error and leaves no cached row.
+
+### 2. Attach it as an opt-in: a with_official(cache) builder on FantraxProvider, set only in the live factory; extend the Fantrax cache clear to official rows; fix warning wording and add classifier tests so official failures are never shown as an expired login.
+
+- **Size:** small
+- **Files:** crates\fm-providers\src\fantrax.rs (struct field and builder near :2698-2716); crates\fm-providers\src\registry.rs:74 and :99; crates\fm-providers\src\enrich.rs:1839-1868 tests; crates\fm-report\src\pregame.rs:1079 only if wording alone cannot avoid the trap.
+- **How to verify:** All existing tests pass unchanged (the fake-session and replay providers do not attach it). `fm settings -l fantrax` output is identical to before. After `fm sync --refresh` cache.db holds no rows whose URL contains the fxea path.
+
+### 3. Cross-check only, no behaviour change: after the private load compare team ids, roster membership and slot per team (official period for as_of), W-L-T, draft picks, scoring weights and roster maxima; push one 'Fantrax official API disagrees: ...' warning per kind of mismatch. Silent when offline with nothing cached.
+
+- **Size:** medium
+- **Files:** crates\fm-providers\src\fantrax.rs (end of load_inner, around :2949-2958); crates\fm-providers\tests\fantrax.rs (fake session plus tape-backed official cache, one matching and one altered fixture).
+- **How to verify:** On the real league `fm settings -l fantrax` shows no disagreement warnings (the analysts found zero differences on 2026-11-10); editing one fixture roster item in the test produces exactly one warning naming the player.
+
+### 4. Draft picks official first, private as fallback.
+
+- **Size:** small
+- **Files:** crates\fm-providers\src\fantrax.rs (:2955-2958 and record_draft_picks :3091-3100).
+- **How to verify:** `fm picks -l fantrax` output is identical before and after on the real league, with no 'holder inferred' footnote; a test where official fails shows the private picks and one warning.
+
+### 5. Standings merge: official rank / W-L-T / points-for first, private kept for waiver_order and points_against and as fallback.
+
+- **Size:** small
+- **Files:** crates\fm-providers\src\fantrax.rs (:2907-2911, :2926-2929).
+- **How to verify:** Team records in `fm settings` or the standings view equal getStandings; the claims planner still shows a waiver position; a test with private standings failing still yields records and a test with official failing yields today's behaviour.
+
+### 6. Calendar and playoff start from official data: add one trait method with a default 'unavailable' body for official reads, use it first in fantrax_calendar and fantrax_playoff_start, and in the provider's budget_period; keep the calendar source text starting with 'Fantrax'.
+
+- **Size:** medium
+- **Files:** crates\fm-core\src\provider.rs (:68-72 pattern); crates\fm-providers\src\fantrax.rs (trait impl near :3873, budget_period :3010-3025); crates\fm-engine\src\analysis\schedule_grid.rs (:626-688); crates\fm-providers\src\snapshot.rs (forwarding, :154-156 pattern).
+- **How to verify:** `fm playoffs -l fantrax` shows the same periods and dates as before plus playoff start 25 with an official source note; ctx period_start/period_end unchanged for today; fm-parity stage tests still pass or skip as before; a unit test feeds the sample periods and checks period 19 is 14 days.
+
+### 7. Current matchup from official data: opponent from matchups, points from getMatchupScores, playoff flag from the period number; private SCHEDULE view as fallback. Harness finals move only if step 0 proved past periods.
+
+- **Size:** medium
+- **Files:** crates\fm-engine\src\analysis\matchup.rs (:640-681); optionally crates\fm-harness\src\matchup_calib.rs (:213-240).
+- **How to verify:** The matchup command for Fantrax shows the same opponent and period as before and scores equal to the Fantrax site at that moment; run once with the private call forced to fail (test stub) and once with official failing.
+
+### 8. Scoring weights and roster limits official first, Rules page next, then the existing fallbacks; keep the FP/G check.
+
+- **Size:** medium
+- **Files:** crates\fm-providers\src\fantrax.rs (scoring :3182-3241, roster_shape_for :3103-3133, rules_max_roster :2211-2213).
+- **How to verify:** `fm settings -l fantrax` still reports mean abs error 0.000 FP/G against Fantrax points and roster shape F6 D4 G2 BN6 IR2 max 16; a test with an empty Rules page now yields the league weights instead of the FANTRAX_POINTS fallback.
+
+### 9. ADP behind a new off-by-default setting; fill Player.adp by id for rostered players and free agents.
+
+- **Size:** small
+- **Files:** crates\fm-core\src\config.rs; crates\fm-providers\src\fantrax.rs (around :2939-2951).
+- **How to verify:** With the setting on, the all-teams roster JSON shows ADP for all 209 rostered players and none equal to 10000; with it off, output is unchanged. The owner compares trade and waiver output before and after before leaving it on.
+
+### 10. Degraded load: when the private first batch fails for a reason other than a missing league id, build teams, rosters, slots, records, picks, scoring and limits from official data plus getPlayerIds names, require FANTRAX_TEAM, and add a prominent warning that stats, projections, rostered percentage, free agents and transactions are missing.
+
+- **Size:** large
+- **Files:** crates\fm-providers\src\fantrax.rs (load_inner :2883-2905 and the error mapping :2814-2856); crates\fm-providers\tests\fantrax.rs.
+- **How to verify:** Fake-session test with the not-logged-in page error on the first batch returns 12 teams and 209 players with correct slots and one clear warning; on the real PC, run once with FM_DATA_DIR pointed at an empty temp folder and no login settings (owner decision) and confirm the league loads with the warning.
+
+### 11. Optional follow-ups, each its own decision: real remaining schedule in playoff odds (Fantrax only, changes every odds figure and the outlook parity test), and lineup backfill for missed days through getTeamRosters period=N.
+
+- **Size:** large
+- **Files:** crates\fm-engine\src\analysis\outlook.rs (:190-252, :552-577); crates\fm-harness\src\realized.rs (:86-102); crates\fm-cli\src\cmd_harness.rs (:335).
+- **How to verify:** Odds: unit test with a fixed seed and the sample schedule; ESPN output unchanged. Backfill: a backfilled day that also has a snapshot row matches it player for player.
+
+## Risks and how to handle them
+
+- **Replay tests and fixtures pin the current behaviour byte for byte (crates\fm-providers\tests\fantrax.rs:94-137 compares the whole context and extras; :165-203 also asserts zero warnings and zero requests), and the fixtures cannot be regenerated because the Python recorder's sources are gone. The tape is not in this checkout, so these tests skip here and would not catch a regression.** Make the official layer opt-in through a builder call that only the live factory (registry.rs:74) uses. Providers built from a tape, from the copied cache folder or with the fake session never attach it, emit no new warnings and keep the old path. New ProviderExtras fields, if any, need #[serde(default)] like the existing ones (crates\fm-core\src\snapshot.rs:363-421).
+- **An official-API error could be reported to the owner as 'Fantrax login expired' (403 or the words login/cookie/session in the text), sending them to refresh a cookie that is fine.** Give official warnings a fixed prefix starting with 'Fantrax official API' (so enrich.rs:1823 shows them) and a message that never contains the URL, a status number or the words login, cookie or session; map HTTP 403 to 'rejected the request (User-Agent)'. Add a classifier test next to crates\fm-report\src\health.rs:479-535.
+- **A 200 response carrying an error body is stored in cache.db and replayed until the TTL ends, or indefinitely in offline mode.** Validate the expected top-level keys per endpoint in the wrapper; on failure delete the row with HttpCache::clear(url substring) and treat the call as failed so the private fallback runs.
+- **Period date off-by-one: taking date(endDate) directly makes periods overlap, which shifts the claims-used count (fantrax.rs:3040), the matchup table lookup (matchup.rs:651-652) and harness rows.** One shared parser with the rule last day = date(endDate) minus 1, parsed with the offset as sent. Test with periods 1 (6 days), 6, 19 (14 days) and 27 from the sample, and assert period 6 equals 2026-11-02 to 2026-11-08 as the private path produced.
+- **Roster timing: official getTeamRosters defaults to the upcoming roster period after the day's last game starts, and its cache age (new) would differ from the private roster cache age (2 minutes, fantrax.rs:56-60 per the provider map), so a cross-check could report false mismatches around lineup changes or late in the evening.** Always request period=N for the wanted date, use the same 2-minute TTL as the private lineup calls, and word roster mismatches as a warning that names the players instead of overriding anything.
+- **Private league or outage: if the commissioner hides the league, or Fantrax changes the beta API (the note calls it a draft, line 10), official calls fail. Rate limits are unknown.** Every official read is 'try, else private path, plus one warning'. Never make an official call mandatory for load. Use long TTLs for static data (league info, draft picks, ADP, player ids) and pass excludePlayerInfo=true for getLeagueInfo (note line 20) to keep it small. About 5 official GETs per cold load is the target.
+- **Losing data by replacing instead of merging: official standings lack waiver_order (read at claims.rs:171-172) and points against; official roster limits lack the IR maximum and per-position totals; official rosters lack empty slots, stats, ages, injuries and rostered percentage.** Merge per field. Official supplies rank / W-L-T / points-for, private keeps waiver_order and points_against; the Rules page stays for IR size, lineup lock, claim caps, keeper type and trade deadline; private roster rows stay the source of players.
+- **Owner's team cannot be identified from official data. If private fails and FANTRAX_TEAM is unset, a degraded load has no 'my team'; matching by name is fragile because team names change and teamInfo has no shortName.** Degraded mode requires FANTRAX_TEAM; recommend setting it to the team id. Keep private myTeamIds as the normal path (fantrax.rs:2900). Do not add getLeagues and its secret unless the owner asks.
+- **Team order and names: official teamInfo order differs from the private order that the context currently uses , and official player names are 'Last, First', ASCII, with apostrophes stripped in getPlayerIds.** Keep private order whenever private data loaded; in degraded mode sort deterministically and say so. Only use official names in degraded mode, flipped to 'First Last'; filter the 96 pseudo-entries whose id contains '#'. Join by id only, never by name.
+- **Season label: official seasonYear is 2026 but the program labels the season 2027 (raw_ctx.json season = 2027). Using seasonYear would re-key every season-based store.** Derive the season from the year of official endDate, and only in degraded mode; otherwise keep season_from_settings (fantrax.rs:2963).
+- **ADP changes every Fantrax market percentile and trade-acceptance worth, with a site-wide redraft ADP weighted above rostered percentage in a dynasty league; harness comparisons before and after are not like for like.** Ship ADP behind a setting that defaults to off, log the day it is switched on, treat 10000.0 as missing, and let the owner decide the weight.
+- **Offline mode: with an empty or partial official cache every official call is a cache miss (cache.rs:226-228); if that produced warnings, offline runs that work today would start showing failures.** In offline mode a missing official response falls back silently to the private cache; warn only when online.
+- **Matchup scores for finished periods: the harness reads finals for several periods from one private response and stores source 'Fantrax schedule' (matchup_calib.rs:216-234). Official needs one call per period and past-period support is untested.** Move live current-period scores first; keep harness finals on the private call until a saved real response for a finished period matches the stored result, and keep the source string unchanged or add a new distinct one.
+
+## Points the mapping pass settled
+
+- **Is the official player id the same string as the private scorerId? The provider map says unverified; the official-mapping and failure-history maps say identical.** Identical. No name matching is needed to join official data to existing players; cids, the crosswalk and stored history stay valid.
+- **How do official scoring-period timestamps map to whole dates? The provider and consumers maps warn of a one-day overlap; the official-mapping map says last day = date(endDate) minus one.** The official-mapping rule is right: first day = calendar date of startDate, last day = calendar date of endDate minus one day, both taken in the offset the API sends (do not convert to the PC's zone). An integrator who takes date(endDate) directly will make every period overlap the next by one day.
+- **Do the official playoff-period matchups (25-27) hold real pairings? The consumers map left it unverified; official-mapping says placeholders.** Placeholders. Sides are {seed:N} or {bye:true} with no team id, so any code reading away.id / home.id must skip periods from playoffs.firstPlayoffPeriod onward (or tolerate missing ids). Period 24 still has real team objects.
+- **Does getMatchupScores take a period parameter for past periods? Official-mapping says unverified; failure-history states it as fact.** It is documented but not exercised. Treat past-period scores (needed by the harness final-score backfill) as unproven until one real call with period=6 is saved and compared with the stored result. The same applies to getTeamRosters period=N.
+- **Which key of extras.standings does the claims planner read? The provider map left it unverified.** waiver_order, and it is the only reader of extras.standings in any src tree. Official getStandings has no waiver order, so the private getStandings call must stay even if official supplies the win-loss record.
+- **Official-mapping suggests filling LeagueContext.season_start from the official startDate because the provider leaves it None.** Do not. The provider sets None at load, but enrichment later sets season_start from the NHL schedule, and valuation and preseason code read it as the NHL regular-season start. The official startDate (2026-09-29) is the fantasy league's start and would be overwritten or would shift those consumers.
+- **Failure-history says the scoring-period fallback to Monday-Sunday is silent and counts it among today's problems.** Partly wrong. The private period call is only made when the Rules page gives a weekly claim cap, and a failure does add the warning 'Fantrax scoring periods unavailable: ...'. What is silent is the Monday-Sunday result when no weekly cap exists.
+- **Is FANTRAX_KEEPERS set? Consumers says unset (keep everyone); official-mapping says the fixture ran with 3.** Both statements can be true and the live value is unverified (I did not read .env). The 2026-11-04 fixture was recorded with FANTRAX_KEEPERS = 3 and one parity test hard-codes 3. This is independent of the official API, which has no keeper field.
+- **Is switching on official ADP low risk (failure-history) or a behaviour change (consumers, official-mapping)?** A behaviour change. It is the only item in the plan that adds a new input to valuations instead of replacing a source like for like, so it should be a separate, switchable step that the owner approves.
+- **Which roster period does getTeamRosters return by default (official-mapping open question)?** The upcoming lineup: the default moves to the next roster period once the last game of the current one has started. A late-evening run would therefore get tomorrow's lineup while the harness labels Fantrax lineups with today's date. Always pass period=N computed from rosterPeriods for the wanted date. This is inferred from the documentation and one sample, not tested live.
+
+## Things nobody checked
+
+- Parity fixtures cannot be re-recorded today. The tape and raw_ctx.json were produced by a Python program (parity\dump_fixtures.py:112-148 patches the Python HttpCache and Fantrax client), but the fantasy_manager folder now holds 0 .py files (only __pycache__ and empty subfolders), and I found no tape recorder in any Rust crate (search for record/Tape writers found only Tape::load at crates\fm-http\src\tape.rs:90). Any change that alters the loaded context cannot get a refreshed fixture; the plan must keep the replay path byte-identical.
+- How the official client should be attached was not designed. FantraxProvider::new takes only (settings, cache_offline) (crates\fm-providers\src\registry.rs:74) and is constructed directly in about ten places (crates\fm-cli\src\cmd_admin.rs:159; crates\fm-providers\tests\fantrax.rs:191, 485, 799, 803, 1249, 1406, 1432, 1450, 1466, 1611; crates\fm-providers\src\snapshot.rs:62). The existing builder pattern (with_session / with_auth / with_tape at fantrax.rs:2698-2716) is the fitting way to add an optional HttpCache without touching those sites.
+- The shared HTTP cache already fits the official API, which nobody stated plainly: it sends a User-Agent naming the program ('fantasy-manager/0.1 ...', crates\fm-http\src\cache.rs:20, 177), keys on URL plus query parameters (cache.rs:94-123), has per-call TTL and offline mode (cache.rs:217-228) and replays from Tape.http (cache.rs:206-215). No new HTTP code is needed, only a thin wrapper.
+- Error bodies get cached. HttpCache stores every 2xx response before the caller sees it (cache.rs:257-259). The knowledge note says the official API can return an error as HTTP 200 with an 'error' field (docs\knowledge\fantrax-official-api.md:11), so an error body would be served again until its TTL ends, and for ever in offline mode. The wrapper must check the body and remove the bad row (HttpCache::clear by URL substring exists at cache.rs:317-325).
+- Warning classification traps were only half covered. The health classifier treats any Fantrax warning containing '403', 'login' or 'cookie' plus 'unavailable/failed' as an expired login (crates\fm-providers\src\enrich.rs:1847-1858); the official API answers a missing User-Agent with HTTP 403 (knowledge note line 9) and HttpError prints 'HTTP 403 for <url>' (cache.rs:57). The pregame report has a second, looser rule: any Fantrax error text containing 'login', 'cookie' or 'session' becomes 'Fantrax login expired' (crates\fm-report\src\pregame.rs:1079-1080).
+- Cache clearing: `fm sync --refresh` calls clear_league_cache('fantrax', ...) with the HttpCache in hand (crates\fm-cli\src\cmd_league.rs:952) but the Fantrax arm deletes only fantrax_cache files (registry.rs:99). Official responses in cache.db would survive a refresh unless that arm also clears rows whose URL contains the fxea path.
+- Replay and snapshot paths: SnapshotProvider forwards fantrax_call to a tape-backed provider (crates\fm-providers\src\snapshot.rs:154-156) and serves extras from the snapshot (snapshot.rs:126-128). Three test stubs implement the trait (crates\fm-engine\src\analysis\matchup.rs:1082, crates\fm-harness\src\matchup_calib.rs:762, crates\fm-engine\tests\recommend_base.rs:1002). Any new trait method needs a default body, and the engine must keep the private parsing path as fallback, or `--from-snapshot` and the fm-parity stage tests stop working.
+- Hard-coded weekly lock for Fantrax outside the provider: crates\fm-web\src\app.rs:513 ('Fantrax locks it on Monday') and crates\fm-harness\src\episode_match.rs:57, 212-214, 432-434. These contradict the league's daily lock and are untouched by the official API; they are a separate fix.
+- Fields nobody mapped: getLeagueInfo.playerInfo status 'WW' (5 players on waivers) could cross-check the private waiver_until value; getLeagueInfo matchups carry team shortName (the only official source for it, needed if FANTRAX_TEAM is a short name); getMatchupScores gamesPlayed and per-category totals have no consumer; getLeagues (needs a new secret setting, knowledge note line 19 and 33) is the only official way to learn which team is the owner's.
+- Not checked by anyone: whether the official API still answers without login if the commissioner makes the league private; rate limits; the error body for a bad league id; getDraftPicks currentDraftPicks when populated; getTeamRosters 'position' for a multi-position player and for a minors-status player. All remain unverified.
+- Whether FANTRAX_TEAM is set is unverified (.env not read). It decides whether a load can identify the owner's team without the private myTeamIds (crates\fm-providers\src\fantrax.rs:2900).
+- The web server (crates\fm-web) was not examined for how long it keeps a loaded provider; if it holds one for a long time, official and private data could be of different ages. Unverified.
+- README.md:209 and docs\hosting.md:294 say Fantrax has no API (failure-history citation, not re-read); they need a wording update when the integration lands.

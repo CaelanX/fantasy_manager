@@ -35,7 +35,7 @@ use crate::recommend::base::{
 };
 use crate::recommend::strength::{apply_ranks, apply_strength, IR_FLOOR};
 use crate::recommend::waivers::{recommend_waivers, WaiverOpts, DYNASTY_MIN_RATIO};
-use crate::valuation::adjust::{games_remaining, season_availability};
+use crate::valuation::adjust::{games_remaining, season_availability, SeasonLength};
 use crate::valuation::schedule::ScheduleMemo;
 
 pub const IR_ELIGIBLE: [&str; 3] = ["ir", "ltir", "out"];
@@ -251,11 +251,19 @@ impl Absence {
 pub fn absence(ctx: &LeagueContext, p: &Player, pv: &PlayerValue) -> Absence {
     let team = normalize_team(p.team.as_deref()).unwrap_or_default();
     let team_dates: Option<&[NaiveDate]> = ctx.schedule.get(&team).map(|v| v.as_slice());
-    let (a_season, est) =
-        season_availability(p.status.as_str(), p.status_note.as_deref(), ctx.as_of, team_dates, ctx.season_start, None);
+    let season = SeasonLength::of(&ctx.schedule);
+    let (a_season, est) = season_availability(
+        p.status.as_str(),
+        p.status_note.as_deref(),
+        ctx.as_of,
+        team_dates,
+        ctx.season_start,
+        season,
+        None,
+    );
     let healthy = if a_season > 0.0 { pv.fpg_season / a_season } else { pv.fpg };
     let Some(est) = est else {
-        let remaining = games_remaining(ctx.as_of, team_dates, ctx.season_start);
+        let remaining = games_remaining(ctx.as_of, team_dates, ctx.season_start, season);
         return Absence {
             remaining,
             missed: remaining * (1.0 - a_season),

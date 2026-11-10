@@ -794,6 +794,39 @@ table.r.season-t { font-size: .78rem; }
   @keyframes sweep { from { width: 0; } }
 }
 
+/* ---------------------------------------------------------------- ask (/ask) */
+.ask-form { display: grid; gap: 8px; max-width: 80ch; }
+.ask-form label { font-size: .86rem; color: var(--ink-3); }
+.ask-form textarea { font: inherit; width: 100%; padding: 10px 12px; border-radius: var(--r-ctl); border: 1px solid var(--rule-2);
+  background: var(--paper); color: var(--ink); resize: vertical; }
+.chat-status { font-size: .9rem; color: var(--ink-3); margin: 8px 0 0; }
+.chat-think { margin: 0 0 8px; font-size: .88rem; color: var(--ink-3); }
+.chat-think summary { cursor: pointer; width: fit-content; }
+.chat-think-body { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 14rem; overflow-y: auto; margin-top: 6px; padding-left: 12px;
+  border-left: 2px solid var(--rule); }
+.chat-retry { margin-top: 8px; }
+.chat-retry[hidden] { display: none; }
+.ask-box { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; }
+.ask-box input[type="text"], .chat-manage input[type="text"] { font: inherit; flex: 1 1 14rem; min-width: 0; min-height: 44px; padding: 6px 10px;
+  border-radius: var(--r-ctl); border: 1px solid var(--rule-2); background: var(--paper); color: var(--ink); }
+.chat-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+@media (min-width: 900px) { .chat-layout { grid-template-columns: 16rem minmax(0, 1fr); } }
+.chat-list ul { list-style: none; margin: 12px 0 0; padding: 0; }
+.chat-list li { padding: 8px 0; border-top: 1px solid var(--rule); }
+.chat-list li a { display: block; overflow-wrap: anywhere; }
+.chat-list li a[aria-current] { font-weight: 700; color: var(--ink); text-decoration: none; }
+.chat-turns { list-style: none; margin: 0 0 16px; padding: 0; max-width: 80ch; }
+.chat-turns li { margin: 0 0 18px; }
+.chat-q { font-weight: 600; margin: 0 0 8px; padding: 10px 14px; background: var(--wash); border-radius: var(--r-ctl); }
+.chat-a { white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px 16px; background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--r-card); }
+.chat-by { font-size: .8rem; color: var(--ink-3); margin: 4px 0 0; }
+.chat-given, .chat-manage { margin: 0 0 14px; font-size: .9rem; max-width: 80ch; }
+.chat-given summary, .chat-manage summary { cursor: pointer; color: var(--accent); width: fit-content; }
+.chat-given pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; color: var(--ink-2); margin: 8px 0 0; }
+.chat-manage { margin-top: 18px; }
+.chat-manage form { margin-top: 10px; }
+
 /* ---------------------------------------------------------------- trade evaluator (/trade-eval) */
 .filterbar input[type="search"] { width: 11rem; max-width: 100%; }
 .btn-ghost { background: var(--paper); color: var(--ink); }

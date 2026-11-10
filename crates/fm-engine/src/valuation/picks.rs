@@ -15,6 +15,7 @@ use fm_core::Map;
 use fm_pycompat::num::{py_round, py_sum};
 use fm_pycompat::order::{cmp_f64, sort_desc_by};
 
+use super::adjust::SeasonLength;
 use super::dynasty::{
     age_on, apply_dynasty, healthy_fpg, keeper_count, min_replacement_fpg, mode_weights, position_group,
     ProductionCurves, DISCOUNT,
@@ -28,8 +29,6 @@ pub const DRAFT_CLASS_DISCOUNT: f64 = 0.75;
 pub const FUTURE_SLOT_SHRINK: f64 = 0.5;
 /// win % weight in next draft's order at season end
 pub const RECORD_WEIGHT_MAX: f64 = 0.8;
-/// NHL regular season length, days
-pub const SEASON_DAYS: f64 = 186.0;
 pub const SPREAD_NOW: f64 = 1.0;
 pub const SPREAD_PER_YEAR: f64 = 2.0;
 pub const SPREAD_EARLY: f64 = 3.0;
@@ -49,11 +48,13 @@ fn starting_count(ctx: &LeagueContext) -> i64 {
     n.max(1)
 }
 
-/// Share of the regular season played (0..1).
+/// Share of the regular season played (0..1), over the loaded schedule's season length in days
+/// ([`SeasonLength::DEFAULT`] without one; Python always used 186 days).
 pub fn elapsed(ctx: &LeagueContext) -> f64 {
+    let days = SeasonLength::of(&ctx.schedule).days;
     match ctx.season_start {
         None => 0.0,
-        Some(s) => ((ctx.as_of - s).num_days() as f64 / SEASON_DAYS).clamp(0.0, 1.0),
+        Some(s) => ((ctx.as_of - s).num_days() as f64 / days).clamp(0.0, 1.0),
     }
 }
 
@@ -405,6 +406,17 @@ mod tests {
 
     fn pick<'a>(picks: &'a [PickAsset], holder: &str, year: i64, rnd: i64) -> &'a PickAsset {
         picks.iter().find(|a| a.holder == holder && a.year == year && a.round == rnd && a.original == holder).unwrap()
+    }
+
+    #[test]
+    fn elapsed_uses_the_schedules_season_length() {
+        // Nov 1 is 25 days after the Oct 7 start
+        let (mut c, _, _) = build(None, None);
+        assert!((elapsed(&c) - 25.0 / 186.0).abs() < 1e-12);
+        // a schedule running Oct 7 to Apr 18 (194 days, like 2026-27)
+        let start = c.season_start.unwrap();
+        c.schedule.insert("EDM".into(), vec![start, start + chrono::Duration::days(193)]);
+        assert!((elapsed(&c) - 25.0 / 194.0).abs() < 1e-12);
     }
 
     #[test]

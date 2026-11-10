@@ -102,13 +102,28 @@ Environment variables each command needs (all live in `.env`, see `.env.example`
 |---|---|
 | Any `--league espn` command | `ESPN_LEAGUE_ID`; `ESPN_S2` + `ESPN_SWID` for private leagues; optional `ESPN_YEAR`, `ESPN_TEAM` |
 | Any `--league fantrax` command | `FANTRAX_LEAGUE_ID`, `FANTRAX_COOKIE` or `FANTRAX_COOKIE_FILE`; optional `FANTRAX_POINTS` (fallback when the Rules page cannot be read), `FANTRAX_TEAM`, `FANTRAX_DYNASTY`, `FANTRAX_KEEPER_HORIZON_YEARS`, `FANTRAX_KEEPERS`, `FANTRAX_MODE` |
-| `ask` (required), `advise --explain`, `report --explain` | `OPENROUTER_API_KEY`; optional `FM_LLM_MODEL` (default `openrouter/free`), `FM_LLM_FALLBACKS` |
+| `ask` and the dashboard's **Ask** tab (required), `advise --explain`, `report --explain` | `OPENROUTER_API_KEY`, or `FM_LLM_BASE_URL` + `FM_LLM_MODEL` for a model on your own PC; optional `FM_LLM_MODEL` (default `openrouter/free`), `FM_LLM_FALLBACKS` |
 | `report --notify`, `notify` | `DISCORD_WEBHOOK_URL` and/or `SLACK_WEBHOOK_URL` |
 | Betting odds in `harness daily` / `harness odds` | `ODDS_API_KEY` (free tier); optional `ODDS_REGION` |
 | `web` on a network or server | `FM_WEB_PASSWORD` (required off-localhost); optional `FM_WEB_SECRET`, `FM_WEB_SESSION_DAYS`, `FM_WEB_ALLOW_INSECURE` |
 | Everything | optional `FM_DATA_DIR` (default `./data`), `FM_OFFLINE=1` (cache only, no network) |
 
 Without `OPENROUTER_API_KEY`, `advise --explain` and `report --explain` still work and print a one-line hint; `ask` exits with an error. `notify` and `report --notify` exit with code 1 when no webhook is configured or a post fails, so scheduled runs show up as failed.
+
+**A model on your own PC instead of OpenRouter.** Set `FM_LLM_BASE_URL` to any OpenAI-compatible server and `FM_LLM_MODEL` to a model it has. No API key is needed and the free-only guard does not apply. With [Ollama](https://ollama.com) (0.40.4 or later) and K2 Horizon 7B:
+
+```
+ollama pull ifm/k2-horizon:7b
+```
+
+```
+FM_LLM_BASE_URL=http://localhost:11434/v1
+FM_LLM_MODEL=ifm/k2-horizon:7b
+```
+
+Ollama gives models a 4k-token context window on cards with under 24 GB of VRAM, which is smaller than the league data sent with a question, and it cuts the prompt without saying so. Raise it to at least 16k: the context length slider in the Ollama app's settings, or the `OLLAMA_CONTEXT_LENGTH=16384` environment variable. On a PC with only integrated graphics, Ollama also runs on the processor unless `OLLAMA_IGPU_ENABLE=1` is set. Restart Ollama after changing either; `ollama ps` shows the context and whether the model is on the GPU. Requests to a local server wait up to 10 minutes and allow extra output tokens for the model's thinking.
+
+The dashboard's **Ask** tab (`/ask`) is a chat over the league data. The answer is written to the page as the model produces it, with the model's reasoning in a collapsed "Thinking" section above it; closing the page stops the model. Each question is sent with a summary of the league, the full detail (owner, this week, dynasty value, the engine's moves, news) on every player the chat names, up to 6,000 characters you pasted when starting the chat, and the earlier turns. Chats are saved per league in `$FM_DATA_DIR/chats.json` (the 40 most recent) and can be renamed or deleted. With a model set up, the player card, each move, an evaluated trade and the compare page get an **Ask** box that starts a chat about what they show.
 
 To run the report every morning with Windows Task Scheduler, see [docs/scheduling.md](docs/scheduling.md). The daily task runs `fm auth fantrax --ping`, `fm backtest archive`, `fm harness daily` and `fm report --notify`, in that order: the archive snapshots both leagues' projections and recommendations to `data/archive/`, and the harness grades them (see [docs/harness.md](docs/harness.md)).
 

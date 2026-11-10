@@ -167,6 +167,20 @@
 </table></div>
 {%- endmacro %}
 
+{# "Ask about this": starts a chat on the Ask tab about the players in `cids` (comma-separated)
+   with `context` (what the page already says) attached. Nothing without a model. #}
+{% macro ask_box(label, cids, context='', value='') -%}
+{% if llm_ok %}
+<form method="post" action="/ask" class="ask-box">
+  <input type="hidden" name="league" value="{{ league }}">
+  <input type="hidden" name="cids" value="{{ cids }}">
+  {% if context %}<input type="hidden" name="context" value="{{ context }}">{% endif %}
+  <input type="text" name="question" required maxlength="1000" value="{{ value }}" placeholder="{{ label }}" aria-label="{{ label }}">
+  <button type="submit" class="ghost-btn">Ask</button>
+</form>
+{% endif %}
+{%- endmacro %}
+
 {# One numbered move. Primary line = what to do; then gain + strength, the comparison, the
    top reasons, a "Why?" disclosure with every reason (and the trade partner's needs), and an
    on-demand LLM explanation. Nothing here executes a move. #}
@@ -198,6 +212,7 @@
       {% endif %}
     </div>
     {% if reasons %}<ul class="why">{{ reason_items(reasons[:REASONS_SHOWN]) }}</ul>{% endif %}
+    {{ ask_box('Ask about this move', r.add|map(attribute='cid')|join(',') ~ ',' ~ r.drop|map(attribute='cid')|join(','), 'Suggested move: ' ~ r.title ~ '. Reasons: ' ~ reasons|map(attribute='text')|join('; ')) }}
     <div class="m-actions">
       <form method="post" action="/explain" class="explain-form" hx-post="/explain" hx-target="#explain-{{ key }}"
             hx-select="#explain-{{ key }}" hx-swap="outerHTML" hx-disabled-elt="find button">

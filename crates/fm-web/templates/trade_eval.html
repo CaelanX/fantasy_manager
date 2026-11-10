@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import pill, reasons_table with context %}
+{% from "_macros.html" import pill, reasons_table, ask_box with context %}
 {% block heading %}
 <p class="sc dateline">{{ res.ctx.name }} &middot; same scoring as Moves</p>
 <h1>Trades</h1>
@@ -105,6 +105,9 @@
     {% if r.dynasty_delta %}<div><dt>Dynasty value</dt><dd>{{ '%+.2f'|format(r.dynasty_delta.value) }} ({{ '%+.2f'|format(r.dynasty_delta.fpg_equiv) }} FPG-equivalent); {{ r.mode }} edge {{ '%+.2f'|format(r.my_edge) }}</dd></div>{% endif %}
     <div><dt>Roster</dt><dd>{{ r.roster|replace('Roster: ', '') }}</dd></div>
   </dl>
+  {% set sent = my_rows|selectattr('checked')|list %}{% set got = their_rows|selectattr('checked')|list %}
+  {% set tctx %}Trade evaluator verdict: {{ r.verdict }}, trade with {{ r.team }}. I send: {{ sent|map(attribute='name')|join(', ') }}. I get: {{ got|map(attribute='name')|join(', ') }}. My lineup change {{ '%+.2f'|format(r.my_gain.fpg) }} pts/game, theirs {{ '%+.2f'|format(r.their_gain.fpg) }}. Reasons: {{ r.verdict_reasons|join('; ') }}.{% if r.counter %} Suggested counter: {{ r.counter }}.{% endif %}{% endset %}
+  {{ ask_box('Ask about this trade', sent|map(attribute='cid')|join(',') ~ ',' ~ got|map(attribute='cid')|join(','), tctx, 'Should I make this trade?') }}
   {% if r.market_check %}
   <h3 class="sub-h">Market check</h3>
   <ul class="te-why">{% for t in r.market_check %}<li>{{ t }}</li>{% endfor %}</ul>

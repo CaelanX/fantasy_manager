@@ -72,11 +72,14 @@ pub const OVERVIEW_MOVES: usize = 5;
 pub const REASONS_SHOWN: usize = 3;
 pub const EXPLAIN_FAILED: &str =
     "Explanation unavailable right now (free model rate-limited); numbers above are the full basis.";
+pub const ASK_FAILED: &str = "The model could not answer right now. Try again in a moment.";
 pub const NAME_SUFFIXES: [&str; 7] = ["jr", "jr.", "sr", "sr.", "ii", "iii", "iv"];
 pub const NUMBER_WORDS: [&str; 11] = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
 pub const LEAD_VERBS: [&str; 8] = ["move", "add", "start", "trade", "activate", "bench", "sell", "buy"];
-const PAGE_PATHS: [&str; 13] =
-    ["/", "/plan", "/overview", "/roster", "/recommendations", "/news", "/health", "/schedule", "/matchup", "/trade-eval", "/keepers", "/players", "/compare"];
+const PAGE_PATHS: [&str; 14] = [
+    "/", "/plan", "/overview", "/roster", "/recommendations", "/news", "/health", "/schedule", "/matchup", "/trade-eval", "/keepers", "/players",
+    "/compare", "/ask",
+];
 
 /// (env var, Settings attribute, requirement note) shown on the setup page.
 pub fn setup_vars(league: &str) -> &'static [(&'static str, &'static str, &'static str)] {
@@ -956,6 +959,14 @@ impl Req {
     }
 }
 
+/// A result's matched news as the LLM prompt builders take it.
+fn news_items(res: &LoadResult) -> Map<String, Vec<fm_sources::news::NewsItem>> {
+    res.news_by_cid
+        .iter()
+        .map(|(k, v)| (k.clone(), v.iter().filter_map(|n| serde_json::from_value(n.clone()).ok()).collect()))
+        .collect()
+}
+
 fn league_error(input: &str) -> Resp {
     Resp::Json(
         422,
@@ -1113,8 +1124,7 @@ impl App {
             put(&mut base, "flash", flash.map(Value::from).unwrap_or(Value::from(())));
         }
         if !page.contains_key("llm_ok") {
-            let ok = if matches!(name, "overview.html" | "recommendations.html" | "player.html") { self.llm_available() } else { false };
-            put(&mut base, "llm_ok", Value::from(ok));
+            put(&mut base, "llm_ok", Value::from(self.llm_available()));
         }
         put(&mut base, "__fm_data_dir", Value::from(s.fm_data_dir.to_string_lossy().to_string()));
         put(&mut base, "__fm_today", Value::from(local_naive(&now).date().format("%Y-%m-%d").to_string()));
@@ -1144,11 +1154,18 @@ impl App {
         }
     }
 
+    /// The configured LLM client, or None when it has no key / server to call.
+    fn llm(&self) -> Option<Box<dyn SupportsComplete>> {
+        let s = self.settings();
+        let client: Option<Box<dyn SupportsComplete>> = match &self.cfg.llm {
+            Some(f) => f(&s),
+            None => Some(Box::new(fm_sources::llm::openrouter::LLMClient::from_settings(&s))),
+        };
+        client.filter(|c| c.available())
+    }
+
     fn llm_available(&self) -> bool {
-        match &self.cfg.llm {
-            Some(f) => f(&self.settings()).is_some_and(|c| c.available()),
-            None => fm_sources::llm::openrouter::LLMClient::from_settings(&self.settings()).available(),
-        }
+        self.llm().is_some()
     }
 
     fn render(&self, req: &Req, name: &str, league: &str, status: u16, ctx: Ctx) -> Resp {
@@ -1232,7 +1249,13 @@ impl App {
             "/compare" if get => self.compare(&req),
             "/watch" if post => Ok(self.watch(&req)),
             "/watch/seen" if post => Ok(self.watch_seen(&req)),
-            "/players" | "/compare" | "/watch" | "/watch/seen" => Ok(detail(405, "Method Not Allowed".into())),
+            "/ask" if get || post => self.ask(&req),
+            "/ask/rename" if post => Ok(self.ask_manage(&req, "rename")),
+            "/ask/delete" if post => Ok(self.ask_manage(&req, "delete")),
+            "/ask/discard" if post => Ok(self.ask_manage(&req, "discard")),
+            "/players" | "/compare" | "/watch" | "/watch/seen" | "/ask" | "/ask/rename" | "/ask/delete" | "/ask/discard" | "/ask/stream" => {
+                Ok(detail(405, "Method Not Allowed".into()))
+            }
             p if get && p.starts_with("/player/") => {
                 let cid = p["/player/".len()..].to_string();
                 self.player(&req, &cid)
@@ -1830,25 +1853,16 @@ impl App {
         let Ok(page) = self.get_result(&league) else { return Resp::Redirect(target) };
         let res = page.res.clone();
         let Some(rec) = res.recs.iter().find(|r| rec_key(&league, r) == key) else { return Resp::Redirect(target) };
-        let s = self.settings();
-        let client: Option<Box<dyn fm_sources::llm::SupportsComplete>> = match &self.cfg.llm {
-            Some(f) => f(&s),
-            None => Some(Box::new(fm_sources::llm::openrouter::LLMClient::from_settings(&s))),
-        };
         let set = |v: J| {
             res.explanations.lock().unwrap_or_else(|e| e.into_inner()).insert(key.clone(), v);
         };
-        let Some(client) = client.filter(|c| c.available()) else {
+        let Some(client) = self.llm() else {
             set(json!({"error": "Explanations need an OpenRouter key (set OPENROUTER_API_KEY)."}));
             return Resp::Redirect(format!("{target}#rec-{key}"));
         };
         let mut one = vec![rec.clone()];
         one[0].narrative = None;
-        let news: Map<String, Vec<fm_sources::news::NewsItem>> = res
-            .news_by_cid
-            .iter()
-            .map(|(k, v)| (k.clone(), v.iter().filter_map(|n| serde_json::from_value(n.clone()).ok()).collect()))
-            .collect();
+        let news = news_items(&res);
         let c: &dyn fm_sources::llm::SupportsComplete = client.as_ref();
         let r = catch_unwind(AssertUnwindSafe(|| {
             fm_sources::llm::openrouter::narrate(&mut one, Some(&res.ctx), fm_sources::llm::context::NewsInput::ByCid(&news), Some(c), 1)
@@ -1861,6 +1875,158 @@ impl App {
             None => set(json!({"error": EXPLAIN_FAILED})),
         }
         Resp::Redirect(format!("{target}#rec-{key}"))
+    }
+
+    /// The Ask tab: the saved chats beside the open one (`chat=<id>`) or a new one. POST answers
+    /// `question` in that chat, saves the turn and redirects to it. A new chat takes the players
+    /// it is about (`cids`, comma-separated) and pasted text (`context`) from the form, which is
+    /// how the "Ask" boxes on other pages hand over what they show.
+    fn ask(&self, req: &Req) -> Result<Resp, Resp> {
+        let post = req.method == Method::POST;
+        let f = req.fields();
+        let league = if post { self.form_league(&f)? } else { self.league_q(req)? };
+        let page = self.load_or_error(req, &league)?;
+        let res = page.res.clone();
+        let field = |k: &str| f.get(k).map(|s| py_strip(s).to_string()).unwrap_or_default();
+        let question = field("question");
+        let data_dir = self.settings().fm_data_dir.clone();
+        let chats = crate::chats::load(&data_dir, &league);
+        let open = chats.iter().find(|c| c.id == field("chat")).cloned();
+        let (focus, pasted): (Vec<String>, String) = match &open {
+            Some(c) => (c.focus.clone(), c.pasted.clone()),
+            None => (field("cids").split(',').filter(|c| !c.is_empty()).map(String::from).collect(), field("context")),
+        };
+        let client = self.llm();
+        let mut error = None;
+        // the question is only recorded here; the chat page then streams its answer (ask_stream)
+        if post && !question.is_empty() && client.is_some() && open.as_ref().is_none_or(|c| c.pending.is_none()) {
+            let at = naive_iso(local_naive(&self.now()));
+            match crate::chats::ask(&data_dir, &league, open.as_ref().map(|c| c.id.as_str()), &focus, &pasted, &question, &at) {
+                Ok(id) => return Ok(Resp::Redirect(format!("/ask?league={league}&chat={id}#latest"))),
+                Err(e) => {
+                    tracing::error!("saving the chats failed: {e:#}");
+                    error = Some(format!("The question could not be saved: {e}"));
+                }
+            }
+        }
+        let names: Vec<String> = {
+            let all = res.ctx.all_players();
+            focus.iter().filter_map(|cid| all.iter().find(|p| p.cid == *cid).map(|p| p.name.clone())).collect()
+        };
+        let list: Vec<J> = chats.iter().map(|c| json!({"id": c.id, "title": c.title, "updated": c.updated, "turns": c.turns.len()})).collect();
+        let ctx: Ctx = cx![
+            ("res", ResObj::value(res.clone())),
+            ("title", Value::from("Ask")),
+            ("chats", to_mj(&J::Array(list), None)),
+            ("chat", to_mj(&open.as_ref().map(|c| json!(c)).unwrap_or(J::Null), None)),
+            ("question", Value::from(question)),
+            ("pasted", Value::from(pasted)),
+            ("cids", Value::from(focus.join(","))),
+            ("focus_names", Value::from(names)),
+            ("error", error.map(Value::from).unwrap_or(Value::from(()))),
+            ("llm_ok", Value::from(client.is_some())),
+            ("max_paste", Value::from(fm_sources::llm::openrouter::MAX_PASTE_CHARS)),
+        ];
+        Ok(self.render(req, "ask.html", &league, 200, ctx))
+    }
+
+    /// Answer chat `id`'s pending question, handing `emit(event, text)` the reply as it is
+    /// written: "thinking" and "answer" pieces, then "done" once the turn is saved, or "fail"
+    /// with a message. Stops when `emit` returns false (the page went away); the question then
+    /// stays pending and the next visit asks again.
+    pub fn ask_stream(&self, league: &str, id: &str, emit: &mut dyn FnMut(&str, &str) -> bool) {
+        use fm_sources::llm::openrouter::{chat_prompt, ChatInput, CHAT_OPTS};
+        use fm_sources::llm::StreamPart;
+        let data_dir = self.settings().fm_data_dir.clone();
+        let Some(_writing) = crate::chats::claim(&data_dir, league, id) else {
+            emit("fail", "This answer is already being written in another tab. Reload in a moment.");
+            return;
+        };
+        let pending = crate::chats::load(&data_dir, league).into_iter().find(|c| c.id == id).and_then(|c| c.pending.clone().map(|q| (c, q)));
+        let Some((chat, question)) = pending else {
+            emit("done", "");
+            return;
+        };
+        let Some(client) = self.llm() else {
+            emit("fail", "No model is set up.");
+            return;
+        };
+        let res = match self.get_result(league) {
+            Ok(p) => p.res.clone(),
+            Err(e) => {
+                emit("fail", &format!("Could not load the league: {e}"));
+                return;
+            }
+        };
+        let news = news_items(&res);
+        let history: Vec<(String, String)> = chat.turns.iter().map(|t| (t.question.clone(), t.answer.clone())).collect();
+        let mut gone = false;
+        let r = catch_unwind(AssertUnwindSafe(|| {
+            let news = fm_sources::llm::context::NewsInput::ByCid(&news);
+            let input = ChatInput { history: &history, focus: &chat.focus, pasted: &chat.pasted, dynasty: res.dynasty.as_ref() };
+            let (system, user) = chat_prompt(&question, &res.ctx, &res.values, &res.recs, news, &input);
+            client.complete_stream(&system, &user, CHAT_OPTS, &mut |part| {
+                let ok = match part {
+                    StreamPart::Thinking(t) => emit("thinking", t),
+                    StreamPart::Answer(t) => emit("answer", t),
+                };
+                gone = !ok;
+                ok
+            })
+        }));
+        if gone {
+            return;
+        }
+        let failed = match r {
+            Ok(Ok(answer)) => {
+                let turn = crate::chats::Turn { question, answer, model: client.model(), at: naive_iso(local_naive(&self.now())) };
+                match crate::chats::answer(&data_dir, league, id, turn) {
+                    Ok(()) => {
+                        emit("done", "");
+                        return;
+                    }
+                    Err(e) => {
+                        tracing::error!("saving the chats failed: {e:#}");
+                        format!("The answer could not be saved: {e}")
+                    }
+                }
+            }
+            Ok(Err(e)) => {
+                tracing::warn!("ask failed: {e:#}");
+                e.downcast_ref::<fm_sources::llm::LLMError>().map_or(ASK_FAILED.to_string(), |e| e.message.clone())
+            }
+            Err(p) => {
+                tracing::warn!("ask failed: {}", panic_text(p));
+                ASK_FAILED.to_string()
+            }
+        };
+        emit("fail", &failed);
+    }
+
+    /// Rename (`title`) or delete a saved chat, or `discard` its unanswered question.
+    fn ask_manage(&self, req: &Req, action: &str) -> Resp {
+        let delete = action == "delete";
+        let f = req.fields();
+        let league = match self.form_league(&f) {
+            Ok(l) => l,
+            Err(r) => return r,
+        };
+        let Some(id) = f.get("chat").filter(|c| !c.is_empty()) else { return detail(422, "chat is required".into()) };
+        let data_dir = self.settings().fm_data_dir.clone();
+        let saved = match action {
+            "delete" => crate::chats::delete(&data_dir, &league, id),
+            "discard" => crate::chats::discard(&data_dir, &league, id),
+            _ => crate::chats::rename(&data_dir, &league, id, f.get("title").map(String::as_str).unwrap_or("")),
+        };
+        if let Err(e) = saved {
+            tracing::error!("saving the chats failed: {e:#}");
+            return detail(500, format!("could not save the chats: {e}"));
+        }
+        let mut q = vec![("league".to_string(), league)];
+        if !delete {
+            q.push(("chat".to_string(), id.clone()));
+        }
+        Resp::Redirect(format!("/ask?{}", urlencode(&q)))
     }
 
     fn clear_league_data(&self, league: &str) {
@@ -2224,6 +2390,9 @@ async fn embedded_static(axum::extract::Path(path): axum::extract::Path<String>)
 async fn dispatch(State(app): State<Arc<App>>, method: Method, uri: Uri, body: Bytes) -> Response {
     let path = percent_decode(uri.path());
     let query = uri.query().map(parse_qsl).unwrap_or_default();
+    if method == Method::GET && path == "/ask/stream" {
+        return ask_stream_response(app, &query);
+    }
     let req = Req { method: method.clone(), path, query, body: body.to_vec() };
     let head = method == Method::HEAD;
     let out = tokio::task::spawn_blocking(move || app.handle(req)).await;
@@ -2236,6 +2405,27 @@ async fn dispatch(State(app): State<Arc<App>>, method: Method, uri: Uri, body: B
         *r.body_mut() = Body::empty();
     }
     r
+}
+
+/// GET /ask/stream?league=&chat=: `App::ask_stream` as server-sent events, each event's data a
+/// JSON string. The model runs on a blocking thread and stops when the reader disconnects.
+fn ask_stream_response(app: Arc<App>, query: &[(String, String)]) -> Response {
+    let q = |k: &str| query.iter().rev().find(|(x, _)| x == k).map(|(_, v)| v.clone()).unwrap_or_default();
+    let (league, chat) = (q("league"), q("chat"));
+    let (mut tx, body) = http_body_util::channel::Channel::<Bytes>::new(64);
+    let rt = tokio::runtime::Handle::current();
+    tokio::task::spawn_blocking(move || {
+        app.ask_stream(&league, &chat, &mut |event, text| {
+            let frame = format!("event: {event}\ndata: {}\n\n", J::String(text.to_string()));
+            rt.block_on(tx.send_data(Bytes::from(frame))).is_ok()
+        });
+    });
+    Response::builder()
+        .header(header::CONTENT_TYPE, "text/event-stream")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .header("x-accel-buffering", "no")
+        .body(Body::new(body))
+        .unwrap()
 }
 
 fn percent_decode(p: &str) -> String {
