@@ -1,0 +1,276 @@
+[
+ {
+  "created": "2026-10-26T19:25:26+00:00",
+  "as_of": "2026-10-26",
+  "moves_left": 3,
+  "moves": [
+   {
+    "day": "2026-10-26",
+    "effective": "2026-10-26",
+    "add": {
+     "cid": "fantrax:03eer",
+     "name": "Jake Middleton",
+     "positions": [
+      "D"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:05mx8",
+     "name": "Declan Carlile",
+     "positions": [
+      "D"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 7.6,
+    "waiver": null
+   },
+   {
+    "day": "2026-10-27",
+    "effective": "2026-10-28",
+    "add": {
+     "cid": "fantrax:03xme",
+     "name": "Charlie Lindgren",
+     "positions": [
+      "G"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "positions": [
+      "G"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 12.9,
+    "waiver": null
+   },
+   {
+    "day": "2026-11-01",
+    "effective": "2026-11-01",
+    "add": {
+     "cid": "fantrax:06bde",
+     "name": "Oliver Bonk",
+     "positions": [
+      "D"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:03eer",
+     "name": "Jake Middleton",
+     "positions": [
+      "D"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 3.3,
+    "waiver": null
+   }
+  ],
+  "today": [
+   "Swap IR slots: activate Quinton Byfield (dtd), move Jared McCann (ir) to IR"
+  ],
+  "roster": {
+   "fantrax:03924": {
+    "name": "Jack Eichel",
+    "ir": false
+   },
+   "fantrax:051yz": {
+    "name": "Dylan Holloway",
+    "ir": false
+   },
+   "fantrax:04amg": {
+    "name": "Alexis Lafreniere",
+    "ir": false
+   },
+   "fantrax:02yjj": {
+    "name": "William Nylander",
+    "ir": false
+   },
+   "fantrax:03bfj": {
+    "name": "Artemi Panarin",
+    "ir": false
+   },
+   "fantrax:04lbz": {
+    "name": "Quinn Hughes",
+    "ir": false
+   },
+   "fantrax:0243f": {
+    "name": "Seth Jones",
+    "ir": false
+   },
+   "fantrax:059e0": {
+    "name": "Jake Sanderson",
+    "ir": false
+   },
+   "fantrax:04lo0": {
+    "name": "Quinton Byfield",
+    "ir": true
+   },
+   "fantrax:05gvq": {
+    "name": "Seth Jarvis",
+    "ir": false
+   },
+   "fantrax:05ymj": {
+    "name": "Jimmy Snuggerud",
+    "ir": false
+   },
+   "fantrax:06psl": {
+    "name": "Ivar Stenberg",
+    "ir": false
+   },
+   "fantrax:03as6": {
+    "name": "Jared McCann",
+    "ir": false
+   },
+   "fantrax:03yh8": {
+    "name": "Owen Tippett",
+    "ir": true
+   },
+   "fantrax:03mbn": {
+    "name": "Mackenzie Blackwood",
+    "ir": false
+   },
+   "fantrax:031pl": {
+    "name": "Juuse Saros",
+    "ir": false
+   },
+   "fantrax:05oxs": {
+    "name": "Jakub Dobes",
+    "ir": false
+   },
+   "fantrax:05mx8": {
+    "name": "Declan Carlile",
+    "ir": false
+   }
+  },
+  "signature": "[[\"[\\\"fantrax:03eer\\\", \\\"fantrax:05mx8\\\", null]\", \"[\\\"fantrax:03xme\\\", \\\"fantrax:05oxs\\\", null]\", \"[\\\"fantrax:06bde\\\", \\\"fantrax:03eer\\\", null]\"], [[\"fantrax:0243f\", false], [\"fantrax:02yjj\", false], [\"fantrax:031pl\", false], [\"fantrax:03924\", false], [\"fantrax:03as6\", false], [\"fantrax:03bfj\", false], [\"fantrax:03mbn\", false], [\"fantrax:03yh8\", true], [\"fantrax:04amg\", false], [\"fantrax:04lbz\", false], [\"fantrax:04lo0\", true], [\"fantrax:051yz\", false], [\"fantrax:059e0\", false], [\"fantrax:05gvq\", false], [\"fantrax:05mx8\", false], [\"fantrax:05oxs\", false], [\"fantrax:05ymj\", false], [\"fantrax:06psl\", false]]]",
+  "note": "reconstructed from the plan shown to the user"
+ },
+ {
+  "created": "2026-10-26T21:50:25+00:00",
+  "as_of": "2026-10-26",
+  "moves_left": 2,
+  "moves": [
+   {
+    "day": "2026-10-26",
+    "effective": "2026-10-27",
+    "add": {
+     "cid": "fantrax:04mtp",
+     "name": "Dylan Cozens",
+     "positions": [
+      "F"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:04lo0",
+     "name": "Quinton Byfield",
+     "positions": [
+      "F"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 8.08,
+    "waiver": null
+   },
+   {
+    "day": "2026-10-27",
+    "effective": "2026-10-28",
+    "add": {
+     "cid": "fantrax:03xme",
+     "name": "Charlie Lindgren",
+     "positions": [
+      "G"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "positions": [
+      "G"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 12.92,
+    "waiver": null
+   }
+  ],
+  "today": [],
+  "roster": {
+   "fantrax:04lo0": {
+    "name": "Quinton Byfield",
+    "ir": false
+   },
+   "fantrax:03924": {
+    "name": "Jack Eichel",
+    "ir": false
+   },
+   "fantrax:04amg": {
+    "name": "Alexis Lafreniere",
+    "ir": false
+   },
+   "fantrax:02yjj": {
+    "name": "William Nylander",
+    "ir": false
+   },
+   "fantrax:03bfj": {
+    "name": "Artemi Panarin",
+    "ir": false
+   },
+   "fantrax:04lbz": {
+    "name": "Quinn Hughes",
+    "ir": false
+   },
+   "fantrax:0243f": {
+    "name": "Seth Jones",
+    "ir": false
+   },
+   "fantrax:03eer": {
+    "name": "Jake Middleton",
+    "ir": false
+   },
+   "fantrax:059e0": {
+    "name": "Jake Sanderson",
+    "ir": false
+   },
+   "fantrax:051yz": {
+    "name": "Dylan Holloway",
+    "ir": false
+   },
+   "fantrax:05gvq": {
+    "name": "Seth Jarvis",
+    "ir": false
+   },
+   "fantrax:05ymj": {
+    "name": "Jimmy Snuggerud",
+    "ir": false
+   },
+   "fantrax:06psl": {
+    "name": "Ivar Stenberg",
+    "ir": false
+   },
+   "fantrax:03as6": {
+    "name": "Jared McCann",
+    "ir": true
+   },
+   "fantrax:03yh8": {
+    "name": "Owen Tippett",
+    "ir": true
+   },
+   "fantrax:03mbn": {
+    "name": "Mackenzie Blackwood",
+    "ir": false
+   },
+   "fantrax:031pl": {
+    "name": "Juuse Saros",
+    "ir": false
+   },
+   "fantrax:05oxs": {
+    "name": "Jakub Dobes",
+    "ir": false
+   }
+  },
+  "signature": "[[\"[\\\"fantrax:03xme\\\", \\\"fantrax:05oxs\\\", null]\", \"[\\\"fantrax:04mtp\\\", \\\"fantrax:04lo0\\\", null]\"], [[\"fantrax:0243f\", false], [\"fantrax:02yjj\", false], [\"fantrax:031pl\", false], [\"fantrax:03924\", false], [\"fantrax:03as6\", true], [\"fantrax:03bfj\", false], [\"fantrax:03eer\", false], [\"fantrax:03mbn\", false], [\"fantrax:03yh8\", true], [\"fantrax:04amg\", false], [\"fantrax:04lbz\", false], [\"fantrax:04lo0\", false], [\"fantrax:051yz\", false], [\"fantrax:059e0\", false], [\"fantrax:05gvq\", false], [\"fantrax:05oxs\", false], [\"fantrax:05ymj\", false], [\"fantrax:06psl\", false]]]"
+ }
+]

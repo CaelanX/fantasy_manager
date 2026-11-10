@@ -1,0 +1,3380 @@
+{
+ "version": 3,
+ "provider": "espn",
+ "league_id": "1727290947",
+ "as_of": "2026-11-05",
+ "archived_at": "2026-11-05T12:56:24",
+ "params_hash": "f46ed5d45a2d574d35f9b22154cc0037bfa5f6ce",
+ "code_hash": "rust:0.1.0",
+ "recommendations": [
+  {
+   "kind": "injury",
+   "score": 10.0,
+   "title": "Zach Hyman now IR (was healthy)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.5,
+   "reasons": [
+    {
+     "code": "STATUS_CHANGE",
+     "text": "Zach Hyman: healthy -> ir (Neck: ir (est. return 2026-11-07))",
+     "value": 3.0,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 6.759 (rank 1/5)",
+     "value": 6.759213209522937,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 10.0,
+   "title": "Zach Hyman due back Sat Nov 7: activate him from IR then",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 0.0,
+   "reasons": [
+    {
+     "code": "RETURN_DUE",
+     "text": "Zach Hyman is ir, expected back Sat Nov 7 (Neck: ir (est. return 2026-11-07))",
+     "value": 1.9250289117474992,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_LEFT",
+     "text": "Zach Hyman: 1 game from then to Sun Nov 8, ~1.9 pts if he plays",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 1.925 (rank 1/2)",
+     "value": 1.9250289117474992,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 10.0,
+   "title": "Add Judd Caulfield, drop Patrick Kane for this matchup",
+   "add": [
+    {
+     "cid": "espn:4755684",
+     "name": "Judd Caulfield",
+     "nhl_id": 8481538,
+     "team": "ANA",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 4.2061,
+   "gain_units": "matchup_pts",
+   "horizon_days": 4,
+   "strength": 5.43,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+2.10 FPG (week, best lineup each day) over dropping Patrick Kane",
+     "value": 2.103064398545719,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+4.2 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 4.206128797091438,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Judd Caulfield: 2.15 FPG, VORP -0.03",
+     "value": 2.1485907489704212,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Patrick Kane: 0.00 FPG, VORP -2.18",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "13 GP this season, no prior NHL games -> confidence 0.62",
+     "value": 13.0,
+     "baseline": 0.6226415094339622
+    },
+    {
+     "code": "SEASON_COST",
+     "text": "Rest of season: Judd Caulfield 1.40 vs Patrick Kane 0.96 FPG (an upgrade, +0.44)",
+     "value": 0.44103209815782984,
+     "baseline": 0.9571849355691432
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "STATUS",
+     "text": "Patrick Kane is out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Judd Caulfield rostered 3% (+0.2 this week)",
+     "value": 0.25,
+     "baseline": 2.8
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Judd Caulfield: market 4th pct (ADP/rostered %) vs model 20th (+16): market agrees",
+     "value": 16.5,
+     "baseline": 3.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Patrick Kane: market 64th pct (ADP/rostered %) vs model 1st (-63): model disagrees with market, rates him lower (assist luck, status out)",
+     "value": -63.3,
+     "baseline": 64.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 2.103 (rank 1/5)",
+     "value": 2.103064398545719,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "injury",
+   "score": 8.0,
+   "title": "Patrick Kane now OUT (was healthy)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "STATUS_CHANGE",
+     "text": "Patrick Kane: healthy -> out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": 2.0,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 4.786 (rank 2/5)",
+     "value": 4.785924677845716,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 8.0,
+   "title": "Add Gabriel Vilardi, drop Patrick Kane for this matchup",
+   "add": [
+    {
+     "cid": "espn:4233583",
+     "name": "Gabriel Vilardi",
+     "nhl_id": 8480014,
+     "team": "WPG",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 3.3068,
+   "gain_units": "matchup_pts",
+   "horizon_days": 4,
+   "strength": 6.01,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+1.65 FPG (week, best lineup each day) over dropping Patrick Kane",
+     "value": 1.6533998908831649,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+3.3 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 3.3067997817663297,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Gabriel Vilardi: 1.78 FPG, VORP -0.40",
+     "value": 1.7810196852339493,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Patrick Kane: 0.00 FPG, VORP -2.18",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "16 GP this season + 167 weighted from the last 3 seasons -> confidence 0.91",
+     "value": 16.0,
+     "baseline": 0.9103139013452914
+    },
+    {
+     "code": "SEASON_COST",
+     "text": "Rest of season: Gabriel Vilardi 1.55 vs Patrick Kane 0.96 FPG (an upgrade, +0.59)",
+     "value": 0.5933416969389306,
+     "baseline": 0.9571849355691432
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "STATUS",
+     "text": "Patrick Kane is out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Gabriel Vilardi rostered 44% (-0.4 this week)",
+     "value": -0.39,
+     "baseline": 43.95
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Gabriel Vilardi: market 50th pct (ADP/rostered %) vs model 36th (-13): market agrees",
+     "value": -13.4,
+     "baseline": 49.9
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Patrick Kane: market 64th pct (ADP/rostered %) vs model 1st (-63): model disagrees with market, rates him lower (assist luck, status out)",
+     "value": -63.3,
+     "baseline": 64.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 1.653 (rank 2/5)",
+     "value": 1.6533998908831649,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "injury",
+   "score": 6.0,
+   "title": "Cut Patrick Kane, add Valeri Nichushkin: +51 pts rest of season",
+   "add": [
+    {
+     "cid": "espn:3042003",
+     "name": "Valeri Nichushkin",
+     "nhl_id": 8477501,
+     "team": "CBJ",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 0.7522,
+   "gain_units": "season_fpg",
+   "horizon_days": null,
+   "strength": 4.94,
+   "reasons": [
+    {
+     "code": "RETURN_ESTIMATE",
+     "text": "Patrick Kane: return unknown, ~27 of 68 games missed (no timetable, flat out value x0.60, a guess)",
+     "value": 27.2,
+     "baseline": 68.0
+    },
+    {
+     "code": "HOLD_PTS",
+     "text": "Hold: 1.60 FPG x 41 games after his return = 65 pts (his roster spot is dead until then: no IR slot free)",
+     "value": 65.1,
+     "baseline": null
+    },
+    {
+     "code": "CUT_PTS",
+     "text": "Cut: Valeri Nichushkin (RW, CBJ) 1.71 FPG x 68 games = 116 pts",
+     "value": 116.2,
+     "baseline": null
+    },
+    {
+     "code": "BREAK_EVEN",
+     "text": "Cut only if he misses more than ~10 games",
+     "value": 9.7,
+     "baseline": 27.2
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 1.252 (rank 3/5)",
+     "value": 1.252175495548351,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 6.0,
+   "title": "Add Alex Killorn, drop Patrick Kane for this matchup",
+   "add": [
+    {
+     "cid": "espn:4968",
+     "name": "Alex Killorn",
+     "nhl_id": 8473986,
+     "team": "ANA",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 3.148,
+   "gain_units": "matchup_pts",
+   "horizon_days": 4,
+   "strength": 5.83,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+1.57 FPG (week, best lineup each day) over dropping Patrick Kane",
+     "value": 1.5739991064936518,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+3.1 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 3.1479982129873036,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Alex Killorn: 1.61 FPG, VORP -0.57",
+     "value": 1.6080724496304335,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Patrick Kane: 0.00 FPG, VORP -2.18",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "15 GP this season + 185 weighted from the last 3 seasons -> confidence 0.92",
+     "value": 15.0,
+     "baseline": 0.9168053244592347
+    },
+    {
+     "code": "SEASON_COST",
+     "text": "Rest of season: Alex Killorn 1.00 vs Patrick Kane 0.96 FPG (an upgrade, +0.04)",
+     "value": 0.04378571411773724,
+     "baseline": 0.9571849355691432
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "STATUS",
+     "text": "Patrick Kane is out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Alex Killorn rostered 1% (+0.0 this week)",
+     "value": 0.0,
+     "baseline": 1.14
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Alex Killorn: market 2nd pct (ADP/rostered %) vs model 2nd (+0): market agrees",
+     "value": 0.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Patrick Kane: market 64th pct (ADP/rostered %) vs model 1st (-63): model disagrees with market, rates him lower (assist luck, status out)",
+     "value": -63.3,
+     "baseline": 64.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 1.574 (rank 3/5)",
+     "value": 1.5739991064936518,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 5.0,
+   "title": "Bench Patrick Kane: out but in a starting slot (F)",
+   "add": [],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "STATUS",
+     "text": "Patrick Kane is out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Patrick Kane: 2 games next 7 days",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 1.595 (rank 2/2)",
+     "value": 1.595308225948572,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "injury",
+   "score": 4.0,
+   "title": "Hold Zach Hyman in IR (back ~Nov 7): it costs no roster spot",
+   "add": [],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 1.0,
+   "reasons": [
+    {
+     "code": "RETURN_ESTIMATE",
+     "text": "Zach Hyman: back ~Nov 7, ~1 of 68 games missed (note: \"est. return 2026-11-07\")",
+     "value": 1.0,
+     "baseline": 68.0
+    },
+    {
+     "code": "HOLD_VERDICT",
+     "text": "Zach Hyman sits in an IR slot, so keeping him costs nothing; ~113 pts after his return",
+     "value": 113.2,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 0.000 (rank 4/5)",
+     "value": 0.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 4.0,
+   "title": "Add Roger McQueen, drop Claude Giroux for this matchup",
+   "add": [
+    {
+     "cid": "espn:5291946",
+     "name": "Roger McQueen",
+     "nhl_id": 8485400,
+     "team": "ANA",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3775",
+     "name": "Claude Giroux",
+     "nhl_id": 8473512,
+     "team": "OTT",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 3.0715,
+   "gain_units": "matchup_pts",
+   "horizon_days": 4,
+   "strength": 4.26,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+1.54 FPG (week, best lineup each day) over dropping Claude Giroux",
+     "value": 1.5357503785794009,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+3.1 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 3.0715007571588018,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Roger McQueen: 1.70 FPG, VORP -0.48",
+     "value": 1.6987343324426714,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Claude Giroux: 0.95 FPG, VORP -1.23",
+     "value": 0.9508458244189345,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "10 GP this season, no prior NHL games -> confidence 0.60",
+     "value": 10.0,
+     "baseline": 0.6
+    },
+    {
+     "code": "SEASON_COST",
+     "text": "Rest of season: Roger McQueen 1.11 vs Claude Giroux 1.28 FPG (costs 0.17, 13% of Claude Giroux's)",
+     "value": -0.17220439669390708,
+     "baseline": 1.2776728441105816
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Roger McQueen rostered 1% (+0.0 this week)",
+     "value": 0.0,
+     "baseline": 0.68
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Roger McQueen: market 5th pct (ADP/rostered %) vs model 2nd (-3): market agrees",
+     "value": -3.1,
+     "baseline": 5.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Claude Giroux: market 18th pct (ADP/rostered %) vs model 10th (-8): market agrees",
+     "value": -7.6,
+     "baseline": 17.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 1.536 (rank 4/5)",
+     "value": 1.5357503785794009,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "injury",
+   "score": 2.0,
+   "title": "Hold Brad Marchand in IR (back ~Dec 5): it costs no roster spot",
+   "add": [],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 1.0,
+   "reasons": [
+    {
+     "code": "RETURN_ESTIMATE",
+     "text": "Brad Marchand: back ~Dec 5, ~13 of 68 games missed (IR without a timetable, 30 days assumed, a guess)",
+     "value": 13.0,
+     "baseline": 68.0
+    },
+    {
+     "code": "HOLD_VERDICT",
+     "text": "Brad Marchand sits in an IR slot, so keeping him costs nothing; ~96 pts after his return",
+     "value": 96.3,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 0.000 (rank 5/5)",
+     "value": 0.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 2.0,
+   "title": "Add Valeri Nichushkin, drop Patrick Kane",
+   "add": [
+    {
+     "cid": "espn:3042003",
+     "name": "Valeri Nichushkin",
+     "nhl_id": 8477501,
+     "team": "CBJ",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 0.7522,
+   "gain_units": "season_fpg",
+   "horizon_days": null,
+   "strength": 4.6,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+0.75 FPG (season) over dropping Patrick Kane",
+     "value": 0.752175495548351,
+     "baseline": 0.6
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Valeri Nichushkin: 1.71 FPG, VORP +0.12",
+     "value": 1.7093604311174941,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Patrick Kane: 0.96 FPG, VORP -0.64",
+     "value": 0.9571849355691432,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "13 GP this season + 139 weighted from the last 3 seasons -> confidence 0.90",
+     "value": 13.0,
+     "baseline": 0.8957247132429614
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "STATUS",
+     "text": "Patrick Kane is out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": 0.6,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Valeri Nichushkin rostered 41% (+0.1 this week)",
+     "value": 0.14,
+     "baseline": 40.99
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Valeri Nichushkin: market 42nd pct (ADP/rostered %) vs model 54th (+11): market agrees",
+     "value": 11.4,
+     "baseline": 42.4
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Patrick Kane: market 64th pct (ADP/rostered %) vs model 1st (-63): model disagrees with market, rates him lower (assist luck, status out)",
+     "value": -63.3,
+     "baseline": 64.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 0.674 (rank 5/5)",
+     "value": 0.6737421800584291,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 10.0,
+   "title": "Claude Giroux promoted to PP1 (F1 -> F3; PP2 -> PP1): start him / hold",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3775",
+     "name": "Claude Giroux",
+     "nhl_id": 8473512,
+     "team": "OTT",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Claude Giroux: F1 -> F3; PP2 -> PP1 per Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:04 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Claude Giroux now on PP1 (Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:04 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 1/16)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 10.0,
+   "title": "Trade Zach Hyman to Dartmouth Shiithawks  for Adam Fox + Mikael Granlund",
+   "add": [
+    {
+     "cid": "espn:4197146",
+     "name": "Adam Fox",
+     "nhl_id": 8479323,
+     "team": "NYR",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:5831",
+     "name": "Mikael Granlund",
+     "nhl_id": 8475798,
+     "team": "ANA",
+     "positions": [
+      "C",
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": 1.2142,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.89,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.21 pts/game this season (+3.7 pts/week, +83 rest of season)",
+     "value": 1.2142323563540884,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, +1 worth pts to them); acceptance ~55%",
+     "value": 1.1803112150102706,
+     "baseline": 1.1803112150102706
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner + Patrick Kane; Dartmouth Shiithawks  can pick up Jake Walman (FA)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+1.2 pts) while our model has you gaining +1.21",
+     "value": 1.2142323563540884,
+     "baseline": 1.1803112150102706
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 53% (prior logistic: they get 53, give 52 market pts -> +1.2 pts). EV = +1.21 x 0.53 = +0.65",
+     "value": 0.5323722627611929,
+     "baseline": 0.5323722627611929
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.7 pts/week (+1.21/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.694105183063019,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+83 pts rest of season (+1.21/game x 68 games left)",
+     "value": 82.85350196298485,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.21 FPG (optimal_lineup)",
+     "value": 1.2142323563540884,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Dartmouth Shiithawks  lineup -1.13 FPG (our model)",
+     "value": -1.1260300646553283,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Adam Fox (0.78), Mikael Granlund (0.32): 1.10 VORP",
+     "value": 1.1044699007397702,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Zach Hyman (0.07): 0.07 VORP",
+     "value": 0.07096157173171513,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 94% (shown only; old band 15%)",
+     "value": 0.9357505608037074,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner + Patrick Kane",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Adam Fox: market 77th pct (ADP/rostered %) vs model 93rd (+16): market agrees",
+     "value": 15.6,
+     "baseline": 77.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Mikael Granlund: market 49th pct (ADP/rostered %) vs model 70th (+21): market agrees",
+     "value": 21.2,
+     "baseline": 49.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Zach Hyman: market 81st pct (ADP/rostered %) vs model 50th (-31): model disagrees with market, rates him lower (injury return estimate, status ir)",
+     "value": -31.2,
+     "baseline": 81.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.646 (rank 1/10)",
+     "value": 0.6464236270700812,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 10.0,
+   "title": "Buy low on Tom Wilson (Yumyum Tenessee Sw@ss)",
+   "add": [
+    {
+     "cid": "espn:2970615",
+     "name": "Tom Wilson",
+     "nhl_id": 8476880,
+     "team": "WSH",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": 1.1925,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 7.13,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 0.74 FPG vs 1.93 shrunk season baseline (0.38x)",
+     "value": 0.3829279080053074,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 2.00 SOG/GP vs 2.10 baseline",
+     "value": 2.0,
+     "baseline": 2.1025641025641026
+    },
+    {
+     "code": "GP_L15",
+     "text": "5 GP in the last 15 days",
+     "value": 5.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.14/GP vs ixG 0.36/GP over 14 GP (-3.0 goals vs expected): about -0.44 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.4357,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 1.375 (rank 1/6)",
+     "value": 1.3747305621219439,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.375,
+   "title": "Artyom Levshunov (free agent) promoted to PP1 (D2 -> D1; PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5206648",
+     "name": "Artyom Levshunov",
+     "nhl_id": 8484783,
+     "team": "CHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Artyom Levshunov: D2 -> D1; PP2 -> PP1 per Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:06 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Artyom Levshunov now on PP1 (Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:06 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 2/16)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 9.0,
+   "title": "Trade Morgan Rielly to Yumyum Tenessee Sw@ss for Seth Jones + Spencer Knight",
+   "add": [
+    {
+     "cid": "espn:3041992",
+     "name": "Seth Jones",
+     "nhl_id": 8477495,
+     "team": "FLA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:4565234",
+     "name": "Spencer Knight",
+     "nhl_id": 8481519,
+     "team": "CHI",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:2976833",
+     "name": "Morgan Rielly",
+     "nhl_id": 8476853,
+     "team": "TOR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": 1.0051,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.49,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.01 pts/game this season (+3.1 pts/week, +69 rest of season)",
+     "value": 1.0050756414158961,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, -1 worth pts to them); acceptance ~60%",
+     "value": 3.6712400878018805,
+     "baseline": -1.3287599121981195
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Morgan Rielly fills Yumyum Tenessee Sw@ss's weakest slot D (starter VORP -0.05)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner; Yumyum Tenessee Sw@ss can pick up Valeri Nichushkin (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+3.7 pts) while our model has you gaining +1.01",
+     "value": 1.0050756414158961,
+     "baseline": 3.6712400878018805
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 60% (prior logistic: they get 25, give 26 market pts; +5 fills their weakest slot -> +3.7 pts). EV = +1.01 x 0.60 = +0.60",
+     "value": 0.5994867319072662,
+     "baseline": 0.5994867319072662
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.1 pts/week (+1.01/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.057779770811943,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+69 pts rest of season (+1.01/game x 68 games left)",
+     "value": 68.58163200249643,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.01 FPG (optimal_lineup)",
+     "value": 1.0050756414158961,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Yumyum Tenessee Sw@ss lineup -0.96 FPG (our model)",
+     "value": -0.9621608681815061,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Seth Jones (0.68), Spencer Knight (0.14): 0.82 VORP",
+     "value": 0.8243772390618018,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Morgan Rielly (0.06): 0.06 VORP",
+     "value": 0.05905868300275907,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 93% (shown only; old band 15%)",
+     "value": 0.9283596390046237,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (G limit 3: would roster 4 goalies): the drop must be a same-position player",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Seth Jones: market 60th pct (ADP/rostered %) vs model 89th (+29): model disagrees with market, rates him higher (assist luck)",
+     "value": 29.1,
+     "baseline": 60.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Spencer Knight: market 45th pct (ADP/rostered %) vs model 70th (+25): market agrees",
+     "value": 24.6,
+     "baseline": 45.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Morgan Rielly: market 63rd pct (ADP/rostered %) vs model 53rd (-11): market agrees",
+     "value": -10.5,
+     "baseline": 63.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.603 (rank 2/10)",
+     "value": 0.602529511592015,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.75,
+   "title": "Connor Brown (free agent) promoted to PP1 (no PP -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3067951",
+     "name": "Connor Brown",
+     "nhl_id": 8477015,
+     "team": "NJD",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Connor Brown: no PP -> PP1 per Daily Faceoff (Mike Morreale, updated Nov 05 15:50 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Connor Brown now on PP1 (Daily Faceoff (Mike Morreale, updated Nov 05 15:50 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 3/16)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 8.3333,
+   "title": "Buy low on Brandon Hagel (Lane Hutson Fan Club)",
+   "add": [
+    {
+     "cid": "espn:4065019",
+     "name": "Brandon Hagel",
+     "nhl_id": 8479542,
+     "team": "TBL",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": 0.8193,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 3.84,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.62 FPG vs 2.44 shrunk season baseline (0.66x)",
+     "value": 0.6641205325858444,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 3.60 SOG/GP vs 3.33 baseline",
+     "value": 3.6,
+     "baseline": 3.3333333333333335
+    },
+    {
+     "code": "GP_L15",
+     "text": "5 GP in the last 15 days",
+     "value": 5.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.57/GP vs ixG 0.65/GP over 14 GP (-1.1 goals vs expected): about -0.16 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.16,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.762 (rank 2/6)",
+     "value": 0.761650341271324,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.125,
+   "title": "Kasperi Kapanen (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3114775",
+     "name": "Kasperi Kapanen",
+     "nhl_id": 8477953,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Kasperi Kapanen: PP2 -> PP1 per Daily Faceoff (Bob Stauffer, updated Nov 05 17:14 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Kasperi Kapanen now on PP1 (Daily Faceoff (Bob Stauffer, updated Nov 05 17:14 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 4/16)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 8.0,
+   "title": "Trade Morgan Rielly to Yumyum Tenessee Sw@ss for Seth Jones + Juuse Saros",
+   "add": [
+    {
+     "cid": "espn:3041992",
+     "name": "Seth Jones",
+     "nhl_id": 8477495,
+     "team": "FLA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:3042109",
+     "name": "Juuse Saros",
+     "nhl_id": 8477424,
+     "team": "NSH",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:2976833",
+     "name": "Morgan Rielly",
+     "nhl_id": 8476853,
+     "team": "TOR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": 1.1514,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.52,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.15 pts/game this season (+3.5 pts/week, +79 rest of season)",
+     "value": 1.1513824898106364,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (ADP/rostered %, -4 worth pts to them); acceptance ~50%",
+     "value": 0.6465933726970761,
+     "baseline": -4.353406627302924
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Morgan Rielly fills Yumyum Tenessee Sw@ss's weakest slot D (starter VORP -0.05)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner; Yumyum Tenessee Sw@ss can pick up Valeri Nichushkin (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+0.6 pts) while our model has you gaining +1.15",
+     "value": 1.1513824898106364,
+     "baseline": 0.6465933726970761
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 52% (prior logistic: they get 25, give 30 market pts; +5 fills their weakest slot -> +0.6 pts). EV = +1.15 x 0.52 = +0.60",
+     "value": 0.5177514217088321,
+     "baseline": 0.5177514217088321
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.5 pts/week (+1.15/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.502894648655814,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+79 pts rest of season (+1.15/game x 68 games left)",
+     "value": 78.56492283413755,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.15 FPG (optimal_lineup)",
+     "value": 1.1513824898106364,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Yumyum Tenessee Sw@ss lineup -1.11 FPG (our model)",
+     "value": -1.1084677165762464,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Seth Jones (0.68), Juuse Saros (0.29): 0.97 VORP",
+     "value": 0.9706840874565417,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Morgan Rielly (0.06): 0.06 VORP",
+     "value": 0.05905868300275907,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 94% (shown only; old band 15%)",
+     "value": 0.9391576685288939,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (G limit 3: would roster 4 goalies): the drop must be a same-position player",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Seth Jones: market 60th pct (ADP/rostered %) vs model 89th (+29): model disagrees with market, rates him higher (assist luck)",
+     "value": 29.1,
+     "baseline": 60.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Juuse Saros: market 53rd pct (ADP/rostered %) vs model 80th (+27): model disagrees with market, rates him higher (goalie save talent (GSAx), goalie start share)",
+     "value": 26.8,
+     "baseline": 53.4
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Morgan Rielly: market 63rd pct (ADP/rostered %) vs model 53rd (-11): market agrees",
+     "value": -10.5,
+     "baseline": 63.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.596 (rank 3/10)",
+     "value": 0.596129921030112,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.5,
+   "title": "Mavrik Bourque (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697413",
+     "name": "Mavrik Bourque",
+     "nhl_id": 8482145,
+     "team": "NSH",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Mavrik Bourque: PP2 -> PP1 per Daily Faceoff (Nick Kieser, updated Nov 04 19:48 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Mavrik Bourque now on PP1 (Daily Faceoff (Nick Kieser, updated Nov 04 19:48 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 5/16)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 7.0,
+   "title": "Trade Jack Eichel to Djibouti Dragons for Mikhail Sergachev + Jake Sanderson",
+   "add": [
+    {
+     "cid": "espn:4024868",
+     "name": "Mikhail Sergachev",
+     "nhl_id": 8479410,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:4697386",
+     "name": "Jake Sanderson",
+     "nhl_id": 8482105,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3648002",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": 0.9165,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.45,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.92 pts/game this season (+2.8 pts/week, +63 rest of season)",
+     "value": 0.9165168890357194,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (ADP/rostered %, +5 worth pts to them); acceptance ~65%",
+     "value": 5.109634367810131,
+     "baseline": 5.109634367810131
+    },
+    {
+     "code": "MARKET_COST",
+     "text": "You hand over 5 market worth pts (5 free): ranked 0.01 lower, since that value could buy something in another trade",
+     "value": -0.00548171839050653,
+     "baseline": 5.109634367810131
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner; Djibouti Dragons can pick up Jake Walman (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 64% (prior logistic: they get 84, give 79 market pts -> +5.1 pts). EV = +0.92 x 0.64 = +0.58; score +0.58 after the market cost",
+     "value": 0.6367650110380181,
+     "baseline": 0.6367650110380181
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.8 pts/week (+0.92/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.788354117261162,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+63 pts rest of season (+0.92/game x 68 games left)",
+     "value": 62.5387994871432,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.92 FPG (optimal_lineup)",
+     "value": 0.9165168890357194,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Djibouti Dragons lineup -1.02 FPG (our model)",
+     "value": -1.0243585735991338,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Mikhail Sergachev (0.79), Jake Sanderson (0.70): 1.49 VORP",
+     "value": 1.49301355958377,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (0.75): 0.75 VORP",
+     "value": 0.7524602918383583,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 50% (shown only; old band 15%)",
+     "value": 0.49601241930573414,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Mikhail Sergachev: market 81st pct (ADP/rostered %) vs model 93rd (+12): market agrees",
+     "value": 12.0,
+     "baseline": 81.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jake Sanderson: market 79th pct (ADP/rostered %) vs model 90th (+11): market agrees",
+     "value": 10.8,
+     "baseline": 79.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jack Eichel: market 94th pct (ADP/rostered %) vs model 91st (-3): market agrees",
+     "value": -3.4,
+     "baseline": 94.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.578 (rank 4/10)",
+     "value": 0.5781241685728533,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.875,
+   "title": "Role up: Kasperi Kapanen (PP1; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3114775",
+     "name": "Kasperi Kapanen",
+     "nhl_id": 8477953,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 54% of team PP time over the last 5 GP vs 6% baseline - PP1 usage",
+     "value": 0.5417,
+     "baseline": 0.06
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 6/16)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 6.6667,
+   "title": "Buy low on Mika Zibanejad (Virginville Incels)",
+   "add": [
+    {
+     "cid": "espn:2562637",
+     "name": "Mika Zibanejad",
+     "nhl_id": 8476459,
+     "team": "NYR",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Virginville Incels",
+   "predicted_gain": 0.7458,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 4.09,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.34 FPG vs 2.09 shrunk season baseline (0.64x)",
+     "value": 0.6424373062834603,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 2.40 SOG/GP vs 2.36 baseline",
+     "value": 2.4,
+     "baseline": 2.3576256244490152
+    },
+    {
+     "code": "GP_L15",
+     "text": "5 GP in the last 15 days",
+     "value": 5.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.19/GP vs ixG 0.25/GP over 16 GP (-1.1 goals vs expected): about -0.13 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.1338,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.526 (rank 3/6)",
+     "value": 0.5263803212846295,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.25,
+   "title": "Role up: Owen Power (PP1; Glizzyopolos Gladiators)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4781556",
+     "name": "Owen Power",
+     "nhl_id": 8482671,
+     "team": "BUF",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Glizzyopolos Gladiators",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 71% of team PP time over the last 5 GP vs 19% baseline - PP1 usage",
+     "value": 0.7123,
+     "baseline": 0.187
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 7/16)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 6.0,
+   "title": "Trade Artemi Panarin to Barbados Butt Pirates for Mark Stone + Thomas Chabot",
+   "add": [
+    {
+     "cid": "espn:5545",
+     "name": "Mark Stone",
+     "nhl_id": 8475913,
+     "team": "VGK",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    },
+    {
+     "cid": "espn:3900219",
+     "name": "Thomas Chabot",
+     "nhl_id": 8478469,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3891952",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Barbados Butt Pirates",
+   "predicted_gain": 0.9495,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.91,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.95 pts/game this season (+2.9 pts/week, +65 rest of season)",
+     "value": 0.9495135559505776,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (ADP/rostered %, +7 worth pts to them); acceptance ~70%",
+     "value": 7.002176344081448,
+     "baseline": 7.002176344081448
+    },
+    {
+     "code": "MARKET_COST",
+     "text": "You hand over 7 market worth pts (5 free): ranked 0.10 lower, since that value could buy something in another trade",
+     "value": -0.10010881720407241,
+     "baseline": 7.002176344081448
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner; Barbados Butt Pirates can pick up Jake Walman (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 68% (prior logistic: they get 69, give 62 market pts -> +7.0 pts). EV = +0.95 x 0.68 = +0.65; score +0.55 after the market cost",
+     "value": 0.683362460801788,
+     "baseline": 0.683362460801788
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.9 pts/week (+0.95/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.8887411293813003,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+65 pts rest of season (+0.95/game x 68 games left)",
+     "value": 64.79033675898059,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.95 FPG (optimal_lineup)",
+     "value": 0.9495135559505776,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Barbados Butt Pirates lineup -0.91 FPG (our model)",
+     "value": -0.9148109173178476,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Mark Stone (0.87), Thomas Chabot (0.45): 1.32 VORP",
+     "value": 1.3241097263937935,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (0.56): 0.56 VORP",
+     "value": 0.5553201977892488,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 58% (shown only; old band 15%)",
+     "value": 0.5806086257657357,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Mark Stone: market 71st pct (ADP/rostered %) vs model 95th (+24): market agrees",
+     "value": 24.0,
+     "baseline": 70.6
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Thomas Chabot: market 77th pct (ADP/rostered %) vs model 79th (+2): market agrees",
+     "value": 2.1,
+     "baseline": 76.5
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Artemi Panarin: market 89th pct (ADP/rostered %) vs model 80th (-8): market agrees",
+     "value": -8.2,
+     "baseline": 88.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.549 (rank 5/10)",
+     "value": 0.5487531029549705,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.625,
+   "title": "Role up: Vasily Podkolzin (PP1; Lane Hutson Fan Club)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4565231",
+     "name": "Vasily Podkolzin",
+     "nhl_id": 8481617,
+     "team": "EDM",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 54% of team PP time over the last 5 GP vs 11% baseline - PP1 usage",
+     "value": 0.5375,
+     "baseline": 0.111
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 8/16)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.0,
+   "title": "Connor Hellebuyck likely to start tonight vs STL: start him",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3020225",
+     "name": "Connor Hellebuyck",
+     "nhl_id": 8476945,
+     "team": "NJD",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.0,
+   "reasons": [
+    {
+     "code": "CONFIRMED_START",
+     "text": "DFO Likely: Connor Hellebuyck starts STL@NJD (Mike Morreale, Nov 05 16:09 UTC)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 9/16)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 5.0,
+   "title": "Trade Zach Hyman to Dartmouth Shiithawks  for Adam Fox + Dylan Strome",
+   "add": [
+    {
+     "cid": "espn:4197146",
+     "name": "Adam Fox",
+     "nhl_id": 8479323,
+     "team": "NYR",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:3899933",
+     "name": "Dylan Strome",
+     "nhl_id": 8478440,
+     "team": "WSH",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": 1.1575,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.06,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.16 pts/game this season (+3.5 pts/week, +79 rest of season)",
+     "value": 1.1575127121711475,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, -2 worth pts to them); acceptance ~45%",
+     "value": -1.5187107970078628,
+     "baseline": -1.5187107970078628
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner + Patrick Kane; Dartmouth Shiithawks  can pick up Jake Walman (FA)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-1.5 pts) while our model has you gaining +1.16",
+     "value": 1.0815771723207543,
+     "baseline": -1.5187107970078628
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 46% (prior logistic: they get 53, give 55 market pts -> -1.5 pts). EV = +1.16 x 0.46 = +0.53",
+     "value": 0.4583846375598224,
+     "baseline": 0.4583846375598224
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.5 pts/week (+1.16/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.521544856811434,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+79 pts rest of season (+1.16/game x 68 games left)",
+     "value": 78.98322035991359,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.16 FPG (optimal_lineup)",
+     "value": 1.1575127121711475,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Dartmouth Shiithawks  lineup -1.07 FPG (our model)",
+     "value": -1.0693104204723909,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Adam Fox (0.78), Dylan Strome (0.26): 1.05 VORP",
+     "value": 1.0477502565568304,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Zach Hyman (0.07): 0.07 VORP",
+     "value": 0.07096157173171513,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 93% (shown only; old band 15%)",
+     "value": 0.9322724367876438,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner + Patrick Kane",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Adam Fox: market 77th pct (ADP/rostered %) vs model 93rd (+16): market agrees",
+     "value": 15.6,
+     "baseline": 77.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Dylan Strome: market 56th pct (ADP/rostered %) vs model 66th (+11): market agrees",
+     "value": 10.8,
+     "baseline": 55.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Zach Hyman: market 81st pct (ADP/rostered %) vs model 50th (-31): model disagrees with market, rates him lower (injury return estimate, status ir)",
+     "value": -31.2,
+     "baseline": 81.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.531 (rank 6/10)",
+     "value": 0.5305860450394585,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "sell_high",
+   "score": 5.0,
+   "title": "Sell high on Josh Anderson",
+   "add": [],
+   "drop": [
+    {
+     "cid": "espn:3069687",
+     "name": "Josh Anderson",
+     "nhl_id": 8476981,
+     "team": "MTL",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": -0.5739,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 4.87,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.93 FPG vs 1.36 shrunk season baseline (1.42x)",
+     "value": 1.4221858956348497,
+     "baseline": 1.35
+    },
+    {
+     "code": "GP_L15",
+     "text": "6 GP in the last 15 days",
+     "value": 6.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.47/GP vs ixG 0.33/GP over 15 GP (+2.1 goals vs expected): about +0.28 FPG of finishing luck (MoneyPuck.com)",
+     "value": 0.2773,
+     "baseline": 0.0
+    },
+    {
+     "code": "VORP",
+     "text": "Season VORP -0.29",
+     "value": -0.28767348526953995,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "sell_high engine score 0.504 (rank 4/6)",
+     "value": 0.5038085021242539,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.375,
+   "title": "Stuart Skinner confirmed to start tonight vs VAN: start him",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4268767",
+     "name": "Stuart Skinner",
+     "nhl_id": 8479973,
+     "team": "WPG",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.0,
+   "reasons": [
+    {
+     "code": "CONFIRMED_START",
+     "text": "DFO Confirmed: Stuart Skinner starts VAN@WPG (Ken Wiebe, Nov 05 15:46 UTC)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 10/16)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 4.0,
+   "title": "Trade Brayden Point to Flin Flon Flappers for Jesper Wallstedt + Kaiden Guhle",
+   "add": [
+    {
+     "cid": "espn:4874737",
+     "name": "Jesper Wallstedt",
+     "nhl_id": 8482661,
+     "team": "MIN",
+     "positions": [
+      "G"
+     ]
+    },
+    {
+     "cid": "espn:4697399",
+     "name": "Kaiden Guhle",
+     "nhl_id": 8482087,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3151187",
+     "name": "Brayden Point",
+     "nhl_id": 8478010,
+     "team": "TBL",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": 0.8387,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 6.72,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.84 pts/game this season (+2.6 pts/week, +57 rest of season)",
+     "value": 0.8386883434802783,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, -1 worth pts to them); acceptance ~60%",
+     "value": 4.059182994884324,
+     "baseline": -0.9408170051156759
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Brayden Point fills Flin Flon Flappers's weakest slot F (starter VORP -0.03)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner; Flin Flon Flappers can pick up Jet Greaves (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+4.1 pts) while our model has you gaining +0.84",
+     "value": 0.8386883434802783,
+     "baseline": 4.059182994884324
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 61% (prior logistic: they get 32, give 33 market pts; +5 fills their weakest slot -> +4.1 pts). EV = +0.84 x 0.61 = +0.51",
+     "value": 0.6096751259201982,
+     "baseline": 0.6096751259201982
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.6 pts/week (+0.84/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.5515733791906556,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+57 pts rest of season (+0.84/game x 68 games left)",
+     "value": 57.22814579041899,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.84 FPG (optimal_lineup)",
+     "value": 0.8386883434802783,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Flin Flon Flappers lineup -0.49 FPG (our model)",
+     "value": -0.4876361571045855,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Jesper Wallstedt (0.69), Kaiden Guhle (0.17): 0.86 VORP",
+     "value": 0.8595942693876237,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Brayden Point (0.26): 0.26 VORP",
+     "value": 0.2632289211371861,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 69% (shown only; old band 15%)",
+     "value": 0.6937753885624309,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (G limit 3: would roster 4 goalies): the drop must be a same-position player",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jesper Wallstedt: market 69th pct (ADP/rostered %) vs model 99th (+30): model disagrees with market, rates him higher (goalie save talent (GSAx), goalie start share)",
+     "value": 29.9,
+     "baseline": 68.8
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Kaiden Guhle: market 16th pct (ADP/rostered %) vs model 61st (+44): model disagrees with market, rates him higher (assist luck)",
+     "value": 44.2,
+     "baseline": 16.4
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Brayden Point: market 68th pct (ADP/rostered %) vs model 66th (-2): market agrees",
+     "value": -2.1,
+     "baseline": 68.3
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.511 (rank 7/10)",
+     "value": 0.5113274214191411,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.75,
+   "title": "Casey DeSmith (free agent) confirmed to start tonight vs CBJ (weak offense): streamer",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3025540",
+     "name": "Casey DeSmith",
+     "nhl_id": 8479193,
+     "team": "DAL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.0,
+   "reasons": [
+    {
+     "code": "CONFIRMED_START",
+     "text": "DFO Confirmed: Casey DeSmith starts DAL@CBJ (Mike Heika, Nov 05 17:25 UTC)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "OPPONENT",
+     "text": "CBJ scores 2.54 goals per game (bottom-10 offense)",
+     "value": 2.5384615384615383,
+     "baseline": null
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "G limit 3 reached: streaming him needs a G drop",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 11/16)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 3.3333,
+   "title": "Buy low on Mason McTavish (Dartmouth Shiithawks )",
+   "add": [
+    {
+     "cid": "espn:4874718",
+     "name": "Mason McTavish",
+     "nhl_id": 8482745,
+     "team": "STL",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": 0.7025,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 5.35,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 0.82 FPG vs 1.52 shrunk season baseline (0.54x)",
+     "value": 0.5375754251234229,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 2.33 SOG/GP vs 2.37 baseline",
+     "value": 2.3333333333333335,
+     "baseline": 2.3666666666666667
+    },
+    {
+     "code": "GP_L15",
+     "text": "6 GP in the last 15 days",
+     "value": 6.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.40/GP vs ixG 0.47/GP over 15 GP (-1.0 goals vs expected): about -0.13 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.1347,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.420 (rank 5/6)",
+     "value": 0.4204098948510637,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.125,
+   "title": "Tyler Bertuzzi moved up to the top unit (F2 -> F1; PP1 -> PP2): role boost",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3042056",
+     "name": "Tyler Bertuzzi",
+     "nhl_id": 8477479,
+     "team": "CHI",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Tyler Bertuzzi: F2 -> F1; PP1 -> PP2 per Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:06 UTC)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Tyler Bertuzzi now on PP2 (Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:06 UTC))",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 12/16)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 3.0,
+   "title": "Trade Artemi Panarin to North Korea Nudy Balls? for Connor Bedard + Lucas Raymond",
+   "add": [
+    {
+     "cid": "espn:5149125",
+     "name": "Connor Bedard",
+     "nhl_id": 8484144,
+     "team": "CHI",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    },
+    {
+     "cid": "espn:4697385",
+     "name": "Lucas Raymond",
+     "nhl_id": 8482078,
+     "team": "DET",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3891952",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "North Korea Nudy Balls?",
+   "predicted_gain": 0.7745,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 6.77,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.77 pts/game this season (+2.4 pts/week, +53 rest of season)",
+     "value": 0.7744582943078875,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (ADP/rostered %, +5 worth pts to them); acceptance ~65%",
+     "value": 4.822672216814695,
+     "baseline": 4.822672216814695
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner; North Korea Nudy Balls? can pick up Valeri Nichushkin (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+4.8 pts) while our model has you gaining +0.77",
+     "value": 0.7744582943078875,
+     "baseline": 4.822672216814695
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 63% (prior logistic: they get 69, give 65 market pts -> +4.8 pts). EV = +0.77 x 0.63 = +0.49",
+     "value": 0.6294422242021407,
+     "baseline": 0.6294422242021407
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.4 pts/week (+0.77/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.3561638627875783,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+53 pts rest of season (+0.77/game x 68 games left)",
+     "value": 52.845389493949966,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.77 FPG (optimal_lineup)",
+     "value": 0.7744582943078875,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "North Korea Nudy Balls? lineup -0.67 FPG (our model)",
+     "value": -0.6736334760434879,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Connor Bedard (0.67), Lucas Raymond (0.52): 1.19 VORP",
+     "value": 1.186168848438995,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (0.56): 0.56 VORP",
+     "value": 0.5553201977892488,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 53% (shown only; old band 15%)",
+     "value": 0.5318371423089947,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Connor Bedard: market 79th pct (ADP/rostered %) vs model 86th (+8): market agrees",
+     "value": 7.6,
+     "baseline": 78.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Lucas Raymond: market 68th pct (ADP/rostered %) vs model 80th (+11): market agrees",
+     "value": 11.4,
+     "baseline": 68.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Artemi Panarin: market 89th pct (ADP/rostered %) vs model 80th (-8): market agrees",
+     "value": -8.2,
+     "baseline": 88.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.487 (rank 8/10)",
+     "value": 0.48747675132095275,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.5,
+   "title": "Jonas Brodin (free agent) moved up to the top unit (D2 -> D1; PP2 -> no PP): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:2562600",
+     "name": "Jonas Brodin",
+     "nhl_id": 8476463,
+     "team": "MIN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Jonas Brodin: D2 -> D1; PP2 -> no PP per Daily Faceoff (Joe Smith, updated Nov 05 17:39 UTC)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 13/16)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 2.0,
+   "title": "Trade Jack Eichel to Flin Flon Flappers for Clayton Keller + Jesper Wallstedt",
+   "add": [
+    {
+     "cid": "espn:4024857",
+     "name": "Clayton Keller",
+     "nhl_id": 8479343,
+     "team": "UTA",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    },
+    {
+     "cid": "espn:4874737",
+     "name": "Jesper Wallstedt",
+     "nhl_id": 8482661,
+     "team": "MIN",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3648002",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": 0.934,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 6.48,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.93 pts/game this season (+2.8 pts/week, +64 rest of season)",
+     "value": 0.9340397591717959,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (ADP/rostered %, -5 worth pts to them); acceptance ~50%",
+     "value": 0.1628570871111208,
+     "baseline": -4.837142912888879
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Jack Eichel fills Flin Flon Flappers's weakest slot F (starter VORP -0.03)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner; Flin Flon Flappers can pick up Jet Greaves (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+0.2 pts) while our model has you gaining +0.93",
+     "value": 0.9340397591717959,
+     "baseline": 0.1628570871111208
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 50% (prior logistic: they get 84, give 88 market pts; +5 fills their weakest slot -> +0.2 pts). EV = +0.93 x 0.50 = +0.47",
+     "value": 0.504472800614056,
+     "baseline": 0.504472800614056
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.8 pts/week (+0.93/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.8416646101442424,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+64 pts rest of season (+0.93/game x 68 games left)",
+     "value": 63.73447768466372,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.93 FPG (optimal_lineup)",
+     "value": 0.9340397591717959,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Flin Flon Flappers lineup -0.63 FPG (our model)",
+     "value": -0.6346170683715897,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Clayton Keller (0.76), Jesper Wallstedt (0.69): 1.45 VORP",
+     "value": 1.4467429656533002,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (0.75): 0.75 VORP",
+     "value": 0.7524602918383583,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 48% (shown only; old band 15%)",
+     "value": 0.4798935887698803,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (G limit 3: would roster 4 goalies): the drop must be a same-position player",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Clayton Keller: market 90th pct (ADP/rostered %) vs model 91st (+1): market agrees",
+     "value": 1.4,
+     "baseline": 89.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jesper Wallstedt: market 69th pct (ADP/rostered %) vs model 99th (+30): model disagrees with market, rates him higher (goalie save talent (GSAx), goalie start share)",
+     "value": 29.9,
+     "baseline": 68.8
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jack Eichel: market 94th pct (ADP/rostered %) vs model 91st (-3): market agrees",
+     "value": -3.4,
+     "baseline": 94.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.471 (rank 9/10)",
+     "value": 0.47119765319427426,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.875,
+   "title": "Gavin McKenna dropped off PP1 (PP1 -> PP2): sell / bench caution",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5342529",
+     "name": "Gavin McKenna",
+     "nhl_id": 8486067,
+     "team": "TOR",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Gavin McKenna: PP1 -> PP2 per Daily Faceoff (David Alter, updated Nov 04 19:48 UTC)",
+     "value": 4.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Gavin McKenna now on PP2 (Daily Faceoff (David Alter, updated Nov 04 19:48 UTC))",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.000 (rank 14/16)",
+     "value": 4.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 1.6667,
+   "title": "Buy low on Dougie Hamilton (North Korea Nudy Balls?)",
+   "add": [
+    {
+     "cid": "espn:2562605",
+     "name": "Dougie Hamilton",
+     "nhl_id": 8476462,
+     "team": "NJD",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "North Korea Nudy Balls?",
+   "predicted_gain": 0.679,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 4.61,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.02 FPG vs 1.70 shrunk season baseline (0.60x)",
+     "value": 0.5995822582626857,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 2.50 SOG/GP vs 2.64 baseline",
+     "value": 2.5,
+     "baseline": 2.6395833333333334
+    },
+    {
+     "code": "GP_L15",
+     "text": "6 GP in the last 15 days",
+     "value": 6.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.07/GP vs ixG 0.14/GP over 15 GP (-1.1 goals vs expected): about -0.15 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.1467,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.393 (rank 6/6)",
+     "value": 0.3926580767701527,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.25,
+   "title": "Patrick Kane dropped off PP1 (F1 -> IR; PP1 -> no PP): sell / bench caution",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Patrick Kane: F1 -> IR; PP1 -> no PP per Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:06 UTC)",
+     "value": 4.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Patrick Kane now on no power-play unit (Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:06 UTC))",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.000 (rank 15/16)",
+     "value": 4.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 1.0,
+   "title": "Trade Noah Hanifin to Looch Lovers for Viktor Arvidsson + Mattias Samuelsson",
+   "add": [
+    {
+     "cid": "espn:3120307",
+     "name": "Viktor Arvidsson",
+     "nhl_id": 8478042,
+     "team": "DET",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    },
+    {
+     "cid": "espn:4378656",
+     "name": "Mattias Samuelsson",
+     "nhl_id": 8480807,
+     "team": "BUF",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3652964",
+     "name": "Noah Hanifin",
+     "nhl_id": 8478396,
+     "team": "VGK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Looch Lovers",
+   "predicted_gain": 0.6973,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 6.32,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.70 pts/game this season (+2.1 pts/week, +48 rest of season)",
+     "value": 0.6973350985721538,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (ADP/rostered %, +4 worth pts to them); acceptance ~60%",
+     "value": 4.372201351806398,
+     "baseline": 4.372201351806398
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Stuart Skinner; Looch Lovers can pick up Jet Greaves (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+4.4 pts) while our model has you gaining +0.70",
+     "value": 0.6973350985721538,
+     "baseline": 4.372201351806398
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 62% (prior logistic: they get 17, give 12 market pts -> +4.4 pts). EV = +0.70 x 0.62 = +0.43",
+     "value": 0.6178270746218512,
+     "baseline": 0.6178270746218512
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.1 pts/week (+0.70/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.121529037244619,
+     "baseline": 3.042337954289996
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+48 pts rest of season (+0.70/game x 68 games left)",
+     "value": 47.58286554962932,
+     "baseline": 68.23529411764706
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.70 FPG (optimal_lineup)",
+     "value": 0.6973350985721538,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Looch Lovers lineup -0.66 FPG (our model)",
+     "value": -0.6605404134676149,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Viktor Arvidsson (0.33), Mattias Samuelsson (0.26): 0.59 VORP",
+     "value": 0.5912078853488536,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Noah Hanifin (0.04): 0.04 VORP",
+     "value": 0.03748243043484112,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 94% (shown only; old band 15%)",
+     "value": 0.936600252865836,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Stuart Skinner",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Viktor Arvidsson: market 39th pct (ADP/rostered %) vs model 71st (+32): model disagrees with market, rates him higher (assist luck)",
+     "value": 32.3,
+     "baseline": 38.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Mattias Samuelsson: market 46th pct (ADP/rostered %) vs model 69th (+24): market agrees",
+     "value": 23.6,
+     "baseline": 45.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Noah Hanifin: market 55th pct (ADP/rostered %) vs model 50th (-5): market agrees",
+     "value": -5.0,
+     "baseline": 55.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.431 (rank 10/10)",
+     "value": 0.430832503981974,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.625,
+   "title": "Zach Hyman dropped off PP1 (F2 -> IR; PP1 -> no PP): sell / bench caution",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Zach Hyman: F2 -> IR; PP1 -> no PP per Daily Faceoff (Bob Stauffer, updated Nov 05 17:14 UTC)",
+     "value": 4.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Zach Hyman now on no power-play unit (Daily Faceoff (Bob Stauffer, updated Nov 05 17:14 UTC))",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.000 (rank 16/16)",
+     "value": 4.0,
+     "baseline": null
+    }
+   ]
+  }
+ ]
+}

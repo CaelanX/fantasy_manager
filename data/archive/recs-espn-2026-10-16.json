@@ -1,0 +1,947 @@
+{
+ "version": 3,
+ "provider": "espn",
+ "league_id": "1727290947",
+ "as_of": "2026-10-16",
+ "archived_at": "2026-10-16T12:09:35",
+ "params_hash": "f46ed5d45a2d574d35f9b22154cc0037bfa5f6ce",
+ "code_hash": "df127e081440feb2e3d05a22fe09c233156d2067",
+ "recommendations": [
+  {
+   "kind": "lineup",
+   "score": 10.0,
+   "title": "Activate Zach Hyman from IR (dtd)",
+   "add": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 4.2191,
+   "gain_units": "week_pts",
+   "horizon_days": 7,
+   "strength": 7.22,
+   "reasons": [
+    {
+     "code": "STATUS",
+     "text": "Zach Hyman is dtd but sits in an IR slot (Undisclosed: day-to-day (est. return 2026-10-17))",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Zach Hyman: 3 games next 7 days",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 1.875 (rank 1/3)",
+     "value": 1.8751362773302165,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 6.6667,
+   "title": "Bench Brad Marchand: ir but in a starting slot (F)",
+   "add": [],
+   "drop": [
+    {
+     "cid": "espn:3852",
+     "name": "Brad Marchand",
+     "nhl_id": 8473419,
+     "team": "FLA",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "STATUS",
+     "text": "Brad Marchand is ir (Leg: ir (est. return 2026-11-21))",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Brad Marchand: 3 games next 7 days (1 off-night)",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 1.757 (rank 2/3)",
+     "value": 1.7572568828489294,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 3.3333,
+   "title": "Connor Hellebuyck due back Sat Oct 17: activate him from IR then",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3020225",
+     "name": "Connor Hellebuyck",
+     "nhl_id": 8476945,
+     "team": "WPG",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 0.0,
+   "reasons": [
+    {
+     "code": "RETURN_DUE",
+     "text": "Connor Hellebuyck is ir, expected back Sat Oct 17 (Suspension: ir-nr (est. return 2026-10-17))",
+     "value": 1.4563810288428716,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_LEFT",
+     "text": "Connor Hellebuyck: 1 game from then to Sun Oct 18, ~1.5 pts if he plays",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 1.456 (rank 3/3)",
+     "value": 1.4563810288428716,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 10.0,
+   "title": "Rising: Neal Pionk (+7.3% rostered this week)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3988847",
+     "name": "Neal Pionk",
+     "nhl_id": 8480145,
+     "team": "WPG",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": 7,
+   "strength": 5.44,
+   "reasons": [
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Neal Pionk rostered 11% (+7.3 this week): rising, grab him before the league does (score x1.37)",
+     "value": 7.31,
+     "baseline": 11.15
+    },
+    {
+     "code": "VORP",
+     "text": "VORP +0.12 (season), 1.88 FPG",
+     "value": 0.12310878296600403,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.310 (rank 1/10)",
+     "value": 7.31,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 10.0,
+   "title": "Trade Artemi Panarin + Zach Hyman to Looch Lovers for Connor McDavid",
+   "add": [
+    {
+     "cid": "espn:3895074",
+     "name": "Connor McDavid",
+     "nhl_id": 8478402,
+     "team": "EDM",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3891952",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    },
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Looch Lovers",
+   "predicted_gain": 0.3421,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 2.74,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.34 pts/game this season (+1.0 pts/week, +26 rest of season)",
+     "value": 0.3421379913041953,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %); acceptance ~45%",
+     "value": -2.1825189433402556,
+     "baseline": 0.8174810566597444
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: Looch Lovers drops Jakub Dobes",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 44% (prior logistic: they get 99, give 98 market pts; -3 they must drop Jakub Dobes -> -2.2 pts). EV = +0.34 x 0.44 = +0.15",
+     "value": 0.4403419931049583,
+     "baseline": 0.4403419931049583
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+1.0 pts/week (+0.34/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 1.0339184961545522,
+     "baseline": 3.0219341974077767
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+26 pts rest of season (+0.34/game x 76 games left)",
+     "value": 26.143367688479394,
+     "baseline": 76.41176470588235
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.34 FPG (optimal_lineup)",
+     "value": 0.3421379913041953,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Looch Lovers lineup -0.86 FPG (our model)",
+     "value": -0.855479229634426,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Connor McDavid (1.68): 1.68 VORP",
+     "value": 1.6837216965787682,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (0.44), Zach Hyman (0.38): 0.82 VORP",
+     "value": 0.8210085451247688,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 105% (shown only; old band 15%)",
+     "value": 1.0507967993474328,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "Looch Lovers would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.151 (rank 1/1)",
+     "value": 0.15065772500781627,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 10.0,
+   "title": "Buy low on Gabriel Vilardi (Flin Flon Flappers)",
+   "add": [
+    {
+     "cid": "espn:4233583",
+     "name": "Gabriel Vilardi",
+     "nhl_id": 8480014,
+     "team": "WPG",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": 0.677,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 4.77,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 0.96 FPG vs 1.63 shrunk season baseline (0.59x)",
+     "value": 0.5857023339992146,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 1.71 SOG/GP vs 1.90 baseline",
+     "value": 1.7142857142857142,
+     "baseline": 1.8984375
+    },
+    {
+     "code": "GP_L15",
+     "text": "7 GP in the last 15 days",
+     "value": 7.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.00/GP vs ixG 0.29/GP over 7 GP (-2.1 goals vs expected): about -0.59 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.5886,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.788 (rank 1/4)",
+     "value": 0.7878158792937647,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.0,
+   "title": "Judd Caulfield (free agent) promoted to PP1 (F4 -> F3; no PP -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4755684",
+     "name": "Judd Caulfield",
+     "nhl_id": 8481538,
+     "team": "ANA",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Judd Caulfield: F4 -> F3; no PP -> PP1 per Daily Faceoff (Patrick Present, updated Oct 16 17:17 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Judd Caulfield now on PP1 (Daily Faceoff (Patrick Present, updated Oct 16 17:17 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 2/10)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.0,
+   "title": "Mackie Samoskevich (free agent) promoted to PP1 (no PP -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874741",
+     "name": "Mackie Samoskevich",
+     "nhl_id": 8482713,
+     "team": "SEA",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Mackie Samoskevich: no PP -> PP1 per Daily Faceoff (Last Game (2026-10-15), updated Oct 16 14:09 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Mackie Samoskevich now on PP1 (Daily Faceoff (Last Game (2026-10-15), updated Oct 16 14:09 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 3/10)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 7.5,
+   "title": "Buy low on Noah Dobson (Looch Lovers)",
+   "add": [
+    {
+     "cid": "espn:4352732",
+     "name": "Noah Dobson",
+     "nhl_id": 8480865,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Looch Lovers",
+   "predicted_gain": 0.7792,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 4.03,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.43 FPG vs 2.21 shrunk season baseline (0.65x)",
+     "value": 0.6478233820389084,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 2.17 SOG/GP vs 2.22 baseline",
+     "value": 2.1666666666666665,
+     "baseline": 2.2232142857142856
+    },
+    {
+     "code": "GP_L15",
+     "text": "6 GP in the last 15 days",
+     "value": 6.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals -0.00/GP vs ixG 0.15/GP over 7 GP (-1.0 goals vs expected): about -0.29 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.2914,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.699 (rank 2/4)",
+     "value": 0.6986942932673703,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.0,
+   "title": "Stephen Halliday (free agent) promoted to PP1 (F4 -> F1; PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5136706",
+     "name": "Stephen Halliday",
+     "nhl_id": 8483676,
+     "team": "OTT",
+     "positions": [
+      "C",
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Stephen Halliday: F4 -> F1; PP2 -> PP1 per Daily Faceoff (Last Game (2026-10-15), updated Oct 16 14:03 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Stephen Halliday now on PP1 (Daily Faceoff (Last Game (2026-10-15), updated Oct 16 14:03 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 4/10)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.0,
+   "title": "Teuvo Teravainen (free agent) promoted to PP1 (new to lineup; no PP -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:2592095",
+     "name": "Teuvo Teravainen",
+     "nhl_id": 8476882,
+     "team": "CHI",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Teuvo Teravainen: new to lineup; no PP -> PP1 per Daily Faceoff (Ben Pope, updated Oct 16 16:54 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Teuvo Teravainen now on PP1 (Daily Faceoff (Ben Pope, updated Oct 16 16:54 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 5/10)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.0,
+   "title": "Tyler Seguin (free agent) promoted to PP1 (F3 -> F2; PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5430",
+     "name": "Tyler Seguin",
+     "nhl_id": 8475794,
+     "team": "DAL",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Tyler Seguin: F3 -> F2; PP2 -> PP1 per Daily Faceoff (Projected, updated Oct 16 16:13 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Tyler Seguin now on PP1 (Daily Faceoff (Projected, updated Oct 16 16:13 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 6/10)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 5.0,
+   "title": "Buy low on Timo Meier (Humpybong Platypuses)",
+   "add": [
+    {
+     "cid": "espn:3899978",
+     "name": "Timo Meier",
+     "nhl_id": 8478414,
+     "team": "NJD",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Humpybong Platypuses",
+   "predicted_gain": 0.5274,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 3.52,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.19 FPG vs 1.71 shrunk season baseline (0.69x)",
+     "value": 0.6921480855948725,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 3.86 SOG/GP vs 3.58 baseline",
+     "value": 3.857142857142857,
+     "baseline": 3.5830696202531644
+    },
+    {
+     "code": "GP_L15",
+     "text": "7 GP in the last 15 days",
+     "value": 7.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals -0.00/GP vs ixG 0.27/GP over 7 GP (-1.9 goals vs expected): about -0.53 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.5314,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.648 (rank 3/4)",
+     "value": 0.6475548881393962,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.0,
+   "title": "Rookie role signal: Roger McQueen \u2014 After a draft night trip to Disneyland to meet Lightning McQueen, the \"Cars\" synergy came full circle for the Ducks rookie's NHL debut. (espn, 2026-10-16)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5291946",
+     "name": "Roger McQueen",
+     "nhl_id": 8485400,
+     "team": "ANA",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.25,
+   "reasons": [
+    {
+     "code": "ROLE_NEWS",
+     "text": "nhl roster + (rules, confidence 0.70; free agent): \"After a draft night trip to Disneyland to meet Lightning McQueen, the \"Cars\" synergy came full circle for the Ducks rookie's NHL debut.\"",
+     "value": 1.0,
+     "baseline": 0.7
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 0 career NHL GP; news is the earliest role signal for a rookie (the valuation's rookie model uses it too)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "ROLE_DFO",
+     "text": "Daily Faceoff: F3 / PP2",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.250 (rank 7/10)",
+     "value": 5.25,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.0,
+   "title": "Brandt Clarke moved up to the top unit (D2 -> D1): role boost",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874722",
+     "name": "Brandt Clarke",
+     "nhl_id": 8482730,
+     "team": "LAK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Brandt Clarke: D2 -> D1 per Daily Faceoff (Alexander Legget, updated Oct 15 18:35 UTC)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Brandt Clarke now on PP1 (Daily Faceoff (Alexander Legget, updated Oct 15 18:35 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 8/10)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 2.5,
+   "title": "Buy low on Sidney Crosby (Pee Pee, Ohio Schlongs )",
+   "add": [
+    {
+     "cid": "espn:3114",
+     "name": "Sidney Crosby",
+     "nhl_id": 8471675,
+     "team": "PIT",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Pee Pee, Ohio Schlongs ",
+   "predicted_gain": 0.7159,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 3.87,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.40 FPG vs 2.12 shrunk season baseline (0.66x)",
+     "value": 0.661662654015012,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 2.50 SOG/GP vs 2.50 baseline",
+     "value": 2.5,
+     "baseline": 2.499571917808219
+    },
+    {
+     "code": "GP_L15",
+     "text": "6 GP in the last 15 days",
+     "value": 6.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.29/GP vs ixG 0.34/GP over 7 GP (-0.4 goals vs expected): about -0.11 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.1086,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.475 (rank 4/4)",
+     "value": 0.47522976659560684,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.0,
+   "title": "Preseason standout: David Reinbacher (3 GP, 0.00 PTS/GP, TOI 20.6, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5149157",
+     "name": "David Reinbacher",
+     "nhl_id": 8484220,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 2 SOG, 0 PPP, 20.6 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "20.6 min TOI per preseason game",
+     "value": 20.58,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 2 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 9/10)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.0,
+   "title": "Preseason standout: William Wallinder (3 GP, 0.00 PTS/GP, TOI 17.5, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697436",
+     "name": "William Wallinder",
+     "nhl_id": 8482171,
+     "team": "DET",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.38,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 1 SOG, 0 PPP, 17.5 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.5 min TOI per preseason game",
+     "value": 17.53,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 1 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.380 (rank 10/10)",
+     "value": 4.38,
+     "baseline": null
+    }
+   ]
+  }
+ ]
+}

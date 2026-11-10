@@ -1,0 +1,406 @@
+{
+ "alerts": [
+  {
+   "cid": "fantrax:03nfr",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Evan Rodrigues",
+   "strength": 7.0,
+   "title": "Evan Rodrigues (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:01xfp",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Jaden Schwartz",
+   "strength": 7.0,
+   "title": "Jaden Schwartz (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:02ni5",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Jonathan Marchessault",
+   "strength": 7.0,
+   "title": "Jonathan Marchessault (free agent) promoted to PP1 (F1 -> F3; PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:0644f",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Ryan Leonard",
+   "strength": 7.0,
+   "title": "Ryan Leonard (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:01sif",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Tyler Seguin",
+   "strength": 7.0,
+   "title": "Tyler Seguin (free agent) promoted to PP1 (F3 -> F2; PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:03mbn",
+   "codes": [
+    "CONFIRMED_START"
+   ],
+   "goalie_start": true,
+   "mine": true,
+   "name": "Mackenzie Blackwood",
+   "strength": 6.0,
+   "title": "Mackenzie Blackwood confirmed to start tonight vs PIT: start him"
+  },
+  {
+   "cid": "fantrax:06bdr",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": true,
+   "name": "Roman Kantserov",
+   "strength": 5.0,
+   "title": "Roman Kantserov moved up to the top unit (F2 -> F1): role boost"
+  },
+  {
+   "cid": "fantrax:06jhd",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": true,
+   "name": "Anton Frondell",
+   "strength": 4.0,
+   "title": "Anton Frondell dropped off PP1 (PP1 -> PP2): sell / bench caution"
+  }
+ ],
+ "date": "2026-10-16",
+ "fa_goalies": [
+  {
+   "name": "Sergei Murashov",
+   "team": "PIT"
+  },
+  {
+   "name": "Trent Miner",
+   "team": "COL"
+  },
+  {
+   "name": "Ville Husso",
+   "team": "ANA"
+  },
+  {
+   "name": "Michael DiPietro",
+   "team": "BOS"
+  },
+  {
+   "name": "Laurent Brossoit",
+   "team": "ANA"
+  },
+  {
+   "name": "Jiri Patera",
+   "team": "BOS"
+  },
+  {
+   "name": "Hunter Shepard",
+   "team": null
+  },
+  {
+   "name": "James Reimer",
+   "team": null
+  },
+  {
+   "name": "Petr Mrazek",
+   "team": null
+  },
+  {
+   "name": "Matt Murray",
+   "team": null
+  }
+ ],
+ "goalies": {
+  "ANA": {
+   "depth": 1,
+   "game": "BOS@ANA",
+   "goalie": "Lukas Dostal",
+   "home": true,
+   "opponent": "BOS",
+   "strength": "Confirmed"
+  },
+  "BOS": {
+   "depth": 1,
+   "game": "BOS@ANA",
+   "goalie": "Jeremy Swayman",
+   "home": false,
+   "opponent": "ANA",
+   "strength": null
+  },
+  "COL": {
+   "depth": 1,
+   "game": "PIT@COL",
+   "goalie": "Mackenzie Blackwood",
+   "home": true,
+   "opponent": "PIT",
+   "strength": "Confirmed"
+  },
+  "PIT": {
+   "depth": 1,
+   "game": "PIT@COL",
+   "goalie": "Arturs Silovs",
+   "home": false,
+   "opponent": "COL",
+   "strength": null
+  }
+ },
+ "league": "fantrax",
+ "lineup_today": {
+  "bench": [],
+  "set": true,
+  "start": [
+   "fantrax:03mbn"
+  ],
+  "text": "No lineup changes needed"
+ },
+ "my_players": {
+  "fantrax:0243f": {
+   "goalie": false,
+   "line": "d2",
+   "name": "Seth Jones",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "FLA"
+  },
+  "fantrax:02yjj": {
+   "goalie": false,
+   "line": "f1",
+   "name": "William Nylander",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "TOR"
+  },
+  "fantrax:031pl": {
+   "goalie": true,
+   "line": "g",
+   "name": "Juuse Saros",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "G",
+   "start": null,
+   "status": "healthy",
+   "team": "NSH"
+  },
+  "fantrax:03924": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Jack Eichel",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "VGK"
+  },
+  "fantrax:03as6": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Jared McCann",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "SEA"
+  },
+  "fantrax:03bfj": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Artemi Panarin",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "LAK"
+  },
+  "fantrax:03mbn": {
+   "goalie": true,
+   "line": "g",
+   "name": "Mackenzie Blackwood",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "G",
+   "start": true,
+   "status": "healthy",
+   "team": "COL"
+  },
+  "fantrax:03yh8": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Owen Tippett",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "PHI"
+  },
+  "fantrax:04amg": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Alexis Lafreniere",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "NYR"
+  },
+  "fantrax:04lbz": {
+   "goalie": false,
+   "line": "d1",
+   "name": "Quinn Hughes",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "MIN"
+  },
+  "fantrax:04lo0": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Quinton Byfield",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "LAK"
+  },
+  "fantrax:051yz": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Dylan Holloway",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "STL"
+  },
+  "fantrax:059e0": {
+   "goalie": false,
+   "line": null,
+   "name": "Jake Sanderson",
+   "note": "Lower Body: day-to-day (est. return 2026-10-17)",
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "IR",
+   "start": null,
+   "status": "dtd",
+   "team": "OTT"
+  },
+  "fantrax:05gvq": {
+   "goalie": false,
+   "line": null,
+   "name": "Seth Jarvis",
+   "note": "Shoulder: Jarvis underwent offseason surgery to address a torn labrum and rotator cuff, but he was on the ice during training camp and could be close to making his regular-season debut after missing the first few week...",
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "IR",
+   "start": null,
+   "status": "ir",
+   "team": "CAR"
+  },
+  "fantrax:05ymj": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Jimmy Snuggerud",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "STL"
+  },
+  "fantrax:06bdr": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Roman Kantserov",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "CHI"
+  },
+  "fantrax:06jhd": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Anton Frondell",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "CHI"
+  },
+  "fantrax:06psl": {
+   "goalie": false,
+   "line": "f3",
+   "name": "Ivar Stenberg",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "SJS"
+  }
+ },
+ "source": "daily",
+ "taken_at": "2026-10-16T12:09:40",
+ "version": 1
+}

@@ -1,0 +1,704 @@
+{
+ "alerts": [
+  {
+   "cid": "fantrax:03rfl",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Anthony Cirelli",
+   "strength": 7.0,
+   "title": "Anthony Cirelli (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:06jhd",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Anton Frondell",
+   "strength": 7.0,
+   "title": "Anton Frondell (free agent) promoted to PP1 (F2 -> F3; PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:05gd8",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Mason McTavish",
+   "strength": 7.0,
+   "title": "Mason McTavish (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:05tur",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Matthew Knies",
+   "strength": 7.0,
+   "title": "Matthew Knies (free agent) promoted to PP1 (F2 -> F1; PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:01zti",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Tyler Toffoli",
+   "strength": 7.0,
+   "title": "Tyler Toffoli (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:05oxs",
+   "codes": [
+    "CONFIRMED_START"
+   ],
+   "goalie_start": true,
+   "mine": true,
+   "name": "Jakub Dobes",
+   "strength": 6.0,
+   "title": "Jakub Dobes confirmed to start tonight vs UTA: start him"
+  },
+  {
+   "cid": "fantrax:03mbn",
+   "codes": [
+    "CONFIRMED_START"
+   ],
+   "goalie_start": true,
+   "mine": true,
+   "name": "Mackenzie Blackwood",
+   "strength": 6.0,
+   "title": "Mackenzie Blackwood confirmed to start tonight vs NSH: start him"
+  },
+  {
+   "cid": "fantrax:01t68",
+   "codes": [
+    "CONFIRMED_START",
+    "MOVE_BUDGET",
+    "OPPONENT"
+   ],
+   "goalie_start": true,
+   "mine": false,
+   "name": "Cam Talbot",
+   "strength": 6.0,
+   "title": "Cam Talbot (free agent) confirmed to start tonight vs DAL (weak offense): streamer"
+  },
+  {
+   "cid": "fantrax:02ycf",
+   "codes": [
+    "CONFIRMED_START",
+    "MOVE_BUDGET",
+    "OPPONENT"
+   ],
+   "goalie_start": true,
+   "mine": false,
+   "name": "Casey DeSmith",
+   "strength": 6.0,
+   "title": "Casey DeSmith (free agent) confirmed to start tonight vs CBJ (weak offense): streamer"
+  },
+  {
+   "cid": "fantrax:051yz",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": true,
+   "name": "Dylan Holloway",
+   "strength": 4.0,
+   "title": "Dylan Holloway dropped off PP1 (PP1 -> PP2): sell / bench caution"
+  }
+ ],
+ "date": "2026-11-05",
+ "fa_goalies": [
+  {
+   "name": "Scott Wedgewood",
+   "team": "COL"
+  },
+  {
+   "name": "Michael DiPietro",
+   "team": "BOS"
+  },
+  {
+   "name": "Drew Commesso",
+   "team": "CHI"
+  },
+  {
+   "name": "Trent Miner",
+   "team": "COL"
+  },
+  {
+   "name": "Brandon Bussi",
+   "team": "CAR"
+  },
+  {
+   "name": "Sergei Murashov",
+   "team": "PIT"
+  },
+  {
+   "name": "Joseph Woll",
+   "team": "PHI"
+  },
+  {
+   "name": "Sebastian Cossa",
+   "team": "UTA"
+  },
+  {
+   "name": "Laurent Brossoit",
+   "team": "ANA"
+  },
+  {
+   "name": "Casey DeSmith",
+   "team": "DAL"
+  },
+  {
+   "name": "Jiri Patera",
+   "team": "BOS"
+  },
+  {
+   "name": "John Gibson",
+   "team": "DET"
+  },
+  {
+   "name": "Daniel Vladar",
+   "team": "PHI"
+  },
+  {
+   "name": "Thatcher Demko",
+   "team": "VAN"
+  },
+  {
+   "name": "Pheonix Copley",
+   "team": "CBJ"
+  },
+  {
+   "name": "Matthew Murray",
+   "team": "NSH"
+  },
+  {
+   "name": "Semyon Varlamov",
+   "team": "NYI"
+  },
+  {
+   "name": "Michal Postava",
+   "team": "DET"
+  },
+  {
+   "name": "David Rittich",
+   "team": "NJD"
+  },
+  {
+   "name": "Vitek Vanecek",
+   "team": "NYI"
+  },
+  {
+   "name": "Dennis Hildeby",
+   "team": "TBL"
+  },
+  {
+   "name": "Joonas Korpisalo",
+   "team": "NYR"
+  },
+  {
+   "name": "Cam Talbot",
+   "team": "CBJ"
+  },
+  {
+   "name": "Spencer Martin",
+   "team": "NYR"
+  },
+  {
+   "name": "Hunter Shepard",
+   "team": null
+  },
+  {
+   "name": "Ville Husso",
+   "team": "ANA"
+  },
+  {
+   "name": "Justus Annunen",
+   "team": "NSH"
+  },
+  {
+   "name": "Daniil Tarasov",
+   "team": "DET"
+  },
+  {
+   "name": "Thomas Milic",
+   "team": "WPG"
+  },
+  {
+   "name": "Jordan Binnington",
+   "team": "STL"
+  },
+  {
+   "name": "Nikita Tolopilo",
+   "team": "VAN"
+  },
+  {
+   "name": "Sam Montembeault",
+   "team": "MTL"
+  },
+  {
+   "name": "Mads Sogaard",
+   "team": "TBL"
+  },
+  {
+   "name": "Petr Mrazek",
+   "team": null
+  },
+  {
+   "name": "James Reimer",
+   "team": "NYR"
+  },
+  {
+   "name": "Clay Stevenson",
+   "team": "WPG"
+  },
+  {
+   "name": "Brandon Halverson",
+   "team": "DAL"
+  },
+  {
+   "name": "Leevi Merilainen",
+   "team": "VAN"
+  },
+  {
+   "name": "Arvid Soderblom",
+   "team": "CHI"
+  },
+  {
+   "name": "Kevin Lankinen",
+   "team": "VAN"
+  },
+  {
+   "name": "Matt Murray",
+   "team": null
+  },
+  {
+   "name": "Nicolas Daws",
+   "team": "WPG"
+  },
+  {
+   "name": "Alexei Kolosov",
+   "team": "PHI"
+  }
+ ],
+ "goalies": {
+  "ANA": {
+   "depth": 1,
+   "game": "ANA@EDM",
+   "goalie": "Lukas Dostal",
+   "home": false,
+   "opponent": "EDM",
+   "strength": null
+  },
+  "BOS": {
+   "depth": 1,
+   "game": "BOS@PIT",
+   "goalie": "Jeremy Swayman",
+   "home": false,
+   "opponent": "PIT",
+   "strength": null
+  },
+  "CAR": {
+   "depth": 1,
+   "game": "CAR@NYI",
+   "goalie": "Brandon Bussi",
+   "home": false,
+   "opponent": "NYI",
+   "strength": null
+  },
+  "CBJ": {
+   "depth": 1,
+   "game": "DAL@CBJ",
+   "goalie": "Cam Talbot",
+   "home": true,
+   "opponent": "DAL",
+   "strength": "Confirmed"
+  },
+  "CHI": {
+   "depth": 1,
+   "game": "CHI@TBL",
+   "goalie": "Arvid Soderblom",
+   "home": false,
+   "opponent": "TBL",
+   "strength": null
+  },
+  "COL": {
+   "depth": 1,
+   "game": "NSH@COL",
+   "goalie": "Mackenzie Blackwood",
+   "home": true,
+   "opponent": "NSH",
+   "strength": "Confirmed"
+  },
+  "DAL": {
+   "depth": 2,
+   "game": "DAL@CBJ",
+   "goalie": "Casey DeSmith",
+   "home": false,
+   "opponent": "CBJ",
+   "strength": "Confirmed"
+  },
+  "DET": {
+   "depth": 1,
+   "game": "VGK@DET",
+   "goalie": "Daniil Tarasov",
+   "home": true,
+   "opponent": "VGK",
+   "strength": "Likely"
+  },
+  "EDM": {
+   "depth": 1,
+   "game": "ANA@EDM",
+   "goalie": "Matt Tomkins",
+   "home": true,
+   "opponent": "ANA",
+   "strength": "Likely"
+  },
+  "MTL": {
+   "depth": 1,
+   "game": "UTA@MTL",
+   "goalie": "Jakub Dobes",
+   "home": true,
+   "opponent": "UTA",
+   "strength": "Confirmed"
+  },
+  "NJD": {
+   "depth": 1,
+   "game": "STL@NJD",
+   "goalie": "Connor Hellebuyck",
+   "home": true,
+   "opponent": "STL",
+   "strength": "Likely"
+  },
+  "NSH": {
+   "depth": 1,
+   "game": "NSH@COL",
+   "goalie": "Juuse Saros",
+   "home": false,
+   "opponent": "COL",
+   "strength": null
+  },
+  "NYI": {
+   "depth": 2,
+   "game": "CAR@NYI",
+   "goalie": "Semyon Varlamov",
+   "home": true,
+   "opponent": "CAR",
+   "strength": "Confirmed"
+  },
+  "NYR": {
+   "depth": 1,
+   "game": "PHI@NYR",
+   "goalie": "Dylan Garand",
+   "home": true,
+   "opponent": "PHI",
+   "strength": "Confirmed"
+  },
+  "PHI": {
+   "depth": 1,
+   "game": "PHI@NYR",
+   "goalie": "Joseph Woll",
+   "home": false,
+   "opponent": "NYR",
+   "strength": "Confirmed"
+  },
+  "PIT": {
+   "depth": 1,
+   "game": "BOS@PIT",
+   "goalie": "Arturs Silovs",
+   "home": true,
+   "opponent": "BOS",
+   "strength": "Confirmed"
+  },
+  "STL": {
+   "depth": 1,
+   "game": "STL@NJD",
+   "goalie": "Jordan Binnington",
+   "home": false,
+   "opponent": "NJD",
+   "strength": "Confirmed"
+  },
+  "TBL": {
+   "depth": 1,
+   "game": "CHI@TBL",
+   "goalie": "Andrei Vasilevskiy",
+   "home": true,
+   "opponent": "CHI",
+   "strength": "Likely"
+  },
+  "UTA": {
+   "depth": 1,
+   "game": "UTA@MTL",
+   "goalie": "Sebastian Cossa",
+   "home": false,
+   "opponent": "MTL",
+   "strength": "Likely"
+  },
+  "VAN": {
+   "depth": 1,
+   "game": "VAN@WPG",
+   "goalie": "Leevi Merilainen",
+   "home": false,
+   "opponent": "WPG",
+   "strength": null
+  },
+  "VGK": {
+   "depth": 1,
+   "game": "VGK@DET",
+   "goalie": "Carter Hart",
+   "home": false,
+   "opponent": "DET",
+   "strength": null
+  },
+  "WPG": {
+   "depth": 1,
+   "game": "VAN@WPG",
+   "goalie": "Stuart Skinner",
+   "home": true,
+   "opponent": "VAN",
+   "strength": "Confirmed"
+  }
+ },
+ "league": "fantrax",
+ "lineup_today": {
+  "bench": [
+   "fantrax:031pl"
+  ],
+  "set": false,
+  "start": [
+   "fantrax:03924",
+   "fantrax:03mbn",
+   "fantrax:03yh8",
+   "fantrax:04amg",
+   "fantrax:051yz",
+   "fantrax:05gvq",
+   "fantrax:05oxs",
+   "fantrax:05ymj"
+  ],
+  "text": "Lineup: start Dobes; bench Saros"
+ },
+ "my_players": {
+  "fantrax:0243f": {
+   "goalie": false,
+   "line": "d2",
+   "name": "Seth Jones",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "FLA"
+  },
+  "fantrax:02yjj": {
+   "goalie": false,
+   "line": "f2",
+   "name": "William Nylander",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "TOR"
+  },
+  "fantrax:031pl": {
+   "goalie": true,
+   "line": "g",
+   "name": "Juuse Saros",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "G",
+   "start": null,
+   "status": "healthy",
+   "team": "NSH"
+  },
+  "fantrax:03924": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Jack Eichel",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "VGK"
+  },
+  "fantrax:03as6": {
+   "goalie": false,
+   "line": null,
+   "name": "Jared McCann",
+   "note": "Lower Body: McCann had one goal in five games before sitting out Saturday's 5-1 loss to Minnesota. He has earned five assists, eight points, 28 shots on net, three blocked shots and six hits in 11 appearances this sea...",
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "IR",
+   "start": null,
+   "status": "ir",
+   "team": "SEA"
+  },
+  "fantrax:03bfj": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Artemi Panarin",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "LAK"
+  },
+  "fantrax:03mbn": {
+   "goalie": true,
+   "line": "g",
+   "name": "Mackenzie Blackwood",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "G",
+   "start": true,
+   "status": "healthy",
+   "team": "COL"
+  },
+  "fantrax:03yh8": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Owen Tippett",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp2",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "PHI"
+  },
+  "fantrax:04amg": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Alexis Lafreniere",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "NYR"
+  },
+  "fantrax:04lbz": {
+   "goalie": false,
+   "line": "d1",
+   "name": "Quinn Hughes",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "MIN"
+  },
+  "fantrax:04lo0": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Quinton Byfield",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "LAK"
+  },
+  "fantrax:051yz": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Dylan Holloway",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp2",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "STL"
+  },
+  "fantrax:059e0": {
+   "goalie": false,
+   "line": "d1",
+   "name": "Jake Sanderson",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "OTT"
+  },
+  "fantrax:05gvq": {
+   "goalie": false,
+   "line": "f3",
+   "name": "Seth Jarvis",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp2",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "CAR"
+  },
+  "fantrax:05oxs": {
+   "goalie": true,
+   "line": "g",
+   "name": "Jakub Dobes",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "BN",
+   "start": true,
+   "status": "healthy",
+   "team": "MTL"
+  },
+  "fantrax:05ymj": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Jimmy Snuggerud",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "STL"
+  },
+  "fantrax:06psl": {
+   "goalie": false,
+   "line": "f3",
+   "name": "Ivar Stenberg",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "SJS"
+  }
+ },
+ "source": "daily",
+ "taken_at": "2026-11-05T12:56:24",
+ "version": 1
+}

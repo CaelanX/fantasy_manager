@@ -1,0 +1,89 @@
+{
+ "US-EN-50117660": {
+  "at": "2026-10-06T19:54:46+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": []
+ },
+ "US-EN-50118696": {
+  "at": "2026-10-06T19:54:46+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": [
+   {
+    "confidence": 0.95,
+    "direction": -1,
+    "kind": "injury",
+    "quote": "Barkov got good news on his lower-body injury as he won't need surgery, but will miss six to eight weeks."
+   }
+  ]
+ },
+ "US-EN-50193214": {
+  "at": "2026-10-16T17:58:07+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": [
+   {
+    "confidence": 0.9,
+    "direction": 1,
+    "kind": "pp1",
+    "quote": "Connor Bedard's game-opening power-play goal"
+   }
+  ]
+ },
+ "nhl595002": {
+  "at": "2026-10-07T15:38:33+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": []
+ },
+ "nhl595004": {
+  "at": "2026-10-07T15:38:33+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": []
+ },
+ "nhl595036": {
+  "at": "2026-10-07T22:03:34+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": [
+   {
+    "confidence": 0.9,
+    "direction": 1,
+    "kind": "injury",
+    "quote": "Rust (upper body) was activated off injured reserve ahead of Wednesday's game against the Capitals."
+   }
+  ]
+ },
+ "nhl595251": {
+  "at": "2026-10-10T02:20:15+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": [
+   {
+    "confidence": 0.8,
+    "direction": 1,
+    "kind": "pp1",
+    "quote": "Lafreniere scored a power-play goal on his lone shot in Friday's 3-1 loss to the Capitals."
+   }
+  ]
+ },
+ "nhl597375": {
+  "at": "2026-10-26T17:46:29+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": [
+   {
+    "confidence": 0.8,
+    "direction": 1,
+    "kind": "starter",
+    "quote": "Hellebuyck (not injury related) intends to play during the Devils' upcoming three-game road trip, Amanda Stein of the Devils' official site reports."
+   }
+  ]
+ },
+ "nhl597376": {
+  "at": "2026-10-26T17:46:29+00:00",
+  "model": "poolside/laguna-s-2.1:free",
+  "signals": [
+   {
+    "confidence": 0.6,
+    "direction": -1,
+    "kind": "injury",
+    "quote": "will need some time before he makes his 2026-27 debut, according to Cory Lavalette of the North State Journal on Monday."
+   }
+  ]
+ }
+}

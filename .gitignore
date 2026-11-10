@@ -6,8 +6,15 @@
 cookies.txt
 fantrax_session.json
 
-# Local data: HTTP cache, crosswalk, status history, prefs, reports, archives, backtest tables
-/data/
+# Local data is committed (harness ledger, status history, crosswalk, archives, prefs) so it moves
+# between machines. Left out: the HTTP caches (large, rebuilt on demand, raw site responses), the
+# Fantrax login session, SQLite temp files and logs.
+/data/cache.db
+/data/fantrax_cache/
+/data/fantrax_session.json
+/data/*.db-shm
+/data/*.db-wal
+/data/*.log
 # docker-compose backup volume (deploy/backup.sh) and the dashboard session key
 backups/
 web_secret

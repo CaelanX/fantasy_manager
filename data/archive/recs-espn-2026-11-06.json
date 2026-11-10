@@ -1,0 +1,7486 @@
+{
+ "version": 3,
+ "provider": "espn",
+ "league_id": "1727290947",
+ "as_of": "2026-11-06",
+ "archived_at": "2026-11-06T10:03:51",
+ "params_hash": "f46ed5d45a2d574d35f9b22154cc0037bfa5f6ce",
+ "code_hash": "rust:0.1.0",
+ "recommendations": [
+  {
+   "kind": "injury",
+   "score": 10.0,
+   "title": "Zach Hyman now IR (was healthy)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.5,
+   "reasons": [
+    {
+     "code": "STATUS_CHANGE",
+     "text": "Zach Hyman: healthy -> ir (Neck: ir (est. return 2026-11-07))",
+     "value": 3.0,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 6.759 (rank 1/5)",
+     "value": 6.758820271943751,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 10.0,
+   "title": "Zach Hyman due back Sat Nov 7: activate him from IR then",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 0.0,
+   "reasons": [
+    {
+     "code": "RETURN_DUE",
+     "text": "Zach Hyman is ir, expected back Sat Nov 7 (Neck: ir (est. return 2026-11-07))",
+     "value": 1.9422303675193153,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_LEFT",
+     "text": "Zach Hyman: 1 game from then to Sun Nov 8, ~1.9 pts if he plays",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 1.942 (rank 1/1)",
+     "value": 1.9422303675193153,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 10.0,
+   "title": "Add Judd Caulfield, drop Patrick Kane for this matchup",
+   "add": [
+    {
+     "cid": "espn:4755684",
+     "name": "Judd Caulfield",
+     "nhl_id": 8481538,
+     "team": "ANA",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 2.9519,
+   "gain_units": "matchup_pts",
+   "horizon_days": 3,
+   "strength": 4.29,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+2.25 FPG (week, best lineup each day) over dropping Patrick Kane",
+     "value": 2.2490557632156434,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+3.0 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 2.951885689220532,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Judd Caulfield: 1.68 FPG, VORP -0.45",
+     "value": 1.6799067420037594,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Patrick Kane: 0.00 FPG, VORP -2.13",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "14 GP this season, no prior NHL games -> confidence 0.63",
+     "value": 14.0,
+     "baseline": 0.6296296296296297
+    },
+    {
+     "code": "SEASON_COST",
+     "text": "Rest of season: Judd Caulfield 1.44 vs Patrick Kane 0.96 FPG (an upgrade, +0.48)",
+     "value": 0.477530746420355,
+     "baseline": 0.9622966155229228
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "STATUS",
+     "text": "Patrick Kane is out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Judd Caulfield rostered 4% (+1.2 this week)",
+     "value": 1.19,
+     "baseline": 3.95
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Judd Caulfield: market 5th pct (ADP/rostered %) vs model 24th (+19): market agrees",
+     "value": 19.1,
+     "baseline": 4.9
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Patrick Kane: market 64th pct (ADP/rostered %) vs model 1st (-63): model disagrees with market, rates him lower (assist luck, status out)",
+     "value": -62.7,
+     "baseline": 64.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 2.249 (rank 1/6)",
+     "value": 2.2490557632156434,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 8.3333,
+   "title": "Add Martin Pospisil, drop Tyler Bertuzzi for this matchup",
+   "add": [
+    {
+     "cid": "espn:4392883",
+     "name": "Martin Pospisil",
+     "nhl_id": 8481028,
+     "team": "CGY",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3042056",
+     "name": "Tyler Bertuzzi",
+     "nhl_id": 8477479,
+     "team": "CHI",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 2.8715,
+   "gain_units": "matchup_pts",
+   "horizon_days": 3,
+   "strength": 5.33,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+2.19 FPG (week, best lineup each day) over dropping Tyler Bertuzzi",
+     "value": 2.187834176244819,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+2.9 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 2.8715323563213246,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Martin Pospisil: 1.59 FPG, VORP -0.54",
+     "value": 1.5913337632202789,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Tyler Bertuzzi: 0.76 FPG, VORP -1.37",
+     "value": 0.7583786651152336,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "16 GP this season + 125 weighted from the last 3 seasons -> confidence 0.89",
+     "value": 16.0,
+     "baseline": 0.8892580287929125
+    },
+    {
+     "code": "SEASON_COST",
+     "text": "Rest of season: Martin Pospisil 1.34 vs Tyler Bertuzzi 1.17 FPG (an upgrade, +0.17)",
+     "value": 0.17456664114836862,
+     "baseline": 1.1693926230941458
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Martin Pospisil rostered 7% (-0.0 this week)",
+     "value": -0.01,
+     "baseline": 6.56
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Martin Pospisil: market 7th pct (ADP/rostered %) vs model 15th (+8): market agrees",
+     "value": 7.8,
+     "baseline": 7.5
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Tyler Bertuzzi: market 42nd pct (ADP/rostered %) vs model 3rd (-39): model disagrees with market, rates him lower (assist luck)",
+     "value": -38.9,
+     "baseline": 42.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 2.188 (rank 2/6)",
+     "value": 2.187834176244819,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "injury",
+   "score": 8.0,
+   "title": "Patrick Kane now OUT (was healthy)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "STATUS_CHANGE",
+     "text": "Patrick Kane: healthy -> out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": 2.0,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 4.811 (rank 2/5)",
+     "value": 4.811483077614614,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 6.6667,
+   "title": "Add Jason Zucker, drop Tyler Bertuzzi for this matchup",
+   "add": [
+    {
+     "cid": "espn:2593315",
+     "name": "Jason Zucker",
+     "nhl_id": 8475722,
+     "team": "BUF",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3042056",
+     "name": "Tyler Bertuzzi",
+     "nhl_id": 8477479,
+     "team": "CHI",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 2.7112,
+   "gain_units": "matchup_pts",
+   "horizon_days": 3,
+   "strength": 5.18,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+2.07 FPG (week, best lineup each day) over dropping Tyler Bertuzzi",
+     "value": 2.065693103331552,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+2.7 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 2.7112221981226625,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Jason Zucker: 2.13 FPG, VORP +0.00",
+     "value": 2.1340731565250124,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Tyler Bertuzzi: 0.76 FPG, VORP -1.37",
+     "value": 0.7583786651152336,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "6 GP this season + 162 weighted from the last 3 seasons -> confidence 0.90",
+     "value": 6.0,
+     "baseline": 0.9037536092396535
+    },
+    {
+     "code": "SEASON_COST",
+     "text": "Rest of season: Jason Zucker 1.40 vs Tyler Bertuzzi 1.17 FPG (an upgrade, +0.23)",
+     "value": 0.2308460436481763,
+     "baseline": 1.1693926230941458
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Jason Zucker rostered 4% (-0.1 this week)",
+     "value": -0.11,
+     "baseline": 3.55
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Jason Zucker: market 3rd pct (ADP/rostered %) vs model 19th (+16): market agrees",
+     "value": 15.8,
+     "baseline": 3.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Tyler Bertuzzi: market 42nd pct (ADP/rostered %) vs model 3rd (-39): model disagrees with market, rates him lower (assist luck)",
+     "value": -38.9,
+     "baseline": 42.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 2.066 (rank 3/6)",
+     "value": 2.065693103331552,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "injury",
+   "score": 6.0,
+   "title": "Cut Patrick Kane, add Valeri Nichushkin: +47 pts rest of season",
+   "add": [
+    {
+     "cid": "espn:3042003",
+     "name": "Valeri Nichushkin",
+     "nhl_id": 8477501,
+     "team": "CBJ",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 0.7077,
+   "gain_units": "season_fpg",
+   "horizon_days": null,
+   "strength": 4.75,
+   "reasons": [
+    {
+     "code": "RETURN_ESTIMATE",
+     "text": "Patrick Kane: return unknown, ~27 of 67 games missed (no timetable, flat out value x0.60, a guess)",
+     "value": 26.8,
+     "baseline": 67.0
+    },
+    {
+     "code": "HOLD_PTS",
+     "text": "Hold: 1.60 FPG x 40 games after his return = 64 pts (his roster spot is dead until then: no IR slot free)",
+     "value": 64.5,
+     "baseline": null
+    },
+    {
+     "code": "CUT_PTS",
+     "text": "Cut: Valeri Nichushkin (RW, CBJ) 1.67 FPG x 67 games = 112 pts",
+     "value": 111.9,
+     "baseline": null
+    },
+    {
+     "code": "BREAK_EVEN",
+     "text": "Cut only if he misses more than ~11 games",
+     "value": 11.2,
+     "baseline": 26.8
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 1.208 (rank 3/5)",
+     "value": 1.2077065968390093,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 5.0,
+   "title": "Add Adam Klapka, drop Patrick Kane for this matchup",
+   "add": [
+    {
+     "cid": "espn:5073306",
+     "name": "Adam Klapka",
+     "nhl_id": 8483609,
+     "team": "CGY",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 2.669,
+   "gain_units": "matchup_pts",
+   "horizon_days": 3,
+   "strength": 5.01,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+2.03 FPG (week, best lineup each day) over dropping Patrick Kane",
+     "value": 2.0335561145202843,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+2.7 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 2.669042400307873,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Adam Klapka: 1.48 FPG, VORP -0.65",
+     "value": 1.4791187282728753,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Patrick Kane: 0.00 FPG, VORP -2.13",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "16 GP this season + 107 weighted from the last 3 seasons -> confidence 0.88",
+     "value": 16.0,
+     "baseline": 0.8776009791921664
+    },
+    {
+     "code": "SEASON_COST",
+     "text": "Rest of season: Adam Klapka 1.28 vs Patrick Kane 0.96 FPG (an upgrade, +0.32)",
+     "value": 0.31735956264067366,
+     "baseline": 0.9622966155229228
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "STATUS",
+     "text": "Patrick Kane is out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Adam Klapka rostered 3% (-0.1 this week)",
+     "value": -0.05,
+     "baseline": 3.05
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Adam Klapka: market 10th pct (ADP/rostered %) vs model 9th (-1): market agrees",
+     "value": -1.4,
+     "baseline": 10.4
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Patrick Kane: market 64th pct (ADP/rostered %) vs model 1st (-63): model disagrees with market, rates him lower (assist luck, status out)",
+     "value": -62.7,
+     "baseline": 64.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 2.034 (rank 4/6)",
+     "value": 2.0335561145202843,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "injury",
+   "score": 4.0,
+   "title": "Hold Zach Hyman in IR (back ~Nov 7): it costs no roster spot",
+   "add": [],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 1.0,
+   "reasons": [
+    {
+     "code": "RETURN_ESTIMATE",
+     "text": "Zach Hyman: back ~Nov 7, ~0 of 67 games missed (note: \"est. return 2026-11-07\")",
+     "value": 0.0,
+     "baseline": 67.0
+    },
+    {
+     "code": "HOLD_VERDICT",
+     "text": "Zach Hyman sits in an IR slot, so keeping him costs nothing; ~113 pts after his return",
+     "value": 113.2,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 0.000 (rank 4/5)",
+     "value": 0.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 3.3333,
+   "title": "Add Aydar Suniev, drop Tyler Bertuzzi for this matchup",
+   "add": [
+    {
+     "cid": "espn:5188613",
+     "name": "Aydar Suniev",
+     "nhl_id": 8484234,
+     "team": "CGY",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3042056",
+     "name": "Tyler Bertuzzi",
+     "nhl_id": 8477479,
+     "team": "CHI",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 2.4844,
+   "gain_units": "matchup_pts",
+   "horizon_days": 3,
+   "strength": 3.98,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+1.89 FPG (week, best lineup each day) over dropping Tyler Bertuzzi",
+     "value": 1.8928483329543506,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+2.5 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 2.4843634370025853,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Aydar Suniev: 1.38 FPG, VORP -0.76",
+     "value": 1.376774114597436,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Tyler Bertuzzi: 0.76 FPG, VORP -1.37",
+     "value": 0.7583786651152336,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "13 GP this season + 7 weighted from the last 3 seasons -> confidence 0.67",
+     "value": 13.0,
+     "baseline": 0.6655518394648829
+    },
+    {
+     "code": "SEASON_COST",
+     "text": "Rest of season: Aydar Suniev 1.19 vs Tyler Bertuzzi 1.17 FPG (an upgrade, +0.02)",
+     "value": 0.021720347084742242,
+     "baseline": 1.1693926230941458
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Aydar Suniev rostered 1% (-0.0 this week)",
+     "value": -0.04,
+     "baseline": 0.6
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Aydar Suniev: market 4th pct (ADP/rostered %) vs model 3rd (-1): market agrees",
+     "value": -0.5,
+     "baseline": 4.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Tyler Bertuzzi: market 42nd pct (ADP/rostered %) vs model 3rd (-39): model disagrees with market, rates him lower (assist luck)",
+     "value": -38.9,
+     "baseline": 42.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 1.893 (rank 5/6)",
+     "value": 1.8928483329543506,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "injury",
+   "score": 2.0,
+   "title": "Hold Brad Marchand in IR (back ~Dec 6): it costs no roster spot",
+   "add": [],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 1.0,
+   "reasons": [
+    {
+     "code": "RETURN_ESTIMATE",
+     "text": "Brad Marchand: back ~Dec 6, ~14 of 68 games missed (IR without a timetable, 30 days assumed, a guess)",
+     "value": 14.0,
+     "baseline": 68.0
+    },
+    {
+     "code": "HOLD_VERDICT",
+     "text": "Brad Marchand sits in an IR slot, so keeping him costs nothing; ~95 pts after his return",
+     "value": 95.4,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 0.000 (rank 5/5)",
+     "value": 0.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 1.6667,
+   "title": "Add Valeri Nichushkin, drop Patrick Kane",
+   "add": [
+    {
+     "cid": "espn:3042003",
+     "name": "Valeri Nichushkin",
+     "nhl_id": 8477501,
+     "team": "CBJ",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 0.7077,
+   "gain_units": "season_fpg",
+   "horizon_days": null,
+   "strength": 4.43,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+0.71 FPG (season) over dropping Patrick Kane",
+     "value": 0.7077065968390094,
+     "baseline": 0.6
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Valeri Nichushkin: 1.67 FPG, VORP +0.09",
+     "value": 1.6700032123619322,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Patrick Kane: 0.96 FPG, VORP -0.61",
+     "value": 0.9622966155229228,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "14 GP this season + 139 weighted from the last 3 seasons -> confidence 0.90",
+     "value": 14.0,
+     "baseline": 0.896265560165975
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "STATUS",
+     "text": "Patrick Kane is out (Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....)",
+     "value": 0.6,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Valeri Nichushkin rostered 41% (+0.3 this week)",
+     "value": 0.27,
+     "baseline": 41.23
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Valeri Nichushkin: market 42nd pct (ADP/rostered %) vs model 50th (+7): market agrees",
+     "value": 7.2,
+     "baseline": 42.4
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Patrick Kane: market 64th pct (ADP/rostered %) vs model 1st (-63): model disagrees with market, rates him lower (assist luck, status out)",
+     "value": -62.7,
+     "baseline": 64.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 0.634 (rank 6/6)",
+     "value": 0.6342930494490706,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 10.0,
+   "title": "Role up: Adam Edstrom (TOI +7.3; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4894222",
+     "name": "Adam Edstrom",
+     "nhl_id": 8481726,
+     "team": "NSH",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.7 min per game over the last 5 GP vs 9.5 baseline (+7.3 min)",
+     "value": 16.74,
+     "baseline": 9.461
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 1/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 10.0,
+   "title": "Trade Zach Hyman to Lane Hutson Fan Club for Logan Cooley + Beckett Sennecke",
+   "add": [
+    {
+     "cid": "espn:5080143",
+     "name": "Logan Cooley",
+     "nhl_id": 8483431,
+     "team": "UTA",
+     "positions": [
+      "C",
+      "F"
+     ]
+    },
+    {
+     "cid": "espn:5216858",
+     "name": "Beckett Sennecke",
+     "nhl_id": 8484762,
+     "team": "ANA",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": 1.3186,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 8.41,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.32 pts/game this season (+4.0 pts/week, +89 rest of season)",
+     "value": 1.3185814725555218,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, +3 worth pts to them); acceptance ~60%",
+     "value": 2.9760296840608333,
+     "baseline": 2.9760296840608333
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Brandon Bussi + Patrick Kane; Lane Hutson Fan Club can pick up Valeri Nichushkin (FA)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+3.0 pts) while our model has you gaining +1.32",
+     "value": 1.3185814725555218,
+     "baseline": 2.9760296840608333
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 58% (prior logistic: they get 53, give 50 market pts -> +3.0 pts). EV = +1.32 x 0.58 = +0.77",
+     "value": 0.5810171480630608,
+     "baseline": 0.5810171480630608
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+4.0 pts/week (+1.32/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 4.002481468352922,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+89 pts rest of season (+1.32/game x 68 games left)",
+     "value": 89.19815843757941,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.32 FPG (optimal_lineup)",
+     "value": 1.3185814725555218,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Lane Hutson Fan Club lineup -1.33 FPG (our model)",
+     "value": -1.3327240267482239,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Logan Cooley (0.77), Beckett Sennecke (0.51): 1.28 VORP",
+     "value": 1.2811124809566778,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Zach Hyman (0.11): 0.11 VORP",
+     "value": 0.11466070468852574,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 91% (shown only; old band 15%)",
+     "value": 0.9104991119882758,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Brandon Bussi + Patrick Kane",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Logan Cooley: market 71st pct (ADP/rostered %) vs model 91st (+21): market agrees",
+     "value": 20.6,
+     "baseline": 70.9
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Beckett Sennecke: market 66th pct (ADP/rostered %) vs model 78th (+12): market agrees",
+     "value": 11.9,
+     "baseline": 66.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Zach Hyman: market 81st pct (ADP/rostered %) vs model 52nd (-29): model disagrees with market, rates him lower (injury return estimate, status ir)",
+     "value": -29.4,
+     "baseline": 80.9
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.766 (rank 1/10)",
+     "value": 0.7661184466730004,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 10.0,
+   "title": "Buy low on Tom Wilson (Yumyum Tenessee Sw@ss)",
+   "add": [
+    {
+     "cid": "espn:2970615",
+     "name": "Tom Wilson",
+     "nhl_id": 8476880,
+     "team": "WSH",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": 1.1925,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 7.13,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 0.74 FPG vs 1.93 shrunk season baseline (0.38x)",
+     "value": 0.3829279080053074,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 2.00 SOG/GP vs 2.10 baseline",
+     "value": 2.0,
+     "baseline": 2.1025641025641026
+    },
+    {
+     "code": "GP_L15",
+     "text": "5 GP in the last 15 days",
+     "value": 5.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.14/GP vs ixG 0.36/GP over 14 GP (-3.0 goals vs expected): about -0.44 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.4357,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 1.409 (rank 1/4)",
+     "value": 1.409446525496138,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.9174,
+   "title": "Role up: Charle-Edouard D'Astous (TOI +2.1, PP1; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4588175",
+     "name": "Charle-Edouard D'Astous",
+     "nhl_id": 8480426,
+     "team": "TBL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.8 min per game over the last 5 GP vs 18.8 baseline (+2.1 min)",
+     "value": 20.83,
+     "baseline": 18.752
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 71% of team PP time over the last 5 GP vs 19% baseline (+52 pts) - PP1 usage",
+     "value": 0.7053,
+     "baseline": 0.19
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 2/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.8347,
+   "title": "Role up: Jonathan Lekkerimaki (TOI +5.1, PP share +21 pts; Lane Hutson Fan Club)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5080159",
+     "name": "Jonathan Lekkerimaki",
+     "nhl_id": 8483476,
+     "team": "VAN",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.8 min per game over the last 5 GP vs 11.7 baseline (+5.1 min)",
+     "value": 16.79,
+     "baseline": 11.678
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 60% of team PP time over the last 5 GP vs 39% baseline (+21 pts)",
+     "value": 0.5986,
+     "baseline": 0.387
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 3/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.7521,
+   "title": "Role up: Kent Johnson (TOI +5.0, PP share +29 pts; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4781553",
+     "name": "Kent Johnson",
+     "nhl_id": 8482660,
+     "team": "CBJ",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.3 min per game over the last 5 GP vs 13.2 baseline (+5.0 min)",
+     "value": 18.29,
+     "baseline": 13.241
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 67% of team PP time over the last 5 GP vs 38% baseline (+29 pts)",
+     "value": 0.6704,
+     "baseline": 0.385
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 4/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.6694,
+   "title": "Role up: Lars Eller (TOI +5.5; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3946",
+     "name": "Lars Eller",
+     "nhl_id": 8474189,
+     "team": "FLA",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.0 min per game over the last 5 GP vs 11.4 baseline (+5.5 min)",
+     "value": 16.963,
+     "baseline": 11.447
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 5/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.5868,
+   "title": "Role up: Mark Jankowski (TOI +5.0, PP share +27 pts; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:2976849",
+     "name": "Mark Jankowski",
+     "nhl_id": 8476873,
+     "team": "CAR",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.2 min per game over the last 5 GP vs 11.2 baseline (+5.0 min)",
+     "value": 16.157,
+     "baseline": 11.151
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 33% of team PP time over the last 5 GP vs 6% baseline (+27 pts)",
+     "value": 0.3343,
+     "baseline": 0.06
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 6/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.5041,
+   "title": "Role up: Noah Ostlund (TOI +4.9, PP share +53 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5080160",
+     "name": "Noah Ostlund",
+     "nhl_id": 8483500,
+     "team": "BUF",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.9 min per game over the last 5 GP vs 14.0 baseline (+4.9 min)",
+     "value": 18.89,
+     "baseline": 13.969
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 80% of team PP time over the last 5 GP vs 28% baseline (+53 pts)",
+     "value": 0.8018,
+     "baseline": 0.275
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 7/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.4215,
+   "title": "Role up: Simon Holmstrom (TOI +4.4, PP share +40 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4565244",
+     "name": "Simon Holmstrom",
+     "nhl_id": 8481601,
+     "team": "NYI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.1 min per game over the last 5 GP vs 16.7 baseline (+4.4 min)",
+     "value": 21.127,
+     "baseline": 16.729
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 68% of team PP time over the last 5 GP vs 28% baseline (+40 pts)",
+     "value": 0.6803,
+     "baseline": 0.284
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 8/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.3388,
+   "title": "Role up: Tristan Luneau (TOI +8.1, PP share +23 pts; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5080220",
+     "name": "Tristan Luneau",
+     "nhl_id": 8483482,
+     "team": "ANA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.7 min per game over the last 5 GP vs 11.6 baseline (+8.1 min)",
+     "value": 19.677,
+     "baseline": 11.617
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 23% of team PP time over the last 5 GP vs 0% baseline (+23 pts)",
+     "value": 0.2272,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 9/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.2562,
+   "title": "Role up: Tye Kartye (TOI +5.5, PP share +25 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4588750",
+     "name": "Tye Kartye",
+     "nhl_id": 8481789,
+     "team": "NYR",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.5 min per game over the last 5 GP vs 12.0 baseline (+5.5 min)",
+     "value": 17.46,
+     "baseline": 11.963
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 25% of team PP time over the last 5 GP vs 1% baseline (+25 pts)",
+     "value": 0.2546,
+     "baseline": 0.008
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 10/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.1736,
+   "title": "Role up: Ville Koivunen (TOI +3.0, PP share +52 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874911",
+     "name": "Ville Koivunen",
+     "nhl_id": 8482758,
+     "team": "PIT",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.7 min per game over the last 5 GP vs 12.7 baseline (+3.0 min)",
+     "value": 15.743,
+     "baseline": 12.738
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 73% of team PP time over the last 5 GP vs 20% baseline (+52 pts)",
+     "value": 0.7251,
+     "baseline": 0.203
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 11/121)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.0909,
+   "title": "Role up: Logan Stanley (TOI +4.9; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4024968",
+     "name": "Logan Stanley",
+     "nhl_id": 8479378,
+     "team": "NYI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.92,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.6 min per game over the last 5 GP vs 16.7 baseline (+4.9 min)",
+     "value": 21.647,
+     "baseline": 16.698
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.920 (rank 12/121)",
+     "value": 9.92,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.0083,
+   "title": "Role up: Kasperi Kapanen (TOI +1.8, PP share +42 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3114775",
+     "name": "Kasperi Kapanen",
+     "nhl_id": 8477953,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.81,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.6 min per game over the last 5 GP vs 17.8 baseline (+1.8 min)",
+     "value": 19.617,
+     "baseline": 17.803
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 68% of team PP time over the last 5 GP vs 26% baseline (+42 pts)",
+     "value": 0.676,
+     "baseline": 0.2556
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.810 (rank 13/121)",
+     "value": 9.81,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 9.0,
+   "title": "Trade Connor Hellebuyck to Flin Flon Flappers for Jesper Wallstedt + Jesper Bratt",
+   "add": [
+    {
+     "cid": "espn:4874737",
+     "name": "Jesper Wallstedt",
+     "nhl_id": 8482661,
+     "team": "MIN",
+     "positions": [
+      "G"
+     ]
+    },
+    {
+     "cid": "espn:4268771",
+     "name": "Jesper Bratt",
+     "nhl_id": 8479407,
+     "team": "NJD",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3020225",
+     "name": "Connor Hellebuyck",
+     "nhl_id": 8476945,
+     "team": "NJD",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": 1.146,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 8.07,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.15 pts/game this season (+3.5 pts/week, +78 rest of season)",
+     "value": 1.1459735713676373,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (ADP/rostered %, +4 worth pts to them); acceptance ~60%",
+     "value": 4.421805143001606,
+     "baseline": 4.421805143001606
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Brandon Bussi; Flin Flon Flappers can pick up Valeri Nichushkin (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+4.4 pts) while our model has you gaining +1.15",
+     "value": 1.1459735713676373,
+     "baseline": 4.421805143001606
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 62% (prior logistic: they get 53, give 49 market pts -> +4.4 pts). EV = +1.15 x 0.62 = +0.71",
+     "value": 0.6191129720565215,
+     "baseline": 0.6191129720565215
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.5 pts/week (+1.15/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.4785396868436953,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+78 pts rest of season (+1.15/game x 68 games left)",
+     "value": 77.52174159251663,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.15 FPG (optimal_lineup)",
+     "value": 1.1459735713676373,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Flin Flon Flappers lineup -1.01 FPG (our model)",
+     "value": -1.0149762848063624,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Jesper Wallstedt (0.78), Jesper Bratt (0.24): 1.02 VORP",
+     "value": 1.016581626903033,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Connor Hellebuyck (0.02): 0.02 VORP",
+     "value": 0.022737751822766716,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 98% (shown only; old band 15%)",
+     "value": 0.9776331273150822,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Brandon Bussi",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jesper Wallstedt: market 69th pct (ADP/rostered %) vs model 99th (+30): model disagrees with market, rates him higher (goalie save talent (GSAx), goalie start share)",
+     "value": 29.7,
+     "baseline": 69.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jesper Bratt: market 69th pct (ADP/rostered %) vs model 61st (-7): market agrees",
+     "value": -7.4,
+     "baseline": 68.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Connor Hellebuyck: market 81st pct (ADP/rostered %) vs model 59th (-22): market agrees",
+     "value": -21.9,
+     "baseline": 81.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.709 (rank 2/10)",
+     "value": 0.7094871036676442,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.9256,
+   "title": "Role up: Maxim Shabanov (TOI +2.3, PP share +42 pts; Lane Hutson Fan Club)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5302535",
+     "name": "Maxim Shabanov",
+     "nhl_id": 8485702,
+     "team": "MIN",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.78,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.0 min per game over the last 5 GP vs 13.7 baseline (+2.3 min)",
+     "value": 15.987,
+     "baseline": 13.683
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 75% of team PP time over the last 5 GP vs 33% baseline (+42 pts)",
+     "value": 0.7478,
+     "baseline": 0.329
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.780 (rank 14/121)",
+     "value": 9.78,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.843,
+   "title": "Role up: Owen Power (TOI +4.9; Glizzyopolos Gladiators)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4781556",
+     "name": "Owen Power",
+     "nhl_id": 8482671,
+     "team": "BUF",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Glizzyopolos Gladiators",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.78,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 26.5 min per game over the last 5 GP vs 21.7 baseline (+4.9 min)",
+     "value": 26.507,
+     "baseline": 21.653
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.780 (rank 15/121)",
+     "value": 9.78,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.7603,
+   "title": "Role up: Zach Benson (TOI +4.0, PP share +42 pts; Djibouti Dragons)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5149186",
+     "name": "Zach Benson",
+     "nhl_id": 8484145,
+     "team": "BUF",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.74,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.9 min per game over the last 5 GP vs 15.9 baseline (+4.0 min)",
+     "value": 19.9,
+     "baseline": 15.888
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 77% of team PP time over the last 5 GP vs 36% baseline (+42 pts)",
+     "value": 0.7733,
+     "baseline": 0.357
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.740 (rank 16/121)",
+     "value": 9.74,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.6777,
+   "title": "Role up: Tim Washe (TOI +4.7; Barbados Butt Pirates)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4996085",
+     "name": "Tim Washe",
+     "nhl_id": 8485512,
+     "team": "ANA",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Barbados Butt Pirates",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.49,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.7 min per game over the last 5 GP vs 12.1 baseline (+4.7 min)",
+     "value": 16.713,
+     "baseline": 12.052
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.490 (rank 17/121)",
+     "value": 9.49,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.595,
+   "title": "Role up: Kaiden Guhle (TOI +4.6; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697399",
+     "name": "Kaiden Guhle",
+     "nhl_id": 8482087,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.42,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 24.1 min per game over the last 5 GP vs 19.5 baseline (+4.6 min)",
+     "value": 24.073,
+     "baseline": 19.463
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.420 (rank 18/121)",
+     "value": 9.42,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.5124,
+   "title": "Role up: Jack Quinn (TOI +3.0, PP share +39 pts; Djibouti Dragons)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697389",
+     "name": "Jack Quinn",
+     "nhl_id": 8482097,
+     "team": "BUF",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.41,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.7 min per game over the last 5 GP vs 15.7 baseline (+3.0 min)",
+     "value": 18.677,
+     "baseline": 15.657
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 84% of team PP time over the last 5 GP vs 45% baseline (+39 pts)",
+     "value": 0.8418,
+     "baseline": 0.448
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.410 (rank 19/121)",
+     "value": 9.41,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.4298,
+   "title": "Role up: Tommy Novak (TOI +3.8, PP share +39 pts; Lane Hutson Fan Club)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3942061",
+     "name": "Tommy Novak",
+     "nhl_id": 8478438,
+     "team": "PIT",
+     "positions": [
+      "C",
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.32,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.1 min per game over the last 5 GP vs 14.3 baseline (+3.8 min)",
+     "value": 18.073,
+     "baseline": 14.281
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 64% of team PP time over the last 5 GP vs 25% baseline (+39 pts)",
+     "value": 0.6401,
+     "baseline": 0.252
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.320 (rank 20/121)",
+     "value": 9.32,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.3471,
+   "title": "Role up: Elias N. Pettersson (TOI +4.5; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5238086",
+     "name": "Elias N. Pettersson",
+     "nhl_id": 8483678,
+     "team": "VAN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.3,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.5 min per game over the last 5 GP vs 15.0 baseline (+4.5 min)",
+     "value": 19.513,
+     "baseline": 14.979
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.300 (rank 21/121)",
+     "value": 9.3,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.2645,
+   "title": "Role up: Denver Barkey (TOI +1.5, PP share +38 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5173105",
+     "name": "Denver Barkey",
+     "nhl_id": 8484142,
+     "team": "PHI",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.15,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.9 min per game over the last 5 GP vs 13.4 baseline (+1.5 min)",
+     "value": 14.92,
+     "baseline": 13.407
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 71% of team PP time over the last 5 GP vs 33% baseline (+38 pts)",
+     "value": 0.707,
+     "baseline": 0.33
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.150 (rank 22/121)",
+     "value": 9.15,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.1818,
+   "title": "Role up: Ryker Evans (TOI +4.3; Djibouti Dragons)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874864",
+     "name": "Ryker Evans",
+     "nhl_id": 8482858,
+     "team": "SEA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.96,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.1 min per game over the last 5 GP vs 17.8 baseline (+4.3 min)",
+     "value": 22.113,
+     "baseline": 17.805
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.960 (rank 23/121)",
+     "value": 8.96,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.0992,
+   "title": "Role up: Pavel Zacha (TOI +4.3; Pee Pee, Ohio Schlongs )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3899949",
+     "name": "Pavel Zacha",
+     "nhl_id": 8478401,
+     "team": "BOS",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Pee Pee, Ohio Schlongs ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.9,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.1 min per game over the last 5 GP vs 16.8 baseline (+4.3 min)",
+     "value": 21.113,
+     "baseline": 16.846
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.900 (rank 24/121)",
+     "value": 8.9,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.0165,
+   "title": "Role up: Declan Carlile (TOI +4.2; Yumyum Tenessee Sw@ss)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5103825",
+     "name": "Declan Carlile",
+     "nhl_id": 8483398,
+     "team": "PIT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.85,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.0 min per game over the last 5 GP vs 14.8 baseline (+4.2 min)",
+     "value": 19.01,
+     "baseline": 14.778
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.850 (rank 25/121)",
+     "value": 8.85,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 8.0,
+   "title": "Trade Zach Hyman to Dartmouth Shiithawks  for Adam Fox + Mikael Granlund",
+   "add": [
+    {
+     "cid": "espn:4197146",
+     "name": "Adam Fox",
+     "nhl_id": 8479323,
+     "team": "NYR",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:5831",
+     "name": "Mikael Granlund",
+     "nhl_id": 8475798,
+     "team": "ANA",
+     "positions": [
+      "C",
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": 1.2574,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.99,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.26 pts/game this season (+3.8 pts/week, +85 rest of season)",
+     "value": 1.2573814650464215,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, +1 worth pts to them); acceptance ~50%",
+     "value": 0.9047920716145299,
+     "baseline": 0.9047920716145299
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Brandon Bussi + Patrick Kane; Dartmouth Shiithawks  can pick up Jonas Brodin (FA)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+0.9 pts) while our model has you gaining +1.26",
+     "value": 1.2573814650464215,
+     "baseline": 0.9047920716145299
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 52% (prior logistic: they get 53, give 52 market pts -> +0.9 pts). EV = +1.26 x 0.52 = +0.66",
+     "value": 0.5248299508636673,
+     "baseline": 0.5248299508636673
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.8 pts/week (+1.26/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.816712214790231,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+85 pts rest of season (+1.26/game x 68 games left)",
+     "value": 85.05815792961086,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.26 FPG (optimal_lineup)",
+     "value": 1.2573814650464215,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Dartmouth Shiithawks  lineup -1.13 FPG (our model)",
+     "value": -1.1271803042846749,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Adam Fox (0.85), Mikael Granlund (0.31): 1.16 VORP",
+     "value": 1.1554445999692384,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Zach Hyman (0.11): 0.11 VORP",
+     "value": 0.11466070468852574,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 90% (shown only; old band 15%)",
+     "value": 0.9007648616891036,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Brandon Bussi + Patrick Kane",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Adam Fox: market 77th pct (ADP/rostered %) vs model 95th (+17): market agrees",
+     "value": 17.4,
+     "baseline": 77.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Mikael Granlund: market 49th pct (ADP/rostered %) vs model 68th (+19): market agrees",
+     "value": 18.9,
+     "baseline": 49.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Zach Hyman: market 81st pct (ADP/rostered %) vs model 52nd (-29): model disagrees with market, rates him lower (injury return estimate, status ir)",
+     "value": -29.4,
+     "baseline": 80.9
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.660 (rank 3/10)",
+     "value": 0.6599114525171994,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.9339,
+   "title": "Role up: Alex Newhook (TOI +3.6, PP share +31 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4565237",
+     "name": "Alex Newhook",
+     "nhl_id": 8481618,
+     "team": "MTL",
+     "positions": [
+      "C",
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.83,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.0 min per game over the last 5 GP vs 14.5 baseline (+3.6 min)",
+     "value": 18.04,
+     "baseline": 14.485
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 51% of team PP time over the last 5 GP vs 20% baseline (+31 pts)",
+     "value": 0.5073,
+     "baseline": 0.201
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.830 (rank 26/121)",
+     "value": 8.83,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.8512,
+   "title": "Role up: Philip Broberg (TOI +2.9, PP share +34 pts; North Korea Nudy Balls?)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4565229",
+     "name": "Philip Broberg",
+     "nhl_id": 8481598,
+     "team": "STL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "North Korea Nudy Balls?",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.67,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 26.3 min per game over the last 5 GP vs 23.4 baseline (+2.9 min)",
+     "value": 26.273,
+     "baseline": 23.358
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 62% of team PP time over the last 5 GP vs 27% baseline (+34 pts)",
+     "value": 0.6155,
+     "baseline": 0.271
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.670 (rank 27/121)",
+     "value": 8.67,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.7686,
+   "title": "Role up: Olen Zellweger (TOI +4.0; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874863",
+     "name": "Olen Zellweger",
+     "nhl_id": 8482803,
+     "team": "BUF",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.54,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.0 min per game over the last 5 GP vs 17.0 baseline (+4.0 min)",
+     "value": 21.0,
+     "baseline": 16.976
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.540 (rank 28/121)",
+     "value": 8.54,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.686,
+   "title": "Role up: Jack Roslovic (PP share +40 pts; Looch Lovers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3904098",
+     "name": "Jack Roslovic",
+     "nhl_id": 8478458,
+     "team": "TOR",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Looch Lovers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.51,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 62% of team PP time over the last 5 GP vs 22% baseline (+40 pts)",
+     "value": 0.6232,
+     "baseline": 0.2225
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.510 (rank 29/121)",
+     "value": 8.51,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.6033,
+   "title": "Role up: Jack Drury (TOI +3.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4378671",
+     "name": "Jack Drury",
+     "nhl_id": 8480835,
+     "team": "NSH",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.25,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.3 min per game over the last 5 GP vs 14.5 baseline (+3.8 min)",
+     "value": 18.31,
+     "baseline": 14.479
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.250 (rank 30/121)",
+     "value": 8.25,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.5207,
+   "title": "Role up: Matthew Schaefer (TOI +3.8; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5291933",
+     "name": "Matthew Schaefer",
+     "nhl_id": 8485366,
+     "team": "NYI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.23,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 28.5 min per game over the last 5 GP vs 24.7 baseline (+3.8 min)",
+     "value": 28.5,
+     "baseline": 24.683
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.230 (rank 31/121)",
+     "value": 8.23,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 7.5,
+   "title": "Buy low on Brandon Hagel (Lane Hutson Fan Club)",
+   "add": [
+    {
+     "cid": "espn:4065019",
+     "name": "Brandon Hagel",
+     "nhl_id": 8479542,
+     "team": "TBL",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": 0.7733,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 3.65,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.65 FPG vs 2.42 shrunk season baseline (0.68x)",
+     "value": 0.6808803301237963,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 3.50 SOG/GP vs 3.33 baseline",
+     "value": 3.5,
+     "baseline": 3.325
+    },
+    {
+     "code": "GP_L15",
+     "text": "6 GP in the last 15 days",
+     "value": 6.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.53/GP vs ixG 0.63/GP over 15 GP (-1.5 goals vs expected): about -0.20 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.1987,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.808 (rank 2/4)",
+     "value": 0.8081093879265734,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.438,
+   "title": "Role up: Colton Dach (TOI +3.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874940",
+     "name": "Colton Dach",
+     "nhl_id": 8482703,
+     "team": "EDM",
+     "positions": [
+      "C",
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.05,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.2 min per game over the last 5 GP vs 11.5 baseline (+3.7 min)",
+     "value": 15.18,
+     "baseline": 11.478
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.050 (rank 32/121)",
+     "value": 8.05,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.3554,
+   "title": "Role up: Matvei Michkov (TOI +2.9, PP share +30 pts; Djibouti Dragons)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5149170",
+     "name": "Matvei Michkov",
+     "nhl_id": 8484387,
+     "team": "PHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.02,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.8 min per game over the last 5 GP vs 14.8 baseline (+2.9 min)",
+     "value": 17.757,
+     "baseline": 14.84
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 77% of team PP time over the last 5 GP vs 47% baseline (+30 pts)",
+     "value": 0.7703,
+     "baseline": 0.469
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.020 (rank 33/121)",
+     "value": 8.02,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.2727,
+   "title": "Role up: Phillip Danault (TOI +3.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:2562602",
+     "name": "Phillip Danault",
+     "nhl_id": 8476479,
+     "team": "MTL",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.01,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.2 min per game over the last 5 GP vs 15.6 baseline (+3.7 min)",
+     "value": 19.237,
+     "baseline": 15.566
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.010 (rank 34/121)",
+     "value": 8.01,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.1901,
+   "title": "Role up: Cutter Gauthier (TOI +1.7, PP share +30 pts; Djibouti Dragons)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5080145",
+     "name": "Cutter Gauthier",
+     "nhl_id": 8483445,
+     "team": "ANA",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.96,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.0 min per game over the last 5 GP vs 17.3 baseline (+1.7 min)",
+     "value": 18.987,
+     "baseline": 17.253
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 83% of team PP time over the last 5 GP vs 53% baseline (+30 pts)",
+     "value": 0.8272,
+     "baseline": 0.529
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.960 (rank 35/121)",
+     "value": 7.96,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.1074,
+   "title": "Role up: Hendrix Lapierre (TOI +3.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697405",
+     "name": "Hendrix Lapierre",
+     "nhl_id": 8482148,
+     "team": "PIT",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.94,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 12.5 min per game over the last 5 GP vs 8.8 baseline (+3.6 min)",
+     "value": 12.46,
+     "baseline": 8.834
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.940 (rank 36/121)",
+     "value": 7.94,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.0248,
+   "title": "Role up: Jamie Drysdale (TOI +3.0, PP share +23 pts; Pee Pee, Ohio Schlongs )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697387",
+     "name": "Jamie Drysdale",
+     "nhl_id": 8482142,
+     "team": "PHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Pee Pee, Ohio Schlongs ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.92,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 24.5 min per game over the last 5 GP vs 21.6 baseline (+3.0 min)",
+     "value": 24.513,
+     "baseline": 21.554
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 70% of team PP time over the last 5 GP vs 47% baseline (+23 pts)",
+     "value": 0.6975,
+     "baseline": 0.471
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.920 (rank 37/121)",
+     "value": 7.92,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 7.0,
+   "title": "Trade Jack Eichel to Djibouti Dragons for Mikhail Sergachev + Jake Sanderson",
+   "add": [
+    {
+     "cid": "espn:4024868",
+     "name": "Mikhail Sergachev",
+     "nhl_id": 8479410,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:4697386",
+     "name": "Jake Sanderson",
+     "nhl_id": 8482105,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3648002",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": 1.0136,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.71,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.01 pts/game this season (+3.1 pts/week, +69 rest of season)",
+     "value": 1.0135572234073322,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (ADP/rostered %, +4 worth pts to them); acceptance ~60%",
+     "value": 4.102428439842967,
+     "baseline": 4.102428439842967
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Brandon Bussi; Djibouti Dragons can pick up Jet Greaves (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+4.1 pts) while our model has you gaining +1.01",
+     "value": 1.0135572234073322,
+     "baseline": 4.102428439842967
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 61% (prior logistic: they get 84, give 80 market pts -> +4.1 pts). EV = +1.01 x 0.61 = +0.62",
+     "value": 0.6108051364066125,
+     "baseline": 0.6108051364066125
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.1 pts/week (+1.01/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.076597152499632,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+69 pts rest of season (+1.01/game x 68 games left)",
+     "value": 68.56416511284894,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.01 FPG (optimal_lineup)",
+     "value": 1.0135572234073322,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Djibouti Dragons lineup -1.32 FPG (our model)",
+     "value": -1.3210064786020403,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Mikhail Sergachev (0.80), Jake Sanderson (0.69): 1.49 VORP",
+     "value": 1.4906544288645271,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (0.71): 0.71 VORP",
+     "value": 0.710952959271802,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 52% (shown only; old band 15%)",
+     "value": 0.5230598417009671,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Brandon Bussi",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Mikhail Sergachev: market 82nd pct (ADP/rostered %) vs model 93rd (+12): market agrees",
+     "value": 11.6,
+     "baseline": 81.6
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jake Sanderson: market 79th pct (ADP/rostered %) vs model 90th (+11): market agrees",
+     "value": 10.6,
+     "baseline": 79.5
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jack Eichel: market 94th pct (ADP/rostered %) vs model 87th (-7): market agrees",
+     "value": -6.9,
+     "baseline": 94.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.619 (rank 4/10)",
+     "value": 0.619085958099223,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.9421,
+   "title": "Role up: Alex Laferriere (TOI +1.9, PP share +29 pts; Looch Lovers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697725",
+     "name": "Alex Laferriere",
+     "nhl_id": 8482155,
+     "team": "LAK",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Looch Lovers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.87,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.2 min per game over the last 5 GP vs 18.3 baseline (+1.9 min)",
+     "value": 20.247,
+     "baseline": 18.31
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 66% of team PP time over the last 5 GP vs 37% baseline (+29 pts)",
+     "value": 0.6633,
+     "baseline": 0.37
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.870 (rank 38/121)",
+     "value": 7.87,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.8595,
+   "title": "Role up: Jackson LaCombe (TOI +2.9, PP share +17 pts; Looch Lovers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4565262",
+     "name": "Jackson LaCombe",
+     "nhl_id": 8481605,
+     "team": "ANA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Looch Lovers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.81,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 27.2 min per game over the last 5 GP vs 24.2 baseline (+2.9 min)",
+     "value": 27.153,
+     "baseline": 24.248
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 78% of team PP time over the last 5 GP vs 61% baseline (+17 pts)",
+     "value": 0.7796,
+     "baseline": 0.608
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.810 (rank 39/121)",
+     "value": 7.81,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.7769,
+   "title": "Role up: Arttu Hyry (TOI +3.5; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5209793",
+     "name": "Arttu Hyry",
+     "nhl_id": 8484938,
+     "team": "DAL",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.75,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.3 min per game over the last 5 GP vs 11.8 baseline (+3.5 min)",
+     "value": 15.273,
+     "baseline": 11.776
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.750 (rank 40/121)",
+     "value": 7.75,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.6942,
+   "title": "Role up: Beckett Sennecke (TOI +2.5, PP share +29 pts; Lane Hutson Fan Club)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5216858",
+     "name": "Beckett Sennecke",
+     "nhl_id": 8484762,
+     "team": "ANA",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.73,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.0 min per game over the last 5 GP vs 17.4 baseline (+2.5 min)",
+     "value": 19.963,
+     "baseline": 17.445
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 73% of team PP time over the last 5 GP vs 44% baseline (+29 pts)",
+     "value": 0.7306,
+     "baseline": 0.444
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.730 (rank 41/121)",
+     "value": 7.73,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.6116,
+   "title": "Role up: Tom Willander (TOI +3.4; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5149180",
+     "name": "Tom Willander",
+     "nhl_id": 8484240,
+     "team": "VAN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.58,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.4 min per game over the last 5 GP vs 17.0 baseline (+3.4 min)",
+     "value": 20.377,
+     "baseline": 16.99
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.580 (rank 42/121)",
+     "value": 7.58,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.5289,
+   "title": "Role up: Sandis Vilmanis (TOI +3.4; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5103599",
+     "name": "Sandis Vilmanis",
+     "nhl_id": 8483771,
+     "team": "FLA",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.56,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 13.8 min per game over the last 5 GP vs 10.4 baseline (+3.4 min)",
+     "value": 13.77,
+     "baseline": 10.397
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.560 (rank 43/121)",
+     "value": 7.56,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.4463,
+   "title": "Role up: Jake McCabe (TOI +3.4; Big Mountain Bonobos)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3020803",
+     "name": "Jake McCabe",
+     "nhl_id": 8476931,
+     "team": "TOR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Big Mountain Bonobos",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.55,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.7 min per game over the last 5 GP vs 18.4 baseline (+3.4 min)",
+     "value": 21.72,
+     "baseline": 18.353
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.550 (rank 44/121)",
+     "value": 7.55,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.3636,
+   "title": "Role up: Berkly Catton (TOI +2.6, PP share +27 pts; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5216877",
+     "name": "Berkly Catton",
+     "nhl_id": 8484800,
+     "team": "SEA",
+     "positions": [
+      "C",
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.48,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.6 min per game over the last 5 GP vs 12.9 baseline (+2.6 min)",
+     "value": 15.557,
+     "baseline": 12.936
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 47% of team PP time over the last 5 GP vs 20% baseline (+27 pts)",
+     "value": 0.4691,
+     "baseline": 0.195
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.480 (rank 45/121)",
+     "value": 7.48,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.281,
+   "title": "Role up: Mason Marchment (TOI +2.0, PP share +27 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4272192",
+     "name": "Mason Marchment",
+     "nhl_id": 8478975,
+     "team": "SJS",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.45,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.4 min per game over the last 5 GP vs 15.5 baseline (+2.0 min)",
+     "value": 17.42,
+     "baseline": 15.467
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 69% of team PP time over the last 5 GP vs 42% baseline (+27 pts)",
+     "value": 0.6891,
+     "baseline": 0.4168
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.450 (rank 46/121)",
+     "value": 7.45,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.1983,
+   "title": "Role up: Bobby McMann (TOI +2.2, PP share +27 pts; Big Mountain Bonobos)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5048894",
+     "name": "Bobby McMann",
+     "nhl_id": 8482259,
+     "team": "SEA",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Big Mountain Bonobos",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.44,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.1 min per game over the last 5 GP vs 15.9 baseline (+2.2 min)",
+     "value": 18.117,
+     "baseline": 15.931
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 52% of team PP time over the last 5 GP vs 25% baseline (+27 pts)",
+     "value": 0.5178,
+     "baseline": 0.246
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.440 (rank 47/121)",
+     "value": 7.44,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.1157,
+   "title": "Role up: JJ Peterka (TOI +3.3; Yumyum Tenessee Sw@ss)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697438",
+     "name": "JJ Peterka",
+     "nhl_id": 8482175,
+     "team": "BOS",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.38,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.2 min per game over the last 5 GP vs 16.0 baseline (+3.3 min)",
+     "value": 19.24,
+     "baseline": 15.984
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.380 (rank 48/121)",
+     "value": 7.38,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.0331,
+   "title": "Role up: William Karlsson (TOI +3.1; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:2563057",
+     "name": "William Karlsson",
+     "nhl_id": 8476448,
+     "team": "VGK",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.21,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.3 min per game over the last 5 GP vs 15.1 baseline (+3.1 min)",
+     "value": 18.283,
+     "baseline": 15.146
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.210 (rank 49/121)",
+     "value": 7.21,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 6.0,
+   "title": "Trade Connor Hellebuyck to Dartmouth Shiithawks  for Adam Fox + Colton Parayko",
+   "add": [
+    {
+     "cid": "espn:4197146",
+     "name": "Adam Fox",
+     "nhl_id": 8479323,
+     "team": "NYR",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:3069341",
+     "name": "Colton Parayko",
+     "nhl_id": 8476892,
+     "team": "STL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3020225",
+     "name": "Connor Hellebuyck",
+     "nhl_id": 8476945,
+     "team": "NJD",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": 1.1443,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.48,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.14 pts/game this season (+3.5 pts/week, +77 rest of season)",
+     "value": 1.144322492760793,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, -1 worth pts to them); acceptance ~50%",
+     "value": 0.6353351644967233,
+     "baseline": -1.3646648355032767
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Connor Hellebuyck fills Dartmouth Shiithawks 's weakest slot G (starter VORP -0.12)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Patrick Kane; Dartmouth Shiithawks  drops Lukas Dostal; Dartmouth Shiithawks  can pick up Jonas Brodin (FA)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+0.6 pts) while our model has you gaining +1.14",
+     "value": 1.144322492760793,
+     "baseline": 0.6353351644967233
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 52% (prior logistic: they get 53, give 55 market pts; -3 they must drop Lukas Dostal; +5 fills their weakest slot -> +0.6 pts). EV = +1.14 x 0.52 = +0.59",
+     "value": 0.5174425945652743,
+     "baseline": 0.5174425945652743
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.5 pts/week (+1.14/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.4735279286291036,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+77 pts rest of season (+1.14/game x 68 games left)",
+     "value": 77.41005098087716,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.14 FPG (optimal_lineup)",
+     "value": 1.144322492760793,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Dartmouth Shiithawks  lineup -1.22 FPG (our model)",
+     "value": -1.2178921360589428,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Adam Fox (0.85), Colton Parayko (0.24): 1.09 VORP",
+     "value": 1.0934821641517096,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Connor Hellebuyck (0.02): 0.02 VORP",
+     "value": 0.022737751822766716,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 98% (shown only; old band 15%)",
+     "value": 0.9792061063561965,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "Dartmouth Shiithawks  is at a league roster maximum (G limit 3: would roster 4 goalies): they must drop a same-position player",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Patrick Kane",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "Dartmouth Shiithawks  would need to drop Lukas Dostal",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Adam Fox: market 77th pct (ADP/rostered %) vs model 95th (+17): market agrees",
+     "value": 17.4,
+     "baseline": 77.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Colton Parayko: market 56th pct (ADP/rostered %) vs model 69th (+13): market agrees",
+     "value": 13.1,
+     "baseline": 55.8
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Connor Hellebuyck: market 81st pct (ADP/rostered %) vs model 59th (-22): market agrees",
+     "value": -21.9,
+     "baseline": 81.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.592 (rank 5/10)",
+     "value": 0.592121199673547,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.9504,
+   "title": "Role up: Elias Pettersson (TOI +3.1; North Korea Nudy Balls?)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4233566",
+     "name": "Elias Pettersson",
+     "nhl_id": 8480012,
+     "team": "VAN",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "North Korea Nudy Balls?",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.16,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.1 min per game over the last 5 GP vs 19.0 baseline (+3.1 min)",
+     "value": 22.067,
+     "baseline": 18.961
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.160 (rank 50/121)",
+     "value": 7.16,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.8678,
+   "title": "Role loss: Zach Hyman (TOI -2.6, PP share -19 pts; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5509",
+     "name": "Zach Hyman",
+     "nhl_id": 8475786,
+     "team": "EDM",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.15,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.4 min per game over the last 5 GP vs 20.0 baseline (-2.6 min)",
+     "value": 17.41,
+     "baseline": 19.984
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 66% of team PP time over the last 5 GP vs 85% baseline (-19 pts)",
+     "value": 0.6641,
+     "baseline": 0.853
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.150 (rank 51/121)",
+     "value": 7.15,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.7851,
+   "title": "Role up: Mikael Granlund (TOI +2.4, PP share +26 pts; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5831",
+     "name": "Mikael Granlund",
+     "nhl_id": 8475798,
+     "team": "ANA",
+     "positions": [
+      "C",
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.14,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.6 min per game over the last 5 GP vs 19.2 baseline (+2.4 min)",
+     "value": 21.563,
+     "baseline": 19.174
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 85% of team PP time over the last 5 GP vs 59% baseline (+26 pts)",
+     "value": 0.8498,
+     "baseline": 0.593
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.140 (rank 52/121)",
+     "value": 7.14,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.7025,
+   "title": "Ben Kindel (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5291947",
+     "name": "Ben Kindel",
+     "nhl_id": 8485414,
+     "team": "PIT",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Ben Kindel: PP2 -> PP1 per Daily Faceoff (Last Game (2026-11-05), updated Nov 06 14:49 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Ben Kindel now on PP1 (Daily Faceoff (Last Game (2026-11-05), updated Nov 06 14:49 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 53/121)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.6198,
+   "title": "Victor Olofsson (free agent) promoted to PP1 (new to lineup; no PP -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3151096",
+     "name": "Victor Olofsson",
+     "nhl_id": 8478109,
+     "team": "VGK",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Victor Olofsson: new to lineup; no PP -> PP1 per Daily Faceoff (Last Game (2026-11-05), updated Nov 06 14:36 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Victor Olofsson now on PP1 (Daily Faceoff (Last Game (2026-11-05), updated Nov 06 14:36 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 54/121)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.5372,
+   "title": "Role up: Paul Cotter (PP share +29 pts; North Korea Nudy Balls?)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4331579",
+     "name": "Paul Cotter",
+     "nhl_id": 8481032,
+     "team": "VAN",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "North Korea Nudy Balls?",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.86,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 33% of team PP time over the last 5 GP vs 4% baseline (+29 pts)",
+     "value": 0.3341,
+     "baseline": 0.041
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.860 (rank 55/121)",
+     "value": 6.86,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.4545,
+   "title": "Role up: Cole Hutson (TOI +2.8; Big Mountain Bonobos)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5216918",
+     "name": "Cole Hutson",
+     "nhl_id": 8484873,
+     "team": "WSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Big Mountain Bonobos",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.63,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.3 min per game over the last 5 GP vs 17.5 baseline (+2.8 min)",
+     "value": 20.27,
+     "baseline": 17.457
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.630 (rank 56/121)",
+     "value": 6.63,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.3719,
+   "title": "Role up: Linus Karlsson (TOI +2.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4587713",
+     "name": "Linus Karlsson",
+     "nhl_id": 8481024,
+     "team": "VAN",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.59,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.3 min per game over the last 5 GP vs 12.5 baseline (+2.8 min)",
+     "value": 15.31,
+     "baseline": 12.514
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.590 (rank 57/121)",
+     "value": 6.59,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.2893,
+   "title": "Role up: Alexandre Carrier (TOI +2.8; Yumyum Tenessee Sw@ss)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3942064",
+     "name": "Alexandre Carrier",
+     "nhl_id": 8478851,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.57,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.9 min per game over the last 5 GP vs 19.1 baseline (+2.8 min)",
+     "value": 21.87,
+     "baseline": 19.083
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.570 (rank 58/121)",
+     "value": 6.57,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.2066,
+   "title": "Role loss: Patrick Kane (TOI -2.8; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3735",
+     "name": "Patrick Kane",
+     "nhl_id": 8474141,
+     "team": "CHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.54,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.9 min per game over the last 5 GP vs 17.7 baseline (-2.8 min)",
+     "value": 14.927,
+     "baseline": 17.695
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.540 (rank 59/121)",
+     "value": 6.54,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.124,
+   "title": "Role up: Denton Mateychuk (TOI +2.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5080156",
+     "name": "Denton Mateychuk",
+     "nhl_id": 8483485,
+     "team": "CBJ",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.51,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.9 min per game over the last 5 GP vs 19.2 baseline (+2.8 min)",
+     "value": 21.94,
+     "baseline": 19.186
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.510 (rank 60/121)",
+     "value": 6.51,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.0413,
+   "title": "Role up: Logan Cooley (TOI +1.8, PP share +23 pts; Lane Hutson Fan Club)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5080143",
+     "name": "Logan Cooley",
+     "nhl_id": 8483431,
+     "team": "UTA",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.51,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.1 min per game over the last 5 GP vs 17.3 baseline (+1.8 min)",
+     "value": 19.103,
+     "baseline": 17.328
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 79% of team PP time over the last 5 GP vs 56% baseline (+23 pts)",
+     "value": 0.7856,
+     "baseline": 0.56
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.510 (rank 61/121)",
+     "value": 6.51,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 5.0,
+   "title": "Trade Morgan Rielly to Yumyum Tenessee Sw@ss for Seth Jones + Spencer Knight",
+   "add": [
+    {
+     "cid": "espn:3041992",
+     "name": "Seth Jones",
+     "nhl_id": 8477495,
+     "team": "FLA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:4565234",
+     "name": "Spencer Knight",
+     "nhl_id": 8481519,
+     "team": "CHI",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:2976833",
+     "name": "Morgan Rielly",
+     "nhl_id": 8476853,
+     "team": "TOR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": 1.0178,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.31,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.02 pts/game this season (+3.1 pts/week, +69 rest of season)",
+     "value": 1.0178102106774567,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, -3 worth pts to them); acceptance ~55%",
+     "value": 2.433607060328029,
+     "baseline": -2.566392939671971
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Morgan Rielly fills Yumyum Tenessee Sw@ss's weakest slot D (starter VORP -0.06)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Brandon Bussi; Yumyum Tenessee Sw@ss can pick up Valeri Nichushkin (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+2.4 pts) while our model has you gaining +1.02",
+     "value": 1.0178102106774567,
+     "baseline": 2.433607060328029
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 57% (prior logistic: they get 25, give 27 market pts; +5 fills their weakest slot -> +2.4 pts). EV = +1.02 x 0.57 = +0.58",
+     "value": 0.5664444440695785,
+     "baseline": 0.5664444440695785
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.1 pts/week (+1.02/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.089506861219278,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+69 pts rest of season (+1.02/game x 68 games left)",
+     "value": 68.85186719288677,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.02 FPG (optimal_lineup)",
+     "value": 1.0178102106774567,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Yumyum Tenessee Sw@ss lineup -0.93 FPG (our model)",
+     "value": -0.9316626737083666,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Seth Jones (0.67), Spencer Knight (0.23): 0.89 VORP",
+     "value": 0.8923379137472367,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Morgan Rielly (0.06): 0.06 VORP",
+     "value": 0.06130501819449541,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 93% (shown only; old band 15%)",
+     "value": 0.9312984271428585,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (G limit 3: would roster 4 goalies): the drop must be a same-position player",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Brandon Bussi",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Seth Jones: market 61st pct (ADP/rostered %) vs model 89th (+28): model disagrees with market, rates him higher (assist luck)",
+     "value": 28.3,
+     "baseline": 61.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Spencer Knight: market 45th pct (ADP/rostered %) vs model 75th (+30): model disagrees with market, rates him higher (goalie save talent (GSAx), goalie start share)",
+     "value": 30.0,
+     "baseline": 45.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Morgan Rielly: market 63rd pct (ADP/rostered %) vs model 53rd (-10): market agrees",
+     "value": -9.5,
+     "baseline": 62.8
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.577 (rank 6/10)",
+     "value": 0.5765329389555325,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 5.0,
+   "title": "Buy low on Colton Parayko (Dartmouth Shiithawks )",
+   "add": [
+    {
+     "cid": "espn:3069341",
+     "name": "Colton Parayko",
+     "nhl_id": 8476892,
+     "team": "STL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": 0.5899,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 3.68,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.24 FPG vs 1.83 shrunk season baseline (0.68x)",
+     "value": 0.6776159735775409,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 1.80 SOG/GP vs 1.58 baseline",
+     "value": 1.8,
+     "baseline": 1.579059829059829
+    },
+    {
+     "code": "GP_L15",
+     "text": "5 GP in the last 15 days",
+     "value": 5.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.00/GP vs ixG 0.11/GP over 14 GP (-1.5 goals vs expected): about -0.22 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.22,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.504 (rank 3/4)",
+     "value": 0.5036197994518368,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.9587,
+   "title": "Role up: Luke Hughes (TOI +1.9, PP share +22 pts; North Korea Nudy Balls?)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874719",
+     "name": "Luke Hughes",
+     "nhl_id": 8482684,
+     "team": "NJD",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "North Korea Nudy Balls?",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.49,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 24.9 min per game over the last 5 GP vs 23.0 baseline (+1.9 min)",
+     "value": 24.877,
+     "baseline": 23.011
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 72% of team PP time over the last 5 GP vs 49% baseline (+22 pts)",
+     "value": 0.7166,
+     "baseline": 0.492
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.490 (rank 62/121)",
+     "value": 6.49,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.876,
+   "title": "Role loss: Lawson Crouse (TOI -2.1, PP share -22 pts; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3899951",
+     "name": "Lawson Crouse",
+     "nhl_id": 8478474,
+     "team": "UTA",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.38,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.5 min per game over the last 5 GP vs 16.6 baseline (-2.1 min)",
+     "value": 14.453,
+     "baseline": 16.597
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 0% of team PP time over the last 5 GP vs 22% baseline (-22 pts)",
+     "value": 0.0038,
+     "baseline": 0.223
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.380 (rank 63/121)",
+     "value": 6.38,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.7934,
+   "title": "Role up: Adam Fantilli (TOI +2.7; Djibouti Dragons)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5136617",
+     "name": "Adam Fantilli",
+     "nhl_id": 8484166,
+     "team": "CBJ",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.38,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.6 min per game over the last 5 GP vs 18.9 baseline (+2.7 min)",
+     "value": 21.59,
+     "baseline": 18.902
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.380 (rank 64/121)",
+     "value": 6.38,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.7107,
+   "title": "Role up: Charlie Coyle (TOI +2.2, PP share +22 pts; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:2555315",
+     "name": "Charlie Coyle",
+     "nhl_id": 8475745,
+     "team": "CBJ",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.38,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.3 min per game over the last 5 GP vs 18.1 baseline (+2.2 min)",
+     "value": 20.263,
+     "baseline": 18.099
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 71% of team PP time over the last 5 GP vs 49% baseline (+22 pts)",
+     "value": 0.7111,
+     "baseline": 0.492
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.380 (rank 65/121)",
+     "value": 6.38,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.6281,
+   "title": "Role up: Quinn Hughes (TOI +2.7; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4320548",
+     "name": "Quinn Hughes",
+     "nhl_id": 8480800,
+     "team": "MIN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.36,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 29.8 min per game over the last 5 GP vs 27.2 baseline (+2.7 min)",
+     "value": 29.843,
+     "baseline": 27.163
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.360 (rank 66/121)",
+     "value": 6.36,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.5455,
+   "title": "Role up: Brandon Montour (TOI +2.7; Barbados Butt Pirates)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3115032",
+     "name": "Brandon Montour",
+     "nhl_id": 8477986,
+     "team": "SEA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Barbados Butt Pirates",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.31,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 25.2 min per game over the last 5 GP vs 22.6 baseline (+2.7 min)",
+     "value": 25.213,
+     "baseline": 22.56
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.310 (rank 67/121)",
+     "value": 6.31,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.4628,
+   "title": "Role up: Emmitt Finnie (PP share +26 pts; Looch Lovers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5188599",
+     "name": "Emmitt Finnie",
+     "nhl_id": 8484471,
+     "team": "DET",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Looch Lovers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.13,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 56% of team PP time over the last 5 GP vs 30% baseline (+26 pts)",
+     "value": 0.556,
+     "baseline": 0.2997
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.130 (rank 68/121)",
+     "value": 6.13,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.3802,
+   "title": "Role up: Mason McTavish (TOI +1.9, PP share +20 pts; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874718",
+     "name": "Mason McTavish",
+     "nhl_id": 8482745,
+     "team": "STL",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.06,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.2 min per game over the last 5 GP vs 15.3 baseline (+1.9 min)",
+     "value": 17.197,
+     "baseline": 15.32
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 58% of team PP time over the last 5 GP vs 38% baseline (+20 pts)",
+     "value": 0.579,
+     "baseline": 0.376
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.060 (rank 69/121)",
+     "value": 6.06,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.2975,
+   "title": "Ukko-Pekka Luukkonen (free agent) likely to start tonight vs CBJ (weak offense): streamer",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4233889",
+     "name": "Ukko-Pekka Luukkonen",
+     "nhl_id": 8480045,
+     "team": "BUF",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.0,
+   "reasons": [
+    {
+     "code": "CONFIRMED_START",
+     "text": "DFO Likely: Ukko-Pekka Luukkonen starts CBJ@BUF (Mike Harrington, Nov 06 15:33 UTC)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "OPPONENT",
+     "text": "CBJ scores 2.43 goals per game (bottom-10 offense)",
+     "value": 2.4285714285714284,
+     "baseline": null
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "G limit 3 reached: streaming him needs a G drop",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "2 of 2 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 2.0,
+     "baseline": 2.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 70/121)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.2149,
+   "title": "Role up: Filip Hronek (TOI +1.9, PP share +20 pts; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4063607",
+     "name": "Filip Hronek",
+     "nhl_id": 8479425,
+     "team": "VAN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.99,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 26.9 min per game over the last 5 GP vs 25.0 baseline (+1.9 min)",
+     "value": 26.887,
+     "baseline": 25.006
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 62% of team PP time over the last 5 GP vs 42% baseline (+20 pts)",
+     "value": 0.6196,
+     "baseline": 0.42
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.990 (rank 71/121)",
+     "value": 5.99,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.1322,
+   "title": "Role loss: Tyler Bertuzzi (TOI -2.4; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3042056",
+     "name": "Tyler Bertuzzi",
+     "nhl_id": 8477479,
+     "team": "CHI",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.89,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.0 min per game over the last 5 GP vs 18.4 baseline (-2.4 min)",
+     "value": 16.0,
+     "baseline": 18.447
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.890 (rank 72/121)",
+     "value": 5.89,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.0496,
+   "title": "Role up: Kailer Yamamoto (TOI +2.4; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4233648",
+     "name": "Kailer Yamamoto",
+     "nhl_id": 8479977,
+     "team": "UTA",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.82,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.2 min per game over the last 5 GP vs 11.8 baseline (+2.4 min)",
+     "value": 14.207,
+     "baseline": 11.796
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.820 (rank 73/121)",
+     "value": 5.82,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 4.0,
+   "title": "Trade Morgan Rielly to Yumyum Tenessee Sw@ss for Seth Jones + Elias Lindholm",
+   "add": [
+    {
+     "cid": "espn:3041992",
+     "name": "Seth Jones",
+     "nhl_id": 8477495,
+     "team": "FLA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:3041994",
+     "name": "Elias Lindholm",
+     "nhl_id": 8477496,
+     "team": "BOS",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:2976833",
+     "name": "Morgan Rielly",
+     "nhl_id": 8476853,
+     "team": "TOR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": 0.8957,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.21,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.90 pts/game this season (+2.7 pts/week, +61 rest of season)",
+     "value": 0.8956768648888982,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, -1 worth pts to them); acceptance ~60%",
+     "value": 4.239600933047054,
+     "baseline": -0.7603990669529459
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Morgan Rielly fills Yumyum Tenessee Sw@ss's weakest slot D (starter VORP -0.06)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Brandon Bussi; Yumyum Tenessee Sw@ss can pick up Valeri Nichushkin (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+4.2 pts) while our model has you gaining +0.90",
+     "value": 0.8956768648888982,
+     "baseline": 4.239600933047054
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 61% (prior logistic: they get 25, give 26 market pts; +5 fills their weakest slot -> +4.2 pts). EV = +0.90 x 0.61 = +0.55",
+     "value": 0.6143815560238095,
+     "baseline": 0.6143815560238095
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.7 pts/week (+0.90/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.718777813859589,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+61 pts rest of season (+0.90/game x 68 games left)",
+     "value": 60.5899055660137,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.90 FPG (optimal_lineup)",
+     "value": 0.8956768648888982,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Yumyum Tenessee Sw@ss lineup -0.85 FPG (our model)",
+     "value": -0.853305354044565,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Seth Jones (0.67), Elias Lindholm (0.14): 0.80 VORP",
+     "value": 0.8048521867960237,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Morgan Rielly (0.06): 0.06 VORP",
+     "value": 0.06130501819449541,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 92% (shown only; old band 15%)",
+     "value": 0.9238307117751149,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Brandon Bussi",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Seth Jones: market 61st pct (ADP/rostered %) vs model 89th (+28): model disagrees with market, rates him higher (assist luck)",
+     "value": 28.3,
+     "baseline": 61.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Elias Lindholm: market 38th pct (ADP/rostered %) vs model 54th (+16): market agrees",
+     "value": 16.3,
+     "baseline": 38.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Morgan Rielly: market 63rd pct (ADP/rostered %) vs model 53rd (-10): market agrees",
+     "value": -9.5,
+     "baseline": 62.8
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.550 (rank 7/10)",
+     "value": 0.5502873459449686,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.9669,
+   "title": "Role up: Jackson Blake (PP share +24 pts; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5103645",
+     "name": "Jackson Blake",
+     "nhl_id": 8482809,
+     "team": "CAR",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.8,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 70% of team PP time over the last 5 GP vs 46% baseline (+24 pts)",
+     "value": 0.6978,
+     "baseline": 0.458
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.800 (rank 74/121)",
+     "value": 5.8,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.8843,
+   "title": "Role up: Kaedan Korczak (TOI +2.4; Djibouti Dragons)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4565264",
+     "name": "Kaedan Korczak",
+     "nhl_id": 8481527,
+     "team": "PIT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.77,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.4 min per game over the last 5 GP vs 16.0 baseline (+2.4 min)",
+     "value": 18.353,
+     "baseline": 15.968
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.770 (rank 75/121)",
+     "value": 5.77,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.8017,
+   "title": "Role up: Mattias Samuelsson (TOI +2.4; Looch Lovers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4378656",
+     "name": "Mattias Samuelsson",
+     "nhl_id": 8480807,
+     "team": "BUF",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Looch Lovers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.71,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 25.2 min per game over the last 5 GP vs 22.8 baseline (+2.4 min)",
+     "value": 25.183,
+     "baseline": 22.829
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.710 (rank 76/121)",
+     "value": 5.71,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.719,
+   "title": "Role up: Carter Verhaeghe (PP share +23 pts; Big Mountain Bonobos)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3042088",
+     "name": "Carter Verhaeghe",
+     "nhl_id": 8477409,
+     "team": "FLA",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Big Mountain Bonobos",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.68,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 72% of team PP time over the last 5 GP vs 48% baseline (+23 pts)",
+     "value": 0.7168,
+     "baseline": 0.483
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.680 (rank 77/121)",
+     "value": 5.68,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.6364,
+   "title": "Role up: Morgan Barron (TOI +2.3; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4316970",
+     "name": "Morgan Barron",
+     "nhl_id": 8480289,
+     "team": "WPG",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.66,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.7 min per game over the last 5 GP vs 12.4 baseline (+2.3 min)",
+     "value": 14.697,
+     "baseline": 12.367
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.660 (rank 78/121)",
+     "value": 5.66,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.5537,
+   "title": "Role up: Tyler Toffoli (TOI +1.8, PP share +18 pts; Humpybong Platypuses)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5550",
+     "name": "Tyler Toffoli",
+     "nhl_id": 8475726,
+     "team": "SJS",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Humpybong Platypuses",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.65,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.6 min per game over the last 5 GP vs 12.8 baseline (+1.8 min)",
+     "value": 14.577,
+     "baseline": 12.753
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 48% of team PP time over the last 5 GP vs 30% baseline (+18 pts)",
+     "value": 0.4776,
+     "baseline": 0.2977
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.650 (rank 79/121)",
+     "value": 5.65,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.4711,
+   "title": "Role up: William Carrier (TOI +2.3; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3042054",
+     "name": "William Carrier",
+     "nhl_id": 8477478,
+     "team": "CAR",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.59,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 13.0 min per game over the last 5 GP vs 10.8 baseline (+2.3 min)",
+     "value": 13.047,
+     "baseline": 10.754
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.590 (rank 80/121)",
+     "value": 5.59,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.3884,
+   "title": "Role loss: Brandt Clarke (PP share -23 pts; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874722",
+     "name": "Brandt Clarke",
+     "nhl_id": 8482730,
+     "team": "LAK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.53,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 28% of team PP time over the last 5 GP vs 50% baseline (-23 pts)",
+     "value": 0.2756,
+     "baseline": 0.502
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.530 (rank 81/121)",
+     "value": 5.53,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.3058,
+   "title": "Role up: Michael Amadio (TOI +2.2; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3149829",
+     "name": "Michael Amadio",
+     "nhl_id": 8478020,
+     "team": "OTT",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.49,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.7 min per game over the last 5 GP vs 14.4 baseline (+2.2 min)",
+     "value": 16.653,
+     "baseline": 14.407
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.490 (rank 82/121)",
+     "value": 5.49,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.2231,
+   "title": "Role up: Brandon Hagel (TOI +1.7, PP share +17 pts; Lane Hutson Fan Club)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4065019",
+     "name": "Brandon Hagel",
+     "nhl_id": 8479542,
+     "team": "TBL",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.47,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.5 min per game over the last 5 GP vs 19.8 baseline (+1.7 min)",
+     "value": 21.497,
+     "baseline": 19.76
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 62% of team PP time over the last 5 GP vs 45% baseline (+17 pts)",
+     "value": 0.6232,
+     "baseline": 0.45
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.470 (rank 83/121)",
+     "value": 5.47,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.1405,
+   "title": "Role up: Oliver Kapanen (PP share +22 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874943",
+     "name": "Oliver Kapanen",
+     "nhl_id": 8482775,
+     "team": "MTL",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.42,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 12.8 min per game over the last 5 GP vs 14.5 baseline (-1.7 min)",
+     "value": 12.82,
+     "baseline": 14.475
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 42% of team PP time over the last 5 GP vs 20% baseline (+22 pts)",
+     "value": 0.4189,
+     "baseline": 0.198
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.420 (rank 84/121)",
+     "value": 5.42,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.0579,
+   "title": "Role up: Gavin McKenna (TOI +2.2; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5342529",
+     "name": "Gavin McKenna",
+     "nhl_id": 8486067,
+     "team": "TOR",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.41,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.2 min per game over the last 5 GP vs 11.9 baseline (+2.2 min)",
+     "value": 14.153,
+     "baseline": 11.947
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.410 (rank 85/121)",
+     "value": 5.41,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 3.0,
+   "title": "Trade Jack Eichel to Flin Flon Flappers for Nick Suzuki + Jesper Wallstedt",
+   "add": [
+    {
+     "cid": "espn:4233594",
+     "name": "Nick Suzuki",
+     "nhl_id": 8480018,
+     "team": "MTL",
+     "positions": [
+      "C",
+      "F"
+     ]
+    },
+    {
+     "cid": "espn:4874737",
+     "name": "Jesper Wallstedt",
+     "nhl_id": 8482661,
+     "team": "MIN",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3648002",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": 1.16,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 6.75,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.16 pts/game this season (+3.5 pts/week, +78 rest of season)",
+     "value": 1.1599646148618774,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (ADP/rostered %, -7 worth pts to them); acceptance ~45%",
+     "value": -2.227986331579274,
+     "baseline": -7.227986331579274
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Jack Eichel fills Flin Flon Flappers's weakest slot F (starter VORP -0.02)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Brandon Bussi; Flin Flon Flappers can pick up Valeri Nichushkin (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-2.2 pts) while our model has you gaining +1.16",
+     "value": 1.0485652982829137,
+     "baseline": -2.227986331579274
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 44% (prior logistic: they get 84, give 91 market pts; +5 fills their weakest slot -> -2.2 pts). EV = +1.16 x 0.44 = +0.51",
+     "value": 0.43911136456278693,
+     "baseline": 0.43911136456278693
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.5 pts/week (+1.16/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.521008729124477,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+78 pts rest of season (+1.16/game x 68 games left)",
+     "value": 78.46819453477406,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.16 FPG (optimal_lineup)",
+     "value": 1.1599646148618774,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Flin Flon Flappers lineup -1.00 FPG (our model)",
+     "value": -1.0013399719810323,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Nick Suzuki (0.90), Jesper Wallstedt (0.78): 1.68 VORP",
+     "value": 1.6841402590089618,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (0.71): 0.71 VORP",
+     "value": 0.710952959271802,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 58% (shown only; old band 15%)",
+     "value": 0.57785406799184,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (G limit 3: would roster 4 goalies): the drop must be a same-position player",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Brandon Bussi",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Nick Suzuki: market 91st pct (ADP/rostered %) vs model 94th (+4): market agrees",
+     "value": 3.6,
+     "baseline": 90.6
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jesper Wallstedt: market 69th pct (ADP/rostered %) vs model 99th (+30): model disagrees with market, rates him higher (goalie save talent (GSAx), goalie start share)",
+     "value": 29.7,
+     "baseline": 69.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jack Eichel: market 94th pct (ADP/rostered %) vs model 87th (-7): market agrees",
+     "value": -6.9,
+     "baseline": 94.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.509 (rank 8/10)",
+     "value": 0.5093536448765466,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.9752,
+   "title": "Role up: Jake Evans (TOI +2.1; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4393049",
+     "name": "Jake Evans",
+     "nhl_id": 8478133,
+     "team": "MTL",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.29,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.5 min per game over the last 5 GP vs 15.4 baseline (+2.1 min)",
+     "value": 17.503,
+     "baseline": 15.356
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.290 (rank 86/121)",
+     "value": 5.29,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.8926,
+   "title": "Role up: Leo Carlsson (PP share +21 pts; Pee Pee, Ohio Schlongs )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5149153",
+     "name": "Leo Carlsson",
+     "nhl_id": 8484153,
+     "team": "ANA",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Pee Pee, Ohio Schlongs ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.21,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 84% of team PP time over the last 5 GP vs 63% baseline (+21 pts)",
+     "value": 0.8385,
+     "baseline": 0.628
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.210 (rank 87/121)",
+     "value": 5.21,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.8099,
+   "title": "Role up: Jesperi Kotkaniemi (PP share +20 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4352692",
+     "name": "Jesperi Kotkaniemi",
+     "nhl_id": 8480829,
+     "team": "CAR",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.08,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 26% of team PP time over the last 5 GP vs 6% baseline (+20 pts)",
+     "value": 0.2629,
+     "baseline": 0.059
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.080 (rank 88/121)",
+     "value": 5.08,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.7273,
+   "title": "Brett Kulak (free agent) moved up to the top unit (D3 -> D1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3068665",
+     "name": "Brett Kulak",
+     "nhl_id": 8476967,
+     "team": "COL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Brett Kulak: D3 -> D1 per Daily Faceoff (Last Game (2026-11-05), updated Nov 06 14:58 UTC)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 89/121)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.6446,
+   "title": "Role up: Josh Anderson (TOI +2.0; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3069687",
+     "name": "Josh Anderson",
+     "nhl_id": 8476981,
+     "team": "MTL",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.98,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.0 min per game over the last 5 GP vs 14.0 baseline (+2.0 min)",
+     "value": 16.01,
+     "baseline": 14.022
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.980 (rank 90/121)",
+     "value": 4.98,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.562,
+   "title": "Role up: Brayden Point (TOI +2.0; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3151187",
+     "name": "Brayden Point",
+     "nhl_id": 8478010,
+     "team": "TBL",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.94,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.2 min per game over the last 5 GP vs 18.3 baseline (+2.0 min)",
+     "value": 20.23,
+     "baseline": 18.258
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.940 (rank 91/121)",
+     "value": 4.94,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "buy_low",
+   "score": 2.5,
+   "title": "Buy low on Alex DeBrincat (Humpybong Platypuses)",
+   "add": [
+    {
+     "cid": "espn:4063433",
+     "name": "Alex DeBrincat",
+     "nhl_id": 8479337,
+     "team": "DET",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": "Humpybong Platypuses",
+   "predicted_gain": 0.6757,
+   "gain_units": "season_fpg",
+   "horizon_days": 28,
+   "strength": 3.45,
+   "reasons": [
+    {
+     "code": "FORM_RATIO",
+     "text": "L15 1.56 FPG vs 2.24 shrunk season baseline (0.70x)",
+     "value": 0.6981117738687739,
+     "baseline": 0.7
+    },
+    {
+     "code": "SOG_RATE",
+     "text": "Still 3.62 SOG/GP vs 3.51 baseline",
+     "value": 3.625,
+     "baseline": 3.5079365079365084
+    },
+    {
+     "code": "GP_L15",
+     "text": "8 GP in the last 15 days",
+     "value": 8.0,
+     "baseline": 5.0
+    },
+    {
+     "code": "XG_LUCK",
+     "text": "Goals 0.41/GP vs ixG 0.44/GP over 17 GP (-0.6 goals vs expected): about -0.06 FPG of finishing luck (MoneyPuck.com)",
+     "value": -0.0647,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "buy_low engine score 0.420 (rank 4/4)",
+     "value": 0.420115258329463,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.4793,
+   "title": "Role up: Justin Barron (TOI +2.0; Lane Hutson Fan Club)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697408",
+     "name": "Justin Barron",
+     "nhl_id": 8482111,
+     "team": "STL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.94,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.2 min per game over the last 5 GP vs 14.2 baseline (+2.0 min)",
+     "value": 16.22,
+     "baseline": 14.25
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.940 (rank 92/121)",
+     "value": 4.94,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.3967,
+   "title": "Role up: Beck Malenstyn (TOI +2.0; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4063240",
+     "name": "Beck Malenstyn",
+     "nhl_id": 8479359,
+     "team": "BUF",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.93,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 13.2 min per game over the last 5 GP vs 11.2 baseline (+2.0 min)",
+     "value": 13.21,
+     "baseline": 11.244
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.930 (rank 93/121)",
+     "value": 4.93,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.314,
+   "title": "Role up: Wyatt Kaiser (TOI +2.0; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697717",
+     "name": "Wyatt Kaiser",
+     "nhl_id": 8482176,
+     "team": "CHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.93,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.6 min per game over the last 5 GP vs 19.6 baseline (+2.0 min)",
+     "value": 21.58,
+     "baseline": 19.613
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.930 (rank 94/121)",
+     "value": 4.93,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.2314,
+   "title": "Role up: Dylan Larkin (TOI +1.9; Virginville Incels)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3114755",
+     "name": "Dylan Larkin",
+     "nhl_id": 8477946,
+     "team": "DET",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Virginville Incels",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.89,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.1 min per game over the last 5 GP vs 20.2 baseline (+1.9 min)",
+     "value": 22.133,
+     "baseline": 20.187
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.890 (rank 95/121)",
+     "value": 4.89,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.1488,
+   "title": "Role loss: Boone Jenner (PP share -19 pts; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:2563054",
+     "name": "Boone Jenner",
+     "nhl_id": 8476432,
+     "team": "WSH",
+     "positions": [
+      "C",
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.86,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 0% of team PP time over the last 5 GP vs 20% baseline (-19 pts)",
+     "value": 0.0042,
+     "baseline": 0.197
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.860 (rank 96/121)",
+     "value": 4.86,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.0661,
+   "title": "Role up: Jason Robertson (PP share +19 pts; Barbados Butt Pirates)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4233875",
+     "name": "Jason Robertson",
+     "nhl_id": 8480027,
+     "team": "DAL",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Barbados Butt Pirates",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.75,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.6 min per game over the last 5 GP vs 20.3 baseline (-1.6 min)",
+     "value": 18.613,
+     "baseline": 20.253
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 99% of team PP time over the last 5 GP vs 81% baseline (+19 pts)",
+     "value": 0.9937,
+     "baseline": 0.806
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.750 (rank 97/121)",
+     "value": 4.75,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 2.0,
+   "title": "Trade Artemi Panarin to Barbados Butt Pirates for Mark Stone + Thomas Chabot",
+   "add": [
+    {
+     "cid": "espn:5545",
+     "name": "Mark Stone",
+     "nhl_id": 8475913,
+     "team": "VGK",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    },
+    {
+     "cid": "espn:3900219",
+     "name": "Thomas Chabot",
+     "nhl_id": 8478469,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3891952",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Barbados Butt Pirates",
+   "predicted_gain": 0.8725,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.51,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.87 pts/game this season (+2.6 pts/week, +59 rest of season)",
+     "value": 0.8725275588537365,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (ADP/rostered %, +7 worth pts to them); acceptance ~70%",
+     "value": 6.86602229794304,
+     "baseline": 6.86602229794304
+    },
+    {
+     "code": "MARKET_COST",
+     "text": "You hand over 7 market worth pts (5 free): ranked 0.09 lower, since that value could buy something in another trade",
+     "value": -0.09330111489715201,
+     "baseline": 6.86602229794304
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Brandon Bussi; Barbados Butt Pirates can pick up Jonas Brodin (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 68% (prior logistic: they get 70, give 63 market pts -> +6.9 pts). EV = +0.87 x 0.68 = +0.59; score +0.50 after the market cost",
+     "value": 0.6801170236751563,
+     "baseline": 0.6801170236751563
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.6 pts/week (+0.87/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.6485093698237474,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+59 pts rest of season (+0.87/game x 68 games left)",
+     "value": 59.023923098929224,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.87 FPG (optimal_lineup)",
+     "value": 0.8725275588537365,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Barbados Butt Pirates lineup -0.81 FPG (our model)",
+     "value": -0.8146292672365192,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Mark Stone (0.81), Thomas Chabot (0.44): 1.25 VORP",
+     "value": 1.2480894847497155,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (0.59): 0.59 VORP",
+     "value": 0.592159495661688,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 53% (shown only; old band 15%)",
+     "value": 0.5255472440900852,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Brandon Bussi",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Mark Stone: market 71st pct (ADP/rostered %) vs model 92nd (+21): market agrees",
+     "value": 21.5,
+     "baseline": 70.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Thomas Chabot: market 77th pct (ADP/rostered %) vs model 78th (+1): market agrees",
+     "value": 1.0,
+     "baseline": 76.6
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Artemi Panarin: market 89th pct (ADP/rostered %) vs model 81st (-8): market agrees",
+     "value": -7.5,
+     "baseline": 88.6
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.500 (rank 9/10)",
+     "value": 0.500119731505001,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.9835,
+   "title": "Role up: Ross Colton (TOI +1.9; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4392471",
+     "name": "Ross Colton",
+     "nhl_id": 8479525,
+     "team": "NSH",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.72,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.4 min per game over the last 5 GP vs 12.5 baseline (+1.9 min)",
+     "value": 14.377,
+     "baseline": 12.518
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.720 (rank 98/121)",
+     "value": 4.72,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.9008,
+   "title": "Role up: Mathieu Olivier (TOI +1.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4064781",
+     "name": "Mathieu Olivier",
+     "nhl_id": 8479671,
+     "team": "CBJ",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.66,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.1 min per game over the last 5 GP vs 14.2 baseline (+1.8 min)",
+     "value": 16.06,
+     "baseline": 14.228
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.660 (rank 99/121)",
+     "value": 4.66,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.8182,
+   "title": "Role up: Wyatt Johnston (PP share +18 pts; Pee Pee, Ohio Schlongs )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4874740",
+     "name": "Wyatt Johnston",
+     "nhl_id": 8482740,
+     "team": "DAL",
+     "positions": [
+      "C",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Pee Pee, Ohio Schlongs ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.59,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 91% of team PP time over the last 5 GP vs 73% baseline (+18 pts)",
+     "value": 0.9113,
+     "baseline": 0.732
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.590 (rank 100/121)",
+     "value": 4.59,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.7355,
+   "title": "Role up: Jake Guentzel (TOI +1.8; Dartmouth Shiithawks )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3042083",
+     "name": "Jake Guentzel",
+     "nhl_id": 8477404,
+     "team": "TBL",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dartmouth Shiithawks ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.51,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.0 min per game over the last 5 GP vs 20.2 baseline (+1.8 min)",
+     "value": 22.003,
+     "baseline": 20.246
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.510 (rank 101/121)",
+     "value": 4.51,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.6529,
+   "title": "Role up: Nick Paul (PP share +17 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3042111",
+     "name": "Nick Paul",
+     "nhl_id": 8477426,
+     "team": "TOR",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.48,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 20% of team PP time over the last 5 GP vs 3% baseline (+17 pts)",
+     "value": 0.1995,
+     "baseline": 0.0257
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.480 (rank 102/121)",
+     "value": 4.48,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.5702,
+   "title": "Role up: Alexandre Texier (PP share +17 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4233880",
+     "name": "Alexandre Texier",
+     "nhl_id": 8480074,
+     "team": "MTL",
+     "positions": [
+      "LW",
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.47,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 38% of team PP time over the last 5 GP vs 20% baseline (+17 pts)",
+     "value": 0.3753,
+     "baseline": 0.202
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.470 (rank 103/121)",
+     "value": 4.47,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.4876,
+   "title": "Role up: Porter Martone (PP share +17 pts; Lane Hutson Fan Club)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5291941",
+     "name": "Porter Martone",
+     "nhl_id": 8485406,
+     "team": "PHI",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Lane Hutson Fan Club",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.46,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.2 min per game over the last 5 GP vs 17.0 baseline (-1.8 min)",
+     "value": 15.207,
+     "baseline": 17.041
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 68% of team PP time over the last 5 GP vs 50% baseline (+17 pts)",
+     "value": 0.6772,
+     "baseline": 0.504
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.460 (rank 104/121)",
+     "value": 4.46,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.405,
+   "title": "Role up: Luke Evangelista (PP share +17 pts; Barbados Butt Pirates)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697446",
+     "name": "Luke Evangelista",
+     "nhl_id": 8482146,
+     "team": "NJD",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Barbados Butt Pirates",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.45,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 63% of team PP time over the last 5 GP vs 46% baseline (+17 pts)",
+     "value": 0.6287,
+     "baseline": 0.456
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.450 (rank 105/121)",
+     "value": 4.45,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.3223,
+   "title": "Role up: Robert Thomas (TOI +1.7; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4233637",
+     "name": "Robert Thomas",
+     "nhl_id": 8480023,
+     "team": "STL",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.42,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.7 min per game over the last 5 GP vs 19.0 baseline (+1.7 min)",
+     "value": 20.723,
+     "baseline": 19.015
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.420 (rank 106/121)",
+     "value": 4.42,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.2397,
+   "title": "Role up: Thomas Harley (TOI +1.7; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4565239",
+     "name": "Thomas Harley",
+     "nhl_id": 8481581,
+     "team": "DAL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.41,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 24.8 min per game over the last 5 GP vs 23.1 baseline (+1.7 min)",
+     "value": 24.76,
+     "baseline": 23.056
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.410 (rank 107/121)",
+     "value": 4.41,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.157,
+   "title": "Role up: Rasmus Dahlin (PP share +17 pts; North Korea Nudy Balls?)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4294163",
+     "name": "Rasmus Dahlin",
+     "nhl_id": 8480839,
+     "team": "BUF",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "North Korea Nudy Balls?",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.36,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 86% of team PP time over the last 5 GP vs 69% baseline (+17 pts)",
+     "value": 0.8622,
+     "baseline": 0.694
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.360 (rank 108/121)",
+     "value": 4.36,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.0744,
+   "title": "Role up: Andrew Copp (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3042114",
+     "name": "Andrew Copp",
+     "nhl_id": 8477429,
+     "team": "DET",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.33,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.5 min per game over the last 5 GP vs 16.8 baseline (+1.7 min)",
+     "value": 18.513,
+     "baseline": 16.847
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.330 (rank 109/121)",
+     "value": 4.33,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 1.0,
+   "title": "Trade Artemi Panarin to Djibouti Dragons for Jake Sanderson + Jacob Trouba",
+   "add": [
+    {
+     "cid": "espn:4697386",
+     "name": "Jake Sanderson",
+     "nhl_id": 8482105,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "espn:2976839",
+     "name": "Jacob Trouba",
+     "nhl_id": 8476885,
+     "team": "SJS",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "espn:3891952",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Djibouti Dragons",
+   "predicted_gain": 0.7464,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 6.32,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.75 pts/game this season (+2.3 pts/week, +50 rest of season)",
+     "value": 0.7464362589044846,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (ADP/rostered %, +3 worth pts to them); acceptance ~55%",
+     "value": 2.6090333600625257,
+     "baseline": 2.6090333600625257
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Brandon Bussi; Djibouti Dragons can pick up Jet Greaves (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+2.6 pts) while our model has you gaining +0.75",
+     "value": 0.7464362589044846,
+     "baseline": 2.6090333600625257
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 57% (prior logistic: they get 70, give 67 market pts -> +2.6 pts). EV = +0.75 x 0.57 = +0.43",
+     "value": 0.5711712963046538,
+     "baseline": 0.5711712963046538
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.3 pts/week (+0.75/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.265766170505694,
+     "baseline": 3.035444947209653
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+50 pts rest of season (+0.75/game x 68 games left)",
+     "value": 50.494217514126895,
+     "baseline": 67.6470588235294
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.75 FPG (optimal_lineup)",
+     "value": 0.7464362589044846,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Djibouti Dragons lineup -1.05 FPG (our model)",
+     "value": -1.0538855140991892,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Jake Sanderson (0.69), Jacob Trouba (0.41): 1.10 VORP",
+     "value": 1.1047400007515638,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (0.59): 0.59 VORP",
+     "value": 0.592159495661688,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 46% (shown only; old band 15%)",
+     "value": 0.4639829324014365,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Brandon Bussi",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jake Sanderson: market 79th pct (ADP/rostered %) vs model 90th (+11): market agrees",
+     "value": 10.6,
+     "baseline": 79.5
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jacob Trouba: market 69th pct (ADP/rostered %) vs model 77th (+8): market agrees",
+     "value": 7.5,
+     "baseline": 69.4
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Artemi Panarin: market 89th pct (ADP/rostered %) vs model 81st (-8): market agrees",
+     "value": -7.5,
+     "baseline": 88.6
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.426 (rank 10/10)",
+     "value": 0.42634296560727064,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.9917,
+   "title": "Role up: Carter Yakemchuk (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5216868",
+     "name": "Carter Yakemchuk",
+     "nhl_id": 8484759,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.27,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.2 min per game over the last 5 GP vs 14.5 baseline (+1.6 min)",
+     "value": 16.167,
+     "baseline": 14.533
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.270 (rank 110/121)",
+     "value": 4.27,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.9091,
+   "title": "Role up: Quinton Byfield (PP share +16 pts; Pee Pee, Ohio Schlongs )",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4697383",
+     "name": "Quinton Byfield",
+     "nhl_id": 8482124,
+     "team": "LAK",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Pee Pee, Ohio Schlongs ",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.24,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 64% of team PP time over the last 5 GP vs 48% baseline (+16 pts)",
+     "value": 0.6392,
+     "baseline": 0.477
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.240 (rank 111/121)",
+     "value": 4.24,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.8264,
+   "title": "Role up: Erik Cernak (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3904178",
+     "name": "Erik Cernak",
+     "nhl_id": 8478416,
+     "team": "TBL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.2,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.2 min per game over the last 5 GP vs 17.6 baseline (+1.6 min)",
+     "value": 19.217,
+     "baseline": 17.616
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.200 (rank 112/121)",
+     "value": 4.2,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.7438,
+   "title": "Role loss: Kris Letang (TOI -1.6; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3539",
+     "name": "Kris Letang",
+     "nhl_id": 8471724,
+     "team": "PIT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Shiitterton Shiit Winds",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.18,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.1 min per game over the last 5 GP vs 21.7 baseline (-1.6 min)",
+     "value": 20.093,
+     "baseline": 21.682
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.180 (rank 113/121)",
+     "value": 4.18,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.6612,
+   "title": "Role up: Artyom Levshunov (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5206648",
+     "name": "Artyom Levshunov",
+     "nhl_id": 8484783,
+     "team": "CHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.18,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.2 min per game over the last 5 GP vs 19.6 baseline (+1.6 min)",
+     "value": 21.17,
+     "baseline": 19.579
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.180 (rank 114/121)",
+     "value": 4.18,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.5785,
+   "title": "Role up: Martin Fehervary (TOI +1.6; Flin Flon Flappers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4378677",
+     "name": "Martin Fehervary",
+     "nhl_id": 8480796,
+     "team": "WSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Flin Flon Flappers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.14,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.9 min per game over the last 5 GP vs 19.3 baseline (+1.6 min)",
+     "value": 20.853,
+     "baseline": 19.281
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.140 (rank 115/121)",
+     "value": 4.14,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.4959,
+   "title": "Role up: Fraser Minten (TOI +1.5; Barbados Butt Pirates)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5080207",
+     "name": "Fraser Minten",
+     "nhl_id": 8483489,
+     "team": "BOS",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Barbados Butt Pirates",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.08,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.1 min per game over the last 5 GP vs 15.6 baseline (+1.5 min)",
+     "value": 17.09,
+     "baseline": 15.551
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.080 (rank 116/121)",
+     "value": 4.08,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.4132,
+   "title": "Role up: Justin Faulk (TOI +1.5; Glizzyopolos Gladiators)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5746",
+     "name": "Justin Faulk",
+     "nhl_id": 8475753,
+     "team": "DET",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Glizzyopolos Gladiators",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.06,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.0 min per game over the last 5 GP vs 19.5 baseline (+1.5 min)",
+     "value": 21.023,
+     "baseline": 19.493
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.060 (rank 117/121)",
+     "value": 4.06,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.3306,
+   "title": "Role up: Noah Dobson (PP share +15 pts; Looch Lovers)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:4352732",
+     "name": "Noah Dobson",
+     "nhl_id": 8480865,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Looch Lovers",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.05,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.1 min per game over the last 5 GP vs 22.5 baseline (-2.4 min)",
+     "value": 20.087,
+     "baseline": 22.484
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 46% of team PP time over the last 5 GP vs 31% baseline (+15 pts)",
+     "value": 0.4644,
+     "baseline": 0.312
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.050 (rank 118/121)",
+     "value": 4.05,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.2479,
+   "title": "Role up: David Pastrnak (TOI +1.5; North Korea Nudy Balls?)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3114778",
+     "name": "David Pastrnak",
+     "nhl_id": 8477956,
+     "team": "BOS",
+     "positions": [
+      "RW",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "North Korea Nudy Balls?",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.02,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.2 min per game over the last 5 GP vs 20.7 baseline (+1.5 min)",
+     "value": 22.167,
+     "baseline": 20.656
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.020 (rank 119/121)",
+     "value": 4.02,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.1653,
+   "title": "Role up: Roope Hintz (PP share +15 pts; Yumyum Tenessee Sw@ss)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:3904183",
+     "name": "Roope Hintz",
+     "nhl_id": 8478449,
+     "team": "DAL",
+     "positions": [
+      "C",
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Yumyum Tenessee Sw@ss",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.01,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 83% of team PP time over the last 5 GP vs 68% baseline (+15 pts)",
+     "value": 0.8314,
+     "baseline": 0.681
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.010 (rank 120/121)",
+     "value": 4.01,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.0826,
+   "title": "Role up: Zeev Buium (TOI +1.5; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "espn:5206642",
+     "name": "Zeev Buium",
+     "nhl_id": 8484798,
+     "team": "VAN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.1 min per game over the last 5 GP vs 19.6 baseline (+1.5 min)",
+     "value": 21.077,
+     "baseline": 19.577
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.000 (rank 121/121)",
+     "value": 4.0,
+     "baseline": null
+    }
+   ]
+  }
+ ]
+}

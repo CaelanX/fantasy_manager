@@ -1,0 +1,24 @@
+{
+  "espn": [
+    {
+      "id": "20261110130738271648",
+      "title": "Conor Hellebyuck is being extremely undervalued",
+      "updated": "2026-11-10T13:16:44.450434",
+      "focus": [
+        "espn:3891952",
+        "espn:3020225",
+        "espn:5206628"
+      ],
+      "pasted": "Trade evaluator verdict: accept, trade with Djibouti Dragons. I send: Artemi Panarin, Connor Hellebuyck. I get: Macklin Celebrini. My lineup change +0.62 pts/game, theirs -0.51. Reasons: You gain: your edge +0.62.",
+      "pending": "Dude you are not getting enough context then because hes the best goalie in the league you must not be seeing previous season stuff",
+      "turns": [
+        {
+          "question": "Conor Hellebyuck is being extremely undervalued",
+          "answer": "Conor Hellebuyck is not actually undervalued — the data contradicts that premise. Hellebuyck is a 5-GP goalie this season, scoring just 0.85 FPG this week, with negative VORP (-0.17). Meanwhile, Macklin Celebrini is a 2.75 FPG goalie with +1.15 VORP and 3.16 FPG this week. The news also shows Hellebuyck won't play in the Winnipeg trip, so he's effectively out of the lineup for now.\n\nYour pasted verdict is correct: accept the trade with Djibouti Dragons. Send Artemi Panarin and Connor Hellebuyck, receive Macklin Celebrini. Celebrini is a far better goalie (2.75 vs 0.90 FPG after expected missed games) and he's a proven starter with 18 games played. The trade gives your lineup +0.62 pts/game while costing them -0.51.\n\nThe only real question is whether you'd rather keep Hellebuyck for the long term, but at 5 games with negative VORP and a scheduled rest, that's a poor bet. Celebrini is the clear upgrade.\n\nRecommendation: Accept the trade (send Panarin + Hellebuyck, get Celebrini). Confidence: high — the data strongly favors Celebrini on FPG, VORP, and current availability.",
+          "model": "ifm/k2-horizon:7b",
+          "at": "2026-11-10T13:09:52.393904"
+        }
+      ]
+    }
+  ]
+}

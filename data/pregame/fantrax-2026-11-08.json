@@ -1,0 +1,515 @@
+{
+ "alerts": [
+  {
+   "cid": "fantrax:061im",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Michael Misa",
+   "strength": 7.0,
+   "title": "Michael Misa (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:06pyw",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Victor Eklund",
+   "strength": 7.0,
+   "title": "Victor Eklund (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "fantrax:0042t",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Claude Giroux",
+   "strength": 5.0,
+   "title": "Claude Giroux (free agent) moved up to the top unit (F3 -> F1): waiver watch"
+  },
+  {
+   "cid": "fantrax:02un6",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Sean Monahan",
+   "strength": 5.0,
+   "title": "Sean Monahan (free agent) moved up to the top unit (F2 -> F1): waiver watch"
+  },
+  {
+   "cid": "fantrax:05k8c",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Tyson Foerster",
+   "strength": 5.0,
+   "title": "Tyson Foerster (free agent) moved up to the top unit (F3 -> F1): waiver watch"
+  },
+  {
+   "cid": "fantrax:06psl",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": true,
+   "name": "Ivar Stenberg",
+   "strength": 4.0,
+   "title": "Ivar Stenberg dropped off PP1 (PP1 -> PP2): sell / bench caution"
+  }
+ ],
+ "date": "2026-11-08",
+ "fa_goalies": [
+  {
+   "name": "Michael DiPietro",
+   "team": "BOS"
+  },
+  {
+   "name": "Elvis Merzlikins",
+   "team": "TOR"
+  },
+  {
+   "name": "Jacob Markstrom",
+   "team": "FLA"
+  },
+  {
+   "name": "Alex Lyon",
+   "team": "BUF"
+  },
+  {
+   "name": "Colten Ellis",
+   "team": "BUF"
+  },
+  {
+   "name": "Sergei Murashov",
+   "team": "PIT"
+  },
+  {
+   "name": "Ukko-Pekka Luukkonen",
+   "team": "BUF"
+  },
+  {
+   "name": "Joseph Woll",
+   "team": "PHI"
+  },
+  {
+   "name": "Artur Akhtyamov",
+   "team": "TOR"
+  },
+  {
+   "name": "Laurent Brossoit",
+   "team": "ANA"
+  },
+  {
+   "name": "Jiri Patera",
+   "team": "BOS"
+  },
+  {
+   "name": "Sergei Bobrovsky",
+   "team": "TOR"
+  },
+  {
+   "name": "Daniel Vladar",
+   "team": "PHI"
+  },
+  {
+   "name": "Akira Schmid",
+   "team": "FLA"
+  },
+  {
+   "name": "Dustin Wolf",
+   "team": "CGY"
+  },
+  {
+   "name": "Dennis Hildeby",
+   "team": "TBL"
+  },
+  {
+   "name": "Cooper Black",
+   "team": "FLA"
+  },
+  {
+   "name": "David Rittich",
+   "team": "NJD"
+  },
+  {
+   "name": "Ville Husso",
+   "team": "ANA"
+  },
+  {
+   "name": "Hunter Shepard",
+   "team": null
+  },
+  {
+   "name": "Thomas Milic",
+   "team": "WPG"
+  },
+  {
+   "name": "Mads Sogaard",
+   "team": "TBL"
+  },
+  {
+   "name": "Petr Mrazek",
+   "team": null
+  },
+  {
+   "name": "James Reimer",
+   "team": null
+  },
+  {
+   "name": "Clay Stevenson",
+   "team": "WPG"
+  },
+  {
+   "name": "Arsenii Sergeev",
+   "team": "CGY"
+  },
+  {
+   "name": "Matt Murray",
+   "team": null
+  },
+  {
+   "name": "Nicolas Daws",
+   "team": "WPG"
+  },
+  {
+   "name": "Alexei Kolosov",
+   "team": "PHI"
+  }
+ ],
+ "goalies": {
+  "ANA": {
+   "depth": 1,
+   "game": "PIT@ANA",
+   "goalie": "Ville Husso",
+   "home": true,
+   "opponent": "PIT",
+   "strength": null
+  },
+  "BOS": {
+   "depth": 1,
+   "game": "FLA@BOS",
+   "goalie": "Jeremy Swayman",
+   "home": true,
+   "opponent": "FLA",
+   "strength": "Confirmed"
+  },
+  "BUF": {
+   "depth": 1,
+   "game": "VGK@BUF",
+   "goalie": "Ukko-Pekka Luukkonen",
+   "home": true,
+   "opponent": "VGK",
+   "strength": null
+  },
+  "CGY": {
+   "depth": 1,
+   "game": "PHI@CGY",
+   "goalie": "Devin Cooley",
+   "home": true,
+   "opponent": "PHI",
+   "strength": "Confirmed"
+  },
+  "FLA": {
+   "depth": 1,
+   "game": "FLA@BOS",
+   "goalie": "Jacob Markstrom",
+   "home": false,
+   "opponent": "BOS",
+   "strength": "Confirmed"
+  },
+  "NJD": {
+   "depth": 1,
+   "game": "NJD@TOR",
+   "goalie": "Connor Hellebuyck",
+   "home": false,
+   "opponent": "TOR",
+   "strength": null
+  },
+  "PHI": {
+   "depth": 1,
+   "game": "PHI@CGY",
+   "goalie": "Dan Vladar",
+   "home": false,
+   "opponent": "CGY",
+   "strength": "Likely"
+  },
+  "PIT": {
+   "depth": 1,
+   "game": "PIT@ANA",
+   "goalie": "Arturs Silovs",
+   "home": false,
+   "opponent": "ANA",
+   "strength": null
+  },
+  "TBL": {
+   "depth": 1,
+   "game": "TBL@WPG",
+   "goalie": "Andrei Vasilevskiy",
+   "home": false,
+   "opponent": "WPG",
+   "strength": null
+  },
+  "TOR": {
+   "depth": 1,
+   "game": "NJD@TOR",
+   "goalie": "Anthony Stolarz",
+   "home": true,
+   "opponent": "NJD",
+   "strength": "Likely"
+  },
+  "VGK": {
+   "depth": 1,
+   "game": "VGK@BUF",
+   "goalie": "Adin Hill",
+   "home": false,
+   "opponent": "BUF",
+   "strength": null
+  },
+  "WPG": {
+   "depth": 1,
+   "game": "TBL@WPG",
+   "goalie": "Stuart Skinner",
+   "home": true,
+   "opponent": "TBL",
+   "strength": "Likely"
+  }
+ },
+ "league": "fantrax",
+ "lineup_today": {
+  "bench": [
+   "fantrax:03yh8"
+  ],
+  "set": false,
+  "start": [
+   "fantrax:0243f",
+   "fantrax:02yjj",
+   "fantrax:03924"
+  ],
+  "text": "Lineup: start Nylander"
+ },
+ "my_players": {
+  "fantrax:0243f": {
+   "goalie": false,
+   "line": "d2",
+   "name": "Seth Jones",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp1",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "FLA"
+  },
+  "fantrax:02yjj": {
+   "goalie": false,
+   "line": "f2",
+   "name": "William Nylander",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "TOR"
+  },
+  "fantrax:031pl": {
+   "goalie": true,
+   "line": "g",
+   "name": "Juuse Saros",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "G",
+   "start": null,
+   "status": "healthy",
+   "team": "NSH"
+  },
+  "fantrax:03924": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Jack Eichel",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "VGK"
+  },
+  "fantrax:03as6": {
+   "goalie": false,
+   "line": null,
+   "name": "Jared McCann",
+   "note": "Lower Body: McCann had one goal in five games before sitting out Saturday's 5-1 loss to Minnesota. He has earned five assists, eight points, 28 shots on net, three blocked shots and six hits i... (est. return 2027-01-02)",
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "IR",
+   "start": null,
+   "status": "ir",
+   "team": "SEA"
+  },
+  "fantrax:03bfj": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Artemi Panarin",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "LAK"
+  },
+  "fantrax:03mbn": {
+   "goalie": true,
+   "line": "g",
+   "name": "Mackenzie Blackwood",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "G",
+   "start": null,
+   "status": "healthy",
+   "team": "COL"
+  },
+  "fantrax:03yh8": {
+   "goalie": false,
+   "line": "f3",
+   "name": "Owen Tippett",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp2",
+   "slot": "IR",
+   "start": null,
+   "status": "healthy",
+   "team": "PHI"
+  },
+  "fantrax:04amg": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Alexis Lafreniere",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "NYR"
+  },
+  "fantrax:04lbz": {
+   "goalie": false,
+   "line": "d1",
+   "name": "Quinn Hughes",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "MIN"
+  },
+  "fantrax:04lo0": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Quinton Byfield",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "LAK"
+  },
+  "fantrax:051yz": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Dylan Holloway",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "STL"
+  },
+  "fantrax:059e0": {
+   "goalie": false,
+   "line": "d1",
+   "name": "Jake Sanderson",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "OTT"
+  },
+  "fantrax:05gvq": {
+   "goalie": false,
+   "line": "f3",
+   "name": "Seth Jarvis",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "CAR"
+  },
+  "fantrax:05oxs": {
+   "goalie": true,
+   "line": "g",
+   "name": "Jakub Dobes",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "MTL"
+  },
+  "fantrax:05ymj": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Jimmy Snuggerud",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "STL"
+  },
+  "fantrax:06psl": {
+   "goalie": false,
+   "line": "f3",
+   "name": "Ivar Stenberg",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "SJS"
+  }
+ },
+ "source": "daily",
+ "taken_at": "2026-11-08T12:09:30",
+ "version": 1
+}

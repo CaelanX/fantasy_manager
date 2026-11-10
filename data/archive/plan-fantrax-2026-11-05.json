@@ -1,0 +1,1237 @@
+{
+ "version": 1,
+ "provider": "fantrax",
+ "league_id": "oq3cj6dkmufzrxl9",
+ "as_of": "2026-11-05",
+ "created": "2026-11-05T18:56:24+00:00",
+ "plan": {
+  "league": "fantrax",
+  "my_team": "Nermeen LouLou",
+  "opponent": "Jaydentrapp",
+  "start": "2026-11-02",
+  "end": "2026-11-08",
+  "days_left": 4,
+  "my_so_far": 85.4,
+  "their_so_far": 63.0,
+  "their_remaining": 131.00513653783455,
+  "stance": "protect",
+  "moves_left": 3,
+  "moves_planned": 2,
+  "baseline": "quick_lineup",
+  "proj_as_set": 118.1890983743409,
+  "proj_lineup": 118.1890983743409,
+  "proj_plan": 132.78283264449408,
+  "proj_frozen": 97.39598571498468,
+  "win_as_set": 0.6665,
+  "win_lineup": 0.6665,
+  "win_plan": 0.835,
+  "win_frozen": 0.312,
+  "today": [],
+  "moves": [
+   {
+    "day": "2026-11-05",
+    "effective": "2026-11-05",
+    "add": {
+     "cid": "fantrax:02azf",
+     "name": "Dougie Hamilton",
+     "name_norm": "dougie hamilton",
+     "ids": {
+      "fantrax": "02azf",
+      "nhl": "8476462"
+     },
+     "team": "NJD",
+     "positions": [
+      "D"
+     ],
+     "primary_position": null,
+     "birth_date": "1993-06-17",
+     "status": "healthy",
+     "status_note": null,
+     "waiver_until": null,
+     "lines": {
+      "projected": {
+       "split": "projected",
+       "gp": 72,
+       "stats": {
+        "GP": 72.0,
+        "G": 11.0,
+        "A": 27.0,
+        "PIM": 46.0,
+        "FT": 0.0,
+        "SOG": 191.0,
+        "SHG": 0.0,
+        "ENG": 1.0,
+        "PPP": 14.0,
+        "HIT": 80.0,
+        "BLK": 75.0,
+        "PTS": 38.0,
+        "FPTS": 294.0
+       }
+      },
+      "season": {
+       "split": "season",
+       "gp": 15,
+       "stats": {
+        "GP": 15.0,
+        "G": 1.0,
+        "A": 6.0,
+        "PIM": 0.0,
+        "FT": 0.0,
+        "SOG": 41.0,
+        "SHG": 0.0,
+        "ENG": 0.0,
+        "PPP": 0.0,
+        "HIT": 14.0,
+        "BLK": 20.0,
+        "PTS": 7.0,
+        "FPTS": 50.7
+       }
+      },
+      "prior": {
+       "split": "prior",
+       "gp": 77,
+       "stats": {
+        "GP": 77.0,
+        "G": 12.0,
+        "A": 27.0,
+        "PTS": 39.0,
+        "PM": -2.0,
+        "PIM": 50.0,
+        "PPG": 4.0,
+        "PPP": 14.0,
+        "SHG": 0.0,
+        "SHP": 0.0,
+        "GWG": 3.0,
+        "SOG": 203.0,
+        "HIT": 87.0,
+        "BLK": 77.0,
+        "ENG": 1.0,
+        "FOW": 0.0,
+        "FOL": 0.0,
+        "PPA": 10.0,
+        "SHA": 0.0
+       }
+      },
+      "prior2": {
+       "split": "prior2",
+       "gp": 64,
+       "stats": {
+        "GP": 64.0,
+        "G": 9.0,
+        "A": 31.0,
+        "PTS": 40.0,
+        "PM": 8.0,
+        "PIM": 30.0,
+        "PPG": 5.0,
+        "PPP": 15.0,
+        "SHG": 0.0,
+        "SHP": 0.0,
+        "GWG": 3.0,
+        "SOG": 186.0,
+        "HIT": 74.0,
+        "BLK": 85.0,
+        "ENG": 0.0,
+        "FOW": 0.0,
+        "FOL": 0.0,
+        "PPA": 10.0,
+        "SHA": 0.0
+       }
+      },
+      "prior3": {
+       "split": "prior3",
+       "gp": 20,
+       "stats": {
+        "GP": 20.0,
+        "G": 5.0,
+        "A": 11.0,
+        "PTS": 16.0,
+        "PM": -8.0,
+        "PIM": 20.0,
+        "PPG": 4.0,
+        "PPP": 8.0,
+        "SHG": 0.0,
+        "SHP": 0.0,
+        "GWG": 0.0,
+        "SOG": 61.0,
+        "HIT": 18.0,
+        "BLK": 24.0,
+        "ENG": 0.0,
+        "FOW": 0.0,
+        "FOL": 0.0,
+        "PPA": 4.0,
+        "SHA": 0.0
+       }
+      }
+     },
+     "pct_owned": 82.0,
+     "draft_overall": null,
+     "draft_round": null,
+     "draft_year": null,
+     "career_gp": null,
+     "pct_owned_change": -3.0,
+     "pct_started": null,
+     "adp": null,
+     "adp_change": null,
+     "toi_per_game": 20.611,
+     "pp_toi_per_game": 1.536,
+     "pp_share": 0.293,
+     "toi_trend": null,
+     "pp_share_trend": null,
+     "line": "d2",
+     "pp_unit": "pp2",
+     "pk_unit": "pk1",
+     "line_change": null,
+     "usual_line": "d2",
+     "usual_pp_unit": "pp2",
+     "confirmed_start": null,
+     "start_source": null,
+     "ixg_per_game": 0.14,
+     "goals_minus_ixg": -1.1,
+     "onice_sh_pct": 0.0848,
+     "onice_xg_pct": 0.6,
+     "xg_split": "season"
+    },
+    "drop": {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "name_norm": "jakub dobes",
+     "ids": {
+      "fantrax": "05oxs",
+      "nhl": "8482487"
+     },
+     "team": "MTL",
+     "positions": [
+      "G"
+     ],
+     "primary_position": null,
+     "birth_date": "2001-05-27",
+     "status": "healthy",
+     "status_note": null,
+     "waiver_until": null,
+     "lines": {
+      "season": {
+       "split": "season",
+       "gp": 6,
+       "stats": {
+        "GP": 6.0,
+        "W": 2.0,
+        "GA": 24.0,
+        "SV": 139.0,
+        "SO": 0.0,
+        "PIM": 2.0,
+        "A": 0.0,
+        "FPTS": 21.75
+       }
+      },
+      "projected": {
+       "split": "projected",
+       "gp": 40,
+       "stats": {
+        "GP": 40.0,
+        "W": 26.0,
+        "GA": 108.0,
+        "SV": 993.0,
+        "SO": 0.0,
+        "PIM": 2.0,
+        "A": 0.0,
+        "FPTS": 271.25
+       }
+      },
+      "prior": {
+       "split": "prior",
+       "gp": 43,
+       "stats": {
+        "GP": 43.0,
+        "GS": 42.0,
+        "W": 29.0,
+        "L": 10.0,
+        "OTL": 4.0,
+        "GA": 117.0,
+        "SA": 1187.0,
+        "SV": 1070.0,
+        "SO": 0.0,
+        "GAA": 2.77955,
+        "SVPCT": 0.90143
+       }
+      },
+      "prior2": {
+       "split": "prior2",
+       "gp": 16,
+       "stats": {
+        "GP": 16.0,
+        "GS": 15.0,
+        "W": 7.0,
+        "L": 4.0,
+        "OTL": 3.0,
+        "GA": 40.0,
+        "SA": 440.0,
+        "SV": 400.0,
+        "SO": 1.0,
+        "GAA": 2.74353,
+        "SVPCT": 0.90909
+       }
+      }
+     },
+     "pct_owned": 82.0,
+     "draft_overall": null,
+     "draft_round": null,
+     "draft_year": null,
+     "career_gp": null,
+     "pct_owned_change": -5.0,
+     "pct_started": null,
+     "adp": null,
+     "adp_change": null,
+     "toi_per_game": null,
+     "pp_toi_per_game": null,
+     "pp_share": null,
+     "toi_trend": null,
+     "pp_share_trend": null,
+     "line": "g",
+     "pp_unit": null,
+     "pk_unit": null,
+     "line_change": "G2 -> G1",
+     "usual_line": null,
+     "usual_pp_unit": null,
+     "confirmed_start": true,
+     "start_source": "DFO Confirmed: Jakub Dobes starts UTA@MTL (Montreal Canadiens, Nov 05 16:09 UTC)",
+     "ixg_per_game": null,
+     "goals_minus_ixg": null,
+     "onice_sh_pct": null,
+     "onice_xg_pct": null,
+     "xg_split": null
+    },
+    "to_ir": null,
+    "gain_pts": 9.56,
+    "win_delta": 0.11699999999999999,
+    "starts": [
+     "2026-11-05",
+     "2026-11-07",
+     "2026-11-08"
+    ],
+    "headline": "Dougie Hamilton starts 3 nights for you (Thu, Sat, Sun); Jakub Dobes would have started 1 of his 2 games left (Thu)",
+    "market": "model disagrees with market",
+    "claim": false,
+    "reasons": [
+     "Long term: Dougie Hamilton 3.8 vs Jakub Dobes 2.7 value (this season + top-3 keepers) (an upgrade, +1.1)"
+    ],
+    "chain": null,
+    "role": null,
+    "note": "",
+    "timing": "Make this move before today's first game (6:00 PM your time)",
+    "status": ""
+   },
+   {
+    "day": "2026-11-05",
+    "effective": "2026-11-05",
+    "add": {
+     "cid": "fantrax:01skr",
+     "name": "Mikael Granlund",
+     "name_norm": "mikael granlund",
+     "ids": {
+      "fantrax": "01skr",
+      "nhl": "8475798"
+     },
+     "team": "ANA",
+     "positions": [
+      "F"
+     ],
+     "primary_position": null,
+     "birth_date": "1992-02-26",
+     "status": "healthy",
+     "status_note": null,
+     "waiver_until": null,
+     "lines": {
+      "projected": {
+       "split": "projected",
+       "gp": 71,
+       "stats": {
+        "GP": 71.0,
+        "G": 20.0,
+        "A": 33.0,
+        "PIM": 24.0,
+        "FT": 0.0,
+        "SOG": 141.0,
+        "SHG": 0.0,
+        "ENG": 2.0,
+        "PPP": 16.0,
+        "HIT": 44.0,
+        "BLK": 51.0,
+        "PTS": 53.0,
+        "FPTS": 287.2
+       }
+      },
+      "season": {
+       "split": "season",
+       "gp": 14,
+       "stats": {
+        "GP": 14.0,
+        "G": 4.0,
+        "A": 9.0,
+        "PIM": 0.0,
+        "FT": 0.0,
+        "SOG": 24.0,
+        "SHG": 0.0,
+        "ENG": 0.0,
+        "PPP": 8.0,
+        "HIT": 2.0,
+        "BLK": 9.0,
+        "PTS": 13.0,
+        "FPTS": 59.1
+       }
+      },
+      "prior": {
+       "split": "prior",
+       "gp": 58,
+       "stats": {
+        "GP": 58.0,
+        "G": 19.0,
+        "A": 22.0,
+        "PTS": 41.0,
+        "PM": -9.0,
+        "PIM": 18.0,
+        "PPG": 8.0,
+        "PPP": 12.0,
+        "SHG": 0.0,
+        "SHP": 0.0,
+        "GWG": 2.0,
+        "SOG": 117.0,
+        "HIT": 32.0,
+        "BLK": 41.0,
+        "ENG": 2.0,
+        "FOW": 381.0,
+        "FOL": 385.0,
+        "PPA": 4.0,
+        "SHA": 0.0
+       }
+      },
+      "prior2": {
+       "split": "prior2",
+       "gp": 83,
+       "stats": {
+        "GP": 83.0,
+        "G": 22.0,
+        "A": 44.0,
+        "PTS": 66.0,
+        "PM": 0.0,
+        "PIM": 28.0,
+        "PPG": 5.0,
+        "PPP": 19.0,
+        "SHG": 1.0,
+        "SHP": 1.0,
+        "GWG": 4.0,
+        "SOG": 169.0,
+        "HIT": 57.0,
+        "BLK": 60.0,
+        "ENG": 2.0,
+        "FOW": 359.0,
+        "FOL": 365.0,
+        "PPA": 14.0,
+        "SHA": 0.0
+       }
+      },
+      "prior3": {
+       "split": "prior3",
+       "gp": 69,
+       "stats": {
+        "GP": 69.0,
+        "G": 12.0,
+        "A": 48.0,
+        "PTS": 60.0,
+        "PM": -23.0,
+        "PIM": 32.0,
+        "PPG": 1.0,
+        "PPP": 23.0,
+        "SHG": 0.0,
+        "SHP": 1.0,
+        "GWG": 1.0,
+        "SOG": 134.0,
+        "HIT": 62.0,
+        "BLK": 55.0,
+        "ENG": 0.0,
+        "FOW": 492.0,
+        "FOL": 560.0,
+        "PPA": 22.0,
+        "SHA": 1.0
+       }
+      }
+     },
+     "pct_owned": 61.0,
+     "draft_overall": null,
+     "draft_round": null,
+     "draft_year": null,
+     "career_gp": null,
+     "pct_owned_change": -3.0,
+     "pct_started": null,
+     "adp": null,
+     "adp_change": null,
+     "toi_per_game": 20.294,
+     "pp_toi_per_game": 3.704,
+     "pp_share": 0.852,
+     "toi_trend": null,
+     "pp_share_trend": null,
+     "line": "f2",
+     "pp_unit": "pp1",
+     "pk_unit": null,
+     "line_change": null,
+     "usual_line": "f2",
+     "usual_pp_unit": "pp1",
+     "confirmed_start": null,
+     "start_source": null,
+     "ixg_per_game": 0.2621,
+     "goals_minus_ixg": 0.33,
+     "onice_sh_pct": 0.0811,
+     "onice_xg_pct": 0.39,
+     "xg_split": "season"
+    },
+    "drop": {
+     "cid": "fantrax:06psl",
+     "name": "Ivar Stenberg",
+     "name_norm": "ivar stenberg",
+     "ids": {
+      "fantrax": "06psl",
+      "nhl": "8486103"
+     },
+     "team": "SJS",
+     "positions": [
+      "F"
+     ],
+     "primary_position": null,
+     "birth_date": "2007-09-30",
+     "status": "healthy",
+     "status_note": null,
+     "waiver_until": null,
+     "lines": {
+      "season": {
+       "split": "season",
+       "gp": 17,
+       "stats": {
+        "GP": 17.0,
+        "G": 4.0,
+        "A": 6.0,
+        "PIM": 4.0,
+        "FT": 0.0,
+        "SOG": 26.0,
+        "SHG": 0.0,
+        "ENG": 1.0,
+        "PPP": 8.0,
+        "HIT": 3.0,
+        "BLK": 5.0,
+        "PTS": 10.0,
+        "FPTS": 56.4
+       }
+      },
+      "projected": {
+       "split": "projected",
+       "gp": 62,
+       "stats": {
+        "GP": 62.0,
+        "G": 12.0,
+        "A": 17.0,
+        "PIM": 18.0,
+        "FT": 0.0,
+        "SOG": 109.0,
+        "SHG": 0.0,
+        "ENG": 0.0,
+        "PPP": 8.0,
+        "HIT": 52.0,
+        "BLK": 56.0,
+        "PTS": 29.0,
+        "FPTS": 197.1
+       }
+      }
+     },
+     "pct_owned": 85.0,
+     "draft_overall": 2,
+     "draft_round": 1,
+     "draft_year": 2026,
+     "career_gp": 12,
+     "pct_owned_change": -2.0,
+     "pct_started": null,
+     "adp": null,
+     "adp_change": null,
+     "toi_per_game": 16.096,
+     "pp_toi_per_game": 3.538,
+     "pp_share": 0.595,
+     "toi_trend": null,
+     "pp_share_trend": null,
+     "line": "f3",
+     "pp_unit": "pp1",
+     "pk_unit": null,
+     "line_change": "F2 -> F3",
+     "usual_line": "f2",
+     "usual_pp_unit": "pp1",
+     "confirmed_start": null,
+     "start_source": null,
+     "ixg_per_game": 0.2406,
+     "goals_minus_ixg": -0.09,
+     "onice_sh_pct": 0.0128,
+     "onice_xg_pct": 0.37,
+     "xg_split": "season"
+    },
+    "to_ir": null,
+    "gain_pts": 5.03,
+    "win_delta": 0.05149999999999999,
+    "starts": [
+     "2026-11-05",
+     "2026-11-06",
+     "2026-11-08"
+    ],
+    "headline": "Mikael Granlund starts 3 nights for you (Thu, Fri, Sun); Ivar Stenberg would have started 1 of his 2 games left (Fri)",
+    "market": "market agrees",
+    "claim": false,
+    "reasons": [
+     "Long term: Mikael Granlund 4.0 vs Ivar Stenberg 3.6 value (this season + top-3 keepers) (an upgrade, +0.4)"
+    ],
+    "chain": null,
+    "role": null,
+    "note": "",
+    "timing": "Make this move before today's first game (6:00 PM your time)",
+    "status": ""
+   }
+  ],
+  "days": [
+   {
+    "day": "2026-11-05",
+    "moves": [
+     {
+      "day": "2026-11-05",
+      "effective": "2026-11-05",
+      "add": {
+       "cid": "fantrax:02azf",
+       "name": "Dougie Hamilton",
+       "name_norm": "dougie hamilton",
+       "ids": {
+        "fantrax": "02azf",
+        "nhl": "8476462"
+       },
+       "team": "NJD",
+       "positions": [
+        "D"
+       ],
+       "primary_position": null,
+       "birth_date": "1993-06-17",
+       "status": "healthy",
+       "status_note": null,
+       "waiver_until": null,
+       "lines": {
+        "projected": {
+         "split": "projected",
+         "gp": 72,
+         "stats": {
+          "GP": 72.0,
+          "G": 11.0,
+          "A": 27.0,
+          "PIM": 46.0,
+          "FT": 0.0,
+          "SOG": 191.0,
+          "SHG": 0.0,
+          "ENG": 1.0,
+          "PPP": 14.0,
+          "HIT": 80.0,
+          "BLK": 75.0,
+          "PTS": 38.0,
+          "FPTS": 294.0
+         }
+        },
+        "season": {
+         "split": "season",
+         "gp": 15,
+         "stats": {
+          "GP": 15.0,
+          "G": 1.0,
+          "A": 6.0,
+          "PIM": 0.0,
+          "FT": 0.0,
+          "SOG": 41.0,
+          "SHG": 0.0,
+          "ENG": 0.0,
+          "PPP": 0.0,
+          "HIT": 14.0,
+          "BLK": 20.0,
+          "PTS": 7.0,
+          "FPTS": 50.7
+         }
+        },
+        "prior": {
+         "split": "prior",
+         "gp": 77,
+         "stats": {
+          "GP": 77.0,
+          "G": 12.0,
+          "A": 27.0,
+          "PTS": 39.0,
+          "PM": -2.0,
+          "PIM": 50.0,
+          "PPG": 4.0,
+          "PPP": 14.0,
+          "SHG": 0.0,
+          "SHP": 0.0,
+          "GWG": 3.0,
+          "SOG": 203.0,
+          "HIT": 87.0,
+          "BLK": 77.0,
+          "ENG": 1.0,
+          "FOW": 0.0,
+          "FOL": 0.0,
+          "PPA": 10.0,
+          "SHA": 0.0
+         }
+        },
+        "prior2": {
+         "split": "prior2",
+         "gp": 64,
+         "stats": {
+          "GP": 64.0,
+          "G": 9.0,
+          "A": 31.0,
+          "PTS": 40.0,
+          "PM": 8.0,
+          "PIM": 30.0,
+          "PPG": 5.0,
+          "PPP": 15.0,
+          "SHG": 0.0,
+          "SHP": 0.0,
+          "GWG": 3.0,
+          "SOG": 186.0,
+          "HIT": 74.0,
+          "BLK": 85.0,
+          "ENG": 0.0,
+          "FOW": 0.0,
+          "FOL": 0.0,
+          "PPA": 10.0,
+          "SHA": 0.0
+         }
+        },
+        "prior3": {
+         "split": "prior3",
+         "gp": 20,
+         "stats": {
+          "GP": 20.0,
+          "G": 5.0,
+          "A": 11.0,
+          "PTS": 16.0,
+          "PM": -8.0,
+          "PIM": 20.0,
+          "PPG": 4.0,
+          "PPP": 8.0,
+          "SHG": 0.0,
+          "SHP": 0.0,
+          "GWG": 0.0,
+          "SOG": 61.0,
+          "HIT": 18.0,
+          "BLK": 24.0,
+          "ENG": 0.0,
+          "FOW": 0.0,
+          "FOL": 0.0,
+          "PPA": 4.0,
+          "SHA": 0.0
+         }
+        }
+       },
+       "pct_owned": 82.0,
+       "draft_overall": null,
+       "draft_round": null,
+       "draft_year": null,
+       "career_gp": null,
+       "pct_owned_change": -3.0,
+       "pct_started": null,
+       "adp": null,
+       "adp_change": null,
+       "toi_per_game": 20.611,
+       "pp_toi_per_game": 1.536,
+       "pp_share": 0.293,
+       "toi_trend": null,
+       "pp_share_trend": null,
+       "line": "d2",
+       "pp_unit": "pp2",
+       "pk_unit": "pk1",
+       "line_change": null,
+       "usual_line": "d2",
+       "usual_pp_unit": "pp2",
+       "confirmed_start": null,
+       "start_source": null,
+       "ixg_per_game": 0.14,
+       "goals_minus_ixg": -1.1,
+       "onice_sh_pct": 0.0848,
+       "onice_xg_pct": 0.6,
+       "xg_split": "season"
+      },
+      "drop": {
+       "cid": "fantrax:05oxs",
+       "name": "Jakub Dobes",
+       "name_norm": "jakub dobes",
+       "ids": {
+        "fantrax": "05oxs",
+        "nhl": "8482487"
+       },
+       "team": "MTL",
+       "positions": [
+        "G"
+       ],
+       "primary_position": null,
+       "birth_date": "2001-05-27",
+       "status": "healthy",
+       "status_note": null,
+       "waiver_until": null,
+       "lines": {
+        "season": {
+         "split": "season",
+         "gp": 6,
+         "stats": {
+          "GP": 6.0,
+          "W": 2.0,
+          "GA": 24.0,
+          "SV": 139.0,
+          "SO": 0.0,
+          "PIM": 2.0,
+          "A": 0.0,
+          "FPTS": 21.75
+         }
+        },
+        "projected": {
+         "split": "projected",
+         "gp": 40,
+         "stats": {
+          "GP": 40.0,
+          "W": 26.0,
+          "GA": 108.0,
+          "SV": 993.0,
+          "SO": 0.0,
+          "PIM": 2.0,
+          "A": 0.0,
+          "FPTS": 271.25
+         }
+        },
+        "prior": {
+         "split": "prior",
+         "gp": 43,
+         "stats": {
+          "GP": 43.0,
+          "GS": 42.0,
+          "W": 29.0,
+          "L": 10.0,
+          "OTL": 4.0,
+          "GA": 117.0,
+          "SA": 1187.0,
+          "SV": 1070.0,
+          "SO": 0.0,
+          "GAA": 2.77955,
+          "SVPCT": 0.90143
+         }
+        },
+        "prior2": {
+         "split": "prior2",
+         "gp": 16,
+         "stats": {
+          "GP": 16.0,
+          "GS": 15.0,
+          "W": 7.0,
+          "L": 4.0,
+          "OTL": 3.0,
+          "GA": 40.0,
+          "SA": 440.0,
+          "SV": 400.0,
+          "SO": 1.0,
+          "GAA": 2.74353,
+          "SVPCT": 0.90909
+         }
+        }
+       },
+       "pct_owned": 82.0,
+       "draft_overall": null,
+       "draft_round": null,
+       "draft_year": null,
+       "career_gp": null,
+       "pct_owned_change": -5.0,
+       "pct_started": null,
+       "adp": null,
+       "adp_change": null,
+       "toi_per_game": null,
+       "pp_toi_per_game": null,
+       "pp_share": null,
+       "toi_trend": null,
+       "pp_share_trend": null,
+       "line": "g",
+       "pp_unit": null,
+       "pk_unit": null,
+       "line_change": "G2 -> G1",
+       "usual_line": null,
+       "usual_pp_unit": null,
+       "confirmed_start": true,
+       "start_source": "DFO Confirmed: Jakub Dobes starts UTA@MTL (Montreal Canadiens, Nov 05 16:09 UTC)",
+       "ixg_per_game": null,
+       "goals_minus_ixg": null,
+       "onice_sh_pct": null,
+       "onice_xg_pct": null,
+       "xg_split": null
+      },
+      "to_ir": null,
+      "gain_pts": 9.56,
+      "win_delta": 0.11699999999999999,
+      "starts": [
+       "2026-11-05",
+       "2026-11-07",
+       "2026-11-08"
+      ],
+      "headline": "Dougie Hamilton starts 3 nights for you (Thu, Sat, Sun); Jakub Dobes would have started 1 of his 2 games left (Thu)",
+      "market": "model disagrees with market",
+      "claim": false,
+      "reasons": [
+       "Long term: Dougie Hamilton 3.8 vs Jakub Dobes 2.7 value (this season + top-3 keepers) (an upgrade, +1.1)"
+      ],
+      "chain": null,
+      "role": null,
+      "note": "",
+      "timing": "Make this move before today's first game (6:00 PM your time)",
+      "status": ""
+     },
+     {
+      "day": "2026-11-05",
+      "effective": "2026-11-05",
+      "add": {
+       "cid": "fantrax:01skr",
+       "name": "Mikael Granlund",
+       "name_norm": "mikael granlund",
+       "ids": {
+        "fantrax": "01skr",
+        "nhl": "8475798"
+       },
+       "team": "ANA",
+       "positions": [
+        "F"
+       ],
+       "primary_position": null,
+       "birth_date": "1992-02-26",
+       "status": "healthy",
+       "status_note": null,
+       "waiver_until": null,
+       "lines": {
+        "projected": {
+         "split": "projected",
+         "gp": 71,
+         "stats": {
+          "GP": 71.0,
+          "G": 20.0,
+          "A": 33.0,
+          "PIM": 24.0,
+          "FT": 0.0,
+          "SOG": 141.0,
+          "SHG": 0.0,
+          "ENG": 2.0,
+          "PPP": 16.0,
+          "HIT": 44.0,
+          "BLK": 51.0,
+          "PTS": 53.0,
+          "FPTS": 287.2
+         }
+        },
+        "season": {
+         "split": "season",
+         "gp": 14,
+         "stats": {
+          "GP": 14.0,
+          "G": 4.0,
+          "A": 9.0,
+          "PIM": 0.0,
+          "FT": 0.0,
+          "SOG": 24.0,
+          "SHG": 0.0,
+          "ENG": 0.0,
+          "PPP": 8.0,
+          "HIT": 2.0,
+          "BLK": 9.0,
+          "PTS": 13.0,
+          "FPTS": 59.1
+         }
+        },
+        "prior": {
+         "split": "prior",
+         "gp": 58,
+         "stats": {
+          "GP": 58.0,
+          "G": 19.0,
+          "A": 22.0,
+          "PTS": 41.0,
+          "PM": -9.0,
+          "PIM": 18.0,
+          "PPG": 8.0,
+          "PPP": 12.0,
+          "SHG": 0.0,
+          "SHP": 0.0,
+          "GWG": 2.0,
+          "SOG": 117.0,
+          "HIT": 32.0,
+          "BLK": 41.0,
+          "ENG": 2.0,
+          "FOW": 381.0,
+          "FOL": 385.0,
+          "PPA": 4.0,
+          "SHA": 0.0
+         }
+        },
+        "prior2": {
+         "split": "prior2",
+         "gp": 83,
+         "stats": {
+          "GP": 83.0,
+          "G": 22.0,
+          "A": 44.0,
+          "PTS": 66.0,
+          "PM": 0.0,
+          "PIM": 28.0,
+          "PPG": 5.0,
+          "PPP": 19.0,
+          "SHG": 1.0,
+          "SHP": 1.0,
+          "GWG": 4.0,
+          "SOG": 169.0,
+          "HIT": 57.0,
+          "BLK": 60.0,
+          "ENG": 2.0,
+          "FOW": 359.0,
+          "FOL": 365.0,
+          "PPA": 14.0,
+          "SHA": 0.0
+         }
+        },
+        "prior3": {
+         "split": "prior3",
+         "gp": 69,
+         "stats": {
+          "GP": 69.0,
+          "G": 12.0,
+          "A": 48.0,
+          "PTS": 60.0,
+          "PM": -23.0,
+          "PIM": 32.0,
+          "PPG": 1.0,
+          "PPP": 23.0,
+          "SHG": 0.0,
+          "SHP": 1.0,
+          "GWG": 1.0,
+          "SOG": 134.0,
+          "HIT": 62.0,
+          "BLK": 55.0,
+          "ENG": 0.0,
+          "FOW": 492.0,
+          "FOL": 560.0,
+          "PPA": 22.0,
+          "SHA": 1.0
+         }
+        }
+       },
+       "pct_owned": 61.0,
+       "draft_overall": null,
+       "draft_round": null,
+       "draft_year": null,
+       "career_gp": null,
+       "pct_owned_change": -3.0,
+       "pct_started": null,
+       "adp": null,
+       "adp_change": null,
+       "toi_per_game": 20.294,
+       "pp_toi_per_game": 3.704,
+       "pp_share": 0.852,
+       "toi_trend": null,
+       "pp_share_trend": null,
+       "line": "f2",
+       "pp_unit": "pp1",
+       "pk_unit": null,
+       "line_change": null,
+       "usual_line": "f2",
+       "usual_pp_unit": "pp1",
+       "confirmed_start": null,
+       "start_source": null,
+       "ixg_per_game": 0.2621,
+       "goals_minus_ixg": 0.33,
+       "onice_sh_pct": 0.0811,
+       "onice_xg_pct": 0.39,
+       "xg_split": "season"
+      },
+      "drop": {
+       "cid": "fantrax:06psl",
+       "name": "Ivar Stenberg",
+       "name_norm": "ivar stenberg",
+       "ids": {
+        "fantrax": "06psl",
+        "nhl": "8486103"
+       },
+       "team": "SJS",
+       "positions": [
+        "F"
+       ],
+       "primary_position": null,
+       "birth_date": "2007-09-30",
+       "status": "healthy",
+       "status_note": null,
+       "waiver_until": null,
+       "lines": {
+        "season": {
+         "split": "season",
+         "gp": 17,
+         "stats": {
+          "GP": 17.0,
+          "G": 4.0,
+          "A": 6.0,
+          "PIM": 4.0,
+          "FT": 0.0,
+          "SOG": 26.0,
+          "SHG": 0.0,
+          "ENG": 1.0,
+          "PPP": 8.0,
+          "HIT": 3.0,
+          "BLK": 5.0,
+          "PTS": 10.0,
+          "FPTS": 56.4
+         }
+        },
+        "projected": {
+         "split": "projected",
+         "gp": 62,
+         "stats": {
+          "GP": 62.0,
+          "G": 12.0,
+          "A": 17.0,
+          "PIM": 18.0,
+          "FT": 0.0,
+          "SOG": 109.0,
+          "SHG": 0.0,
+          "ENG": 0.0,
+          "PPP": 8.0,
+          "HIT": 52.0,
+          "BLK": 56.0,
+          "PTS": 29.0,
+          "FPTS": 197.1
+         }
+        }
+       },
+       "pct_owned": 85.0,
+       "draft_overall": 2,
+       "draft_round": 1,
+       "draft_year": 2026,
+       "career_gp": 12,
+       "pct_owned_change": -2.0,
+       "pct_started": null,
+       "adp": null,
+       "adp_change": null,
+       "toi_per_game": 16.096,
+       "pp_toi_per_game": 3.538,
+       "pp_share": 0.595,
+       "toi_trend": null,
+       "pp_share_trend": null,
+       "line": "f3",
+       "pp_unit": "pp1",
+       "pk_unit": null,
+       "line_change": "F2 -> F3",
+       "usual_line": "f2",
+       "usual_pp_unit": "pp1",
+       "confirmed_start": null,
+       "start_source": null,
+       "ixg_per_game": 0.2406,
+       "goals_minus_ixg": -0.09,
+       "onice_sh_pct": 0.0128,
+       "onice_xg_pct": 0.37,
+       "xg_split": "season"
+      },
+      "to_ir": null,
+      "gain_pts": 5.03,
+      "win_delta": 0.05149999999999999,
+      "starts": [
+       "2026-11-05",
+       "2026-11-06",
+       "2026-11-08"
+      ],
+      "headline": "Mikael Granlund starts 3 nights for you (Thu, Fri, Sun); Ivar Stenberg would have started 1 of his 2 games left (Fri)",
+      "market": "market agrees",
+      "claim": false,
+      "reasons": [
+       "Long term: Mikael Granlund 4.0 vs Ivar Stenberg 3.6 value (this season + top-3 keepers) (an upgrade, +0.4)"
+      ],
+      "chain": null,
+      "role": null,
+      "note": "",
+      "timing": "Make this move before today's first game (6:00 PM your time)",
+      "status": ""
+     }
+    ],
+    "ins": [],
+    "outs": [],
+    "goalies": [
+     "Juuse Saros 78% @COL",
+     "Mackenzie Blackwood 100% NSH"
+    ],
+    "pregame": true,
+    "quick_ok": true,
+    "pts_plan": 41.63,
+    "pts_as_set": 39.27,
+    "pts_frozen": 37.81,
+    "note": "",
+    "text": "Add Dougie Hamilton, drop Jakub Dobes, then quick lineup; Add Mikael Granlund, drop Ivar Stenberg, then quick lineup; G: Juuse Saros 78% @COL, Mackenzie Blackwood 100% NSH \u00b7 check goalies at 5 pm"
+   },
+   {
+    "day": "2026-11-06",
+    "moves": [],
+    "ins": [],
+    "outs": [],
+    "goalies": [],
+    "pregame": false,
+    "quick_ok": true,
+    "pts_plan": 9.19,
+    "pts_as_set": 8.39,
+    "pts_frozen": 5.04,
+    "note": "",
+    "text": "Quick lineup is fine"
+   },
+   {
+    "day": "2026-11-07",
+    "moves": [],
+    "ins": [],
+    "outs": [],
+    "goalies": [
+     "Juuse Saros 78% STL",
+     "Mackenzie Blackwood 66% DET"
+    ],
+    "pregame": true,
+    "quick_ok": true,
+    "pts_plan": 55.08,
+    "pts_as_set": 51.53,
+    "pts_frozen": 40.89,
+    "note": "",
+    "text": "G: Juuse Saros 78% STL, Mackenzie Blackwood 66% DET \u00b7 check goalies at 5 pm"
+   },
+   {
+    "day": "2026-11-08",
+    "moves": [],
+    "ins": [],
+    "outs": [],
+    "goalies": [],
+    "pregame": false,
+    "quick_ok": true,
+    "pts_plan": 26.89,
+    "pts_as_set": 19.0,
+    "pts_frozen": 13.66,
+    "note": "",
+    "text": "Quick lineup is fine"
+   }
+  ],
+  "watch": [
+   "Jared McCann sits in an IR slot, so keeping him costs nothing; ~233 pts after his return"
+  ],
+  "claim_watch": [
+   "Claim John Gibson (on waivers until Fri), drop Jakub Dobes: +1.05 FPG over Jakub Dobes for the rest of the season; claim (on waivers until Fri) \u00b7 model disagrees with market"
+  ],
+  "net_week": [
+   "Net this week: Jakub Dobes, Ivar Stenberg gone; Dougie Hamilton, Mikael Granlund stay; long term +1.5 value (this season + top-3 keepers); +14.6 pts this matchup"
+  ],
+  "since": null,
+  "notes": [
+   "Protect stance: one move is kept in reserve for an injury.",
+   "Fantrax free-agent adds count the same day when made before the day's first game (else from the next day); waiver claims from the day after they clear."
+  ],
+  "available": true,
+  "lineup_gain": 0.0,
+  "moves_gain": 14.59,
+  "my_projected_total": 218.18,
+  "their_projected_total": 194.01
+ }
+}

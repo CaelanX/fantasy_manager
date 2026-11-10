@@ -1,0 +1,8058 @@
+{
+ "version": 3,
+ "provider": "fantrax",
+ "league_id": "oq3cj6dkmufzrxl9",
+ "as_of": "2026-11-08",
+ "archived_at": "2026-11-08T12:08:24",
+ "params_hash": "f46ed5d45a2d574d35f9b22154cc0037bfa5f6ce",
+ "code_hash": "rust:0.1.0",
+ "recommendations": [
+  {
+   "kind": "injury",
+   "score": 10.0,
+   "title": "Activate Owen Tippett from IR",
+   "add": [
+    {
+     "cid": "fantrax:03yh8",
+     "name": "Owen Tippett",
+     "nhl_id": 8480015,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 3.9524,
+   "gain_units": "season_fpg",
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "STATUS",
+     "text": "Owen Tippett is healthy but in an IR slot",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 4.952 (rank 1/2)",
+     "value": 4.952441410357662,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 10.0,
+   "title": "Start William Nylander at F (empty slot) today",
+   "add": [
+    {
+     "cid": "fantrax:02yjj",
+     "name": "William Nylander",
+     "nhl_id": 8477939,
+     "team": "TOR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 5.3658,
+   "gain_units": "day_pts",
+   "horizon_days": 1,
+   "strength": 5.58,
+   "reasons": [
+    {
+     "code": "LINEUP_GAIN",
+     "text": "+5.37 (today) from this change",
+     "value": 5.365814147274704,
+     "baseline": 0.5
+    },
+    {
+     "code": "DAY_VALUE",
+     "text": "William Nylander: 5.37 projected pts today",
+     "value": 5.365814147274704,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_LEFT",
+     "text": "William Nylander: 1 game left this matchup (through Sun Nov 8)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 5.366 (rank 1/2)",
+     "value": 5.365814147274704,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 10.0,
+   "title": "Add Sidney Crosby (open roster spot) for this matchup",
+   "add": [
+    {
+     "cid": "fantrax:00454",
+     "name": "Sidney Crosby",
+     "nhl_id": 8471675,
+     "team": "PIT",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 4.8271,
+   "gain_units": "matchup_pts",
+   "horizon_days": 1,
+   "strength": 7.42,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+12.87 FPG (week, best lineup each day)",
+     "value": 12.87215516476472,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+4.8 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 4.82705818678677,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Sidney Crosby: 4.98 FPG, VORP -1.26",
+     "value": 4.983790899587433,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "17 GP this season + 181 weighted from the last 3 seasons -> confidence 0.92",
+     "value": 17.0,
+     "baseline": 0.9160369437447523
+    },
+    {
+     "code": "OPEN_SPOT",
+     "text": "3 open roster spots: no drop needed",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Sidney Crosby rostered 98% (-1.0 this week)",
+     "value": -1.0,
+     "baseline": 98.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Sidney Crosby: market 80th pct (rostered %/Fantrax projected FP/G) vs model 61st (-19): market agrees",
+     "value": -19.1,
+     "baseline": 80.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 12.872 (rank 1/6)",
+     "value": 12.87215516476472,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 8.3333,
+   "title": "Add Mikael Granlund (open roster spot) for this matchup",
+   "add": [
+    {
+     "cid": "fantrax:01skr",
+     "name": "Mikael Granlund",
+     "nhl_id": 8475798,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 4.152,
+   "gain_units": "matchup_pts",
+   "horizon_days": 1,
+   "strength": 6.78,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+11.07 FPG (week, best lineup each day)",
+     "value": 11.071919454968329,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+4.2 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 4.151969795613123,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Mikael Granlund: 4.30 FPG, VORP -1.95",
+     "value": 4.2960132328456275,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "16 GP this season + 166 weighted from the last 3 seasons -> confidence 0.91",
+     "value": 16.0,
+     "baseline": 0.9098286744815149
+    },
+    {
+     "code": "OPEN_SPOT",
+     "text": "3 open roster spots: no drop needed",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Mikael Granlund rostered 66% (+2.0 this week)",
+     "value": 2.0,
+     "baseline": 66.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Mikael Granlund: market 27th pct (rostered %/Fantrax projected FP/G) vs model 33rd (+6): market agrees",
+     "value": 6.5,
+     "baseline": 26.9
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 11.072 (rank 2/6)",
+     "value": 11.071919454968329,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 6.6667,
+   "title": "Add Tyson Foerster (open roster spot) for this matchup",
+   "add": [
+    {
+     "cid": "fantrax:05k8c",
+     "name": "Tyson Foerster",
+     "nhl_id": 8482159,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 4.061,
+   "gain_units": "matchup_pts",
+   "horizon_days": 1,
+   "strength": 6.65,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+10.83 FPG (week, best lineup each day)",
+     "value": 10.829413814460304,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+4.1 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 4.061030180422614,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Tyson Foerster: 6.09 FPG, VORP -0.16",
+     "value": 6.089686299265424,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "17 GP this season + 140 weighted from the last 3 seasons -> confidence 0.90",
+     "value": 17.0,
+     "baseline": 0.898477157360406
+    },
+    {
+     "code": "OPEN_SPOT",
+     "text": "3 open roster spots: no drop needed",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Tyson Foerster rostered 37% (-1.0 this week)",
+     "value": -1.0,
+     "baseline": 37.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Tyson Foerster: market 21st pct (rostered %/Fantrax projected FP/G) vs model 18th (-2): market agrees",
+     "value": -2.4,
+     "baseline": 20.8
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 10.829 (rank 3/6)",
+     "value": 10.829413814460304,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "injury",
+   "score": 5.0,
+   "title": "Hold Jared McCann in IR (back ~Jan 2): it costs no roster spot",
+   "add": [],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 1.0,
+   "reasons": [
+    {
+     "code": "RETURN_ESTIMATE",
+     "text": "Jared McCann: back ~Jan 2, ~22 of 68 games missed (note: \"est. return 2027-01-02\")",
+     "value": 22.0,
+     "baseline": 68.0
+    },
+    {
+     "code": "HOLD_VERDICT",
+     "text": "Jared McCann sits in an IR slot, so keeping him costs nothing; ~188 pts after his return",
+     "value": 188.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 0.000 (rank 2/2)",
+     "value": 0.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 5.0,
+   "title": "Activate Owen Tippett from IR (healthy)",
+   "add": [
+    {
+     "cid": "fantrax:03yh8",
+     "name": "Owen Tippett",
+     "nhl_id": 8480015,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 4.11,
+   "gain_units": "matchup_pts",
+   "horizon_days": 1,
+   "strength": 7.11,
+   "reasons": [
+    {
+     "code": "STATUS",
+     "text": "Owen Tippett is healthy but sits in an IR slot",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Owen Tippett: 4 games next 7 days (3 off-night)",
+     "value": 4.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 3.952 (rank 2/2)",
+     "value": 3.952441410357662,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 5.0,
+   "title": "Add Sergei Murashov (open roster spot) for this matchup",
+   "add": [
+    {
+     "cid": "fantrax:061i2",
+     "name": "Sergei Murashov",
+     "nhl_id": 8483703,
+     "team": "PIT",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 4.0129,
+   "gain_units": "matchup_pts",
+   "horizon_days": 1,
+   "strength": 5.16,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+10.70 FPG (week, best lineup each day)",
+     "value": 10.700947408644089,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+4.0 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 4.012855278241533,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Sergei Murashov: 3.09 FPG, VORP -1.60",
+     "value": 3.0862308056906653,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "6 GP this season + 5 weighted from the last 3 seasons -> confidence 0.61",
+     "value": 6.0,
+     "baseline": 0.607843137254902
+    },
+    {
+     "code": "OPEN_SPOT",
+     "text": "3 open roster spots: no drop needed",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Sergei Murashov rostered 50% (-3.0 this week): falling league-wide, no rush (others are dropping him)",
+     "value": -3.0,
+     "baseline": 50.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Sergei Murashov: market 44th pct (rostered %/Fantrax projected FP/G) vs model 21st (-23): market agrees",
+     "value": -23.2,
+     "baseline": 44.4
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 10.701 (rank 4/6)",
+     "value": 10.700947408644089,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 3.3333,
+   "title": "Add Troy Terry (open roster spot) for this matchup",
+   "add": [
+    {
+     "cid": "fantrax:03rik",
+     "name": "Troy Terry",
+     "nhl_id": 8478873,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 4.0122,
+   "gain_units": "matchup_pts",
+   "horizon_days": 1,
+   "strength": 6.63,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+10.70 FPG (week, best lineup each day)",
+     "value": 10.699090659086773,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+4.0 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 4.01215899715754,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Troy Terry: 4.15 FPG, VORP -2.10",
+     "value": 4.151352007011444,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "0 GP this season + 168 weighted from the last 3 seasons -> confidence 0.90",
+     "value": 0.0,
+     "baseline": 0.903938520653218
+    },
+    {
+     "code": "OPEN_SPOT",
+     "text": "3 open roster spots: no drop needed",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "STATUS",
+     "text": "Troy Terry is ir (Hip: \"Troy is closer. When I say closer, hopefully, definitely, in the next, I'm gonna say, week or so,\" Quenneville told Lee. Terry hasn't played yet this campaign because of the injury. He h... (est. return 2026-11-08))",
+     "value": 1.06985175697578,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Troy Terry rostered 52% (+0.0 this week)",
+     "value": 0.0,
+     "baseline": 52.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Troy Terry: market 26th pct (rostered %/Fantrax projected FP/G) vs model 23rd (-3): market agrees",
+     "value": -2.7,
+     "baseline": 25.7
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 10.699 (rank 5/6)",
+     "value": 10.699090659086773,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 1.6667,
+   "title": "Add Dougie Hamilton (open roster spot)",
+   "add": [
+    {
+     "cid": "fantrax:02azf",
+     "name": "Dougie Hamilton",
+     "nhl_id": 8476462,
+     "team": "NJD",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 3.8328,
+   "gain_units": "season_fpg",
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "fills empty D slot (+3.83 FPG, season)",
+     "value": 3.8328464689971895,
+     "baseline": 0.6
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Dougie Hamilton: 3.83 FPG, VORP +0.22",
+     "value": 3.8328464689971913,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "17 GP this season + 140 weighted from the last 3 seasons -> confidence 0.90",
+     "value": 17.0,
+     "baseline": 0.8985801217038539
+    },
+    {
+     "code": "OPEN_SPOT",
+     "text": "3 open roster spots: no drop needed (fills empty D slot)",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Dougie Hamilton rostered 83% (-2.0 this week)",
+     "value": -2.0,
+     "baseline": 83.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Dougie Hamilton: market 33rd pct (rostered %/Fantrax projected FP/G) vs model 22nd (-10): market agrees",
+     "value": -10.4,
+     "baseline": 32.8
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 3.444 (rank 6/6)",
+     "value": 3.4441196465836814,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 10.0,
+   "title": "Rising: Judd Caulfield (+12.0% rostered this week)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:051uw",
+     "name": "Judd Caulfield",
+     "nhl_id": 8481538,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": 7,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Judd Caulfield rostered 28% (+12.0 this week): rising, grab him before the league does (score x1.50)",
+     "value": 12.0,
+     "baseline": 28.0
+    },
+    {
+     "code": "TOI_TREND",
+     "text": "TOI +2.1 min/game vs his season baseline",
+     "value": 2.13,
+     "baseline": 0.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 12.000 (rank 1/149)",
+     "value": 12.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 10.0,
+   "title": "Trade Jack Eichel + Seth Jarvis to Gwinzzz for Connor McDavid",
+   "add": [
+    {
+     "cid": "fantrax:02un4",
+     "name": "Connor McDavid",
+     "nhl_id": 8478402,
+     "team": "EDM",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:03924",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:05gvq",
+     "name": "Seth Jarvis",
+     "nhl_id": 8482093,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Gwinzzz",
+   "predicted_gain": 1.2816,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 9.08,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.28 pts/game this season (+3.9 pts/week, +85 rest of season) (dynasty +1.21; contend edge +1.89)",
+     "value": 1.88661065061158,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (rostered %/Fantrax projected FP/G/dynasty value, -3 worth pts to them); acceptance ~45%",
+     "value": -0.9867225143798919,
+     "baseline": -2.986722514379892
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Jack Eichel fills Gwinzzz's weakest slot F (starter VORP -0.34)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you pick up Dougie Hamilton (FA); Gwinzzz drops Devin Cooley",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-1.0 pts) while our model has you gaining +1.89",
+     "value": 1.8372745248925855,
+     "baseline": -0.9867225143798919
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 47% (prior logistic: they get 90, give 93 market pts; -3 they must drop Devin Cooley; +5 fills their weakest slot -> -1.0 pts). EV = +1.89 x 0.47 = +0.89",
+     "value": 0.4729258704088458,
+     "baseline": 0.4729258704088458
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.9 pts/week (+1.28/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.8622658520085524,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+85 pts rest of season (+1.28/game x 66 games left)",
+     "value": 84.96984874418816,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.28 FPG (optimal_lineup; before = my roster with the same pickup of Dougie Hamilton; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 1.2815965119787052,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Gwinzzz lineup -1.59 FPG (our model)",
+     "value": -1.585780314363916,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Connor McDavid (11.89): 11.89 dynasty",
+     "value": 11.888531415773162,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (7.76), Seth Jarvis (4.93): 12.68 dynasty",
+     "value": 12.684690920144227,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 30% (shown only; old band 15%)",
+     "value": 0.2997206325790682,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +1.93 (Connor McDavid replaces Jack Eichel as a keeper); this season +1.11 = dynasty value +3.04 for me (+1.21 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 1.2100282772657498,
+     "baseline": 3.036686964626126
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "Gwinzzz would need to drop Devin Cooley",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "FA_FILL",
+     "text": "Open roster spot: pick up Dougie Hamilton",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Connor McDavid: market 97th pct (rostered %/Fantrax projected FP/G) vs model 100th (+3): market agrees",
+     "value": 2.9,
+     "baseline": 96.8
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jack Eichel: market 91st pct (rostered %/Fantrax projected FP/G) vs model 86th (-5): market agrees",
+     "value": -4.6,
+     "baseline": 91.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Seth Jarvis: market 75th pct (rostered %/Fantrax projected FP/G) vs model 72nd (-2): market agrees",
+     "value": -2.4,
+     "baseline": 74.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.892 (rank 1/10)",
+     "value": 0.8922269840630804,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.9329,
+   "title": "Role up: Charle-Edouard D'Astous (TOI +4.7, PP share +29 pts; 3-0)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04z51",
+     "name": "Charle-Edouard D'Astous",
+     "nhl_id": 8480426,
+     "team": "TBL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "3-0",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.0 min per game over the last 5 GP vs 15.4 baseline (+4.7 min)",
+     "value": 20.017,
+     "baseline": 15.367
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 67% of team PP time over the last 5 GP vs 38% baseline (+29 pts)",
+     "value": 0.6673,
+     "baseline": 0.3772
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 2/149)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.8658,
+   "title": "Role up: Filip Chytil (TOI +5.0; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04f0o",
+     "name": "Filip Chytil",
+     "nhl_id": 8480078,
+     "team": "VAN",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.0 min per game over the last 5 GP vs 15.0 baseline (+5.0 min)",
+     "value": 20.043,
+     "baseline": 15.006
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 10.000 (rank 3/149)",
+     "value": 10.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.7987,
+   "title": "Role up: Bowen Byram (TOI +2.3, PP share +41 pts; Jewlio)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04ldb",
+     "name": "Bowen Byram",
+     "nhl_id": 8481524,
+     "team": "CHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Jewlio",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.61,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 24.6 min per game over the last 5 GP vs 22.3 baseline (+2.3 min)",
+     "value": 24.613,
+     "baseline": 22.341
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 73% of team PP time over the last 5 GP vs 32% baseline (+41 pts)",
+     "value": 0.7276,
+     "baseline": 0.32
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.610 (rank 4/149)",
+     "value": 9.61,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.7315,
+   "title": "Role up: Philip Broberg (TOI +3.9, PP share +39 pts; DBoyer01)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04xef",
+     "name": "Philip Broberg",
+     "nhl_id": 8481598,
+     "team": "STL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "DBoyer01",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.37,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 27.0 min per game over the last 5 GP vs 23.1 baseline (+3.9 min)",
+     "value": 27.037,
+     "baseline": 23.121
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 65% of team PP time over the last 5 GP vs 27% baseline (+39 pts)",
+     "value": 0.6543,
+     "baseline": 0.2686
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.370 (rank 5/149)",
+     "value": 9.37,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.6644,
+   "title": "Role up: David Jiricek (PP share +46 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05riz",
+     "name": "David Jiricek",
+     "nhl_id": 8483460,
+     "team": "PHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.36,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 48% of team PP time over the last 5 GP vs 2% baseline (+46 pts)",
+     "value": 0.4763,
+     "baseline": 0.019
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.360 (rank 6/149)",
+     "value": 9.36,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.5973,
+   "title": "Role up: Simon Holmstrom (TOI +3.7, PP share +24 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04yeb",
+     "name": "Simon Holmstrom",
+     "nhl_id": 8481601,
+     "team": "NYI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 9.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.9 min per game over the last 5 GP vs 17.2 baseline (+3.7 min)",
+     "value": 20.91,
+     "baseline": 17.242
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 65% of team PP time over the last 5 GP vs 41% baseline (+24 pts)",
+     "value": 0.6455,
+     "baseline": 0.4052
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 9.000 (rank 7/149)",
+     "value": 9.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.5302,
+   "title": "Role loss: Seth Jarvis (TOI -1.9, PP share -35 pts; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05gvq",
+     "name": "Seth Jarvis",
+     "nhl_id": 8482093,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Nermeen LouLou",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.79,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.9 min per game over the last 5 GP vs 18.9 baseline (-1.9 min)",
+     "value": 16.95,
+     "baseline": 18.88
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 28% of team PP time over the last 5 GP vs 64% baseline (-35 pts)",
+     "value": 0.2833,
+     "baseline": 0.636
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.790 (rank 8/149)",
+     "value": 8.79,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.4631,
+   "title": "Role up: Erik Gustafsson (TOI +3.2, PP share +34 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02nqk",
+     "name": "Erik Gustafsson",
+     "nhl_id": 8476979,
+     "team": "LAK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.55,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.8 min per game over the last 5 GP vs 18.6 baseline (+3.2 min)",
+     "value": 21.83,
+     "baseline": 18.612
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 64% of team PP time over the last 5 GP vs 30% baseline (+34 pts)",
+     "value": 0.6412,
+     "baseline": 0.3044
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.550 (rank 9/149)",
+     "value": 8.55,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.396,
+   "title": "Role up: Emmitt Finnie (TOI +2.0, PP share +33 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06cl1",
+     "name": "Emmitt Finnie",
+     "nhl_id": 8484471,
+     "team": "DET",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.43,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.8 min per game over the last 5 GP vs 17.8 baseline (+2.0 min)",
+     "value": 19.793,
+     "baseline": 17.772
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 61% of team PP time over the last 5 GP vs 28% baseline (+33 pts)",
+     "value": 0.6125,
+     "baseline": 0.2838
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.430 (rank 10/149)",
+     "value": 8.43,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.3289,
+   "title": "Role up: Kasperi Kapanen (TOI +2.0, PP share +33 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:039ch",
+     "name": "Kasperi Kapanen",
+     "nhl_id": 8477953,
+     "team": "EDM",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.41,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.8 min per game over the last 5 GP vs 17.9 baseline (+2.0 min)",
+     "value": 19.81,
+     "baseline": 17.85
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 74% of team PP time over the last 5 GP vs 41% baseline (+33 pts)",
+     "value": 0.7407,
+     "baseline": 0.4133
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.410 (rank 11/149)",
+     "value": 8.41,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.2617,
+   "title": "Role up: Esa Lindell (TOI +3.9; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02npz",
+     "name": "Esa Lindell",
+     "nhl_id": 8476902,
+     "team": "DAL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.35,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 24.2 min per game over the last 5 GP vs 20.3 baseline (+3.9 min)",
+     "value": 24.183,
+     "baseline": 20.281
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.350 (rank 12/149)",
+     "value": 8.35,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.1946,
+   "title": "Role up: Maxim Tsyplakov (TOI +1.6, PP share +32 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06iml",
+     "name": "Maxim Tsyplakov",
+     "nhl_id": 8484958,
+     "team": "CGY",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.25,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 10.7 min per game over the last 5 GP vs 9.1 baseline (+1.6 min)",
+     "value": 10.697,
+     "baseline": 9.121
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 34% of team PP time over the last 5 GP vs 2% baseline (+32 pts)",
+     "value": 0.3409,
+     "baseline": 0.024
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.250 (rank 13/149)",
+     "value": 8.25,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.1275,
+   "title": "Role up: Tommy Novak (TOI +3.1, PP share +19 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rfx",
+     "name": "Tommy Novak",
+     "nhl_id": 8478438,
+     "team": "PIT",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.18,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.2 min per game over the last 5 GP vs 15.1 baseline (+3.1 min)",
+     "value": 18.17,
+     "baseline": 15.053
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 65% of team PP time over the last 5 GP vs 46% baseline (+19 pts)",
+     "value": 0.6521,
+     "baseline": 0.4639
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.180 (rank 14/149)",
+     "value": 8.18,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.0604,
+   "title": "Role up: Andrew Peeke (TOI +3.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:042vk",
+     "name": "Andrew Peeke",
+     "nhl_id": 8479369,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.06,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.1 min per game over the last 5 GP vs 16.4 baseline (+3.7 min)",
+     "value": 20.147,
+     "baseline": 16.443
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.060 (rank 15/149)",
+     "value": 8.06,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 9.0,
+   "title": "Trade William Nylander to Gwinzzz for Beckett Sennecke + Sebastian Aho",
+   "add": [
+    {
+     "cid": "fantrax:06hcw",
+     "name": "Beckett Sennecke",
+     "nhl_id": 8484762,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:03rmx",
+     "name": "Sebastian Aho",
+     "nhl_id": 8478427,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:02yjj",
+     "name": "William Nylander",
+     "nhl_id": 8477939,
+     "team": "TOR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Gwinzzz",
+   "predicted_gain": 0.8483,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.52,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.85 pts/game this season (+2.6 pts/week, +56 rest of season) (dynasty +1.39; contend edge +1.54)",
+     "value": 1.5423185513784654,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value, -9 worth pts to them); acceptance ~40%",
+     "value": -4.0475635311263005,
+     "baseline": -9.0475635311263
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "William Nylander fills Gwinzzz's weakest slot F (starter VORP -0.34)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: Gwinzzz can pick up Mark Scheifele (FA)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-4.0 pts) while our model has you gaining +1.54",
+     "value": 1.3399403748221503,
+     "baseline": -4.0475635311263005
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 39% (prior logistic: they get 56, give 65 market pts; +5 fills their weakest slot -> -4.0 pts). EV = +1.54 x 0.39 = +0.60",
+     "value": 0.39062869382219606,
+     "baseline": 0.39062869382219606
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.6 pts/week (+0.85/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.5565764851184585,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+56 pts rest of season (+0.85/game x 66 games left)",
+     "value": 56.24468267260608,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.85 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.8483360885762607,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Gwinzzz lineup -0.95 FPG (our model)",
+     "value": -0.9494223442922944,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Beckett Sennecke (8.71), Sebastian Aho (5.48): 14.19 dynasty",
+     "value": 14.191994954738611,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send William Nylander (7.25): 7.25 dynasty",
+     "value": 7.247504828469451,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 32% (shown only; old band 15%)",
+     "value": 0.3197573751454795,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +1.76 (Beckett Sennecke + Sebastian Aho replace Jack Eichel + William Nylander as keepers); this season +5.26; roster spot -3.54 = dynasty value +3.48 for me (+1.39 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 1.3879649256044093,
+     "baseline": 3.4832367772968262
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Beckett Sennecke: market 56th pct (rostered %/Fantrax projected FP/G) vs model 77th (+20): market agrees",
+     "value": 20.3,
+     "baseline": 56.4
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Sebastian Aho: market 77th pct (rostered %/Fantrax projected FP/G) vs model 89th (+13): market agrees",
+     "value": 12.8,
+     "baseline": 76.5
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) William Nylander: market 82nd pct (rostered %/Fantrax projected FP/G) vs model 84th (+3): market agrees",
+     "value": 2.5,
+     "baseline": 81.7
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.602 (rank 2/10)",
+     "value": 0.6024738811827115,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.9933,
+   "title": "Role up: Tyson Hinds (TOI +3.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05ub3",
+     "name": "Tyson Hinds",
+     "nhl_id": 8482731,
+     "team": "ANA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 8.01,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.4 min per game over the last 5 GP vs 14.7 baseline (+3.7 min)",
+     "value": 18.36,
+     "baseline": 14.688
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.010 (rank 16/149)",
+     "value": 8.01,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.9262,
+   "title": "Rising: Kent Johnson (+8.0% rostered this week)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05gda",
+     "name": "Kent Johnson",
+     "nhl_id": 8482660,
+     "team": "CBJ",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": 7,
+   "strength": 5.67,
+   "reasons": [
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Kent Johnson rostered 68% (+8.0 this week): rising, grab him before the league does (score x1.40)",
+     "value": 8.0,
+     "baseline": 68.0
+    },
+    {
+     "code": "TOI_TREND",
+     "text": "TOI +1.3 min/game vs his season baseline",
+     "value": 1.28,
+     "baseline": 0.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 8.000 (rank 17/149)",
+     "value": 8.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.8591,
+   "title": "Role up: Drew Helleson (TOI +3.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04zp2",
+     "name": "Drew Helleson",
+     "nhl_id": 8481563,
+     "team": "ANA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.96,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.6 min per game over the last 5 GP vs 17.0 baseline (+3.6 min)",
+     "value": 20.607,
+     "baseline": 16.965
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.960 (rank 18/149)",
+     "value": 7.96,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.7919,
+   "title": "Role up: Ville Koivunen (PP share +36 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05tpa",
+     "name": "Ville Koivunen",
+     "nhl_id": 8482758,
+     "team": "PIT",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.92,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 67% of team PP time over the last 5 GP vs 31% baseline (+36 pts)",
+     "value": 0.6716,
+     "baseline": 0.3103
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.920 (rank 19/149)",
+     "value": 7.92,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.7248,
+   "title": "Role up: William Wallinder (TOI +3.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05af9",
+     "name": "William Wallinder",
+     "nhl_id": 8482171,
+     "team": "DET",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.9,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.1 min per game over the last 5 GP vs 14.5 baseline (+3.6 min)",
+     "value": 18.127,
+     "baseline": 14.529
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.900 (rank 20/149)",
+     "value": 7.9,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.6577,
+   "title": "Role up: Jack Roslovic (PP share +36 pts; Miff Bucannons V4)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rag",
+     "name": "Jack Roslovic",
+     "nhl_id": 8478458,
+     "team": "TOR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Miff Bucannons V4",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.89,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 62% of team PP time over the last 5 GP vs 26% baseline (+36 pts)",
+     "value": 0.6232,
+     "baseline": 0.2638
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.890 (rank 21/149)",
+     "value": 7.89,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.5906,
+   "title": "Role up: Tye Kartye (TOI +2.9, PP share +29 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05x9t",
+     "name": "Tye Kartye",
+     "nhl_id": 8481789,
+     "team": "NYR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.89,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.2 min per game over the last 5 GP vs 15.3 baseline (+2.9 min)",
+     "value": 18.193,
+     "baseline": 15.272
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 30% of team PP time over the last 5 GP vs 0% baseline (+29 pts)",
+     "value": 0.2968,
+     "baseline": 0.0023
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.890 (rank 22/149)",
+     "value": 7.89,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.5235,
+   "title": "Role up: Ondrej Palat (TOI +2.5, PP share +29 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02fqa",
+     "name": "Ondrej Palat",
+     "nhl_id": 8476292,
+     "team": "NYI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.88,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.5 min per game over the last 5 GP vs 13.1 baseline (+2.5 min)",
+     "value": 15.527,
+     "baseline": 13.062
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 31% of team PP time over the last 5 GP vs 2% baseline (+29 pts)",
+     "value": 0.313,
+     "baseline": 0.0188
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.880 (rank 23/149)",
+     "value": 7.88,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.4564,
+   "title": "Role up: Jake Evans (TOI +3.5; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03eeo",
+     "name": "Jake Evans",
+     "nhl_id": 8478133,
+     "team": "MTL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.81,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.8 min per game over the last 5 GP vs 14.3 baseline (+3.5 min)",
+     "value": 17.84,
+     "baseline": 14.298
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.810 (rank 24/149)",
+     "value": 7.81,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.3893,
+   "title": "Role up: Anton Frondell (PP share +35 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06jhd",
+     "name": "Anton Frondell",
+     "nhl_id": 8485391,
+     "team": "CHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.8,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 71% of team PP time over the last 5 GP vs 35% baseline (+35 pts)",
+     "value": 0.7063,
+     "baseline": 0.3531
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.800 (rank 25/149)",
+     "value": 7.8,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.3221,
+   "title": "Role up: Mason Marchment (TOI +1.5, PP share +29 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03wor",
+     "name": "Mason Marchment",
+     "nhl_id": 8478975,
+     "team": "SJS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.71,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.4 min per game over the last 5 GP vs 15.9 baseline (+1.5 min)",
+     "value": 17.42,
+     "baseline": 15.888
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 69% of team PP time over the last 5 GP vs 40% baseline (+29 pts)",
+     "value": 0.6891,
+     "baseline": 0.4036
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.710 (rank 26/149)",
+     "value": 7.71,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.255,
+   "title": "Role up: Beck Malenstyn (TOI +3.3; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:042xx",
+     "name": "Beck Malenstyn",
+     "nhl_id": 8479359,
+     "team": "BUF",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.39,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 13.2 min per game over the last 5 GP vs 9.9 baseline (+3.3 min)",
+     "value": 13.21,
+     "baseline": 9.948
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.390 (rank 27/149)",
+     "value": 7.39,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.1879,
+   "title": "Role up: Zack MacEwen (TOI +3.1; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:048vt",
+     "name": "Zack MacEwen",
+     "nhl_id": 8479772,
+     "team": "TOR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.17,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 9.6 min per game over the last 5 GP vs 6.5 baseline (+3.1 min)",
+     "value": 9.593,
+     "baseline": 6.481
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.170 (rank 28/149)",
+     "value": 7.17,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.1208,
+   "title": "Role up: Elias Salomonsson (PP share +30 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05rih",
+     "name": "Elias Salomonsson",
+     "nhl_id": 8483510,
+     "team": "WPG",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.05,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 38% of team PP time over the last 5 GP vs 8% baseline (+30 pts)",
+     "value": 0.3811,
+     "baseline": 0.078
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.050 (rank 29/149)",
+     "value": 7.05,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.0537,
+   "title": "Michael Misa (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:061im",
+     "name": "Michael Misa",
+     "nhl_id": 8485402,
+     "team": "SJS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Michael Misa: PP2 -> PP1 per Daily Faceoff (Last Game (2026-11-07), updated Nov 08 15:40 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Michael Misa now on PP1 (Daily Faceoff (Last Game (2026-11-07), updated Nov 08 15:40 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 30/149)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 8.0,
+   "title": "Trade Dylan Holloway + Jimmy Snuggerud to Miff Bucannons V4 for Jakob Chychrun",
+   "add": [
+    {
+     "cid": "fantrax:03mqg",
+     "name": "Jakob Chychrun",
+     "nhl_id": 8479345,
+     "team": "WSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:051yz",
+     "name": "Dylan Holloway",
+     "nhl_id": 8482077,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:05ymj",
+     "name": "Jimmy Snuggerud",
+     "nhl_id": 8483516,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Miff Bucannons V4",
+   "predicted_gain": 1.3412,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.4,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.34 pts/game this season (+4.0 pts/week, +89 rest of season) (dynasty +0.46; contend edge +1.57)",
+     "value": 1.5735754607662384,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value, -7 worth pts to them); acceptance ~40%",
+     "value": -2.151626463815223,
+     "baseline": -7.151626463815223
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Dylan Holloway fills Miff Bucannons V4's weakest slot F (starter VORP +0.07)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you pick up Mark Scheifele (FA); Miff Bucannons V4 moves Dylan Larkin to IR",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-2.2 pts) while our model has you gaining +1.57",
+     "value": 1.4659941375754773,
+     "baseline": -2.151626463815223
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 38% (prior logistic: they get 26, give 33 market pts; +5 fills their weakest slot; x0.85: contender, no help this season -> -2.2 pts). EV = +1.57 x 0.38 = +0.59",
+     "value": 0.37500177091693515,
+     "baseline": 0.44117855401992373
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+4.0 pts/week (+1.34/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 4.041794420171639,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+89 pts rest of season (+1.34/game x 66 games left)",
+     "value": 88.91947724377606,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.34 FPG (optimal_lineup; before = my roster with the same pickup of Mark Scheifele; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 1.3411685858789753,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Miff Bucannons V4 lineup -1.14 FPG (our model)",
+     "value": -1.1443629636897938,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Jakob Chychrun (4.81): 4.81 dynasty",
+     "value": 4.813413094293911,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Dylan Holloway (4.49), Jimmy Snuggerud (4.01): 8.50 dynasty",
+     "value": 8.501520318852226,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 3% (shown only; old band 15%)",
+     "value": 0.030300487034737533,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.00 (keepers unchanged); this season +1.17 = dynasty value +1.17 for me (+0.46 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 0.46481374977452633,
+     "baseline": 1.1664965864341514
+    },
+    {
+     "code": "IR_MOVE",
+     "text": "Miff Bucannons V4 would move Dylan Larkin to IR (no drop)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "FA_FILL",
+     "text": "Open roster spot: pick up Mark Scheifele",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jakob Chychrun: market 71st pct (rostered %/Fantrax projected FP/G) vs model 68th (-2): market agrees",
+     "value": -2.5,
+     "baseline": 70.6
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Dylan Holloway: market 65th pct (rostered %/Fantrax projected FP/G) vs model 59th (-6): market agrees",
+     "value": -6.2,
+     "baseline": 65.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jimmy Snuggerud: market 35th pct (rostered %/Fantrax projected FP/G) vs model 32nd (-2): market agrees",
+     "value": -2.5,
+     "baseline": 35.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.590 (rank 3/10)",
+     "value": 0.5900935844587716,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.9866,
+   "title": "Victor Eklund (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06pyw",
+     "name": "Victor Eklund",
+     "nhl_id": 8485388,
+     "team": "NYI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Victor Eklund: PP2 -> PP1 per Daily Faceoff (Last Game (2026-11-07), updated Nov 08 15:14 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Victor Eklund now on PP1 (Daily Faceoff (Last Game (2026-11-07), updated Nov 08 15:14 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 31/149)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.9195,
+   "title": "Role up: Jamie Drysdale (TOI +2.5, PP share +16 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04yu6",
+     "name": "Jamie Drysdale",
+     "nhl_id": 8482142,
+     "team": "PHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 25.0 min per game over the last 5 GP vs 22.5 baseline (+2.5 min)",
+     "value": 24.977,
+     "baseline": 22.477
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 72% of team PP time over the last 5 GP vs 56% baseline (+16 pts)",
+     "value": 0.7243,
+     "baseline": 0.5608
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 32/149)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.8523,
+   "title": "Role up: John Marino (PP share +30 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rip",
+     "name": "John Marino",
+     "nhl_id": 8478507,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.92,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 31% of team PP time over the last 5 GP vs 2% baseline (+30 pts)",
+     "value": 0.3132,
+     "baseline": 0.017
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.920 (rank 33/149)",
+     "value": 6.92,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.7852,
+   "title": "Role up: Mark Jankowski (TOI +2.4, PP share +17 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02noo",
+     "name": "Mark Jankowski",
+     "nhl_id": 8476873,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.86,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.2 min per game over the last 5 GP vs 13.8 baseline (+2.4 min)",
+     "value": 16.2,
+     "baseline": 13.772
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 31% of team PP time over the last 5 GP vs 14% baseline (+17 pts)",
+     "value": 0.3121,
+     "baseline": 0.1427
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.860 (rank 34/149)",
+     "value": 6.86,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.7181,
+   "title": "Role up: Tony DeAngelo (TOI +2.9; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03dug",
+     "name": "Tony DeAngelo",
+     "nhl_id": 8477950,
+     "team": "NYI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.79,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.2 min per game over the last 5 GP vs 16.3 baseline (+2.9 min)",
+     "value": 19.227,
+     "baseline": 16.332
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.790 (rank 35/149)",
+     "value": 6.79,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.651,
+   "title": "Role up: Oliver Bjorkstrand (TOI +2.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:031p8",
+     "name": "Oliver Bjorkstrand",
+     "nhl_id": 8477416,
+     "team": "NYR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.67,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 13.5 min per game over the last 5 GP vs 10.6 baseline (+2.8 min)",
+     "value": 13.467,
+     "baseline": 10.633
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.670 (rank 36/149)",
+     "value": 6.67,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.5839,
+   "title": "Role up: Jonathan Lekkerimaki (TOI +2.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05xcm",
+     "name": "Jonathan Lekkerimaki",
+     "nhl_id": 8483476,
+     "team": "VAN",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.64,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.1 min per game over the last 5 GP vs 14.3 baseline (+2.8 min)",
+     "value": 17.147,
+     "baseline": 14.328
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.640 (rank 37/149)",
+     "value": 6.64,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.5168,
+   "title": "Role up: Quinn Hughes (TOI +2.8; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04lbz",
+     "name": "Quinn Hughes",
+     "nhl_id": 8480800,
+     "team": "MIN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Nermeen LouLou",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.62,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 29.8 min per game over the last 5 GP vs 27.0 baseline (+2.8 min)",
+     "value": 29.843,
+     "baseline": 27.033
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.620 (rank 38/149)",
+     "value": 6.62,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.4497,
+   "title": "Role up: Jake McCabe (TOI +2.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02np6",
+     "name": "Jake McCabe",
+     "nhl_id": 8476931,
+     "team": "TOR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.61,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.7 min per game over the last 5 GP vs 18.9 baseline (+2.8 min)",
+     "value": 21.72,
+     "baseline": 18.917
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.610 (rank 39/149)",
+     "value": 6.61,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.3826,
+   "title": "Role up: Kirby Dach (TOI +2.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04ld9",
+     "name": "Kirby Dach",
+     "nhl_id": 8481523,
+     "team": "MTL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.53,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 12.6 min per game over the last 5 GP vs 9.8 baseline (+2.8 min)",
+     "value": 12.583,
+     "baseline": 9.819
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.530 (rank 40/149)",
+     "value": 6.53,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.3154,
+   "title": "Role up: Gavin McKenna (PP share +27 pts; Jewlio)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:062h5",
+     "name": "Gavin McKenna",
+     "nhl_id": 8486067,
+     "team": "TOR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Jewlio",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.49,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 78% of team PP time over the last 5 GP vs 51% baseline (+27 pts)",
+     "value": 0.7833,
+     "baseline": 0.5088
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.490 (rank 41/149)",
+     "value": 6.49,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.2483,
+   "title": "Role up: Adam Edstrom (TOI +2.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:051v9",
+     "name": "Adam Edstrom",
+     "nhl_id": 8481726,
+     "team": "NSH",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.43,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.0 min per game over the last 5 GP vs 14.3 baseline (+2.7 min)",
+     "value": 16.977,
+     "baseline": 14.261
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.430 (rank 42/149)",
+     "value": 6.43,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.1812,
+   "title": "Role up: Corey Perry (TOI +2.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:003dv",
+     "name": "Corey Perry",
+     "nhl_id": 8470621,
+     "team": "LAK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.34,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.5 min per game over the last 5 GP vs 11.8 baseline (+2.7 min)",
+     "value": 14.453,
+     "baseline": 11.781
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.340 (rank 43/149)",
+     "value": 6.34,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.1141,
+   "title": "Role up: Adam Fox (TOI +2.6; Dee_snuts69)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:042w4",
+     "name": "Adam Fox",
+     "nhl_id": 8479323,
+     "team": "NYR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Dee_snuts69",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.3,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 24.4 min per game over the last 5 GP vs 21.7 baseline (+2.6 min)",
+     "value": 24.37,
+     "baseline": 21.722
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.300 (rank 44/149)",
+     "value": 6.3,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.047,
+   "title": "Role up: Jordan Kyrou (TOI +2.1, PP share +18 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:042vl",
+     "name": "Jordan Kyrou",
+     "nhl_id": 8479385,
+     "team": "WSH",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.26,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.8 min per game over the last 5 GP vs 13.7 baseline (+2.1 min)",
+     "value": 15.783,
+     "baseline": 13.652
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 59% of team PP time over the last 5 GP vs 41% baseline (+18 pts)",
+     "value": 0.5912,
+     "baseline": 0.4103
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.260 (rank 45/149)",
+     "value": 6.26,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 7.0,
+   "title": "Trade William Nylander to DBoyer01 for Andrei Svechnikov + Roman Josi",
+   "add": [
+    {
+     "cid": "fantrax:048vf",
+     "name": "Andrei Svechnikov",
+     "nhl_id": 8480830,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:01fx3",
+     "name": "Roman Josi",
+     "nhl_id": 8474600,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:02yjj",
+     "name": "William Nylander",
+     "nhl_id": 8477939,
+     "team": "TOR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "DBoyer01",
+   "predicted_gain": 1.2377,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.29,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.24 pts/game this season (+3.7 pts/week, +82 rest of season) (dynasty +0.67; contend edge +1.57)",
+     "value": 1.5735991406864338,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value, -8 worth pts to them); acceptance ~35%",
+     "value": -2.9950676887853973,
+     "baseline": -7.995067688785397
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "William Nylander fills DBoyer01's weakest slot F (starter VORP -0.27)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: DBoyer01 can pick up Dougie Hamilton (FA)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-3.0 pts) while our model has you gaining +1.57",
+     "value": 1.423845756247164,
+     "baseline": -2.9950676887853973
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 36% (prior logistic: they get 56, give 64 market pts; +5 fills their weakest slot; x0.85: contender, no help this season -> -3.0 pts). EV = +1.57 x 0.36 = +0.56",
+     "value": 0.35570271481193694,
+     "baseline": 0.4184737821316905
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.7 pts/week (+1.24/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.7301177162761907,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+82 pts rest of season (+1.24/game x 66 games left)",
+     "value": 82.06258975807619,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.24 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 1.2377464518563528,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "DBoyer01 lineup -1.69 FPG (our model)",
+     "value": -1.6885037524162314,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Andrei Svechnikov (5.25), Roman Josi (5.19): 10.44 dynasty",
+     "value": 10.43640706812825,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send William Nylander (7.25): 7.25 dynasty",
+     "value": 7.247504828469451,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 5% (shown only; old band 15%)",
+     "value": 0.050560039136238855,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.15 (Roman Josi replaces William Nylander as a keeper); this season +5.07; roster spot -3.54 = dynasty value +1.69 for me (+0.67 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 0.671705377660162,
+     "baseline": 1.6857118157759428
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Andrei Svechnikov: market 77th pct (rostered %/Fantrax projected FP/G) vs model 80th (+3): market agrees",
+     "value": 2.7,
+     "baseline": 77.5
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Roman Josi: market 69th pct (rostered %/Fantrax projected FP/G) vs model 78th (+10): market agrees",
+     "value": 9.8,
+     "baseline": 68.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) William Nylander: market 82nd pct (rostered %/Fantrax projected FP/G) vs model 84th (+3): market agrees",
+     "value": 2.5,
+     "baseline": 81.7
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.560 (rank 4/10)",
+     "value": 0.5597334863678955,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.9799,
+   "title": "Role up: Trevor van Riemsdyk (TOI +2.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02ycl",
+     "name": "Trevor van Riemsdyk",
+     "nhl_id": 8477845,
+     "team": "PIT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.13,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.8 min per game over the last 5 GP vs 16.2 baseline (+2.6 min)",
+     "value": 18.807,
+     "baseline": 16.24
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.130 (rank 46/149)",
+     "value": 6.13,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.9128,
+   "title": "Role up: Noah Juulsen (TOI +2.5; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rah",
+     "name": "Noah Juulsen",
+     "nhl_id": 8478454,
+     "team": "COL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.05,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 13.4 min per game over the last 5 GP vs 10.8 baseline (+2.5 min)",
+     "value": 13.357,
+     "baseline": 10.831
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.050 (rank 47/149)",
+     "value": 6.05,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.8456,
+   "title": "Role up: Pavel Zacha (TOI +2.5; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03l0t",
+     "name": "Pavel Zacha",
+     "nhl_id": 8478401,
+     "team": "BOS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.03,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.9 min per game over the last 5 GP vs 18.4 baseline (+2.5 min)",
+     "value": 20.883,
+     "baseline": 18.367
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.030 (rank 48/149)",
+     "value": 6.03,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.7785,
+   "title": "Role up: Gabriel Vilardi (TOI +2.5; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03w5m",
+     "name": "Gabriel Vilardi",
+     "nhl_id": 8480014,
+     "team": "WPG",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.02,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.7 min per game over the last 5 GP vs 17.1 baseline (+2.5 min)",
+     "value": 19.657,
+     "baseline": 17.149
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.020 (rank 49/149)",
+     "value": 6.02,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.7114,
+   "title": "Rising: Jamie Drysdale (+6.0% rostered this week)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04yu6",
+     "name": "Jamie Drysdale",
+     "nhl_id": 8482142,
+     "team": "PHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": 7,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Jamie Drysdale rostered 59% (+6.0 this week): rising, grab him before the league does (score x1.30)",
+     "value": 6.0,
+     "baseline": 59.0
+    },
+    {
+     "code": "TOI_TREND",
+     "text": "TOI +2.5 min/game vs his season baseline",
+     "value": 2.5,
+     "baseline": 0.5
+    },
+    {
+     "code": "PP_TREND",
+     "text": "PP share +16 pts vs his season baseline",
+     "value": 0.1635,
+     "baseline": 0.05
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 50/149)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.6443,
+   "title": "Rising: Sandis Vilmanis (+6.0% rostered this week)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:061a2",
+     "name": "Sandis Vilmanis",
+     "nhl_id": 8483771,
+     "team": "FLA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": 7,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Sandis Vilmanis rostered 16% (+6.0 this week): rising, grab him before the league does (score x1.30)",
+     "value": 6.0,
+     "baseline": 16.0
+    },
+    {
+     "code": "TOI_TREND",
+     "text": "TOI +0.8 min/game vs his season baseline",
+     "value": 0.807,
+     "baseline": 0.5
+    },
+    {
+     "code": "STATUS",
+     "text": "Sandis Vilmanis is out (Vilmanis will be evaluated ahead of Sunday's game against Boston, but the Panthers may need to wait until they are back in Florida to know about his status. That could rule him out for the fin... (est. return 2026-11-12))",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 51/149)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.5772,
+   "title": "Role up: David Pastrnak (TOI +2.5; Dee_snuts69)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03d12",
+     "name": "David Pastrnak",
+     "nhl_id": 8477956,
+     "team": "BOS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dee_snuts69",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.94,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.2 min per game over the last 5 GP vs 19.7 baseline (+2.5 min)",
+     "value": 22.163,
+     "baseline": 19.692
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.940 (rank 52/149)",
+     "value": 5.94,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.5101,
+   "title": "Role up: Jackson LaCombe (TOI +2.5; Dee_snuts69)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:051m4",
+     "name": "Jackson LaCombe",
+     "nhl_id": 8481605,
+     "team": "ANA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Dee_snuts69",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.94,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 28.7 min per game over the last 5 GP vs 26.2 baseline (+2.5 min)",
+     "value": 28.657,
+     "baseline": 26.185
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.940 (rank 53/149)",
+     "value": 5.94,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.443,
+   "title": "Role up: Matvei Michkov (TOI +1.9, PP share +18 pts; DBoyer01)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05gvo",
+     "name": "Matvei Michkov",
+     "nhl_id": 8484387,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "DBoyer01",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.88,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.3 min per game over the last 5 GP vs 15.4 baseline (+1.9 min)",
+     "value": 17.293,
+     "baseline": 15.355
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 80% of team PP time over the last 5 GP vs 62% baseline (+18 pts)",
+     "value": 0.7954,
+     "baseline": 0.6177
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.880 (rank 54/149)",
+     "value": 5.88,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.3758,
+   "title": "Role up: Connor Clifton (TOI +2.4; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:031qj",
+     "name": "Connor Clifton",
+     "nhl_id": 8477365,
+     "team": "BOS",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.87,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.2 min per game over the last 5 GP vs 16.8 baseline (+2.4 min)",
+     "value": 19.2,
+     "baseline": 16.766
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.870 (rank 55/149)",
+     "value": 5.87,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.3087,
+   "title": "Role up: Cale Makar (TOI +2.4; Heather Lee Neumann)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04alw",
+     "name": "Cale Makar",
+     "nhl_id": 8480069,
+     "team": "COL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Heather Lee Neumann",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.86,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 24.5 min per game over the last 5 GP vs 22.1 baseline (+2.4 min)",
+     "value": 24.547,
+     "baseline": 22.115
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.860 (rank 56/149)",
+     "value": 5.86,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.2416,
+   "title": "Role up: JJ Peterka (TOI +2.4; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04zj5",
+     "name": "JJ Peterka",
+     "nhl_id": 8482175,
+     "team": "BOS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.84,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.4 min per game over the last 5 GP vs 16.9 baseline (+2.4 min)",
+     "value": 19.357,
+     "baseline": 16.935
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.840 (rank 57/149)",
+     "value": 5.84,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.1745,
+   "title": "Role up: Kailer Yamamoto (TOI +2.4; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03yuc",
+     "name": "Kailer Yamamoto",
+     "nhl_id": 8479977,
+     "team": "UTA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.82,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.2 min per game over the last 5 GP vs 11.8 baseline (+2.4 min)",
+     "value": 14.207,
+     "baseline": 11.796
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.820 (rank 58/149)",
+     "value": 5.82,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.1074,
+   "title": "Role up: Matthew Schaefer (TOI +2.4; Heather Lee Neumann)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06gk0",
+     "name": "Matthew Schaefer",
+     "nhl_id": 8485366,
+     "team": "NYI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Heather Lee Neumann",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.82,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 28.6 min per game over the last 5 GP vs 26.2 baseline (+2.4 min)",
+     "value": 28.623,
+     "baseline": 26.215
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.820 (rank 59/149)",
+     "value": 5.82,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.0403,
+   "title": "Role up: Wyatt Kaiser (TOI +2.4; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05lu9",
+     "name": "Wyatt Kaiser",
+     "nhl_id": 8482176,
+     "team": "CHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.76,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.5 min per game over the last 5 GP vs 19.1 baseline (+2.4 min)",
+     "value": 21.517,
+     "baseline": 19.137
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.760 (rank 60/149)",
+     "value": 5.76,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 6.0,
+   "title": "Trade Dylan Holloway + Jimmy Snuggerud to DBoyer01 for Mikhail Sergachev",
+   "add": [
+    {
+     "cid": "fantrax:03yg3",
+     "name": "Mikhail Sergachev",
+     "nhl_id": 8479410,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:051yz",
+     "name": "Dylan Holloway",
+     "nhl_id": 8482077,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:05ymj",
+     "name": "Jimmy Snuggerud",
+     "nhl_id": 8483516,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "DBoyer01",
+   "predicted_gain": 1.4075,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.16,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.41 pts/game this season (+4.2 pts/week, +93 rest of season) (dynasty +0.62; contend edge +1.72)",
+     "value": 1.7191540085886237,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value, -6 worth pts to them); acceptance ~35%",
+     "value": -4.347942748800545,
+     "baseline": -6.347942748800545
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Dylan Holloway fills DBoyer01's weakest slot F (starter VORP -0.27)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you pick up Mark Scheifele (FA); DBoyer01 drops Jacob Fowler",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-4.3 pts) while our model has you gaining +1.72",
+     "value": 1.5017568711485965,
+     "baseline": -4.347942748800545
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 33% (prior logistic: they get 26, give 33 market pts; -3 they must drop Jacob Fowler; +5 fills their weakest slot; x0.85: contender, no help this season -> -4.3 pts). EV = +1.72 x 0.33 = +0.56",
+     "value": 0.3253820338497773,
+     "baseline": 0.3828023927644439
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+4.2 pts/week (+1.41/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 4.241785315450969,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+93 pts rest of season (+1.41/game x 66 games left)",
+     "value": 93.3192769399213,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.41 FPG (optimal_lineup; before = my roster with the same pickup of Mark Scheifele; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 1.4075305722461735,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "DBoyer01 lineup -1.57 FPG (our model)",
+     "value": -1.5683748735565004,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Mikhail Sergachev (7.09): 7.09 dynasty",
+     "value": 7.092707540744534,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Dylan Holloway (4.49), Jimmy Snuggerud (4.01): 8.50 dynasty",
+     "value": 8.501520318852226,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 43% (shown only; old band 15%)",
+     "value": 0.428881110582082,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.33 (Mikhail Sergachev replaces William Nylander as a keeper); this season +1.23 = dynasty value +1.56 for me (+0.62 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 0.6232468726849004,
+     "baseline": 1.5641003516900263
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "DBoyer01 would need to drop Jacob Fowler",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "FA_FILL",
+     "text": "Open roster spot: pick up Mark Scheifele",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Mikhail Sergachev: market 60th pct (rostered %/Fantrax projected FP/G) vs model 71st (+11): market agrees",
+     "value": 10.9,
+     "baseline": 60.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Dylan Holloway: market 65th pct (rostered %/Fantrax projected FP/G) vs model 59th (-6): market agrees",
+     "value": -6.2,
+     "baseline": 65.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jimmy Snuggerud: market 35th pct (rostered %/Fantrax projected FP/G) vs model 32nd (-2): market agrees",
+     "value": -2.5,
+     "baseline": 35.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.559 (rank 5/10)",
+     "value": 0.5593818278155639,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.9732,
+   "title": "Role up: Elias Pettersson (TOI +2.4; Jewlio)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:048x9",
+     "name": "Elias Pettersson",
+     "nhl_id": 8480012,
+     "team": "VAN",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Jewlio",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.73,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.9 min per game over the last 5 GP vs 19.6 baseline (+2.4 min)",
+     "value": 21.95,
+     "baseline": 19.585
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.730 (rank 61/149)",
+     "value": 5.73,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.906,
+   "title": "Role up: Jake DeBrusk (TOI +2.4; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rab",
+     "name": "Jake DeBrusk",
+     "nhl_id": 8478498,
+     "team": "VAN",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.71,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.3 min per game over the last 5 GP vs 16.0 baseline (+2.4 min)",
+     "value": 18.333,
+     "baseline": 15.98
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.710 (rank 62/149)",
+     "value": 5.71,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.8389,
+   "title": "Role up: Mikhail Sergachev (TOI +2.4; DBoyer01)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03yg3",
+     "name": "Mikhail Sergachev",
+     "nhl_id": 8479410,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "DBoyer01",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.71,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 25.7 min per game over the last 5 GP vs 23.3 baseline (+2.4 min)",
+     "value": 25.67,
+     "baseline": 23.315
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.710 (rank 63/149)",
+     "value": 5.71,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.7718,
+   "title": "Role up: Shakir Mukhamadullin (TOI +2.4; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05kub",
+     "name": "Shakir Mukhamadullin",
+     "nhl_id": 8482166,
+     "team": "EDM",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.7,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.9 min per game over the last 5 GP vs 13.5 baseline (+2.4 min)",
+     "value": 15.873,
+     "baseline": 13.521
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.700 (rank 64/149)",
+     "value": 5.7,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.7047,
+   "title": "Role up: Phillip Danault (TOI +2.3; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02b3k",
+     "name": "Phillip Danault",
+     "nhl_id": 8476479,
+     "team": "MTL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.59,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.7 min per game over the last 5 GP vs 16.4 baseline (+2.3 min)",
+     "value": 18.657,
+     "baseline": 16.362
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.590 (rank 65/149)",
+     "value": 5.59,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.6376,
+   "title": "Role up: J.T. Compher (PP share +23 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03163",
+     "name": "J.T. Compher",
+     "nhl_id": 8477456,
+     "team": "DET",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.57,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 25% of team PP time over the last 5 GP vs 2% baseline (+23 pts)",
+     "value": 0.2474,
+     "baseline": 0.019
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.570 (rank 66/149)",
+     "value": 5.57,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.5705,
+   "title": "Role up: Andreas Englund (TOI +2.3; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03eaq",
+     "name": "Andreas Englund",
+     "nhl_id": 8477971,
+     "team": "DET",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.53,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.4 min per game over the last 5 GP vs 12.1 baseline (+2.3 min)",
+     "value": 14.367,
+     "baseline": 12.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.530 (rank 67/149)",
+     "value": 5.53,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.5034,
+   "title": "Role up: Clayton Keller (TOI +2.3; Dee_snuts69)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03mn8",
+     "name": "Clayton Keller",
+     "nhl_id": 8479343,
+     "team": "UTA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dee_snuts69",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.52,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.0 min per game over the last 5 GP vs 17.8 baseline (+2.3 min)",
+     "value": 20.033,
+     "baseline": 17.775
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.520 (rank 68/149)",
+     "value": 5.52,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.4362,
+   "title": "Role up: Frank Nazar (PP share +23 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05m17",
+     "name": "Frank Nazar",
+     "nhl_id": 8483493,
+     "team": "CHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.51,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 53% of team PP time over the last 5 GP vs 30% baseline (+23 pts)",
+     "value": 0.5265,
+     "baseline": 0.3008
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.510 (rank 69/149)",
+     "value": 5.51,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.3691,
+   "title": "Preseason standout: Bradly Nadeau (3 GP, 1.00 PTS/GP, TOI 22.5, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06axz",
+     "name": "Bradly Nadeau",
+     "nhl_id": 8484203,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.5,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 2 G, 1 A, 3 PTS, 11 SOG, 0 PPP, 22.5 TOI (1.00 PTS/GP)",
+     "value": 1.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "22.5 min TOI per preseason game",
+     "value": 22.49,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 18 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 18.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.500 (rank 70/149)",
+     "value": 5.5,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.302,
+   "title": "Role up: Tyler Toffoli (TOI +1.7, PP share +16 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01zti",
+     "name": "Tyler Toffoli",
+     "nhl_id": 8475726,
+     "team": "SJS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.4,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.6 min per game over the last 5 GP vs 12.9 baseline (+1.7 min)",
+     "value": 14.577,
+     "baseline": 12.876
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 48% of team PP time over the last 5 GP vs 32% baseline (+16 pts)",
+     "value": 0.4776,
+     "baseline": 0.3224
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.400 (rank 71/149)",
+     "value": 5.4,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.2349,
+   "title": "Role up: Jared McCann (TOI +2.2; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03as6",
+     "name": "Jared McCann",
+     "nhl_id": 8477955,
+     "team": "SEA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Nermeen LouLou",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.37,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.3 min per game over the last 5 GP vs 15.1 baseline (+2.2 min)",
+     "value": 17.323,
+     "baseline": 15.136
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.370 (rank 72/149)",
+     "value": 5.37,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.1678,
+   "title": "Role up: Alex Carrier (TOI +2.2; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rgk",
+     "name": "Alex Carrier",
+     "nhl_id": 8478851,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.36,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.1 min per game over the last 5 GP vs 19.9 baseline (+2.2 min)",
+     "value": 22.1,
+     "baseline": 19.92
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.360 (rank 73/149)",
+     "value": 5.36,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.1007,
+   "title": "Role up: Mavrik Bourque (PP share +22 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04zp9",
+     "name": "Mavrik Bourque",
+     "nhl_id": 8482145,
+     "team": "NSH",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.34,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 45% of team PP time over the last 5 GP vs 23% baseline (+22 pts)",
+     "value": 0.4501,
+     "baseline": 0.2332
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.340 (rank 74/149)",
+     "value": 5.34,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.0336,
+   "title": "Role up: Rasmus Dahlin (PP share +21 pts; Miff Bucannons V4)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04ad7",
+     "name": "Rasmus Dahlin",
+     "nhl_id": 8480839,
+     "team": "BUF",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Miff Bucannons V4",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.29,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 86% of team PP time over the last 5 GP vs 65% baseline (+21 pts)",
+     "value": 0.8622,
+     "baseline": 0.6477
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.290 (rank 75/149)",
+     "value": 5.29,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 5.0,
+   "title": "Trade Jack Eichel to Heather Lee Neumann for Matthew Schaefer + Kyle Connor",
+   "add": [
+    {
+     "cid": "fantrax:06gk0",
+     "name": "Matthew Schaefer",
+     "nhl_id": 8485366,
+     "team": "NYI",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "fantrax:03kra",
+     "name": "Kyle Connor",
+     "nhl_id": 8478398,
+     "team": "WPG",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:03924",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Heather Lee Neumann",
+   "predicted_gain": 1.1686,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.13,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.17 pts/game this season (+3.5 pts/week, +77 rest of season) (dynasty +1.19; contend edge +1.76)",
+     "value": 1.7622459377574433,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value, -5 worth pts to them); acceptance ~30%",
+     "value": -4.992755788062652,
+     "baseline": -4.992755788062652
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: Heather Lee Neumann can pick up Dougie Hamilton (FA)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-5.0 pts) while our model has you gaining +1.76",
+     "value": 1.5126081483543108,
+     "baseline": -4.992755788062652
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 31% (prior logistic: they get 71, give 76 market pts; x0.85: rebuilding, gets older players -> -5.0 pts). EV = +1.76 x 0.31 = +0.55",
+     "value": 0.3112785875208857,
+     "baseline": 0.3662101029657479
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.5 pts/week (+1.17/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.5217784889986383,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+77 pts rest of season (+1.17/game x 66 games left)",
+     "value": 77.47912675797004,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.17 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 1.1686142799090504,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Heather Lee Neumann lineup -1.20 FPG (our model)",
+     "value": -1.196810487876533,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Matthew Schaefer (8.54), Kyle Connor (5.55): 14.09 dynasty",
+     "value": 14.094306514664828,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (7.76): 7.76 dynasty",
+     "value": 7.756561677460178,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 27% (shown only; old band 15%)",
+     "value": 0.2652409215681394,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +1.52 (Matthew Schaefer + Kyle Connor replace Jack Eichel + William Nylander as keepers); this season +5.00; roster spot -3.54 = dynasty value +2.98 for me (+1.19 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 1.187263315696786,
+     "baseline": 2.9795560170726545
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Matthew Schaefer: market 69th pct (rostered %/Fantrax projected FP/G) vs model 70th (+2): market agrees",
+     "value": 1.5,
+     "baseline": 68.9
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Kyle Connor: market 81st pct (rostered %/Fantrax projected FP/G) vs model 92nd (+11): market agrees",
+     "value": 11.3,
+     "baseline": 80.9
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jack Eichel: market 91st pct (rostered %/Fantrax projected FP/G) vs model 86th (-5): market agrees",
+     "value": -4.6,
+     "baseline": 91.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.549 (rank 6/10)",
+     "value": 0.5485494263695556,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.9664,
+   "title": "Role up: Judd Caulfield (TOI +2.1; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:051uw",
+     "name": "Judd Caulfield",
+     "nhl_id": 8481538,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.26,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.6 min per game over the last 5 GP vs 12.5 baseline (+2.1 min)",
+     "value": 14.637,
+     "baseline": 12.507
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.260 (rank 76/149)",
+     "value": 5.26,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.8993,
+   "title": "Role up: Colton Dach (TOI +2.1; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05td3",
+     "name": "Colton Dach",
+     "nhl_id": 8482703,
+     "team": "EDM",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.21,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.7 min per game over the last 5 GP vs 13.6 baseline (+2.1 min)",
+     "value": 15.67,
+     "baseline": 13.563
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.210 (rank 77/149)",
+     "value": 5.21,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.8322,
+   "title": "Role up: Carter Verhaeghe (PP share +21 pts; DBoyer01)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:031p3",
+     "name": "Carter Verhaeghe",
+     "nhl_id": 8477409,
+     "team": "FLA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "DBoyer01",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.16,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 72% of team PP time over the last 5 GP vs 51% baseline (+21 pts)",
+     "value": 0.7168,
+     "baseline": 0.5089
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.160 (rank 78/149)",
+     "value": 5.16,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.7651,
+   "title": "Role up: Jack Drury (TOI +2.1; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04qy0",
+     "name": "Jack Drury",
+     "nhl_id": 8480835,
+     "team": "NSH",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.15,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.6 min per game over the last 5 GP vs 16.5 baseline (+2.1 min)",
+     "value": 18.607,
+     "baseline": 16.533
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.150 (rank 79/149)",
+     "value": 5.15,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.698,
+   "title": "Role up: Adam Wilsby (TOI +2.0; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05g2s",
+     "name": "Adam Wilsby",
+     "nhl_id": 8482482,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.08,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.2 min per game over the last 5 GP vs 19.1 baseline (+2.0 min)",
+     "value": 21.19,
+     "baseline": 19.15
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.080 (rank 80/149)",
+     "value": 5.08,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.6309,
+   "title": "Role up: Mitch Marner (TOI +2.0; Jewlio)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03jvu",
+     "name": "Mitch Marner",
+     "nhl_id": 8478483,
+     "team": "VGK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Jewlio",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.08,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.8 min per game over the last 5 GP vs 19.7 baseline (+2.0 min)",
+     "value": 21.75,
+     "baseline": 19.711
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.080 (rank 81/149)",
+     "value": 5.08,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.5638,
+   "title": "Role up: Sam Malinski (TOI +2.0; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06age",
+     "name": "Sam Malinski",
+     "nhl_id": 8484258,
+     "team": "COL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.05,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.0 min per game over the last 5 GP vs 17.0 baseline (+2.0 min)",
+     "value": 19.0,
+     "baseline": 16.974
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.050 (rank 82/149)",
+     "value": 5.05,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.4966,
+   "title": "Role up: Tyler Myers (TOI +2.0; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:015j6",
+     "name": "Tyler Myers",
+     "nhl_id": 8474574,
+     "team": "DAL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.04,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.4 min per game over the last 5 GP vs 15.4 baseline (+2.0 min)",
+     "value": 17.403,
+     "baseline": 15.382
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.040 (rank 83/149)",
+     "value": 5.04,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.4295,
+   "title": "Role up: Denver Barkey (PP share +20 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06bao",
+     "name": "Denver Barkey",
+     "nhl_id": 8484142,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.02,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 71% of team PP time over the last 5 GP vs 51% baseline (+20 pts)",
+     "value": 0.707,
+     "baseline": 0.5062
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.020 (rank 84/149)",
+     "value": 5.02,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.3624,
+   "title": "Claude Giroux (free agent) moved up to the top unit (F3 -> F1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:0042t",
+     "name": "Claude Giroux",
+     "nhl_id": 8473512,
+     "team": "OTT",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Claude Giroux: F3 -> F1 per Daily Faceoff (Last Game (2026-11-07), updated Nov 08 17:24 UTC)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Claude Giroux now on PP1 (Daily Faceoff (Last Game (2026-11-07), updated Nov 08 17:24 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 85/149)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.2953,
+   "title": "Sean Monahan (free agent) moved up to the top unit (F2 -> F1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02un6",
+     "name": "Sean Monahan",
+     "nhl_id": 8477497,
+     "team": "CBJ",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Sean Monahan: F2 -> F1 per Daily Faceoff (Mark Scheig, updated Nov 07 15:07 UTC)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Sean Monahan now on PP2 (Daily Faceoff (Mark Scheig, updated Nov 07 15:07 UTC))",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 86/149)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.2282,
+   "title": "Tyson Foerster (free agent) moved up to the top unit (F3 -> F1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05k8c",
+     "name": "Tyson Foerster",
+     "nhl_id": 8482159,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Tyson Foerster: F3 -> F1 per Daily Faceoff (Jackie Spiegel, updated Nov 07 19:31 UTC)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Tyson Foerster now on PP2 (Daily Faceoff (Jackie Spiegel, updated Nov 07 19:31 UTC))",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 87/149)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.1611,
+   "title": "Preseason standout: David Reinbacher (3 GP, 0.00 PTS/GP, TOI 20.6, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:067yd",
+     "name": "David Reinbacher",
+     "nhl_id": 8484220,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 2 SOG, 0 PPP, 20.6 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "20.6 min TOI per preseason game",
+     "value": 20.58,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 3 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 88/149)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.094,
+   "title": "Rising: Kasperi Kapanen (+5.0% rostered this week)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:039ch",
+     "name": "Kasperi Kapanen",
+     "nhl_id": 8477953,
+     "team": "EDM",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": 7,
+   "strength": 4.67,
+   "reasons": [
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Kasperi Kapanen rostered 31% (+5.0 this week): rising, grab him before the league does (score x1.25)",
+     "value": 5.0,
+     "baseline": 31.0
+    },
+    {
+     "code": "TOI_TREND",
+     "text": "TOI +2.0 min/game vs his season baseline",
+     "value": 1.96,
+     "baseline": 0.5
+    },
+    {
+     "code": "PP_TREND",
+     "text": "PP share +33 pts vs his season baseline",
+     "value": 0.3274,
+     "baseline": 0.05
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 89/149)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.0268,
+   "title": "Role up: Mackie Samoskevich (PP share +20 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05r50",
+     "name": "Mackie Samoskevich",
+     "nhl_id": 8482713,
+     "team": "SEA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.96,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 39% of team PP time over the last 5 GP vs 19% baseline (+20 pts)",
+     "value": 0.3921,
+     "baseline": 0.1943
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.960 (rank 90/149)",
+     "value": 4.96,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 4.0,
+   "title": "Trade Seth Jarvis to DBoyer01 for Roman Josi + Tomas Hertl",
+   "add": [
+    {
+     "cid": "fantrax:01fx3",
+     "name": "Roman Josi",
+     "nhl_id": 8474600,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "fantrax:02nok",
+     "name": "Tomas Hertl",
+     "nhl_id": 8476881,
+     "team": "VGK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05gvq",
+     "name": "Seth Jarvis",
+     "nhl_id": 8482093,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "DBoyer01",
+   "predicted_gain": 1.0059,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.17,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.01 pts/game this season (+3.0 pts/week, +67 rest of season) (dynasty +0.58; contend edge +1.30)",
+     "value": 1.2955163227208804,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value, -5 worth pts to them); acceptance ~40%",
+     "value": -0.19761914670775127,
+     "baseline": -5.197619146707751
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Seth Jarvis fills DBoyer01's weakest slot F (starter VORP -0.27)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: DBoyer01 can pick up Dougie Hamilton (FA)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-0.2 pts) while our model has you gaining +1.30",
+     "value": 1.2856353653854928,
+     "baseline": -0.19761914670775127
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 42% (prior logistic: they get 39, give 44 market pts; +5 fills their weakest slot; x0.85: contender, no help this season -> -0.2 pts). EV = +1.30 x 0.42 = +0.54",
+     "value": 0.42038666121831547,
+     "baseline": 0.4945725426097829
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.0 pts/week (+1.01/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.031305110104286,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+67 pts rest of season (+1.01/game x 66 games left)",
+     "value": 66.68871242229429,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.01 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 1.0058629324629607,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "DBoyer01 lineup -1.46 FPG (our model)",
+     "value": -1.4566202330228393,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Roman Josi (5.19), Tomas Hertl (4.58): 9.77 dynasty",
+     "value": 9.766838644144205,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Seth Jarvis (4.93): 4.93 dynasty",
+     "value": 4.92812924268405,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 21% (shown only; old band 15%)",
+     "value": 0.20885849842672433,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.15 (Roman Josi replaces William Nylander as a keeper); this season +4.84; roster spot -3.54 = dynasty value +1.45 for me (+0.58 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 0.5793067805158394,
+     "baseline": 1.4538282963825506
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Roman Josi: market 69th pct (rostered %/Fantrax projected FP/G) vs model 78th (+10): market agrees",
+     "value": 9.8,
+     "baseline": 68.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Tomas Hertl: market 49th pct (rostered %/Fantrax projected FP/G) vs model 61st (+12): market agrees",
+     "value": 12.0,
+     "baseline": 49.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Seth Jarvis: market 75th pct (rostered %/Fantrax projected FP/G) vs model 72nd (-2): market agrees",
+     "value": -2.4,
+     "baseline": 74.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.545 (rank 7/10)",
+     "value": 0.5446177814624605,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.9597,
+   "title": "Role up: Devon Toews (TOI +2.0; Hobie Bucannons)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03ec6",
+     "name": "Devon Toews",
+     "nhl_id": 8478038,
+     "team": "COL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Hobie Bucannons",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.95,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.3 min per game over the last 5 GP vs 20.4 baseline (+2.0 min)",
+     "value": 22.33,
+     "baseline": 20.353
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.950 (rank 91/149)",
+     "value": 4.95,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.8926,
+   "title": "Role up: Alex Newhook (PP share +20 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04mv3",
+     "name": "Alex Newhook",
+     "nhl_id": 8481618,
+     "team": "MTL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.93,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 45% of team PP time over the last 5 GP vs 26% baseline (+20 pts)",
+     "value": 0.4533,
+     "baseline": 0.2567
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.930 (rank 92/149)",
+     "value": 4.93,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.8255,
+   "title": "Role up: Drew Doughty (TOI +2.0; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:00qnu",
+     "name": "Drew Doughty",
+     "nhl_id": 8474563,
+     "team": "LAK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.93,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.6 min per game over the last 5 GP vs 20.7 baseline (+2.0 min)",
+     "value": 22.627,
+     "baseline": 20.66
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.930 (rank 93/149)",
+     "value": 4.93,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.7584,
+   "title": "Preseason standout: Eric Pohlkamp (3 GP, 0.67 PTS/GP, TOI 19.6, PP2; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:068a6",
+     "name": "Eric Pohlkamp",
+     "nhl_id": 8484421,
+     "team": "SJS",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.91,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 1 G, 1 A, 2 PTS, 9 SOG, 1 PPP, 19.6 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "19.6 min TOI per preseason game",
+     "value": 19.64,
+     "baseline": 16.0
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Daily Faceoff lists him on PP2",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 1 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.910 (rank 94/149)",
+     "value": 4.91,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.6913,
+   "title": "Role up: Matias Maccelli (PP share +19 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:051u2",
+     "name": "Matias Maccelli",
+     "nhl_id": 8481711,
+     "team": "NYI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.88,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 63% of team PP time over the last 5 GP vs 43% baseline (+19 pts)",
+     "value": 0.6281,
+     "baseline": 0.434
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.880 (rank 95/149)",
+     "value": 4.88,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.6242,
+   "title": "Role up: Anthony Duclair (TOI +1.9; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02un9",
+     "name": "Anthony Duclair",
+     "nhl_id": 8477407,
+     "team": "NYI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.83,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.8 min per game over the last 5 GP vs 12.9 baseline (+1.9 min)",
+     "value": 14.773,
+     "baseline": 12.858
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.830 (rank 96/149)",
+     "value": 4.83,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.557,
+   "title": "Role up: Nils Lundkvist (TOI +1.9; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04qvi",
+     "name": "Nils Lundkvist",
+     "nhl_id": 8480878,
+     "team": "DAL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.82,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.2 min per game over the last 5 GP vs 17.3 baseline (+1.9 min)",
+     "value": 19.187,
+     "baseline": 17.279
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.820 (rank 97/149)",
+     "value": 4.82,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.4899,
+   "title": "Role up: Kyle Palmieri (TOI +1.9; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01f66",
+     "name": "Kyle Palmieri",
+     "nhl_id": 8475151,
+     "team": "NYI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.81,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.2 min per game over the last 5 GP vs 16.3 baseline (+1.9 min)",
+     "value": 18.21,
+     "baseline": 16.303
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.810 (rank 98/149)",
+     "value": 4.81,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.4228,
+   "title": "Role up: Mattias Samuelsson (TOI +1.9; Gwinzzz)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04lcs",
+     "name": "Mattias Samuelsson",
+     "nhl_id": 8480807,
+     "team": "BUF",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Gwinzzz",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.79,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 25.2 min per game over the last 5 GP vs 23.3 baseline (+1.9 min)",
+     "value": 25.183,
+     "baseline": 23.287
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.790 (rank 99/149)",
+     "value": 4.79,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.3557,
+   "title": "Preseason standout: Jack Ahcan (3 GP, 0.67 PTS/GP, TOI 19.0, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04aoy",
+     "name": "Jack Ahcan",
+     "nhl_id": 8482072,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.75,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 2 A, 2 PTS, 5 SOG, 0 PPP, 19.0 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "19.0 min TOI per preseason game",
+     "value": 18.98,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.750 (rank 100/149)",
+     "value": 4.75,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.2886,
+   "title": "Role up: Ian Cole (TOI +1.9; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01lyi",
+     "name": "Ian Cole",
+     "nhl_id": 8474013,
+     "team": "CHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.73,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.5 min per game over the last 5 GP vs 17.6 baseline (+1.9 min)",
+     "value": 19.473,
+     "baseline": 17.61
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.730 (rank 101/149)",
+     "value": 4.73,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.2215,
+   "title": "Role up: Brandon Montour (TOI +1.8; Hesham)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03de2",
+     "name": "Brandon Montour",
+     "nhl_id": 8477986,
+     "team": "SEA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Hesham",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.66,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 25.2 min per game over the last 5 GP vs 23.4 baseline (+1.8 min)",
+     "value": 25.213,
+     "baseline": 23.385
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.660 (rank 102/149)",
+     "value": 4.66,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.1544,
+   "title": "Role up: Oliver Kapanen (PP share +18 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05tcz",
+     "name": "Oliver Kapanen",
+     "nhl_id": 8482775,
+     "team": "MTL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.62,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 11.8 min per game over the last 5 GP vs 14.5 baseline (-2.7 min)",
+     "value": 11.757,
+     "baseline": 14.475
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 38% of team PP time over the last 5 GP vs 20% baseline (+18 pts)",
+     "value": 0.3792,
+     "baseline": 0.198
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.620 (rank 103/149)",
+     "value": 4.62,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.0872,
+   "title": "Preseason standout: Trey Taylor (3 GP, 0.00 PTS/GP, TOI 18.3, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06rpp",
+     "name": "Trey Taylor",
+     "nhl_id": 8485468,
+     "team": "DAL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.58,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 4 SOG, 0 PPP, 18.3 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "18.3 min TOI per preseason game",
+     "value": 18.32,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.580 (rank 104/149)",
+     "value": 4.58,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.0201,
+   "title": "Role loss: Dylan Holloway (PP share -18 pts; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:051yz",
+     "name": "Dylan Holloway",
+     "nhl_id": 8482077,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Nermeen LouLou",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.58,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 38% of team PP time over the last 5 GP vs 56% baseline (-18 pts)",
+     "value": 0.3781,
+     "baseline": 0.5571
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.580 (rank 105/149)",
+     "value": 4.58,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 3.0,
+   "title": "Trade Jake Sanderson to Jewlio for MacKenzie Weegar + Jacob Trouba",
+   "add": [
+    {
+     "cid": "fantrax:031v6",
+     "name": "MacKenzie Weegar",
+     "nhl_id": 8477346,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "fantrax:02dq3",
+     "name": "Jacob Trouba",
+     "nhl_id": 8476885,
+     "team": "SJS",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:059e0",
+     "name": "Jake Sanderson",
+     "nhl_id": 8482105,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Jewlio",
+   "predicted_gain": 0.5663,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 6.29,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.57 pts/game this season (+1.7 pts/week, +38 rest of season) (dynasty +0.34; contend edge +0.74)",
+     "value": 0.7379171756652662,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (rostered %/Fantrax projected FP/G/dynasty value, +2 worth pts to them); acceptance ~55%",
+     "value": 6.54084418850654,
+     "baseline": 1.54084418850654
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Jake Sanderson fills Jewlio's weakest slot D (starter VORP -0.31)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: Jewlio can pick up Dougie Hamilton (FA)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 57% (prior logistic: they get 17, give 15 market pts; +5 fills their weakest slot; x0.85: contender, no help this season -> +6.5 pts). EV = +0.74 x 0.57 = +0.42",
+     "value": 0.5714510798769097,
+     "baseline": 0.6722953880904821
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+1.7 pts/week (+0.57/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 1.7065900011526758,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+38 pts rest of season (+0.57/game x 66 games left)",
+     "value": 37.54498002535886,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.57 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.5662892914835425,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Jewlio lineup -1.10 FPG (our model)",
+     "value": -1.0957892712435893,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive MacKenzie Weegar (4.62), Jacob Trouba (4.01): 8.63 dynasty",
+     "value": 8.63099507199728,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jake Sanderson (4.23): 4.23 dynasty",
+     "value": 4.231859311516544,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 17% (shown only; old band 15%)",
+     "value": 0.169131151342935,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.00 (keepers unchanged); this season +4.40; roster spot -3.54 = dynasty value +0.86 for me (+0.34 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 0.3432557683634474,
+     "baseline": 0.8614346762849077
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) MacKenzie Weegar: market 45th pct (rostered %/Fantrax projected FP/G) vs model 62nd (+17): market agrees",
+     "value": 17.5,
+     "baseline": 44.9
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jacob Trouba: market 27th pct (rostered %/Fantrax projected FP/G) vs model 33rd (+6): market agrees",
+     "value": 6.4,
+     "baseline": 26.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jake Sanderson: market 61st pct (rostered %/Fantrax projected FP/G) vs model 46th (-15): market agrees",
+     "value": -14.7,
+     "baseline": 61.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.422 (rank 8/10)",
+     "value": 0.4216835668936356,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.953,
+   "title": "Role up: Joel Edmundson (TOI +1.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02b42",
+     "name": "Joel Edmundson",
+     "nhl_id": 8476441,
+     "team": "LAK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.58,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.2 min per game over the last 5 GP vs 16.4 baseline (+1.8 min)",
+     "value": 18.207,
+     "baseline": 16.415
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.580 (rank 106/149)",
+     "value": 4.58,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.8859,
+   "title": "Role up: Paul Cotter (PP share +18 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04qzk",
+     "name": "Paul Cotter",
+     "nhl_id": 8481032,
+     "team": "VAN",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.58,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 11.7 min per game over the last 5 GP vs 15.0 baseline (-3.4 min)",
+     "value": 11.65,
+     "baseline": 15.013
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 34% of team PP time over the last 5 GP vs 17% baseline (+18 pts)",
+     "value": 0.345,
+     "baseline": 0.1662
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.580 (rank 107/149)",
+     "value": 4.58,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.8188,
+   "title": "Role up: Artyom Levshunov (PP share +18 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06axy",
+     "name": "Artyom Levshunov",
+     "nhl_id": 8484783,
+     "team": "CHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.57,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 26% of team PP time over the last 5 GP vs 8% baseline (+18 pts)",
+     "value": 0.2592,
+     "baseline": 0.0806
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.570 (rank 108/149)",
+     "value": 4.57,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.7517,
+   "title": "Role up: Noah Hanifin (TOI +1.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03j8l",
+     "name": "Noah Hanifin",
+     "nhl_id": 8478396,
+     "team": "VGK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.57,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.9 min per game over the last 5 GP vs 20.1 baseline (+1.8 min)",
+     "value": 21.887,
+     "baseline": 20.103
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.570 (rank 109/149)",
+     "value": 4.57,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.6846,
+   "title": "Role up: Quinton Byfield (TOI +1.8; my team)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04lo0",
+     "name": "Quinton Byfield",
+     "nhl_id": 8482124,
+     "team": "LAK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Nermeen LouLou",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.54,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.2 min per game over the last 5 GP vs 18.4 baseline (+1.8 min)",
+     "value": 20.21,
+     "baseline": 18.438
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.540 (rank 110/149)",
+     "value": 4.54,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.6174,
+   "title": "Preseason standout: Felix Unger Sorum (4 GP, 0.75 PTS/GP, TOI 18.1, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06bui",
+     "name": "Felix Unger Sorum",
+     "nhl_id": 8484392,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.53,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 4 GP: 1 G, 2 A, 3 PTS, 7 SOG, 2 PPP, 18.1 TOI (0.75 PTS/GP)",
+     "value": 0.75,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "18.1 min TOI per preseason game",
+     "value": 18.12,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 4 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 4.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.530 (rank 111/149)",
+     "value": 4.53,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.5503,
+   "title": "Role up: Kaiden Guhle (TOI +1.8; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04mx6",
+     "name": "Kaiden Guhle",
+     "nhl_id": 8482087,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.53,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 24.1 min per game over the last 5 GP vs 22.3 baseline (+1.8 min)",
+     "value": 24.077,
+     "baseline": 22.314
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.530 (rank 112/149)",
+     "value": 4.53,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.4832,
+   "title": "Preseason standout: Jett Luchanko (3 GP, 1.00 PTS/GP, TOI 13.6, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06lv1",
+     "name": "Jett Luchanko",
+     "nhl_id": 8484779,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.5,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 3 A, 3 PTS, 3 SOG, 1 PPP, 13.6 TOI (1.00 PTS/GP)",
+     "value": 1.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "13.6 min TOI per preseason game",
+     "value": 13.56,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 8 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 8.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.500 (rank 113/149)",
+     "value": 4.5,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.4161,
+   "title": "Role up: Aleksanteri Kaskimaki (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:060jk",
+     "name": "Aleksanteri Kaskimaki",
+     "nhl_id": 8483463,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.48,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 12.1 min per game over the last 5 GP vs 10.4 baseline (+1.7 min)",
+     "value": 12.133,
+     "baseline": 10.393
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.480 (rank 114/149)",
+     "value": 4.48,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.349,
+   "title": "Role up: Elias Lindholm (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02wy3",
+     "name": "Elias Lindholm",
+     "nhl_id": 8477496,
+     "team": "BOS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.47,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.3 min per game over the last 5 GP vs 16.5 baseline (+1.7 min)",
+     "value": 18.28,
+     "baseline": 16.543
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.470 (rank 115/149)",
+     "value": 4.47,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.2819,
+   "title": "Role up: Logan Stanley (TOI +1.7; Jewlio)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:042t2",
+     "name": "Logan Stanley",
+     "nhl_id": 8479378,
+     "team": "NYI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Jewlio",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.47,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 22.4 min per game over the last 5 GP vs 20.7 baseline (+1.7 min)",
+     "value": 22.407,
+     "baseline": 20.672
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.470 (rank 116/149)",
+     "value": 4.47,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.2148,
+   "title": "Preseason standout: Kenny Connors (3 GP, 0.67 PTS/GP, TOI 17.9, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:062jw",
+     "name": "Kenny Connors",
+     "nhl_id": 8483675,
+     "team": "LAK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.46,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 2 A, 2 PTS, 1 SOG, 0 PPP, 17.9 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.9 min TOI per preseason game",
+     "value": 17.85,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.460 (rank 117/149)",
+     "value": 4.46,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.1477,
+   "title": "Role up: Emil Heineman (PP share +17 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05kua",
+     "name": "Emil Heineman",
+     "nhl_id": 8482476,
+     "team": "NYI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.44,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 13.3 min per game over the last 5 GP vs 15.6 baseline (-2.3 min)",
+     "value": 13.317,
+     "baseline": 15.608
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 21% of team PP time over the last 5 GP vs 4% baseline (+17 pts)",
+     "value": 0.2103,
+     "baseline": 0.0383
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.440 (rank 118/149)",
+     "value": 4.44,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.0805,
+   "title": "Role up: Teddy Blueger (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02npd",
+     "name": "Teddy Blueger",
+     "nhl_id": 8476927,
+     "team": "TOR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.44,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.4 min per game over the last 5 GP vs 12.7 baseline (+1.7 min)",
+     "value": 14.393,
+     "baseline": 12.675
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.440 (rank 119/149)",
+     "value": 4.44,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.0134,
+   "title": "Role up: Ryan McDonagh (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01bvj",
+     "name": "Ryan McDonagh",
+     "nhl_id": 8474151,
+     "team": "TBL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.43,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.6 min per game over the last 5 GP vs 15.8 baseline (+1.7 min)",
+     "value": 17.553,
+     "baseline": 15.837
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.430 (rank 120/149)",
+     "value": 4.43,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 2.0,
+   "title": "Trade Artemi Panarin to Gwinzzz for Beckett Sennecke + Nick Schmaltz",
+   "add": [
+    {
+     "cid": "fantrax:06hcw",
+     "name": "Beckett Sennecke",
+     "nhl_id": 8484762,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:02unz",
+     "name": "Nick Schmaltz",
+     "nhl_id": 8477951,
+     "team": "UTA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:03bfj",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Gwinzzz",
+   "predicted_gain": 0.2749,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 5.89,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.27 pts/game this season (+0.8 pts/week, +18 rest of season) (dynasty +1.13; contend edge +0.84)",
+     "value": 0.8394577805820336,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value, -7 worth pts to them); acceptance ~45%",
+     "value": -1.6615843050779304,
+     "baseline": -6.66158430507793
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Artemi Panarin fills Gwinzzz's weakest slot F (starter VORP -0.34)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: Gwinzzz can pick up Mark Scheifele (FA)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-1.7 pts) while our model has you gaining +0.84",
+     "value": 0.7563785653281371,
+     "baseline": -1.6615843050779304
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 45% (prior logistic: they get 41, give 47 market pts; +5 fills their weakest slot -> -1.7 pts). EV = +0.84 x 0.45 = +0.38",
+     "value": 0.4544903798552368,
+     "baseline": 0.4544903798552368
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+0.8 pts/week (+0.27/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 0.8285865504813226,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+18 pts rest of season (+0.27/game x 66 games left)",
+     "value": 18.228904110589095,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.27 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.2749457633573016,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Gwinzzz lineup -0.38 FPG (our model)",
+     "value": -0.3760320190733424,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Beckett Sennecke (8.71), Nick Schmaltz (4.79): 13.50 dynasty",
+     "value": 13.496000536125011,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (5.24): 5.24 dynasty",
+     "value": 5.243210053880061,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 47% (shown only; old band 15%)",
+     "value": 0.4734833914977006,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +1.68 (Beckett Sennecke replaces William Nylander as a keeper); this season +4.69; roster spot -3.54 = dynasty value +2.83 for me (+1.13 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 1.129024034449464,
+     "baseline": 2.8333987168543753
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Beckett Sennecke: market 56th pct (rostered %/Fantrax projected FP/G) vs model 77th (+20): market agrees",
+     "value": 20.3,
+     "baseline": 56.4
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Nick Schmaltz: market 57th pct (rostered %/Fantrax projected FP/G) vs model 66th (+9): market agrees",
+     "value": 9.1,
+     "baseline": 57.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Artemi Panarin: market 73rd pct (rostered %/Fantrax projected FP/G) vs model 80th (+7): market agrees",
+     "value": 6.6,
+     "baseline": 73.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.382 (rank 9/10)",
+     "value": 0.3815254855691625,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.9463,
+   "title": "Role up: Shane Wright (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04y80",
+     "name": "Shane Wright",
+     "nhl_id": 8483524,
+     "team": "NSH",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.43,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.3 min per game over the last 5 GP vs 13.6 baseline (+1.7 min)",
+     "value": 15.317,
+     "baseline": 13.602
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.430 (rank 121/149)",
+     "value": 4.43,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.8792,
+   "title": "Role up: Nick Robertson (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04zo3",
+     "name": "Nick Robertson",
+     "nhl_id": 8481582,
+     "team": "PIT",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.41,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 14.1 min per game over the last 5 GP vs 12.4 baseline (+1.7 min)",
+     "value": 14.147,
+     "baseline": 12.442
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.410 (rank 122/149)",
+     "value": 4.41,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.8121,
+   "title": "Preseason standout: Charles-Alexis Legault (3 GP, 0.00 PTS/GP, TOI 17.4, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05u64",
+     "name": "Charles-Alexis Legault",
+     "nhl_id": 8484428,
+     "team": "CAR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.36,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 1 SOG, 0 PPP, 17.4 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.4 min TOI per preseason game",
+     "value": 17.43,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.360 (rank 123/149)",
+     "value": 4.36,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.745,
+   "title": "Role up: Matvei Gridin (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06mb0",
+     "name": "Matvei Gridin",
+     "nhl_id": 8484860,
+     "team": "CGY",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.36,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.8 min per game over the last 5 GP vs 15.1 baseline (+1.7 min)",
+     "value": 16.763,
+     "baseline": 15.082
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.360 (rank 124/149)",
+     "value": 4.36,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.6779,
+   "title": "Role up: MacKenzie Weegar (TOI +1.7; Jewlio)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:031v6",
+     "name": "MacKenzie Weegar",
+     "nhl_id": 8477346,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Jewlio",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.34,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 23.4 min per game over the last 5 GP vs 21.7 baseline (+1.7 min)",
+     "value": 23.417,
+     "baseline": 21.746
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.340 (rank 125/149)",
+     "value": 4.34,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.6107,
+   "title": "Role up: Oliver Ekman-Larsson (PP share +17 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01f3d",
+     "name": "Oliver Ekman-Larsson",
+     "nhl_id": 8475171,
+     "team": "TOR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.34,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 23% of team PP time over the last 5 GP vs 6% baseline (+17 pts)",
+     "value": 0.2254,
+     "baseline": 0.0586
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.340 (rank 126/149)",
+     "value": 4.34,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.5436,
+   "title": "Role up: Will Cuylle (TOI +1.7; Jaydentrapp)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05kbn",
+     "name": "Will Cuylle",
+     "nhl_id": 8482157,
+     "team": "NYR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Jaydentrapp",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.32,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.4 min per game over the last 5 GP vs 15.8 baseline (+1.7 min)",
+     "value": 17.437,
+     "baseline": 15.778
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.320 (rank 127/149)",
+     "value": 4.32,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.4765,
+   "title": "Role up: Cole Sillinger (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05gd7",
+     "name": "Cole Sillinger",
+     "nhl_id": 8482705,
+     "team": "CBJ",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.31,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.8 min per game over the last 5 GP vs 15.1 baseline (+1.7 min)",
+     "value": 16.763,
+     "baseline": 15.107
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.310 (rank 128/149)",
+     "value": 4.31,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.4094,
+   "title": "Role up: Warren Foegele (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03ebb",
+     "name": "Warren Foegele",
+     "nhl_id": 8477998,
+     "team": "OTT",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.31,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 13.2 min per game over the last 5 GP vs 11.5 baseline (+1.7 min)",
+     "value": 13.18,
+     "baseline": 11.527
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.310 (rank 129/149)",
+     "value": 4.31,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.3423,
+   "title": "Role up: Jake Middleton (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03eer",
+     "name": "Jake Middleton",
+     "nhl_id": 8478136,
+     "team": "CGY",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.3,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 19.5 min per game over the last 5 GP vs 17.8 baseline (+1.7 min)",
+     "value": 19.46,
+     "baseline": 17.808
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.300 (rank 130/149)",
+     "value": 4.3,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.2752,
+   "title": "Role up: Lars Eller (TOI +1.7; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:005ho",
+     "name": "Lars Eller",
+     "nhl_id": 8474189,
+     "team": "FLA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.3,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.0 min per game over the last 5 GP vs 15.3 baseline (+1.7 min)",
+     "value": 16.963,
+     "baseline": 15.311
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.300 (rank 131/149)",
+     "value": 4.3,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.2081,
+   "title": "Preseason standout: Skyler Brind'Amour (3 GP, 0.00 PTS/GP, TOI 17.2, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04f83",
+     "name": "Skyler Brind'Amour",
+     "nhl_id": 8480291,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.29,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 4 SOG, 0 PPP, 17.2 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.2 min TOI per preseason game",
+     "value": 17.17,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.290 (rank 132/149)",
+     "value": 4.29,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.1409,
+   "title": "Role up: Brayden McNabb (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01mzc",
+     "name": "Brayden McNabb",
+     "nhl_id": 8475188,
+     "team": "VGK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.29,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.9 min per game over the last 5 GP vs 19.2 baseline (+1.6 min)",
+     "value": 20.857,
+     "baseline": 19.213
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.290 (rank 133/149)",
+     "value": 4.29,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.0738,
+   "title": "Role up: Mikael Granlund (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01skr",
+     "name": "Mikael Granlund",
+     "nhl_id": 8475798,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.27,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.4 min per game over the last 5 GP vs 19.8 baseline (+1.6 min)",
+     "value": 21.437,
+     "baseline": 19.8
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.270 (rank 134/149)",
+     "value": 4.27,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.0067,
+   "title": "Role up: Rasmus Andersson (TOI +1.6; AruDPM)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rf5",
+     "name": "Rasmus Andersson",
+     "nhl_id": 8478397,
+     "team": "VGK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "AruDPM",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.27,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 20.6 min per game over the last 5 GP vs 19.0 baseline (+1.6 min)",
+     "value": 20.6,
+     "baseline": 18.964
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.270 (rank 135/149)",
+     "value": 4.27,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 1.0,
+   "title": "Trade Artemi Panarin to Miff Bucannons V4 for Leo Carlsson + Jakob Chychrun",
+   "add": [
+    {
+     "cid": "fantrax:05y3a",
+     "name": "Leo Carlsson",
+     "nhl_id": 8484153,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:03mqg",
+     "name": "Jakob Chychrun",
+     "nhl_id": 8479345,
+     "team": "WSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:03bfj",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Miff Bucannons V4",
+   "predicted_gain": 0.634,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 5.92,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.63 pts/game this season (+1.9 pts/week, +42 rest of season) (dynasty +0.43; contend edge +0.85)",
+     "value": 0.8476624466174058,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value, -4 worth pts to them); acceptance ~45%",
+     "value": 0.8059780742043898,
+     "baseline": -4.19402192579561
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Artemi Panarin fills Miff Bucannons V4's weakest slot F (starter VORP +0.07)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: Miff Bucannons V4 can pick up Dougie Hamilton (FA)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+0.8 pts) while our model has you gaining +0.85",
+     "value": 0.8476624466174058,
+     "baseline": 0.8059780742043898
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 44% (prior logistic: they get 41, give 45 market pts; +5 fills their weakest slot; x0.85: contender, no help this season -> +0.8 pts). EV = +0.85 x 0.44 = +0.38",
+     "value": 0.4438036860895546,
+     "baseline": 0.5221219836347701
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+1.9 pts/week (+0.63/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 1.9105964001200324,
+     "baseline": 3.0136363636363637
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+42 pts rest of season (+0.63/game x 66 games left)",
+     "value": 42.03312080264071,
+     "baseline": 66.3
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.63 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.6339837225134346,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Miff Bucannons V4 lineup -0.63 FPG (our model)",
+     "value": -0.6339837225134346,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Leo Carlsson (4.90), Jakob Chychrun (4.81): 9.71 dynasty",
+     "value": 9.71004024539069,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (5.24): 5.24 dynasty",
+     "value": 5.243210053880061,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 15% (shown only; old band 15%)",
+     "value": 0.15053111681810727,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.14 (Leo Carlsson replaces William Nylander as a keeper); this season +4.47; roster spot -3.54 = dynasty value +1.07 for me (+0.43 FPG-equivalent); contend edge = 1 x lineup + 0.5 x dynasty",
+     "value": 0.42735744820794236,
+     "baseline": 1.0724962520226522
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Leo Carlsson: market 55th pct (rostered %/Fantrax projected FP/G) vs model 72nd (+16): market agrees",
+     "value": 16.2,
+     "baseline": 55.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jakob Chychrun: market 71st pct (rostered %/Fantrax projected FP/G) vs model 68th (-2): market agrees",
+     "value": -2.5,
+     "baseline": 70.6
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Artemi Panarin: market 73rd pct (rostered %/Fantrax projected FP/G) vs model 80th (+7): market agrees",
+     "value": 6.6,
+     "baseline": 73.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.376 (rank 10/10)",
+     "value": 0.37619571836849497,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.9396,
+   "title": "Role up: Ryan Donato (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03eb0",
+     "name": "Ryan Donato",
+     "nhl_id": 8477987,
+     "team": "CHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.27,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 13.3 min per game over the last 5 GP vs 11.7 baseline (+1.6 min)",
+     "value": 13.31,
+     "baseline": 11.676
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.270 (rank 136/149)",
+     "value": 4.27,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.8725,
+   "title": "Role up: Josh Anderson (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02o70",
+     "name": "Josh Anderson",
+     "nhl_id": 8476981,
+     "team": "MTL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.25,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 15.6 min per game over the last 5 GP vs 13.9 baseline (+1.6 min)",
+     "value": 15.577,
+     "baseline": 13.95
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.250 (rank 137/149)",
+     "value": 4.25,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.8054,
+   "title": "Role up: Adam Jiricek (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06fzw",
+     "name": "Adam Jiricek",
+     "nhl_id": 8484790,
+     "team": "STL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.24,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 17.1 min per game over the last 5 GP vs 15.5 baseline (+1.6 min)",
+     "value": 17.113,
+     "baseline": 15.494
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.240 (rank 138/149)",
+     "value": 4.24,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.7383,
+   "title": "Role up: Nikita Nesterenko (PP share +16 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:051vh",
+     "name": "Nikita Nesterenko",
+     "nhl_id": 8481754,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.22,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 9.7 min per game over the last 5 GP vs 12.0 baseline (-2.3 min)",
+     "value": 9.67,
+     "baseline": 11.967
+    },
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 17% of team PP time over the last 5 GP vs 1% baseline (+16 pts)",
+     "value": 0.167,
+     "baseline": 0.0059
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.220 (rank 139/149)",
+     "value": 4.22,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.6711,
+   "title": "Role up: Noah Ostlund (PP share +16 pts; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05rjh",
+     "name": "Noah Ostlund",
+     "nhl_id": 8483500,
+     "team": "BUF",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.22,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 80% of team PP time over the last 5 GP vs 64% baseline (+16 pts)",
+     "value": 0.8018,
+     "baseline": 0.641
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.220 (rank 140/149)",
+     "value": 4.22,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.604,
+   "title": "Preseason standout: Nico Myatovic (3 GP, 0.67 PTS/GP, TOI 16.9, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06bae",
+     "name": "Nico Myatovic",
+     "nhl_id": 8484201,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.21,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 2 A, 2 PTS, 0 SOG, 0 PPP, 16.9 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "16.9 min TOI per preseason game",
+     "value": 16.85,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.210 (rank 141/149)",
+     "value": 4.21,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.5369,
+   "title": "Role up: Charlie Coyle (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01zto",
+     "name": "Charlie Coyle",
+     "nhl_id": 8475745,
+     "team": "CBJ",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.2,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 21.0 min per game over the last 5 GP vs 19.4 baseline (+1.6 min)",
+     "value": 21.007,
+     "baseline": 19.407
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.200 (rank 142/149)",
+     "value": 4.2,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.4698,
+   "title": "Role up: Tim Washe (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06sds",
+     "name": "Tim Washe",
+     "nhl_id": 8485512,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.2,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 16.7 min per game over the last 5 GP vs 15.1 baseline (+1.6 min)",
+     "value": 16.733,
+     "baseline": 15.132
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.200 (rank 143/149)",
+     "value": 4.2,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.4027,
+   "title": "Role up: Porter Martone (PP share +16 pts; Dee_snuts69)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06hj9",
+     "name": "Porter Martone",
+     "nhl_id": 8485406,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Dee_snuts69",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.19,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 64% of team PP time over the last 5 GP vs 48% baseline (+16 pts)",
+     "value": 0.6422,
+     "baseline": 0.4828
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.190 (rank 144/149)",
+     "value": 4.19,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.3356,
+   "title": "Role up: Bobby McMann (TOI +1.6; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05j3d",
+     "name": "Bobby McMann",
+     "nhl_id": 8482259,
+     "team": "SEA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.13,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.1 min per game over the last 5 GP vs 16.6 baseline (+1.6 min)",
+     "value": 18.117,
+     "baseline": 16.552
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.130 (rank 145/149)",
+     "value": 4.13,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.2685,
+   "title": "Role up: Noah Dobson (PP share +16 pts; Miff Bucannons V4)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04ld3",
+     "name": "Noah Dobson",
+     "nhl_id": 8480865,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Miff Bucannons V4",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.12,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 42% of team PP time over the last 5 GP vs 26% baseline (+16 pts)",
+     "value": 0.4152,
+     "baseline": 0.2594
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.120 (rank 146/149)",
+     "value": 4.12,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.2013,
+   "title": "Role up: Roope Hintz (PP share +16 pts; Heather Lee Neumann)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rf2",
+     "name": "Roope Hintz",
+     "nhl_id": 8478449,
+     "team": "DAL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Heather Lee Neumann",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.12,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 82% of team PP time over the last 5 GP vs 67% baseline (+16 pts)",
+     "value": 0.8224,
+     "baseline": 0.6663
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.120 (rank 147/149)",
+     "value": 4.12,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.1342,
+   "title": "Role up: Vincent Trocheck (TOI +1.5; Heather Lee Neumann)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02b76",
+     "name": "Vincent Trocheck",
+     "nhl_id": 8476389,
+     "team": "UTA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "Heather Lee Neumann",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.09,
+   "reasons": [
+    {
+     "code": "ROLE_TOI",
+     "text": "TOI 18.4 min per game over the last 5 GP vs 16.8 baseline (+1.5 min)",
+     "value": 18.363,
+     "baseline": 16.819
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.090 (rank 148/149)",
+     "value": 4.09,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.0671,
+   "title": "Ivar Stenberg dropped off PP1 (PP1 -> PP2): sell / bench caution",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06psl",
+     "name": "Ivar Stenberg",
+     "nhl_id": 8486103,
+     "team": "SJS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Ivar Stenberg: PP1 -> PP2 per Daily Faceoff (Last Game (2026-11-07), updated Nov 08 15:40 UTC)",
+     "value": 4.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Ivar Stenberg now on PP2 (Daily Faceoff (Last Game (2026-11-07), updated Nov 08 15:40 UTC))",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.000 (rank 149/149)",
+     "value": 4.0,
+     "baseline": null
+    }
+   ]
+  }
+ ]
+}

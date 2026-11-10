@@ -1,0 +1,271 @@
+[
+ {
+  "created": "2026-11-09T15:14:29+00:00",
+  "as_of": "2026-11-09",
+  "moves_left": 2,
+  "moves": [
+   {
+    "day": "2026-11-10",
+    "effective": "2026-11-10",
+    "add": {
+     "cid": "espn:4894222",
+     "name": "Adam Edstrom",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    },
+    "drop": {
+     "cid": "espn:3042056",
+     "name": "Tyler Bertuzzi",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 4.22,
+    "waiver": null
+   }
+  ],
+  "today": [
+   "Patrick Kane now IR (was out)",
+   "Swap IR slots: activate Zach Hyman (healthy), move Patrick Kane (ir) to IR",
+   "Brayden Point now DTD (was healthy)",
+   "Activate Zach Hyman from IR"
+  ],
+  "roster": {
+   "espn:3114727": {
+    "name": "Leon Draisaitl",
+    "ir": false
+   },
+   "espn:3648002": {
+    "name": "Jack Eichel",
+    "ir": false
+   },
+   "espn:5509": {
+    "name": "Zach Hyman",
+    "ir": true
+   },
+   "espn:3891952": {
+    "name": "Artemi Panarin",
+    "ir": false
+   },
+   "espn:4996097": {
+    "name": "Brandon Bussi",
+    "ir": false
+   },
+   "espn:4874722": {
+    "name": "Brandt Clarke",
+    "ir": false
+   },
+   "espn:3151187": {
+    "name": "Brayden Point",
+    "ir": false
+   },
+   "espn:5342529": {
+    "name": "Gavin McKenna",
+    "ir": false
+   },
+   "espn:2976833": {
+    "name": "Morgan Rielly",
+    "ir": false
+   },
+   "espn:3652964": {
+    "name": "Noah Hanifin",
+    "ir": false
+   },
+   "espn:3735": {
+    "name": "Patrick Kane",
+    "ir": false
+   },
+   "espn:3020225": {
+    "name": "Connor Hellebuyck",
+    "ir": false
+   },
+   "espn:3042056": {
+    "name": "Tyler Bertuzzi",
+    "ir": false
+   },
+   "espn:3852": {
+    "name": "Brad Marchand",
+    "ir": true
+   },
+   "espn:3539": {
+    "name": "Kris Letang",
+    "ir": false
+   },
+   "espn:4565255": {
+    "name": "Shane Pinto",
+    "ir": false
+   },
+   "espn:3114717": {
+    "name": "Aaron Ekblad",
+    "ir": false
+   },
+   "espn:3775": {
+    "name": "Claude Giroux",
+    "ir": false
+   },
+   "espn:2563054": {
+    "name": "Boone Jenner",
+    "ir": false
+   },
+   "espn:4268767": {
+    "name": "Stuart Skinner",
+    "ir": false
+   },
+   "espn:2564164": {
+    "name": "Nick Seeler",
+    "ir": false
+   },
+   "espn:4697468": {
+    "name": "Will Cuylle",
+    "ir": false
+   },
+   "espn:3069687": {
+    "name": "Josh Anderson",
+    "ir": false
+   },
+   "espn:3899951": {
+    "name": "Lawson Crouse",
+    "ir": false
+   }
+  },
+  "signature": "[[\"[\\\"espn:4894222\\\", \\\"espn:3042056\\\", null]\"], [[\"espn:2563054\", false], [\"espn:2564164\", false], [\"espn:2976833\", false], [\"espn:3020225\", false], [\"espn:3042056\", false], [\"espn:3069687\", false], [\"espn:3114717\", false], [\"espn:3114727\", false], [\"espn:3151187\", false], [\"espn:3539\", false], [\"espn:3648002\", false], [\"espn:3652964\", false], [\"espn:3735\", false], [\"espn:3775\", false], [\"espn:3852\", true], [\"espn:3891952\", false], [\"espn:3899951\", false], [\"espn:4268767\", false], [\"espn:4565255\", false], [\"espn:4697468\", false], [\"espn:4874722\", false], [\"espn:4996097\", false], [\"espn:5342529\", false], [\"espn:5509\", true]]]"
+ },
+ {
+  "created": "2026-11-10T16:05:01+00:00",
+  "as_of": "2026-11-10",
+  "moves_left": 2,
+  "moves": [
+   {
+    "day": "2026-11-10",
+    "effective": "2026-11-10",
+    "add": {
+     "cid": "espn:4894222",
+     "name": "Adam Edstrom",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    },
+    "drop": {
+     "cid": "espn:3042056",
+     "name": "Tyler Bertuzzi",
+     "positions": [
+      "LW",
+      "F"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 3.23,
+    "waiver": null
+   }
+  ],
+  "today": [
+   "Brayden Point now IR (was dtd)",
+   "Patrick Kane due back Thu Nov 12: activate him from IR then",
+   "Morgan Rielly now OUT (was dtd)"
+  ],
+  "roster": {
+   "espn:3114727": {
+    "name": "Leon Draisaitl",
+    "ir": false
+   },
+   "espn:3648002": {
+    "name": "Jack Eichel",
+    "ir": false
+   },
+   "espn:5509": {
+    "name": "Zach Hyman",
+    "ir": false
+   },
+   "espn:3891952": {
+    "name": "Artemi Panarin",
+    "ir": false
+   },
+   "espn:4996097": {
+    "name": "Brandon Bussi",
+    "ir": false
+   },
+   "espn:4874722": {
+    "name": "Brandt Clarke",
+    "ir": false
+   },
+   "espn:3151187": {
+    "name": "Brayden Point",
+    "ir": false
+   },
+   "espn:5342529": {
+    "name": "Gavin McKenna",
+    "ir": false
+   },
+   "espn:2976833": {
+    "name": "Morgan Rielly",
+    "ir": false
+   },
+   "espn:3652964": {
+    "name": "Noah Hanifin",
+    "ir": false
+   },
+   "espn:3735": {
+    "name": "Patrick Kane",
+    "ir": true
+   },
+   "espn:3020225": {
+    "name": "Connor Hellebuyck",
+    "ir": false
+   },
+   "espn:3042056": {
+    "name": "Tyler Bertuzzi",
+    "ir": false
+   },
+   "espn:3852": {
+    "name": "Brad Marchand",
+    "ir": true
+   },
+   "espn:3539": {
+    "name": "Kris Letang",
+    "ir": false
+   },
+   "espn:4565255": {
+    "name": "Shane Pinto",
+    "ir": false
+   },
+   "espn:3114717": {
+    "name": "Aaron Ekblad",
+    "ir": false
+   },
+   "espn:3775": {
+    "name": "Claude Giroux",
+    "ir": false
+   },
+   "espn:2563054": {
+    "name": "Boone Jenner",
+    "ir": false
+   },
+   "espn:4268767": {
+    "name": "Stuart Skinner",
+    "ir": false
+   },
+   "espn:2564164": {
+    "name": "Nick Seeler",
+    "ir": false
+   },
+   "espn:4697468": {
+    "name": "Will Cuylle",
+    "ir": false
+   },
+   "espn:3069687": {
+    "name": "Josh Anderson",
+    "ir": false
+   },
+   "espn:3899951": {
+    "name": "Lawson Crouse",
+    "ir": false
+   }
+  },
+  "signature": "[[\"[\\\"espn:4894222\\\", \\\"espn:3042056\\\", null]\"], [[\"espn:2563054\", false], [\"espn:2564164\", false], [\"espn:2976833\", false], [\"espn:3020225\", false], [\"espn:3042056\", false], [\"espn:3069687\", false], [\"espn:3114717\", false], [\"espn:3114727\", false], [\"espn:3151187\", false], [\"espn:3539\", false], [\"espn:3648002\", false], [\"espn:3652964\", false], [\"espn:3735\", true], [\"espn:3775\", false], [\"espn:3852\", true], [\"espn:3891952\", false], [\"espn:3899951\", false], [\"espn:4268767\", false], [\"espn:4565255\", false], [\"espn:4697468\", false], [\"espn:4874722\", false], [\"espn:4996097\", false], [\"espn:5342529\", false], [\"espn:5509\", false]]]"
+ }
+]

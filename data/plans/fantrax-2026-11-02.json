@@ -1,0 +1,123 @@
+[
+ {
+  "created": "2026-11-05T17:44:10+00:00",
+  "as_of": "2026-11-05",
+  "moves_left": 3,
+  "moves": [
+   {
+    "day": "2026-11-05",
+    "effective": "2026-11-05",
+    "add": {
+     "cid": "fantrax:02azf",
+     "name": "Dougie Hamilton",
+     "positions": [
+      "D"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "positions": [
+      "G"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 9.56,
+    "waiver": null
+   },
+   {
+    "day": "2026-11-05",
+    "effective": "2026-11-05",
+    "add": {
+     "cid": "fantrax:01skr",
+     "name": "Mikael Granlund",
+     "positions": [
+      "F"
+     ]
+    },
+    "drop": {
+     "cid": "fantrax:06psl",
+     "name": "Ivar Stenberg",
+     "positions": [
+      "F"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 5.03,
+    "waiver": null
+   }
+  ],
+  "today": [],
+  "roster": {
+   "fantrax:03924": {
+    "name": "Jack Eichel",
+    "ir": false
+   },
+   "fantrax:051yz": {
+    "name": "Dylan Holloway",
+    "ir": false
+   },
+   "fantrax:05gvq": {
+    "name": "Seth Jarvis",
+    "ir": false
+   },
+   "fantrax:04amg": {
+    "name": "Alexis Lafreniere",
+    "ir": false
+   },
+   "fantrax:05ymj": {
+    "name": "Jimmy Snuggerud",
+    "ir": false
+   },
+   "fantrax:03yh8": {
+    "name": "Owen Tippett",
+    "ir": false
+   },
+   "fantrax:04lbz": {
+    "name": "Quinn Hughes",
+    "ir": false
+   },
+   "fantrax:0243f": {
+    "name": "Seth Jones",
+    "ir": false
+   },
+   "fantrax:059e0": {
+    "name": "Jake Sanderson",
+    "ir": false
+   },
+   "fantrax:04lo0": {
+    "name": "Quinton Byfield",
+    "ir": false
+   },
+   "fantrax:02yjj": {
+    "name": "William Nylander",
+    "ir": false
+   },
+   "fantrax:03bfj": {
+    "name": "Artemi Panarin",
+    "ir": false
+   },
+   "fantrax:06psl": {
+    "name": "Ivar Stenberg",
+    "ir": false
+   },
+   "fantrax:03as6": {
+    "name": "Jared McCann",
+    "ir": true
+   },
+   "fantrax:03mbn": {
+    "name": "Mackenzie Blackwood",
+    "ir": false
+   },
+   "fantrax:031pl": {
+    "name": "Juuse Saros",
+    "ir": false
+   },
+   "fantrax:05oxs": {
+    "name": "Jakub Dobes",
+    "ir": false
+   }
+  },
+  "signature": "[[\"[\\\"fantrax:01skr\\\", \\\"fantrax:06psl\\\", null]\", \"[\\\"fantrax:02azf\\\", \\\"fantrax:05oxs\\\", null]\"], [[\"fantrax:0243f\", false], [\"fantrax:02yjj\", false], [\"fantrax:031pl\", false], [\"fantrax:03924\", false], [\"fantrax:03as6\", true], [\"fantrax:03bfj\", false], [\"fantrax:03mbn\", false], [\"fantrax:03yh8\", false], [\"fantrax:04amg\", false], [\"fantrax:04lbz\", false], [\"fantrax:04lo0\", false], [\"fantrax:051yz\", false], [\"fantrax:059e0\", false], [\"fantrax:05gvq\", false], [\"fantrax:05oxs\", false], [\"fantrax:05ymj\", false], [\"fantrax:06psl\", false]]]"
+ }
+]

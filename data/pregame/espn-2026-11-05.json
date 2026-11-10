@@ -1,0 +1,877 @@
+{
+ "alerts": [
+  {
+   "cid": "espn:3775",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": true,
+   "name": "Claude Giroux",
+   "strength": 7.0,
+   "title": "Claude Giroux promoted to PP1 (F1 -> F3; PP2 -> PP1): start him / hold"
+  },
+  {
+   "cid": "espn:5206648",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Artyom Levshunov",
+   "strength": 7.0,
+   "title": "Artyom Levshunov (free agent) promoted to PP1 (D2 -> D1; PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "espn:3067951",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Connor Brown",
+   "strength": 7.0,
+   "title": "Connor Brown (free agent) promoted to PP1 (no PP -> PP1): waiver watch"
+  },
+  {
+   "cid": "espn:3114775",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Kasperi Kapanen",
+   "strength": 7.0,
+   "title": "Kasperi Kapanen (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "espn:4697413",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Mavrik Bourque",
+   "strength": 7.0,
+   "title": "Mavrik Bourque (free agent) promoted to PP1 (PP2 -> PP1): waiver watch"
+  },
+  {
+   "cid": "espn:3020225",
+   "codes": [
+    "CONFIRMED_START"
+   ],
+   "goalie_start": true,
+   "mine": true,
+   "name": "Connor Hellebuyck",
+   "strength": 6.0,
+   "title": "Connor Hellebuyck likely to start tonight vs STL: start him"
+  },
+  {
+   "cid": "espn:4268767",
+   "codes": [
+    "CONFIRMED_START"
+   ],
+   "goalie_start": true,
+   "mine": true,
+   "name": "Stuart Skinner",
+   "strength": 6.0,
+   "title": "Stuart Skinner confirmed to start tonight vs VAN: start him"
+  },
+  {
+   "cid": "espn:3025540",
+   "codes": [
+    "CONFIRMED_START",
+    "MOVE_BUDGET",
+    "OPPONENT",
+    "POSITION_CAP"
+   ],
+   "goalie_start": true,
+   "mine": false,
+   "name": "Casey DeSmith",
+   "strength": 6.0,
+   "title": "Casey DeSmith (free agent) confirmed to start tonight vs CBJ (weak offense): streamer"
+  },
+  {
+   "cid": "espn:3042056",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": true,
+   "name": "Tyler Bertuzzi",
+   "strength": 5.0,
+   "title": "Tyler Bertuzzi moved up to the top unit (F2 -> F1; PP1 -> PP2): role boost"
+  },
+  {
+   "cid": "espn:2562600",
+   "codes": [
+    "LINE_CHANGE"
+   ],
+   "goalie_start": false,
+   "mine": false,
+   "name": "Jonas Brodin",
+   "strength": 5.0,
+   "title": "Jonas Brodin (free agent) moved up to the top unit (D2 -> D1; PP2 -> no PP): waiver watch"
+  },
+  {
+   "cid": "espn:5342529",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": true,
+   "name": "Gavin McKenna",
+   "strength": 4.0,
+   "title": "Gavin McKenna dropped off PP1 (PP1 -> PP2): sell / bench caution"
+  },
+  {
+   "cid": "espn:3735",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": true,
+   "name": "Patrick Kane",
+   "strength": 4.0,
+   "title": "Patrick Kane dropped off PP1 (F1 -> IR; PP1 -> no PP): sell / bench caution"
+  },
+  {
+   "cid": "espn:5509",
+   "codes": [
+    "LINE_CHANGE",
+    "PP_UNIT"
+   ],
+   "goalie_start": false,
+   "mine": true,
+   "name": "Zach Hyman",
+   "strength": 4.0,
+   "title": "Zach Hyman dropped off PP1 (F2 -> IR; PP1 -> no PP): sell / bench caution"
+  }
+ ],
+ "date": "2026-11-05",
+ "fa_goalies": [
+  {
+   "name": "Michael DiPietro",
+   "team": "BOS"
+  },
+  {
+   "name": "Jet Greaves",
+   "team": "CBJ"
+  },
+  {
+   "name": "Matt Tomkins",
+   "team": "EDM"
+  },
+  {
+   "name": "Jonathan Quick",
+   "team": "NYR"
+  },
+  {
+   "name": "Dennis Hildeby",
+   "team": "TBL"
+  },
+  {
+   "name": "Jake Allen",
+   "team": "NJD"
+  },
+  {
+   "name": "Casey DeSmith",
+   "team": "DAL"
+  },
+  {
+   "name": "Joseph Woll",
+   "team": "PHI"
+  },
+  {
+   "name": "Connor Ingram",
+   "team": "EDM"
+  },
+  {
+   "name": "Laurent Brossoit",
+   "team": "ANA"
+  },
+  {
+   "name": "Semyon Varlamov",
+   "team": "NYI"
+  },
+  {
+   "name": "Michal Postava",
+   "team": "DET"
+  },
+  {
+   "name": "Drew Commesso",
+   "team": "CHI"
+  },
+  {
+   "name": "Matt Murray",
+   "team": null
+  },
+  {
+   "name": "Matt Murray",
+   "team": "NSH"
+  },
+  {
+   "name": "Nico Daws",
+   "team": "WPG"
+  },
+  {
+   "name": "Leevi Merilainen",
+   "team": "VAN"
+  },
+  {
+   "name": "Jiri Patera",
+   "team": "BOS"
+  },
+  {
+   "name": "Joonas Korpisalo",
+   "team": "NYR"
+  },
+  {
+   "name": "Cam Talbot",
+   "team": "CBJ"
+  },
+  {
+   "name": "Carl Lindbom",
+   "team": "VGK"
+  },
+  {
+   "name": "Daniil Tarasov",
+   "team": "DET"
+  },
+  {
+   "name": "Jakub Dobes",
+   "team": "MTL"
+  },
+  {
+   "name": "Sebastian Cossa",
+   "team": "UTA"
+  },
+  {
+   "name": "Mads Sogaard",
+   "team": "TBL"
+  },
+  {
+   "name": "Petr Mrazek",
+   "team": "ANA"
+  },
+  {
+   "name": "David Rittich",
+   "team": null
+  },
+  {
+   "name": "Justus Annunen",
+   "team": "NSH"
+  },
+  {
+   "name": "Cayden Primeau",
+   "team": "CAR"
+  },
+  {
+   "name": "John Gibson",
+   "team": "DET"
+  },
+  {
+   "name": "Sam Montembeault",
+   "team": "MTL"
+  },
+  {
+   "name": "Clay Stevenson",
+   "team": "WPG"
+  },
+  {
+   "name": "Thatcher Demko",
+   "team": "VAN"
+  },
+  {
+   "name": "Ville Husso",
+   "team": "ANA"
+  },
+  {
+   "name": "Vitek Vanecek",
+   "team": "NYI"
+  },
+  {
+   "name": "Jordan Binnington",
+   "team": "STL"
+  },
+  {
+   "name": "James Reimer",
+   "team": "NYR"
+  },
+  {
+   "name": "Arvid Soderblom",
+   "team": "CHI"
+  },
+  {
+   "name": "Kevin Lankinen",
+   "team": "VAN"
+  },
+  {
+   "name": "Frederik Andersen",
+   "team": "EDM"
+  },
+  {
+   "name": "Marc-Andre Fleury",
+   "team": "PIT"
+  },
+  {
+   "name": "Jeff Glass",
+   "team": "CHI"
+  },
+  {
+   "name": "Trey Augustine",
+   "team": "DET"
+  },
+  {
+   "name": "Ilya Samsonov",
+   "team": null
+  },
+  {
+   "name": "Antti Niemi",
+   "team": "MTL"
+  },
+  {
+   "name": "Ilya Nabokov",
+   "team": "COL"
+  },
+  {
+   "name": "Mikhail Yegorov",
+   "team": "NJD"
+  },
+  {
+   "name": "Michael Hrabal",
+   "team": "UTA"
+  },
+  {
+   "name": "Alexandar Georgiev",
+   "team": null
+  },
+  {
+   "name": "Carson Bjarnason",
+   "team": "PHI"
+  },
+  {
+   "name": "Joel Blomqvist",
+   "team": "PIT"
+  },
+  {
+   "name": "Jack Ivankovic",
+   "team": "NSH"
+  },
+  {
+   "name": "Alexei Medvedev",
+   "team": "VAN"
+  },
+  {
+   "name": "Pyotr Andreyanov",
+   "team": "CBJ"
+  },
+  {
+   "name": "Ivan Fedotov",
+   "team": "CBJ"
+  }
+ ],
+ "goalies": {
+  "ANA": {
+   "depth": 1,
+   "game": "ANA@EDM",
+   "goalie": "Lukas Dostal",
+   "home": false,
+   "opponent": "EDM",
+   "strength": null
+  },
+  "BOS": {
+   "depth": 1,
+   "game": "BOS@PIT",
+   "goalie": "Jeremy Swayman",
+   "home": false,
+   "opponent": "PIT",
+   "strength": null
+  },
+  "CAR": {
+   "depth": 1,
+   "game": "CAR@NYI",
+   "goalie": "Brandon Bussi",
+   "home": false,
+   "opponent": "NYI",
+   "strength": null
+  },
+  "CBJ": {
+   "depth": 1,
+   "game": "DAL@CBJ",
+   "goalie": "Cam Talbot",
+   "home": true,
+   "opponent": "DAL",
+   "strength": "Confirmed"
+  },
+  "CHI": {
+   "depth": 1,
+   "game": "CHI@TBL",
+   "goalie": "Arvid Soderblom",
+   "home": false,
+   "opponent": "TBL",
+   "strength": null
+  },
+  "COL": {
+   "depth": 1,
+   "game": "NSH@COL",
+   "goalie": "Mackenzie Blackwood",
+   "home": true,
+   "opponent": "NSH",
+   "strength": "Confirmed"
+  },
+  "DAL": {
+   "depth": 2,
+   "game": "DAL@CBJ",
+   "goalie": "Casey DeSmith",
+   "home": false,
+   "opponent": "CBJ",
+   "strength": "Confirmed"
+  },
+  "DET": {
+   "depth": 1,
+   "game": "VGK@DET",
+   "goalie": "Daniil Tarasov",
+   "home": true,
+   "opponent": "VGK",
+   "strength": "Likely"
+  },
+  "EDM": {
+   "depth": 1,
+   "game": "ANA@EDM",
+   "goalie": "Matt Tomkins",
+   "home": true,
+   "opponent": "ANA",
+   "strength": "Likely"
+  },
+  "MTL": {
+   "depth": 1,
+   "game": "UTA@MTL",
+   "goalie": "Jakub Dobes",
+   "home": true,
+   "opponent": "UTA",
+   "strength": "Confirmed"
+  },
+  "NJD": {
+   "depth": 1,
+   "game": "STL@NJD",
+   "goalie": "Connor Hellebuyck",
+   "home": true,
+   "opponent": "STL",
+   "strength": "Likely"
+  },
+  "NSH": {
+   "depth": 1,
+   "game": "NSH@COL",
+   "goalie": "Juuse Saros",
+   "home": false,
+   "opponent": "COL",
+   "strength": null
+  },
+  "NYI": {
+   "depth": 2,
+   "game": "CAR@NYI",
+   "goalie": "Semyon Varlamov",
+   "home": true,
+   "opponent": "CAR",
+   "strength": "Confirmed"
+  },
+  "NYR": {
+   "depth": 1,
+   "game": "PHI@NYR",
+   "goalie": "Dylan Garand",
+   "home": true,
+   "opponent": "PHI",
+   "strength": "Confirmed"
+  },
+  "PHI": {
+   "depth": 1,
+   "game": "PHI@NYR",
+   "goalie": "Joseph Woll",
+   "home": false,
+   "opponent": "NYR",
+   "strength": "Confirmed"
+  },
+  "PIT": {
+   "depth": 1,
+   "game": "BOS@PIT",
+   "goalie": "Arturs Silovs",
+   "home": true,
+   "opponent": "BOS",
+   "strength": "Confirmed"
+  },
+  "STL": {
+   "depth": 1,
+   "game": "STL@NJD",
+   "goalie": "Jordan Binnington",
+   "home": false,
+   "opponent": "NJD",
+   "strength": "Confirmed"
+  },
+  "TBL": {
+   "depth": 1,
+   "game": "CHI@TBL",
+   "goalie": "Andrei Vasilevskiy",
+   "home": true,
+   "opponent": "CHI",
+   "strength": "Likely"
+  },
+  "UTA": {
+   "depth": 1,
+   "game": "UTA@MTL",
+   "goalie": "Sebastian Cossa",
+   "home": false,
+   "opponent": "MTL",
+   "strength": "Likely"
+  },
+  "VAN": {
+   "depth": 1,
+   "game": "VAN@WPG",
+   "goalie": "Leevi Merilainen",
+   "home": false,
+   "opponent": "WPG",
+   "strength": null
+  },
+  "VGK": {
+   "depth": 1,
+   "game": "VGK@DET",
+   "goalie": "Carter Hart",
+   "home": false,
+   "opponent": "DET",
+   "strength": null
+  },
+  "WPG": {
+   "depth": 1,
+   "game": "VAN@WPG",
+   "goalie": "Stuart Skinner",
+   "home": true,
+   "opponent": "VAN",
+   "strength": "Confirmed"
+  }
+ },
+ "league": "espn",
+ "lineup_today": {
+  "bench": [
+   "espn:3735",
+   "espn:4996097",
+   "espn:5509"
+  ],
+  "set": true,
+  "start": [
+   "espn:2564164",
+   "espn:3020225",
+   "espn:3042056",
+   "espn:3069687",
+   "espn:3114727",
+   "espn:3151187",
+   "espn:3539",
+   "espn:3648002",
+   "espn:3652964",
+   "espn:3899951",
+   "espn:4268767",
+   "espn:4697468"
+  ],
+  "text": "No lineup changes needed"
+ },
+ "my_players": {
+  "espn:2563054": {
+   "goalie": false,
+   "line": "f4",
+   "name": "Boone Jenner",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "WSH"
+  },
+  "espn:2564164": {
+   "goalie": false,
+   "line": "d3",
+   "name": "Nick Seeler",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "PHI"
+  },
+  "espn:2976833": {
+   "goalie": false,
+   "line": "d2",
+   "name": "Morgan Rielly",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "TOR"
+  },
+  "espn:3020225": {
+   "goalie": true,
+   "line": "g",
+   "name": "Connor Hellebuyck",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "G",
+   "start": true,
+   "status": "healthy",
+   "team": "NJD"
+  },
+  "espn:3042056": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Tyler Bertuzzi",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp2",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "CHI"
+  },
+  "espn:3069687": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Josh Anderson",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "MTL"
+  },
+  "espn:3114717": {
+   "goalie": false,
+   "line": "d1",
+   "name": "Aaron Ekblad",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "FLA"
+  },
+  "espn:3114727": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Leon Draisaitl",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "EDM"
+  },
+  "espn:3151187": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Brayden Point",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "TBL"
+  },
+  "espn:3539": {
+   "goalie": false,
+   "line": "d3",
+   "name": "Kris Letang",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp2",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "PIT"
+  },
+  "espn:3648002": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Jack Eichel",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "VGK"
+  },
+  "espn:3652964": {
+   "goalie": false,
+   "line": "d3",
+   "name": "Noah Hanifin",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "VGK"
+  },
+  "espn:3735": {
+   "goalie": false,
+   "line": null,
+   "name": "Patrick Kane",
+   "note": "Upper Body: The Blackhawks' upcoming three-game road trip will begin Wednesday against the Panthers and conclude against the Hurricanes on Saturday, but it's currently unclear if Kane will be traveling with the team....",
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "F",
+   "start": null,
+   "status": "out",
+   "team": "CHI"
+  },
+  "espn:3775": {
+   "goalie": false,
+   "line": "f3",
+   "name": "Claude Giroux",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "OTT"
+  },
+  "espn:3852": {
+   "goalie": false,
+   "line": null,
+   "name": "Brad Marchand",
+   "note": "Knee: Marchand has appeared in just two games for the Panthers this season, as he sustained a left-leg injury on Oct. 6. He seems to be progressing through his expected six-week timeline for return smoothly, as he's n...",
+   "plays_today": false,
+   "pp_unit": null,
+   "slot": "IR",
+   "start": null,
+   "status": "ir",
+   "team": "FLA"
+  },
+  "espn:3891952": {
+   "goalie": false,
+   "line": "f1",
+   "name": "Artemi Panarin",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp1",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "LAK"
+  },
+  "espn:3899951": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Lawson Crouse",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "UTA"
+  },
+  "espn:4268767": {
+   "goalie": true,
+   "line": "g",
+   "name": "Stuart Skinner",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "G",
+   "start": true,
+   "status": "healthy",
+   "team": "WPG"
+  },
+  "espn:4565255": {
+   "goalie": false,
+   "line": "f2",
+   "name": "Shane Pinto",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "UTIL",
+   "start": null,
+   "status": "healthy",
+   "team": "OTT"
+  },
+  "espn:4697468": {
+   "goalie": false,
+   "line": "f3",
+   "name": "Will Cuylle",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": "pp2",
+   "slot": "F",
+   "start": null,
+   "status": "healthy",
+   "team": "NYR"
+  },
+  "espn:4874722": {
+   "goalie": false,
+   "line": "d1",
+   "name": "Brandt Clarke",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "D",
+   "start": null,
+   "status": "healthy",
+   "team": "LAK"
+  },
+  "espn:4996097": {
+   "goalie": true,
+   "line": "g",
+   "name": "Brandon Bussi",
+   "note": null,
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "CAR"
+  },
+  "espn:5342529": {
+   "goalie": false,
+   "line": "f3",
+   "name": "Gavin McKenna",
+   "note": null,
+   "plays_today": false,
+   "pp_unit": "pp2",
+   "slot": "BN",
+   "start": null,
+   "status": "healthy",
+   "team": "TOR"
+  },
+  "espn:5509": {
+   "goalie": false,
+   "line": null,
+   "name": "Zach Hyman",
+   "note": "Neck: ir (est. return 2026-11-07)",
+   "plays_today": true,
+   "pp_unit": null,
+   "slot": "IR",
+   "start": null,
+   "status": "ir",
+   "team": "EDM"
+  }
+ },
+ "source": "daily",
+ "taken_at": "2026-11-05T12:56:24",
+ "version": 1
+}

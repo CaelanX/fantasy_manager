@@ -1,0 +1,1786 @@
+{
+ "version": 3,
+ "provider": "fantrax",
+ "league_id": "oq3cj6dkmufzrxl9",
+ "as_of": "2026-10-16",
+ "archived_at": "2026-10-16T12:09:41",
+ "params_hash": "f46ed5d45a2d574d35f9b22154cc0037bfa5f6ce",
+ "code_hash": "df127e081440feb2e3d05a22fe09c233156d2067",
+ "recommendations": [
+  {
+   "kind": "lineup",
+   "score": 10.0,
+   "title": "Activate Jake Sanderson from IR (dtd)",
+   "add": [
+    {
+     "cid": "fantrax:059e0",
+     "name": "Jake Sanderson",
+     "nhl_id": 8482105,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 9.5546,
+   "gain_units": "week_pts",
+   "horizon_days": 7,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "STATUS",
+     "text": "Jake Sanderson is dtd but sits in an IR slot (Lower Body: day-to-day (est. return 2026-10-17))",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_NEXT7",
+     "text": "Jake Sanderson: 3 games next 7 days (1 off-night)",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 4.044 (rank 1/1)",
+     "value": 4.044255471692135,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 10.0,
+   "title": "Evan Rodrigues (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03nfr",
+     "name": "Evan Rodrigues",
+     "nhl_id": 8478542,
+     "team": "NJD",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Evan Rodrigues: PP2 -> PP1 per Daily Faceoff (Amanda Stein, updated Oct 16 16:49 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Evan Rodrigues now on PP1 (Daily Faceoff (Amanda Stein, updated Oct 16 16:49 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 1/22)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 10.0,
+   "title": "Trade Jimmy Snuggerud to Jewlio for MacKenzie Weegar",
+   "add": [
+    {
+     "cid": "fantrax:031v6",
+     "name": "MacKenzie Weegar",
+     "nhl_id": 8477346,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05ymj",
+     "name": "Jimmy Snuggerud",
+     "nhl_id": 8483516,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Jewlio",
+   "predicted_gain": 0.6685,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 4.35,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.67 pts/game this season (+2.0 pts/week, +51 rest of season) (dynasty +0.05; balanced edge +0.72)",
+     "value": 0.7209478136948195,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value); acceptance ~40%",
+     "value": -4.459560288589536,
+     "baseline": -4.459560288589536
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: straight 1-for-1, no other moves needed",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-4.5 pts) while our model has you gaining +0.72",
+     "value": 0.4979697992653427,
+     "baseline": -4.459560288589536
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 38% (prior logistic: they get 6, give 11 market pts -> -4.5 pts). EV = +0.72 x 0.38 = +0.27",
+     "value": 0.37990940462782385,
+     "baseline": 0.37990940462782385
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.0 pts/week (+0.67/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.0240163503610704,
+     "baseline": 3.0276208411801635
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+51 pts rest of season (+0.67/game x 77 games left)",
+     "value": 51.17869914484421,
+     "baseline": 76.55555555555556
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.67 FPG (optimal_lineup)",
+     "value": 0.6685171150995615,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Jewlio lineup -4.99 FPG (our model)",
+     "value": -4.994881776528025,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive MacKenzie Weegar (13.61): 13.61 dynasty",
+     "value": 13.607623073756674,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jimmy Snuggerud (13.44): 13.44 dynasty",
+     "value": 13.439425392663086,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 1% (shown only; old band 12%)",
+     "value": 0.012360548214917107,
+     "baseline": 0.12
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Dynasty value +0.17 for me (+0.05 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.05243069859525807,
+     "baseline": 0.1681976810935879
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.274 (rank 1/6)",
+     "value": 0.27389485466853014,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.5455,
+   "title": "Jaden Schwartz (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01xfp",
+     "name": "Jaden Schwartz",
+     "nhl_id": 8475768,
+     "team": "COL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Jaden Schwartz: PP2 -> PP1 per Daily Faceoff (Last Game (2026-10-14), updated Oct 15 13:52 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Jaden Schwartz now on PP1 (Daily Faceoff (Last Game (2026-10-14), updated Oct 15 13:52 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 2/22)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.0909,
+   "title": "Jonathan Marchessault (free agent) promoted to PP1 (F1 -> F3; PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02ni5",
+     "name": "Jonathan Marchessault",
+     "nhl_id": 8476539,
+     "team": "NSH",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Jonathan Marchessault: F1 -> F3; PP2 -> PP1 per Daily Faceoff (Last Game (2026-10-15), updated Oct 16 14:30 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Jonathan Marchessault now on PP1 (Daily Faceoff (Last Game (2026-10-15), updated Oct 16 14:30 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 3/22)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.6364,
+   "title": "Ryan Leonard (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:0644f",
+     "name": "Ryan Leonard",
+     "nhl_id": 8484186,
+     "team": "WSH",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Ryan Leonard: PP2 -> PP1 per Daily Faceoff (Tom Gulitti, updated Oct 16 16:17 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Ryan Leonard now on PP1 (Daily Faceoff (Tom Gulitti, updated Oct 16 16:17 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 4/22)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 8.3333,
+   "title": "Trade Roman Kantserov to Jewlio for MacKenzie Weegar",
+   "add": [
+    {
+     "cid": "fantrax:031v6",
+     "name": "MacKenzie Weegar",
+     "nhl_id": 8477346,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:06bdr",
+     "name": "Roman Kantserov",
+     "nhl_id": 8484390,
+     "team": "CHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Jewlio",
+   "predicted_gain": 0.6685,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 3.78,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.67 pts/game this season (+2.0 pts/week, +51 rest of season) (dynasty +0.06; balanced edge +0.73)",
+     "value": 0.7274751718085285,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value); acceptance ~35%",
+     "value": -4.8186045905401915,
+     "baseline": -4.8186045905401915
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: straight 1-for-1, no other moves needed",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-4.8 pts) while our model has you gaining +0.73",
+     "value": 0.4865449422815189,
+     "baseline": -4.8186045905401915
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 37% (prior logistic: they get 6, give 11 market pts -> -4.8 pts). EV = +0.73 x 0.37 = +0.27",
+     "value": 0.37066201292067874,
+     "baseline": 0.37066201292067874
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.0 pts/week (+0.67/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.0240163503610704,
+     "baseline": 3.0276208411801635
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+51 pts rest of season (+0.67/game x 77 games left)",
+     "value": 51.17869914484421,
+     "baseline": 76.55555555555556
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.67 FPG (optimal_lineup)",
+     "value": 0.6685171150995615,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Jewlio lineup -4.99 FPG (our model)",
+     "value": -4.994881776528025,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive MacKenzie Weegar (13.61): 13.61 dynasty",
+     "value": 13.607623073756674,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Roman Kantserov (13.42): 13.42 dynasty",
+     "value": 13.418485627834308,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 1% (shown only; old band 12%)",
+     "value": 0.013899374262293616,
+     "baseline": 0.12
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Dynasty value +0.19 for me (+0.06 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.05895805670896703,
+     "baseline": 0.18913744592236625
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.270 (rank 2/6)",
+     "value": 0.26964741153236577,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.1818,
+   "title": "Tyler Seguin (free agent) promoted to PP1 (F3 -> F2; PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01sif",
+     "name": "Tyler Seguin",
+     "nhl_id": 8475794,
+     "team": "DAL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Tyler Seguin: F3 -> F2; PP2 -> PP1 per Daily Faceoff (Projected, updated Oct 16 16:13 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Tyler Seguin now on PP1 (Daily Faceoff (Projected, updated Oct 16 16:13 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 5/22)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.7273,
+   "title": "Rising: Neal Pionk (+7.0% rostered this week)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:049ph",
+     "name": "Neal Pionk",
+     "nhl_id": 8480145,
+     "team": "WPG",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": 7,
+   "strength": 5.33,
+   "reasons": [
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Neal Pionk rostered 47% (+7.0 this week): rising, grab him before the league does (score x1.35)",
+     "value": 7.0,
+     "baseline": 47.0
+    },
+    {
+     "code": "VORP",
+     "text": "VORP +0.09 (season), 3.76 FPG",
+     "value": 0.08843695914060756,
+     "baseline": 0.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 6/22)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.2727,
+   "title": "Mackenzie Blackwood confirmed to start tonight vs PIT: start him",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03mbn",
+     "name": "Mackenzie Blackwood",
+     "nhl_id": 8478406,
+     "team": "COL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.0,
+   "reasons": [
+    {
+     "code": "CONFIRMED_START",
+     "text": "DFO Confirmed: Mackenzie Blackwood starts PIT@COL (Jesse Montano, Oct 16 16:25 UTC)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 7/22)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.8182,
+   "title": "Preseason standout: Bradly Nadeau (3 GP, 1.00 PTS/GP, TOI 22.5, PP2; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06axz",
+     "name": "Bradly Nadeau",
+     "nhl_id": 8484203,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.5,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 2 G, 1 A, 3 PTS, 11 SOG, 0 PPP, 22.5 TOI (1.00 PTS/GP)",
+     "value": 1.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "22.5 min TOI per preseason game",
+     "value": 22.49,
+     "baseline": 16.0
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Daily Faceoff lists him on PP2",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 15 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 15.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.500 (rank 8/22)",
+     "value": 5.5,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 6.6667,
+   "title": "Trade Dylan Holloway to DBoyer01 for Roman Josi",
+   "add": [
+    {
+     "cid": "fantrax:01fx3",
+     "name": "Roman Josi",
+     "nhl_id": 8474600,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:051yz",
+     "name": "Dylan Holloway",
+     "nhl_id": 8482077,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "DBoyer01",
+   "predicted_gain": 0.4673,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 3.66,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.47 pts/game this season (+1.4 pts/week, +36 rest of season) (dynasty +0.26; balanced edge +0.73)",
+     "value": 0.7271436743177073,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value); acceptance ~30%",
+     "value": -7.854233856008335,
+     "baseline": -7.854233856008335
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: straight 1-for-1, no other moves needed",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 30% (prior logistic: they get 19, give 27 market pts -> -7.9 pts). EV = +0.73 x 0.30 = +0.22",
+     "value": 0.2967388625015594,
+     "baseline": 0.2967388625015594
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+1.4 pts/week (+0.47/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 1.414837036390975,
+     "baseline": 3.0276208411801635
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+36 pts rest of season (+0.47/game x 77 games left)",
+     "value": 35.775165063028936,
+     "baseline": 76.55555555555556
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.47 FPG (optimal_lineup)",
+     "value": 0.46730984842853474,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "DBoyer01 lineup -4.20 FPG (our model)",
+     "value": -4.196401865622221,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Roman Josi (14.55): 14.55 dynasty",
+     "value": 14.548285481370073,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Dylan Holloway (13.71): 13.71 dynasty",
+     "value": 13.714738567917607,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 6% (shown only; old band 12%)",
+     "value": 0.05729519911606568,
+     "baseline": 0.12
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Dynasty value +0.83 for me (+0.26 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.2598338258891726,
+     "baseline": 0.8335469134524658
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.216 (rank 3/6)",
+     "value": 0.21577178679224085,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.3636,
+   "title": "Rookie role signal: Roger McQueen \u2014 After a draft night trip to Disneyland to meet Lightning McQueen, the \"Cars\" synergy came full circle for the Ducks rookie's NHL debut. (espn, 2026-10-16)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06imm",
+     "name": "Roger McQueen",
+     "nhl_id": 8485400,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.25,
+   "reasons": [
+    {
+     "code": "ROLE_NEWS",
+     "text": "nhl roster + (rules, confidence 0.70; free agent): \"After a draft night trip to Disneyland to meet Lightning McQueen, the \"Cars\" synergy came full circle for the Ducks rookie's NHL debut.\"",
+     "value": 1.0,
+     "baseline": 0.7
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 0 career NHL GP; news is the earliest role signal for a rookie (the valuation's rookie model uses it too)",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "ROLE_DFO",
+     "text": "Daily Faceoff: F3 / PP2",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.250 (rank 9/22)",
+     "value": 5.25,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.9091,
+   "title": "Roman Kantserov moved up to the top unit (F2 -> F1): role boost",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06bdr",
+     "name": "Roman Kantserov",
+     "nhl_id": 8484390,
+     "team": "CHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Roman Kantserov: F2 -> F1 per Daily Faceoff (Ben Pope, updated Oct 16 16:54 UTC)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Roman Kantserov now on PP1 (Daily Faceoff (Ben Pope, updated Oct 16 16:54 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 10/22)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.4545,
+   "title": "Preseason standout: Adam Engstrom (3 GP, 0.00 PTS/GP, TOI 21.9, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:061a1",
+     "name": "Adam Engstrom",
+     "nhl_id": 8483686,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 5 SOG, 0 PPP, 21.9 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "21.9 min TOI per preseason game",
+     "value": 21.92,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 11/22)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.0,
+   "title": "Preseason standout: David Reinbacher (3 GP, 0.00 PTS/GP, TOI 20.6, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:067yd",
+     "name": "David Reinbacher",
+     "nhl_id": 8484220,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 2 SOG, 0 PPP, 20.6 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "20.6 min TOI per preseason game",
+     "value": 20.58,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 2 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 12/22)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 5.0,
+   "title": "Trade Artemi Panarin to DBoyer01 for Roman Josi",
+   "add": [
+    {
+     "cid": "fantrax:01fx3",
+     "name": "Roman Josi",
+     "nhl_id": 8474600,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:03bfj",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "DBoyer01",
+   "predicted_gain": 0.1042,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 2.95,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.10 pts/game this season (+0.3 pts/week, +8 rest of season) (dynasty +0.23; balanced edge +0.34)",
+     "value": 0.33561779310780243,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (rostered %/Fantrax projected FP/G/dynasty value); acceptance ~50%",
+     "value": -0.6096290836580103,
+     "baseline": -0.6096290836580103
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: straight 1-for-1, no other moves needed",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 48% (prior logistic: they get 27, give 27 market pts -> -0.6 pts). EV = +0.34 x 0.48 = +0.16",
+     "value": 0.48326260589526304,
+     "baseline": 0.48326260589526304
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+0.3 pts/week (+0.10/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 0.3154024810053527,
+     "baseline": 3.0276208411801635
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+8 pts rest of season (+0.10/game x 77 games left)",
+     "value": 7.975177019706774,
+     "baseline": 76.55555555555556
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.10 FPG (optimal_lineup)",
+     "value": 0.10417502638223652,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "DBoyer01 lineup -3.83 FPG (our model)",
+     "value": -3.8332670435759226,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Roman Josi (14.55): 14.55 dynasty",
+     "value": 14.548285481370073,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (13.81): 13.81 dynasty",
+     "value": 13.805817085714457,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 5% (shown only; old band 12%)",
+     "value": 0.051034769465198464,
+     "baseline": 0.12
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Dynasty value +0.74 for me (+0.23 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.2314427667255659,
+     "baseline": 0.7424683956556155
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.162 (rank 4/6)",
+     "value": 0.16219152928209385,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.5455,
+   "title": "Preseason standout: David Spacek (3 GP, 0.33 PTS/GP, TOI 22.0, PP2; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:060wp",
+     "name": "David Spacek",
+     "nhl_id": 8483766,
+     "team": "MIN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 1 A, 1 PTS, 9 SOG, 0 PPP, 22.0 TOI (0.33 PTS/GP)",
+     "value": 0.3333,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "22.0 min TOI per preseason game",
+     "value": 22.0,
+     "baseline": 16.0
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Daily Faceoff lists him on PP2",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 13/22)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.0909,
+   "title": "Preseason standout: Theo Lindstein (3 GP, 0.00 PTS/GP, TOI 19.5, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05r2z",
+     "name": "Theo Lindstein",
+     "nhl_id": 8484188,
+     "team": "STL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.87,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 2 SOG, 0 PPP, 19.5 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "19.5 min TOI per preseason game",
+     "value": 19.47,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 17 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 17.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.870 (rank 14/22)",
+     "value": 4.87,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.6364,
+   "title": "Preseason standout: Jack Ahcan (3 GP, 0.67 PTS/GP, TOI 19.0, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04aoy",
+     "name": "Jack Ahcan",
+     "nhl_id": 8482072,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.75,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 2 A, 2 PTS, 5 SOG, 0 PPP, 19.0 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "19.0 min TOI per preseason game",
+     "value": 18.98,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.750 (rank 15/22)",
+     "value": 4.75,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 3.3333,
+   "title": "Trade Dylan Holloway to AruDPM for Charlie McAvoy",
+   "add": [
+    {
+     "cid": "fantrax:03wpm",
+     "name": "Charlie McAvoy",
+     "nhl_id": 8479325,
+     "team": "BOS",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:051yz",
+     "name": "Dylan Holloway",
+     "nhl_id": 8482077,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "AruDPM",
+   "predicted_gain": 0.2746,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 2.6,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.27 pts/game this season (+0.8 pts/week, +21 rest of season) (dynasty +0.16; balanced edge +0.43)",
+     "value": 0.4330846639685947,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value); acceptance ~35%",
+     "value": -3.9010756412030254,
+     "baseline": -3.9010756412030254
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: straight 1-for-1, no other moves needed",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-3.9 pts) while our model has you gaining +0.43",
+     "value": 0.2380308819084434,
+     "baseline": -3.9010756412030254
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 34% (prior logistic: they get 19, give 23 market pts; x0.85: contender, no help this season -> -3.9 pts). EV = +0.43 x 0.34 = +0.15",
+     "value": 0.3352962620174241,
+     "baseline": 0.3944661906087342
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+0.8 pts/week (+0.27/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 0.8314863984552224,
+     "baseline": 3.0276208411801635
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+21 pts rest of season (+0.27/game x 77 games left)",
+     "value": 21.02472750379634,
+     "baseline": 76.55555555555556
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.27 FPG (optimal_lineup)",
+     "value": 0.27463359584059077,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "AruDPM lineup -5.61 FPG (our model)",
+     "value": -5.611792643374272,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Charlie McAvoy (14.22): 14.22 dynasty",
+     "value": 14.223049594472243,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Dylan Holloway (13.71): 13.71 dynasty",
+     "value": 13.714738567917607,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 4% (shown only; old band 12%)",
+     "value": 0.03573853997895013,
+     "baseline": 0.12
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Dynasty value +0.51 for me (+0.16 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.15845106812800394,
+     "baseline": 0.5083110265546367
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.145 (rank 5/6)",
+     "value": 0.14521166896574197,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.1818,
+   "title": "Preseason standout: Frederic Brunet (3 GP, 0.67 PTS/GP, TOI 18.8, PP2; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:061jm",
+     "name": "Frederic Brunet",
+     "nhl_id": 8483017,
+     "team": "BOS",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.71,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 2 A, 2 PTS, 4 SOG, 0 PPP, 18.8 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "18.8 min TOI per preseason game",
+     "value": 18.83,
+     "baseline": 16.0
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Daily Faceoff lists him on PP2",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.710 (rank 16/22)",
+     "value": 4.71,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.7273,
+   "title": "Preseason standout: Jett Luchanko (3 GP, 1.00 PTS/GP, TOI 13.6, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06lv1",
+     "name": "Jett Luchanko",
+     "nhl_id": 8484779,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.5,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 3 A, 3 PTS, 3 SOG, 1 PPP, 13.6 TOI (1.00 PTS/GP)",
+     "value": 1.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "13.6 min TOI per preseason game",
+     "value": 13.56,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 8 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 8.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.500 (rank 17/22)",
+     "value": 4.5,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.2727,
+   "title": "Preseason standout: Matt Kiersted (3 GP, 0.00 PTS/GP, TOI 17.8, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05gsr",
+     "name": "Matt Kiersted",
+     "nhl_id": 8482641,
+     "team": "MIN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.45,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 2 SOG, 0 PPP, 17.8 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.8 min TOI per preseason game",
+     "value": 17.79,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.450 (rank 18/22)",
+     "value": 4.45,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.8182,
+   "title": "Preseason standout: William Wallinder (3 GP, 0.00 PTS/GP, TOI 17.5, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05af9",
+     "name": "William Wallinder",
+     "nhl_id": 8482171,
+     "team": "DET",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.38,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 1 SOG, 0 PPP, 17.5 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.5 min TOI per preseason game",
+     "value": 17.53,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 1 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.380 (rank 19/22)",
+     "value": 4.38,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 1.6667,
+   "title": "Trade Artemi Panarin to Jaydentrapp for Moritz Seider",
+   "add": [
+    {
+     "cid": "fantrax:04zb4",
+     "name": "Moritz Seider",
+     "nhl_id": 8481542,
+     "team": "DET",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:03bfj",
+     "name": "Artemi Panarin",
+     "nhl_id": 8478550,
+     "team": "LAK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Jaydentrapp",
+   "predicted_gain": 0.0273,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 1.78,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.03 pts/game this season (+0.1 pts/week, +2 rest of season) (dynasty +0.35; balanced edge +0.38)",
+     "value": 0.37974429377969504,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value); acceptance ~25%",
+     "value": -7.709444717139764,
+     "baseline": -7.709444717139764
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: straight 1-for-1, no other moves needed",
+     "value": 0.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 26% (prior logistic: they get 27, give 34 market pts; x0.85: contender, no help this season -> -7.7 pts). EV = +0.38 x 0.26 = +0.10",
+     "value": 0.2550586928528396,
+     "baseline": 0.3000690504151054
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+0.1 pts/week (+0.03/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 0.08274357907369484,
+     "baseline": 3.0276208411801635
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+2 pts rest of season (+0.03/game x 77 games left)",
+     "value": 2.092230499434855,
+     "baseline": 76.55555555555556
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.03 FPG (optimal_lineup)",
+     "value": 0.02732957111017953,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Jaydentrapp lineup -4.55 FPG (our model)",
+     "value": -4.549849523556993,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Moritz Seider (14.94): 14.94 dynasty",
+     "value": 14.936363516038263,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Artemi Panarin (13.81): 13.81 dynasty",
+     "value": 13.805817085714457,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 8% (shown only; old band 12%)",
+     "value": 0.07569087543362583,
+     "baseline": 0.12
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Dynasty value +1.13 for me (+0.35 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.3524147226695155,
+     "baseline": 1.1305464303238058
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.097 (rank 6/6)",
+     "value": 0.09685708318977372,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.3636,
+   "title": "Preseason standout: Charles-Alexis Legault (3 GP, 0.00 PTS/GP, TOI 17.4, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05u64",
+     "name": "Charles-Alexis Legault",
+     "nhl_id": 8484428,
+     "team": "CAR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.36,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 1 SOG, 0 PPP, 17.4 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.4 min TOI per preseason game",
+     "value": 17.43,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.360 (rank 20/22)",
+     "value": 4.36,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.9091,
+   "title": "Preseason standout: Guillaume Brisebois (3 GP, 0.00 PTS/GP, TOI 16.3, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rfh",
+     "name": "Guillaume Brisebois",
+     "nhl_id": 8478465,
+     "team": "VAN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.08,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 2 SOG, 0 PPP, 16.3 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "16.3 min TOI per preseason game",
+     "value": 16.33,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.080 (rank 21/22)",
+     "value": 4.08,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.4545,
+   "title": "Anton Frondell dropped off PP1 (PP1 -> PP2): sell / bench caution",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06jhd",
+     "name": "Anton Frondell",
+     "nhl_id": 8485391,
+     "team": "CHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Anton Frondell: PP1 -> PP2 per Daily Faceoff (Ben Pope, updated Oct 16 16:54 UTC)",
+     "value": 4.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Anton Frondell now on PP2 (Daily Faceoff (Ben Pope, updated Oct 16 16:54 UTC))",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.000 (rank 22/22)",
+     "value": 4.0,
+     "baseline": null
+    }
+   ]
+  }
+ ]
+}

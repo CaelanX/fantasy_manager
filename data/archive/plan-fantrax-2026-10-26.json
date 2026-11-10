@@ -1,0 +1,1372 @@
+{
+ "version": 1,
+ "provider": "fantrax",
+ "league_id": "oq3cj6dkmufzrxl9",
+ "as_of": "2026-10-26",
+ "created": "2026-10-26T21:50:26+00:00",
+ "plan": {
+  "league": "fantrax",
+  "my_team": "Nermeen LouLou",
+  "opponent": "Dee_snuts69",
+  "start": "2026-10-26",
+  "end": "2026-11-01",
+  "days_left": 7,
+  "my_so_far": 0.0,
+  "their_so_far": 0.0,
+  "their_remaining": 193.45815250509514,
+  "stance": "even",
+  "moves_left": 2,
+  "moves_planned": 2,
+  "baseline": "quick_lineup",
+  "proj_as_set": 195.15181226487263,
+  "proj_lineup": 195.15181226487263,
+  "proj_plan": 216.15058229561063,
+  "proj_frozen": 139.050922300161,
+  "win_as_set": 0.546,
+  "win_lineup": 0.546,
+  "win_plan": 0.774,
+  "win_frozen": 0.0255,
+  "today": [],
+  "moves": [
+   {
+    "day": "2026-10-26",
+    "effective": "2026-10-27",
+    "add": {
+     "cid": "fantrax:04mtp",
+     "name": "Dylan Cozens",
+     "name_norm": "dylan cozens",
+     "ids": {
+      "fantrax": "04mtp",
+      "nhl": "8481528"
+     },
+     "team": "OTT",
+     "positions": [
+      "F"
+     ],
+     "primary_position": null,
+     "birth_date": "2001-02-09",
+     "status": "healthy",
+     "status_note": null,
+     "waiver_until": null,
+     "lines": {
+      "projected": {
+       "split": "projected",
+       "gp": 84,
+       "stats": {
+        "GP": 84.0,
+        "G": 26.0,
+        "A": 32.0,
+        "PIM": 59.0,
+        "FT": 0.0,
+        "SOG": 207.0,
+        "SHG": 0.0,
+        "ENG": 1.0,
+        "PPP": 25.0,
+        "HIT": 208.0,
+        "BLK": 29.0,
+        "PTS": 58.0,
+        "FPTS": 404.9
+       }
+      },
+      "season": {
+       "split": "season",
+       "gp": 12,
+       "stats": {
+        "GP": 12.0,
+        "G": 1.0,
+        "A": 4.0,
+        "PIM": 6.0,
+        "FT": 0.0,
+        "SOG": 27.0,
+        "SHG": 0.0,
+        "ENG": 0.0,
+        "PPP": 2.0,
+        "HIT": 31.0,
+        "BLK": 6.0,
+        "PTS": 5.0,
+        "FPTS": 42.8
+       }
+      },
+      "prior": {
+       "split": "prior",
+       "gp": 82,
+       "stats": {
+        "GP": 82.0,
+        "G": 28.0,
+        "A": 31.0,
+        "PTS": 59.0,
+        "PM": -7.0,
+        "PIM": 59.0,
+        "PPG": 13.0,
+        "PPP": 29.0,
+        "SHG": 0.0,
+        "SHP": 0.0,
+        "GWG": 3.0,
+        "SOG": 205.0,
+        "HIT": 215.0,
+        "BLK": 24.0,
+        "ENG": 1.0,
+        "FOW": 435.0,
+        "FOL": 383.0,
+        "PPA": 16.0,
+        "SHA": 0.0
+       }
+      },
+      "prior2": {
+       "split": "prior2",
+       "gp": 82,
+       "stats": {
+        "GP": 82.0,
+        "G": 16.0,
+        "A": 31.0,
+        "PTS": 47.0,
+        "PM": -17.0,
+        "PIM": 68.0,
+        "PPG": 5.0,
+        "PPP": 12.0,
+        "SHG": 0.0,
+        "SHP": 0.0,
+        "GWG": 2.0,
+        "SOG": 188.0,
+        "HIT": 205.0,
+        "BLK": 45.0,
+        "ENG": 0.0,
+        "FOW": 587.0,
+        "FOL": 573.0,
+        "PPA": 7.0,
+        "SHA": 0.0
+       }
+      },
+      "prior3": {
+       "split": "prior3",
+       "gp": 79,
+       "stats": {
+        "GP": 79.0,
+        "G": 18.0,
+        "A": 29.0,
+        "PTS": 47.0,
+        "PM": -4.0,
+        "PIM": 42.0,
+        "PPG": 2.0,
+        "PPP": 10.0,
+        "SHG": 3.0,
+        "SHP": 3.0,
+        "GWG": 1.0,
+        "SOG": 200.0,
+        "HIT": 107.0,
+        "BLK": 27.0,
+        "ENG": 3.0,
+        "FOW": 522.0,
+        "FOL": 624.0,
+        "PPA": 8.0,
+        "SHA": 0.0
+       }
+      }
+     },
+     "pct_owned": 83.0,
+     "draft_overall": null,
+     "draft_round": null,
+     "draft_year": null,
+     "career_gp": null,
+     "pct_owned_change": -3.0,
+     "pct_started": null,
+     "adp": null,
+     "adp_change": null,
+     "toi_per_game": 17.886,
+     "pp_toi_per_game": 4.312,
+     "pp_share": 0.603,
+     "toi_trend": null,
+     "pp_share_trend": null,
+     "line": "f2",
+     "pp_unit": "pp1",
+     "pk_unit": null,
+     "line_change": null,
+     "usual_line": "f2",
+     "usual_pp_unit": "pp1",
+     "confirmed_start": null,
+     "start_source": null,
+     "ixg_per_game": 0.2417,
+     "goals_minus_ixg": -1.9,
+     "onice_sh_pct": 0.082,
+     "onice_xg_pct": 0.48,
+     "xg_split": "season"
+    },
+    "drop": {
+     "cid": "fantrax:04lo0",
+     "name": "Quinton Byfield",
+     "name_norm": "quinton byfield",
+     "ids": {
+      "fantrax": "04lo0",
+      "nhl": "8482124"
+     },
+     "team": "LAK",
+     "positions": [
+      "F"
+     ],
+     "primary_position": null,
+     "birth_date": "2002-08-19",
+     "status": "dtd",
+     "status_note": "Upper Body: day-to-day (est. return 2026-10-26)",
+     "waiver_until": null,
+     "lines": {
+      "season": {
+       "split": "season",
+       "gp": 7,
+       "stats": {
+        "GP": 7.0,
+        "G": 1.0,
+        "A": 1.0,
+        "PIM": 0.0,
+        "FT": 0.0,
+        "SOG": 14.0,
+        "SHG": 0.0,
+        "ENG": 0.0,
+        "PPP": 1.0,
+        "HIT": 1.0,
+        "BLK": 2.0,
+        "PTS": 2.0,
+        "FPTS": 15.3
+       }
+      },
+      "projected": {
+       "split": "projected",
+       "gp": 81,
+       "stats": {
+        "GP": 81.0,
+        "G": 24.0,
+        "A": 29.0,
+        "PIM": 47.0,
+        "FT": 0.0,
+        "SOG": 179.0,
+        "SHG": 0.0,
+        "ENG": 1.0,
+        "PPP": 11.0,
+        "HIT": 71.0,
+        "BLK": 41.0,
+        "PTS": 53.0,
+        "FPTS": 321.8
+       }
+      },
+      "prior": {
+       "split": "prior",
+       "gp": 79,
+       "stats": {
+        "GP": 79.0,
+        "G": 24.0,
+        "A": 25.0,
+        "PTS": 49.0,
+        "PM": -2.0,
+        "PIM": 46.0,
+        "PPG": 4.0,
+        "PPP": 11.0,
+        "SHG": 0.0,
+        "SHP": 1.0,
+        "GWG": 4.0,
+        "SOG": 180.0,
+        "HIT": 66.0,
+        "BLK": 44.0,
+        "ENG": 1.0,
+        "FOW": 508.0,
+        "FOL": 609.0,
+        "PPA": 7.0,
+        "SHA": 1.0
+       }
+      },
+      "prior2": {
+       "split": "prior2",
+       "gp": 81,
+       "stats": {
+        "GP": 81.0,
+        "G": 23.0,
+        "A": 31.0,
+        "PTS": 54.0,
+        "PM": 16.0,
+        "PIM": 46.0,
+        "PPG": 3.0,
+        "PPP": 7.0,
+        "SHG": 1.0,
+        "SHP": 1.0,
+        "GWG": 4.0,
+        "SOG": 157.0,
+        "HIT": 80.0,
+        "BLK": 33.0,
+        "ENG": 1.0,
+        "FOW": 415.0,
+        "FOL": 527.0,
+        "PPA": 4.0,
+        "SHA": 0.0
+       }
+      },
+      "prior3": {
+       "split": "prior3",
+       "gp": 80,
+       "stats": {
+        "GP": 80.0,
+        "G": 20.0,
+        "A": 35.0,
+        "PTS": 55.0,
+        "PM": 19.0,
+        "PIM": 42.0,
+        "PPG": 6.0,
+        "PPP": 14.0,
+        "SHG": 0.0,
+        "SHP": 0.0,
+        "GWG": 4.0,
+        "SOG": 161.0,
+        "HIT": 66.0,
+        "BLK": 19.0,
+        "ENG": 2.0,
+        "FOW": 41.0,
+        "FOL": 49.0,
+        "PPA": 8.0,
+        "SHA": 0.0
+       }
+      }
+     },
+     "pct_owned": 81.0,
+     "draft_overall": null,
+     "draft_round": null,
+     "draft_year": null,
+     "career_gp": null,
+     "pct_owned_change": -6.0,
+     "pct_started": null,
+     "adp": null,
+     "adp_change": null,
+     "toi_per_game": 18.438,
+     "pp_toi_per_game": 3.398,
+     "pp_share": 0.671,
+     "toi_trend": null,
+     "pp_share_trend": null,
+     "line": "f2",
+     "pp_unit": "pp1",
+     "pk_unit": null,
+     "line_change": null,
+     "usual_line": "f1",
+     "usual_pp_unit": "pp1",
+     "confirmed_start": null,
+     "start_source": null,
+     "ixg_per_game": 0.2671,
+     "goals_minus_ixg": -0.87,
+     "onice_sh_pct": 0.0208,
+     "onice_xg_pct": 0.62,
+     "xg_split": "season"
+    },
+    "to_ir": null,
+    "gain_pts": 8.08,
+    "win_delta": 0.09099999999999997,
+    "starts": [
+     "2026-10-27",
+     "2026-10-29",
+     "2026-10-31",
+     "2026-11-01"
+    ],
+    "headline": "Dylan Cozens starts 4 nights for you (Tue, Thu, Sat, Sun); Quinton Byfield would have started 2 of his 3 games left (Thu, Sat)",
+    "market": "market agrees",
+    "claim": false,
+    "reasons": [
+     "Long term: Dylan Cozens 12.9 vs Quinton Byfield 11.5 dynasty value (an upgrade, +1.4)"
+    ],
+    "chain": null,
+    "role": null,
+    "note": "",
+    "timing": "Make this move the evening before (after Quinton Byfield's game starts Mon at 5:00 PM your time), so he keeps those points and Dylan Cozens counts Tue",
+    "status": ""
+   },
+   {
+    "day": "2026-10-27",
+    "effective": "2026-10-28",
+    "add": {
+     "cid": "fantrax:03xme",
+     "name": "Charlie Lindgren",
+     "name_norm": "charlie lindgren",
+     "ids": {
+      "fantrax": "03xme",
+      "nhl": "8479292"
+     },
+     "team": "WSH",
+     "positions": [
+      "G"
+     ],
+     "primary_position": null,
+     "birth_date": "1993-12-18",
+     "status": "healthy",
+     "status_note": null,
+     "waiver_until": null,
+     "lines": {
+      "projected": {
+       "split": "projected",
+       "gp": 28,
+       "stats": {
+        "GP": 28.0,
+        "W": 14.0,
+        "GA": 86.0,
+        "SV": 675.0,
+        "SO": 2.0,
+        "PIM": 6.0,
+        "A": 1.0,
+        "FPTS": 173.75
+       }
+      },
+      "season": {
+       "split": "season",
+       "gp": 3,
+       "stats": {
+        "GP": 3.0,
+        "W": 2.0,
+        "GA": 9.0,
+        "SV": 70.0,
+        "SO": 0.0,
+        "PIM": 0.0,
+        "A": 0.0,
+        "FPTS": 18.5
+       }
+      },
+      "prior": {
+       "split": "prior",
+       "gp": 21,
+       "stats": {
+        "GP": 21.0,
+        "GS": 20.0,
+        "W": 9.0,
+        "L": 8.0,
+        "OTL": 3.0,
+        "GA": 73.0,
+        "SA": 602.0,
+        "SV": 529.0,
+        "SO": 1.0,
+        "GAA": 3.51515,
+        "SVPCT": 0.87873
+       }
+      },
+      "prior2": {
+       "split": "prior2",
+       "gp": 39,
+       "stats": {
+        "GP": 39.0,
+        "GS": 38.0,
+        "W": 20.0,
+        "L": 14.0,
+        "OTL": 3.0,
+        "GA": 104.0,
+        "SA": 985.0,
+        "SV": 883.0,
+        "SO": 1.0,
+        "GAA": 2.72846,
+        "SVPCT": 0.89644
+       }
+      },
+      "prior3": {
+       "split": "prior3",
+       "gp": 50,
+       "stats": {
+        "GP": 50.0,
+        "GS": 48.0,
+        "W": 25.0,
+        "L": 16.0,
+        "OTL": 7.0,
+        "GA": 127.0,
+        "SA": 1431.0,
+        "SV": 1304.0,
+        "SO": 6.0,
+        "GAA": 2.67145,
+        "SVPCT": 0.91125
+       }
+      }
+     },
+     "pct_owned": 20.0,
+     "draft_overall": null,
+     "draft_round": null,
+     "draft_year": null,
+     "career_gp": 173,
+     "pct_owned_change": -1.0,
+     "pct_started": null,
+     "adp": null,
+     "adp_change": null,
+     "toi_per_game": null,
+     "pp_toi_per_game": null,
+     "pp_share": null,
+     "toi_trend": null,
+     "pp_share_trend": null,
+     "line": "g",
+     "pp_unit": null,
+     "pk_unit": null,
+     "line_change": "G2 -> G1",
+     "usual_line": null,
+     "usual_pp_unit": null,
+     "confirmed_start": null,
+     "start_source": null,
+     "ixg_per_game": null,
+     "goals_minus_ixg": null,
+     "onice_sh_pct": null,
+     "onice_xg_pct": null,
+     "xg_split": null
+    },
+    "drop": {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "name_norm": "jakub dobes",
+     "ids": {
+      "fantrax": "05oxs",
+      "nhl": "8482487"
+     },
+     "team": "MTL",
+     "positions": [
+      "G"
+     ],
+     "primary_position": null,
+     "birth_date": "2001-05-27",
+     "status": "healthy",
+     "status_note": null,
+     "waiver_until": null,
+     "lines": {
+      "season": {
+       "split": "season",
+       "gp": 5,
+       "stats": {
+        "GP": 5.0,
+        "W": 1.0,
+        "GA": 22.0,
+        "SV": 122.0,
+        "SO": 0.0,
+        "PIM": 2.0,
+        "A": 0.0,
+        "FPTS": 14.5
+       }
+      },
+      "projected": {
+       "split": "projected",
+       "gp": 40,
+       "stats": {
+        "GP": 40.0,
+        "W": 26.0,
+        "GA": 108.0,
+        "SV": 993.0,
+        "SO": 0.0,
+        "PIM": 2.0,
+        "A": 0.0,
+        "FPTS": 271.25
+       }
+      },
+      "prior": {
+       "split": "prior",
+       "gp": 43,
+       "stats": {
+        "GP": 43.0,
+        "GS": 42.0,
+        "W": 29.0,
+        "L": 10.0,
+        "OTL": 4.0,
+        "GA": 117.0,
+        "SA": 1187.0,
+        "SV": 1070.0,
+        "SO": 0.0,
+        "GAA": 2.77955,
+        "SVPCT": 0.90143
+       }
+      },
+      "prior2": {
+       "split": "prior2",
+       "gp": 16,
+       "stats": {
+        "GP": 16.0,
+        "GS": 15.0,
+        "W": 7.0,
+        "L": 4.0,
+        "OTL": 3.0,
+        "GA": 40.0,
+        "SA": 440.0,
+        "SV": 400.0,
+        "SO": 1.0,
+        "GAA": 2.74353,
+        "SVPCT": 0.90909
+       }
+      }
+     },
+     "pct_owned": 93.0,
+     "draft_overall": null,
+     "draft_round": null,
+     "draft_year": null,
+     "career_gp": null,
+     "pct_owned_change": -5.0,
+     "pct_started": null,
+     "adp": null,
+     "adp_change": null,
+     "toi_per_game": null,
+     "pp_toi_per_game": null,
+     "pp_share": null,
+     "toi_trend": null,
+     "pp_share_trend": null,
+     "line": "g",
+     "pp_unit": null,
+     "pk_unit": null,
+     "line_change": null,
+     "usual_line": null,
+     "usual_pp_unit": null,
+     "confirmed_start": null,
+     "start_source": null,
+     "ixg_per_game": null,
+     "goals_minus_ixg": null,
+     "onice_sh_pct": null,
+     "onice_xg_pct": null,
+     "xg_split": null
+    },
+    "to_ir": null,
+    "gain_pts": 12.92,
+    "win_delta": 0.137,
+    "starts": [
+     "2026-10-28",
+     "2026-10-29",
+     "2026-11-01"
+    ],
+    "headline": "Charlie Lindgren starts 3 nights for you (Wed, Thu, Sun); Jakub Dobes would have started 1 of his 2 games left (Thu)",
+    "market": "model disagrees with market",
+    "claim": false,
+    "reasons": [
+     "Long term: Charlie Lindgren 11.0 vs Jakub Dobes 10.9 dynasty value (an upgrade, +0.1)",
+     "Jakub Dobes was added 4 days ago, dropping him anyway: Charlie Lindgren is +2.98 FPG over him"
+    ],
+    "chain": null,
+    "role": null,
+    "note": "",
+    "timing": "Make this move the evening before (after Jakub Dobes's game starts Tue at 6:00 PM your time), so he keeps those points and Charlie Lindgren counts Wed",
+    "status": ""
+   }
+  ],
+  "days": [
+   {
+    "day": "2026-10-26",
+    "moves": [
+     {
+      "day": "2026-10-26",
+      "effective": "2026-10-27",
+      "add": {
+       "cid": "fantrax:04mtp",
+       "name": "Dylan Cozens",
+       "name_norm": "dylan cozens",
+       "ids": {
+        "fantrax": "04mtp",
+        "nhl": "8481528"
+       },
+       "team": "OTT",
+       "positions": [
+        "F"
+       ],
+       "primary_position": null,
+       "birth_date": "2001-02-09",
+       "status": "healthy",
+       "status_note": null,
+       "waiver_until": null,
+       "lines": {
+        "projected": {
+         "split": "projected",
+         "gp": 84,
+         "stats": {
+          "GP": 84.0,
+          "G": 26.0,
+          "A": 32.0,
+          "PIM": 59.0,
+          "FT": 0.0,
+          "SOG": 207.0,
+          "SHG": 0.0,
+          "ENG": 1.0,
+          "PPP": 25.0,
+          "HIT": 208.0,
+          "BLK": 29.0,
+          "PTS": 58.0,
+          "FPTS": 404.9
+         }
+        },
+        "season": {
+         "split": "season",
+         "gp": 12,
+         "stats": {
+          "GP": 12.0,
+          "G": 1.0,
+          "A": 4.0,
+          "PIM": 6.0,
+          "FT": 0.0,
+          "SOG": 27.0,
+          "SHG": 0.0,
+          "ENG": 0.0,
+          "PPP": 2.0,
+          "HIT": 31.0,
+          "BLK": 6.0,
+          "PTS": 5.0,
+          "FPTS": 42.8
+         }
+        },
+        "prior": {
+         "split": "prior",
+         "gp": 82,
+         "stats": {
+          "GP": 82.0,
+          "G": 28.0,
+          "A": 31.0,
+          "PTS": 59.0,
+          "PM": -7.0,
+          "PIM": 59.0,
+          "PPG": 13.0,
+          "PPP": 29.0,
+          "SHG": 0.0,
+          "SHP": 0.0,
+          "GWG": 3.0,
+          "SOG": 205.0,
+          "HIT": 215.0,
+          "BLK": 24.0,
+          "ENG": 1.0,
+          "FOW": 435.0,
+          "FOL": 383.0,
+          "PPA": 16.0,
+          "SHA": 0.0
+         }
+        },
+        "prior2": {
+         "split": "prior2",
+         "gp": 82,
+         "stats": {
+          "GP": 82.0,
+          "G": 16.0,
+          "A": 31.0,
+          "PTS": 47.0,
+          "PM": -17.0,
+          "PIM": 68.0,
+          "PPG": 5.0,
+          "PPP": 12.0,
+          "SHG": 0.0,
+          "SHP": 0.0,
+          "GWG": 2.0,
+          "SOG": 188.0,
+          "HIT": 205.0,
+          "BLK": 45.0,
+          "ENG": 0.0,
+          "FOW": 587.0,
+          "FOL": 573.0,
+          "PPA": 7.0,
+          "SHA": 0.0
+         }
+        },
+        "prior3": {
+         "split": "prior3",
+         "gp": 79,
+         "stats": {
+          "GP": 79.0,
+          "G": 18.0,
+          "A": 29.0,
+          "PTS": 47.0,
+          "PM": -4.0,
+          "PIM": 42.0,
+          "PPG": 2.0,
+          "PPP": 10.0,
+          "SHG": 3.0,
+          "SHP": 3.0,
+          "GWG": 1.0,
+          "SOG": 200.0,
+          "HIT": 107.0,
+          "BLK": 27.0,
+          "ENG": 3.0,
+          "FOW": 522.0,
+          "FOL": 624.0,
+          "PPA": 8.0,
+          "SHA": 0.0
+         }
+        }
+       },
+       "pct_owned": 83.0,
+       "draft_overall": null,
+       "draft_round": null,
+       "draft_year": null,
+       "career_gp": null,
+       "pct_owned_change": -3.0,
+       "pct_started": null,
+       "adp": null,
+       "adp_change": null,
+       "toi_per_game": 17.886,
+       "pp_toi_per_game": 4.312,
+       "pp_share": 0.603,
+       "toi_trend": null,
+       "pp_share_trend": null,
+       "line": "f2",
+       "pp_unit": "pp1",
+       "pk_unit": null,
+       "line_change": null,
+       "usual_line": "f2",
+       "usual_pp_unit": "pp1",
+       "confirmed_start": null,
+       "start_source": null,
+       "ixg_per_game": 0.2417,
+       "goals_minus_ixg": -1.9,
+       "onice_sh_pct": 0.082,
+       "onice_xg_pct": 0.48,
+       "xg_split": "season"
+      },
+      "drop": {
+       "cid": "fantrax:04lo0",
+       "name": "Quinton Byfield",
+       "name_norm": "quinton byfield",
+       "ids": {
+        "fantrax": "04lo0",
+        "nhl": "8482124"
+       },
+       "team": "LAK",
+       "positions": [
+        "F"
+       ],
+       "primary_position": null,
+       "birth_date": "2002-08-19",
+       "status": "dtd",
+       "status_note": "Upper Body: day-to-day (est. return 2026-10-26)",
+       "waiver_until": null,
+       "lines": {
+        "season": {
+         "split": "season",
+         "gp": 7,
+         "stats": {
+          "GP": 7.0,
+          "G": 1.0,
+          "A": 1.0,
+          "PIM": 0.0,
+          "FT": 0.0,
+          "SOG": 14.0,
+          "SHG": 0.0,
+          "ENG": 0.0,
+          "PPP": 1.0,
+          "HIT": 1.0,
+          "BLK": 2.0,
+          "PTS": 2.0,
+          "FPTS": 15.3
+         }
+        },
+        "projected": {
+         "split": "projected",
+         "gp": 81,
+         "stats": {
+          "GP": 81.0,
+          "G": 24.0,
+          "A": 29.0,
+          "PIM": 47.0,
+          "FT": 0.0,
+          "SOG": 179.0,
+          "SHG": 0.0,
+          "ENG": 1.0,
+          "PPP": 11.0,
+          "HIT": 71.0,
+          "BLK": 41.0,
+          "PTS": 53.0,
+          "FPTS": 321.8
+         }
+        },
+        "prior": {
+         "split": "prior",
+         "gp": 79,
+         "stats": {
+          "GP": 79.0,
+          "G": 24.0,
+          "A": 25.0,
+          "PTS": 49.0,
+          "PM": -2.0,
+          "PIM": 46.0,
+          "PPG": 4.0,
+          "PPP": 11.0,
+          "SHG": 0.0,
+          "SHP": 1.0,
+          "GWG": 4.0,
+          "SOG": 180.0,
+          "HIT": 66.0,
+          "BLK": 44.0,
+          "ENG": 1.0,
+          "FOW": 508.0,
+          "FOL": 609.0,
+          "PPA": 7.0,
+          "SHA": 1.0
+         }
+        },
+        "prior2": {
+         "split": "prior2",
+         "gp": 81,
+         "stats": {
+          "GP": 81.0,
+          "G": 23.0,
+          "A": 31.0,
+          "PTS": 54.0,
+          "PM": 16.0,
+          "PIM": 46.0,
+          "PPG": 3.0,
+          "PPP": 7.0,
+          "SHG": 1.0,
+          "SHP": 1.0,
+          "GWG": 4.0,
+          "SOG": 157.0,
+          "HIT": 80.0,
+          "BLK": 33.0,
+          "ENG": 1.0,
+          "FOW": 415.0,
+          "FOL": 527.0,
+          "PPA": 4.0,
+          "SHA": 0.0
+         }
+        },
+        "prior3": {
+         "split": "prior3",
+         "gp": 80,
+         "stats": {
+          "GP": 80.0,
+          "G": 20.0,
+          "A": 35.0,
+          "PTS": 55.0,
+          "PM": 19.0,
+          "PIM": 42.0,
+          "PPG": 6.0,
+          "PPP": 14.0,
+          "SHG": 0.0,
+          "SHP": 0.0,
+          "GWG": 4.0,
+          "SOG": 161.0,
+          "HIT": 66.0,
+          "BLK": 19.0,
+          "ENG": 2.0,
+          "FOW": 41.0,
+          "FOL": 49.0,
+          "PPA": 8.0,
+          "SHA": 0.0
+         }
+        }
+       },
+       "pct_owned": 81.0,
+       "draft_overall": null,
+       "draft_round": null,
+       "draft_year": null,
+       "career_gp": null,
+       "pct_owned_change": -6.0,
+       "pct_started": null,
+       "adp": null,
+       "adp_change": null,
+       "toi_per_game": 18.438,
+       "pp_toi_per_game": 3.398,
+       "pp_share": 0.671,
+       "toi_trend": null,
+       "pp_share_trend": null,
+       "line": "f2",
+       "pp_unit": "pp1",
+       "pk_unit": null,
+       "line_change": null,
+       "usual_line": "f1",
+       "usual_pp_unit": "pp1",
+       "confirmed_start": null,
+       "start_source": null,
+       "ixg_per_game": 0.2671,
+       "goals_minus_ixg": -0.87,
+       "onice_sh_pct": 0.0208,
+       "onice_xg_pct": 0.62,
+       "xg_split": "season"
+      },
+      "to_ir": null,
+      "gain_pts": 8.08,
+      "win_delta": 0.09099999999999997,
+      "starts": [
+       "2026-10-27",
+       "2026-10-29",
+       "2026-10-31",
+       "2026-11-01"
+      ],
+      "headline": "Dylan Cozens starts 4 nights for you (Tue, Thu, Sat, Sun); Quinton Byfield would have started 2 of his 3 games left (Thu, Sat)",
+      "market": "market agrees",
+      "claim": false,
+      "reasons": [
+       "Long term: Dylan Cozens 12.9 vs Quinton Byfield 11.5 dynasty value (an upgrade, +1.4)"
+      ],
+      "chain": null,
+      "role": null,
+      "note": "",
+      "timing": "Make this move the evening before (after Quinton Byfield's game starts Mon at 5:00 PM your time), so he keeps those points and Dylan Cozens counts Tue",
+      "status": ""
+     }
+    ],
+    "ins": [],
+    "outs": [],
+    "goalies": [],
+    "pregame": false,
+    "quick_ok": true,
+    "pts_plan": 20.62,
+    "pts_as_set": 20.62,
+    "pts_frozen": 20.62,
+    "note": "",
+    "text": "Add Dylan Cozens, drop Quinton Byfield (counts from Tue), then quick lineup"
+   },
+   {
+    "day": "2026-10-27",
+    "moves": [
+     {
+      "day": "2026-10-27",
+      "effective": "2026-10-28",
+      "add": {
+       "cid": "fantrax:03xme",
+       "name": "Charlie Lindgren",
+       "name_norm": "charlie lindgren",
+       "ids": {
+        "fantrax": "03xme",
+        "nhl": "8479292"
+       },
+       "team": "WSH",
+       "positions": [
+        "G"
+       ],
+       "primary_position": null,
+       "birth_date": "1993-12-18",
+       "status": "healthy",
+       "status_note": null,
+       "waiver_until": null,
+       "lines": {
+        "projected": {
+         "split": "projected",
+         "gp": 28,
+         "stats": {
+          "GP": 28.0,
+          "W": 14.0,
+          "GA": 86.0,
+          "SV": 675.0,
+          "SO": 2.0,
+          "PIM": 6.0,
+          "A": 1.0,
+          "FPTS": 173.75
+         }
+        },
+        "season": {
+         "split": "season",
+         "gp": 3,
+         "stats": {
+          "GP": 3.0,
+          "W": 2.0,
+          "GA": 9.0,
+          "SV": 70.0,
+          "SO": 0.0,
+          "PIM": 0.0,
+          "A": 0.0,
+          "FPTS": 18.5
+         }
+        },
+        "prior": {
+         "split": "prior",
+         "gp": 21,
+         "stats": {
+          "GP": 21.0,
+          "GS": 20.0,
+          "W": 9.0,
+          "L": 8.0,
+          "OTL": 3.0,
+          "GA": 73.0,
+          "SA": 602.0,
+          "SV": 529.0,
+          "SO": 1.0,
+          "GAA": 3.51515,
+          "SVPCT": 0.87873
+         }
+        },
+        "prior2": {
+         "split": "prior2",
+         "gp": 39,
+         "stats": {
+          "GP": 39.0,
+          "GS": 38.0,
+          "W": 20.0,
+          "L": 14.0,
+          "OTL": 3.0,
+          "GA": 104.0,
+          "SA": 985.0,
+          "SV": 883.0,
+          "SO": 1.0,
+          "GAA": 2.72846,
+          "SVPCT": 0.89644
+         }
+        },
+        "prior3": {
+         "split": "prior3",
+         "gp": 50,
+         "stats": {
+          "GP": 50.0,
+          "GS": 48.0,
+          "W": 25.0,
+          "L": 16.0,
+          "OTL": 7.0,
+          "GA": 127.0,
+          "SA": 1431.0,
+          "SV": 1304.0,
+          "SO": 6.0,
+          "GAA": 2.67145,
+          "SVPCT": 0.91125
+         }
+        }
+       },
+       "pct_owned": 20.0,
+       "draft_overall": null,
+       "draft_round": null,
+       "draft_year": null,
+       "career_gp": 173,
+       "pct_owned_change": -1.0,
+       "pct_started": null,
+       "adp": null,
+       "adp_change": null,
+       "toi_per_game": null,
+       "pp_toi_per_game": null,
+       "pp_share": null,
+       "toi_trend": null,
+       "pp_share_trend": null,
+       "line": "g",
+       "pp_unit": null,
+       "pk_unit": null,
+       "line_change": "G2 -> G1",
+       "usual_line": null,
+       "usual_pp_unit": null,
+       "confirmed_start": null,
+       "start_source": null,
+       "ixg_per_game": null,
+       "goals_minus_ixg": null,
+       "onice_sh_pct": null,
+       "onice_xg_pct": null,
+       "xg_split": null
+      },
+      "drop": {
+       "cid": "fantrax:05oxs",
+       "name": "Jakub Dobes",
+       "name_norm": "jakub dobes",
+       "ids": {
+        "fantrax": "05oxs",
+        "nhl": "8482487"
+       },
+       "team": "MTL",
+       "positions": [
+        "G"
+       ],
+       "primary_position": null,
+       "birth_date": "2001-05-27",
+       "status": "healthy",
+       "status_note": null,
+       "waiver_until": null,
+       "lines": {
+        "season": {
+         "split": "season",
+         "gp": 5,
+         "stats": {
+          "GP": 5.0,
+          "W": 1.0,
+          "GA": 22.0,
+          "SV": 122.0,
+          "SO": 0.0,
+          "PIM": 2.0,
+          "A": 0.0,
+          "FPTS": 14.5
+         }
+        },
+        "projected": {
+         "split": "projected",
+         "gp": 40,
+         "stats": {
+          "GP": 40.0,
+          "W": 26.0,
+          "GA": 108.0,
+          "SV": 993.0,
+          "SO": 0.0,
+          "PIM": 2.0,
+          "A": 0.0,
+          "FPTS": 271.25
+         }
+        },
+        "prior": {
+         "split": "prior",
+         "gp": 43,
+         "stats": {
+          "GP": 43.0,
+          "GS": 42.0,
+          "W": 29.0,
+          "L": 10.0,
+          "OTL": 4.0,
+          "GA": 117.0,
+          "SA": 1187.0,
+          "SV": 1070.0,
+          "SO": 0.0,
+          "GAA": 2.77955,
+          "SVPCT": 0.90143
+         }
+        },
+        "prior2": {
+         "split": "prior2",
+         "gp": 16,
+         "stats": {
+          "GP": 16.0,
+          "GS": 15.0,
+          "W": 7.0,
+          "L": 4.0,
+          "OTL": 3.0,
+          "GA": 40.0,
+          "SA": 440.0,
+          "SV": 400.0,
+          "SO": 1.0,
+          "GAA": 2.74353,
+          "SVPCT": 0.90909
+         }
+        }
+       },
+       "pct_owned": 93.0,
+       "draft_overall": null,
+       "draft_round": null,
+       "draft_year": null,
+       "career_gp": null,
+       "pct_owned_change": -5.0,
+       "pct_started": null,
+       "adp": null,
+       "adp_change": null,
+       "toi_per_game": null,
+       "pp_toi_per_game": null,
+       "pp_share": null,
+       "toi_trend": null,
+       "pp_share_trend": null,
+       "line": "g",
+       "pp_unit": null,
+       "pk_unit": null,
+       "line_change": null,
+       "usual_line": null,
+       "usual_pp_unit": null,
+       "confirmed_start": null,
+       "start_source": null,
+       "ixg_per_game": null,
+       "goals_minus_ixg": null,
+       "onice_sh_pct": null,
+       "onice_xg_pct": null,
+       "xg_split": null
+      },
+      "to_ir": null,
+      "gain_pts": 12.92,
+      "win_delta": 0.137,
+      "starts": [
+       "2026-10-28",
+       "2026-10-29",
+       "2026-11-01"
+      ],
+      "headline": "Charlie Lindgren starts 3 nights for you (Wed, Thu, Sun); Jakub Dobes would have started 1 of his 2 games left (Thu)",
+      "market": "model disagrees with market",
+      "claim": false,
+      "reasons": [
+       "Long term: Charlie Lindgren 11.0 vs Jakub Dobes 10.9 dynasty value (an upgrade, +0.1)",
+       "Jakub Dobes was added 4 days ago, dropping him anyway: Charlie Lindgren is +2.98 FPG over him"
+      ],
+      "chain": null,
+      "role": null,
+      "note": "",
+      "timing": "Make this move the evening before (after Jakub Dobes's game starts Tue at 6:00 PM your time), so he keeps those points and Charlie Lindgren counts Wed",
+      "status": ""
+     }
+    ],
+    "ins": [],
+    "outs": [],
+    "goalies": [
+     "Juuse Saros 77% NYI",
+     "Jakub Dobes 44% @STL"
+    ],
+    "pregame": true,
+    "quick_ok": true,
+    "pts_plan": 48.96,
+    "pts_as_set": 48.47,
+    "pts_frozen": 30.6,
+    "note": "",
+    "text": "Add Charlie Lindgren, drop Jakub Dobes (counts from Wed), then quick lineup; G: Juuse Saros 77% NYI, Jakub Dobes 44% @STL \u00b7 check goalies at 5 pm"
+   },
+   {
+    "day": "2026-10-28",
+    "moves": [],
+    "ins": [],
+    "outs": [],
+    "goalies": [
+     "Charlie Lindgren 94% PHI",
+     "Mackenzie Blackwood 61% NJD"
+    ],
+    "pregame": true,
+    "quick_ok": true,
+    "pts_plan": 17.43,
+    "pts_as_set": 12.16,
+    "pts_frozen": 12.16,
+    "note": "",
+    "text": "G: Charlie Lindgren 94% PHI, Mackenzie Blackwood 61% NJD \u00b7 check goalies at 5 pm"
+   },
+   {
+    "day": "2026-10-29",
+    "moves": [],
+    "ins": [],
+    "outs": [],
+    "goalies": [
+     "Charlie Lindgren 35% @NSH",
+     "Juuse Saros 77% WSH"
+    ],
+    "pregame": true,
+    "quick_ok": true,
+    "pts_plan": 45.46,
+    "pts_as_set": 41.43,
+    "pts_frozen": 20.88,
+    "note": "",
+    "text": "G: Charlie Lindgren 35% @NSH, Juuse Saros 77% WSH \u00b7 check goalies at 5 pm"
+   },
+   {
+    "day": "2026-10-30",
+    "moves": [],
+    "ins": [],
+    "outs": [],
+    "goalies": [],
+    "pregame": false,
+    "quick_ok": true,
+    "pts_plan": 12.89,
+    "pts_as_set": 12.89,
+    "pts_frozen": 12.89,
+    "note": "",
+    "text": "Quick lineup is fine"
+   },
+   {
+    "day": "2026-10-31",
+    "moves": [],
+    "ins": [],
+    "outs": [],
+    "goalies": [
+     "Juuse Saros 77% TBL",
+     "Mackenzie Blackwood 61% CGY"
+    ],
+    "pregame": true,
+    "quick_ok": true,
+    "pts_plan": 42.32,
+    "pts_as_set": 40.68,
+    "pts_frozen": 28.24,
+    "note": "",
+    "text": "G: Juuse Saros 77% TBL, Mackenzie Blackwood 61% CGY \u00b7 check goalies at 5 pm"
+   },
+   {
+    "day": "2026-11-01",
+    "moves": [],
+    "ins": [],
+    "outs": [],
+    "goalies": [
+     "Charlie Lindgren 94% MIN"
+    ],
+    "pregame": false,
+    "quick_ok": true,
+    "pts_plan": 28.48,
+    "pts_as_set": 18.9,
+    "pts_frozen": 13.66,
+    "note": "",
+    "text": "Quick lineup is fine; G: Charlie Lindgren 94% MIN"
+   }
+  ],
+  "watch": [
+   "Jared McCann sits in an IR slot, so keeping him costs nothing; ~260 pts after his return",
+   "Owen Tippett sits in an IR slot, so keeping him costs nothing; ~236 pts after his return"
+  ],
+  "claim_watch": [],
+  "net_week": [
+   "Net this week: Quinton Byfield, Jakub Dobes gone; Dylan Cozens, Charlie Lindgren stay; long term +1.5 dynasty value; +21.0 pts this matchup"
+  ],
+  "since": null,
+  "notes": [
+   "Fantrax free-agent adds count the same day when made before the day's first game (else from the next day); waiver claims from the day after they clear."
+  ],
+  "available": true,
+  "lineup_gain": 0.0,
+  "moves_gain": 21.0,
+  "my_projected_total": 216.15,
+  "their_projected_total": 193.46
+ }
+}

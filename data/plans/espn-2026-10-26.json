@@ -1,0 +1,248 @@
+[
+ {
+  "created": "2026-10-26T22:03:13+00:00",
+  "as_of": "2026-10-26",
+  "moves_left": 2,
+  "moves": [
+   {
+    "day": "2026-10-26",
+    "effective": "2026-10-26",
+    "add": {
+     "cid": "espn:3151136",
+     "name": "Jake Walman",
+     "positions": [
+      "D"
+     ]
+    },
+    "drop": null,
+    "to_ir": null,
+    "gain_pts": 6.41,
+    "waiver": null
+   }
+  ],
+  "today": [],
+  "roster": {
+   "espn:3114727": {
+    "name": "Leon Draisaitl",
+    "ir": false
+   },
+   "espn:3648002": {
+    "name": "Jack Eichel",
+    "ir": false
+   },
+   "espn:5509": {
+    "name": "Zach Hyman",
+    "ir": false
+   },
+   "espn:3891952": {
+    "name": "Artemi Panarin",
+    "ir": false
+   },
+   "espn:4996097": {
+    "name": "Brandon Bussi",
+    "ir": false
+   },
+   "espn:4874722": {
+    "name": "Brandt Clarke",
+    "ir": false
+   },
+   "espn:3151187": {
+    "name": "Brayden Point",
+    "ir": false
+   },
+   "espn:5342529": {
+    "name": "Gavin McKenna",
+    "ir": false
+   },
+   "espn:2976833": {
+    "name": "Morgan Rielly",
+    "ir": false
+   },
+   "espn:3652964": {
+    "name": "Noah Hanifin",
+    "ir": false
+   },
+   "espn:3735": {
+    "name": "Patrick Kane",
+    "ir": false
+   },
+   "espn:3020225": {
+    "name": "Connor Hellebuyck",
+    "ir": true
+   },
+   "espn:3042056": {
+    "name": "Tyler Bertuzzi",
+    "ir": false
+   },
+   "espn:3852": {
+    "name": "Brad Marchand",
+    "ir": true
+   },
+   "espn:3539": {
+    "name": "Kris Letang",
+    "ir": false
+   },
+   "espn:4565255": {
+    "name": "Shane Pinto",
+    "ir": false
+   },
+   "espn:3114717": {
+    "name": "Aaron Ekblad",
+    "ir": false
+   },
+   "espn:3775": {
+    "name": "Claude Giroux",
+    "ir": false
+   },
+   "espn:2563054": {
+    "name": "Boone Jenner",
+    "ir": false
+   },
+   "espn:4268767": {
+    "name": "Stuart Skinner",
+    "ir": false
+   },
+   "espn:2564164": {
+    "name": "Nick Seeler",
+    "ir": false
+   },
+   "espn:4697468": {
+    "name": "Will Cuylle",
+    "ir": false
+   },
+   "espn:3069687": {
+    "name": "Josh Anderson",
+    "ir": false
+   }
+  },
+  "signature": "[[\"[\\\"espn:3151136\\\", null, null]\"], [[\"espn:2563054\", false], [\"espn:2564164\", false], [\"espn:2976833\", false], [\"espn:3020225\", true], [\"espn:3042056\", false], [\"espn:3069687\", false], [\"espn:3114717\", false], [\"espn:3114727\", false], [\"espn:3151187\", false], [\"espn:3539\", false], [\"espn:3648002\", false], [\"espn:3652964\", false], [\"espn:3735\", false], [\"espn:3775\", false], [\"espn:3852\", true], [\"espn:3891952\", false], [\"espn:4268767\", false], [\"espn:4565255\", false], [\"espn:4697468\", false], [\"espn:4874722\", false], [\"espn:4996097\", false], [\"espn:5342529\", false], [\"espn:5509\", false]]]"
+ },
+ {
+  "created": "2026-10-26T22:05:08+00:00",
+  "as_of": "2026-10-26",
+  "moves_left": 1,
+  "moves": [
+   {
+    "day": "2026-10-26",
+    "effective": "2026-10-26",
+    "add": {
+     "cid": "espn:3149839",
+     "name": "Jake Middleton",
+     "positions": [
+      "D"
+     ]
+    },
+    "drop": {
+     "cid": "espn:3114717",
+     "name": "Aaron Ekblad",
+     "positions": [
+      "D"
+     ]
+    },
+    "to_ir": null,
+    "gain_pts": 3.13,
+    "waiver": null
+   }
+  ],
+  "today": [],
+  "roster": {
+   "espn:3114727": {
+    "name": "Leon Draisaitl",
+    "ir": false
+   },
+   "espn:3648002": {
+    "name": "Jack Eichel",
+    "ir": false
+   },
+   "espn:5509": {
+    "name": "Zach Hyman",
+    "ir": false
+   },
+   "espn:3891952": {
+    "name": "Artemi Panarin",
+    "ir": false
+   },
+   "espn:4996097": {
+    "name": "Brandon Bussi",
+    "ir": false
+   },
+   "espn:4874722": {
+    "name": "Brandt Clarke",
+    "ir": false
+   },
+   "espn:3151187": {
+    "name": "Brayden Point",
+    "ir": false
+   },
+   "espn:5342529": {
+    "name": "Gavin McKenna",
+    "ir": false
+   },
+   "espn:2976833": {
+    "name": "Morgan Rielly",
+    "ir": false
+   },
+   "espn:3652964": {
+    "name": "Noah Hanifin",
+    "ir": false
+   },
+   "espn:3735": {
+    "name": "Patrick Kane",
+    "ir": false
+   },
+   "espn:3020225": {
+    "name": "Connor Hellebuyck",
+    "ir": true
+   },
+   "espn:3042056": {
+    "name": "Tyler Bertuzzi",
+    "ir": false
+   },
+   "espn:3852": {
+    "name": "Brad Marchand",
+    "ir": true
+   },
+   "espn:3539": {
+    "name": "Kris Letang",
+    "ir": false
+   },
+   "espn:4565255": {
+    "name": "Shane Pinto",
+    "ir": false
+   },
+   "espn:3114717": {
+    "name": "Aaron Ekblad",
+    "ir": false
+   },
+   "espn:3775": {
+    "name": "Claude Giroux",
+    "ir": false
+   },
+   "espn:2563054": {
+    "name": "Boone Jenner",
+    "ir": false
+   },
+   "espn:4268767": {
+    "name": "Stuart Skinner",
+    "ir": false
+   },
+   "espn:2564164": {
+    "name": "Nick Seeler",
+    "ir": false
+   },
+   "espn:4697468": {
+    "name": "Will Cuylle",
+    "ir": false
+   },
+   "espn:3069687": {
+    "name": "Josh Anderson",
+    "ir": false
+   },
+   "espn:3151136": {
+    "name": "Jake Walman",
+    "ir": false
+   }
+  },
+  "signature": "[[\"[\\\"espn:3149839\\\", \\\"espn:3114717\\\", null]\"], [[\"espn:2563054\", false], [\"espn:2564164\", false], [\"espn:2976833\", false], [\"espn:3020225\", true], [\"espn:3042056\", false], [\"espn:3069687\", false], [\"espn:3114717\", false], [\"espn:3114727\", false], [\"espn:3151136\", false], [\"espn:3151187\", false], [\"espn:3539\", false], [\"espn:3648002\", false], [\"espn:3652964\", false], [\"espn:3735\", false], [\"espn:3775\", false], [\"espn:3852\", true], [\"espn:3891952\", false], [\"espn:4268767\", false], [\"espn:4565255\", false], [\"espn:4697468\", false], [\"espn:4874722\", false], [\"espn:4996097\", false], [\"espn:5342529\", false], [\"espn:5509\", false]]]"
+ }
+]

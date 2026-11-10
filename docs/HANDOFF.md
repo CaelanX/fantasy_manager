@@ -35,10 +35,10 @@ Open the repository on this branch and tell the assistant:
 
 ## Setting up the other machine
 
-Not in git, so each machine has its own: `.env` (league ids, cookies, model settings), the `data/` folder (HTTP cache, harness ledger, status history, saved chats, watchlist) and `target/`.
+The `data/` folder is in git on this branch (harness ledger, status history, crosswalk, archives, prefs, watchlist, saved chats), so the goalie start-share fixes have their history on any machine. Not in git: `.env` (league ids, cookies, model settings), `target/`, the HTTP caches (`data/cache.db`, `data/fantrax_cache/`, rebuilt on the first load) and the Fantrax login session (`data/fantrax_session.json`, so the other machine logs in again).
 
 - **Build:** `cargo build --release -p fm-cli`, then `target/release/fm web`.
-- **Data:** recommendations work from a fresh `data/` folder, but the harness ledger and status history are what the goalie start-share fixes read. Without them, start shares fall back to projections until the daily task has run for a while. Copy `data/` across if the same history is wanted.
+- **One machine at a time:** `data/harness.db` is a binary file, so two machines both running the daily task and committing it will conflict. Run the daily task on one machine, or pull before it runs.
 - **Local model for the Ask tab (optional):** install Ollama 0.40.4 or later, run `ollama pull ifm/k2-horizon:7b`, set `OLLAMA_CONTEXT_LENGTH=16384` (and `OLLAMA_IGPU_ENABLE=1` on a PC with only integrated graphics), restart Ollama, and add `FM_LLM_BASE_URL=http://localhost:11434/v1` and `FM_LLM_MODEL=ifm/k2-horizon:7b` to `.env`.
 
 ## League facts the owner confirmed

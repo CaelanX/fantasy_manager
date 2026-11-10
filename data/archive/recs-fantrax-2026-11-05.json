@@ -1,0 +1,3586 @@
+{
+ "version": 3,
+ "provider": "fantrax",
+ "league_id": "oq3cj6dkmufzrxl9",
+ "as_of": "2026-11-05",
+ "archived_at": "2026-11-05T12:56:24",
+ "params_hash": "f46ed5d45a2d574d35f9b22154cc0037bfa5f6ce",
+ "code_hash": "rust:0.1.0",
+ "recommendations": [
+  {
+   "kind": "injury",
+   "score": 10.0,
+   "title": "Hold Jared McCann in IR (back ~Dec 5): it costs no roster spot",
+   "add": [],
+   "drop": [],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 1.0,
+   "reasons": [
+    {
+     "code": "RETURN_ESTIMATE",
+     "text": "Jared McCann: back ~Dec 5, ~12 of 69 games missed (IR without a timetable, 30 days assumed, a guess)",
+     "value": 12.0,
+     "baseline": 69.0
+    },
+    {
+     "code": "HOLD_VERDICT",
+     "text": "Jared McCann sits in an IR slot, so keeping him costs nothing; ~233 pts after his return",
+     "value": 233.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "injury engine score 0.000 (rank 1/1)",
+     "value": 0.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "lineup",
+   "score": 10.0,
+   "title": "Start Jakub Dobes over Juuse Saros today",
+   "add": [
+    {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "nhl_id": 8482487,
+     "team": "MTL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:031pl",
+     "name": "Juuse Saros",
+     "nhl_id": 8477424,
+     "team": "NSH",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 1.4651,
+   "gain_units": "day_pts",
+   "horizon_days": 1,
+   "strength": 2.47,
+   "reasons": [
+    {
+     "code": "LINEUP_GAIN",
+     "text": "+1.47 (today) from this change",
+     "value": 1.4650969893015588,
+     "baseline": 0.5
+    },
+    {
+     "code": "DAY_VALUE",
+     "text": "Jakub Dobes: 5.89 projected pts today",
+     "value": 5.891677303856163,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_LEFT",
+     "text": "Jakub Dobes: 2 games left this matchup (through Sun Nov 8)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "DAY_VALUE",
+     "text": "Juuse Saros: 4.43 projected pts today",
+     "value": 4.426580314554604,
+     "baseline": null
+    },
+    {
+     "code": "GAMES_LEFT",
+     "text": "Juuse Saros: 2 games left this matchup (through Sun Nov 8)",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "CONFIRMED_START",
+     "text": "Jakub Dobes: start probability today 100% (season share 45%); DFO Confirmed: Jakub Dobes starts UTA@MTL (Montreal Canadiens, Nov 05 16:09 UTC)",
+     "value": 1.0,
+     "baseline": 0.45017421602787455
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "lineup engine score 1.465 (rank 1/1)",
+     "value": 1.4650969893015588,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 10.0,
+   "title": "Add Kris Letang, drop Jakub Dobes for this matchup",
+   "add": [
+    {
+     "cid": "fantrax:0045j",
+     "name": "Kris Letang",
+     "nhl_id": 8471724,
+     "team": "PIT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "nhl_id": 8482487,
+     "team": "MTL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 8.2428,
+   "gain_units": "matchup_pts",
+   "horizon_days": 4,
+   "strength": 9.77,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+4.12 FPG (week, best lineup each day) (fills empty D slot; drop bench G Jakub Dobes)",
+     "value": 4.121421029744788,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+8.2 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 8.242842059489575,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Kris Letang: 4.78 FPG, VORP -0.37",
+     "value": 4.775620570789605,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Jakub Dobes: 2.78 FPG, VORP -1.63",
+     "value": 2.7848952719203037,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "15 GP this season + 182 weighted from the last 3 seasons -> confidence 0.92",
+     "value": 15.0,
+     "baseline": 0.9157540016849199
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (roster limit 16: would roster 17 players): drop Jakub Dobes (bench) to make room",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "DYNASTY_COST",
+     "text": "Long term: Kris Letang 3.2 vs Jakub Dobes 2.7 value (this season + top-3 keepers) (an upgrade, +0.6)",
+     "value": 0.5891684889311346,
+     "baseline": 2.6522812113526704
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Kris Letang rostered 48% (-3.0 this week): falling league-wide, no rush (others are dropping him)",
+     "value": -3.0,
+     "baseline": 48.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Kris Letang: market 10th pct (rostered %/Fantrax projected FP/G) vs model 8th (-2): market agrees",
+     "value": -2.1,
+     "baseline": 9.8
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Jakub Dobes: market 56th pct (rostered %/Fantrax projected FP/G) vs model 20th (-36): model disagrees with market, rates him lower (goalie save talent (GSAx), goalie start share)",
+     "value": -36.1,
+     "baseline": 56.4
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 4.121 (rank 1/7)",
+     "value": 4.121421029744788,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 8.5714,
+   "title": "Add Erik Cernak, drop Jakub Dobes for this matchup",
+   "add": [
+    {
+     "cid": "fantrax:03rew",
+     "name": "Erik Cernak",
+     "nhl_id": 8478416,
+     "team": "TBL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "nhl_id": 8482487,
+     "team": "MTL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 6.979,
+   "gain_units": "matchup_pts",
+   "horizon_days": 4,
+   "strength": 9.17,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+3.49 FPG (week, best lineup each day) (fills empty D slot; drop bench G Jakub Dobes)",
+     "value": 3.4895047193850317,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+7.0 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 6.979009438770063,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Erik Cernak: 4.13 FPG, VORP -1.02",
+     "value": 4.127325927032441,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Jakub Dobes: 2.78 FPG, VORP -1.63",
+     "value": 2.7848952719203037,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "13 GP this season + 163 weighted from the last 3 seasons -> confidence 0.91",
+     "value": 13.0,
+     "baseline": 0.9074930619796484
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (roster limit 16: would roster 17 players): drop Jakub Dobes (bench) to make room",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "DYNASTY_COST",
+     "text": "Long term: Erik Cernak 2.7 vs Jakub Dobes 2.7 value (this season + top-3 keepers) (an upgrade, +0.1)",
+     "value": 0.09103482225847159,
+     "baseline": 2.6522812113526704
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Erik Cernak rostered 8% (-1.0 this week)",
+     "value": -1.0,
+     "baseline": 8.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Erik Cernak: market 1st pct (rostered %/Fantrax projected FP/G) vs model 2nd (+1): market agrees",
+     "value": 0.5,
+     "baseline": 1.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Jakub Dobes: market 56th pct (rostered %/Fantrax projected FP/G) vs model 20th (-36): model disagrees with market, rates him lower (goalie save talent (GSAx), goalie start share)",
+     "value": -36.1,
+     "baseline": 56.4
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 3.490 (rank 2/7)",
+     "value": 3.4895047193850317,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 7.1429,
+   "title": "Add Tristan Luneau, drop Jakub Dobes for this matchup",
+   "add": [
+    {
+     "cid": "fantrax:05rj3",
+     "name": "Tristan Luneau",
+     "nhl_id": 8483482,
+     "team": "ANA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "nhl_id": 8482487,
+     "team": "MTL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 6.9151,
+   "gain_units": "matchup_pts",
+   "horizon_days": 4,
+   "strength": 7.79,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+3.46 FPG (week, best lineup each day) (fills empty D slot; drop bench G Jakub Dobes)",
+     "value": 3.4575654817320896,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+6.9 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 6.915130963464179,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Tristan Luneau: 4.27 FPG, VORP -0.88",
+     "value": 4.269841431055961,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Jakub Dobes: 2.78 FPG, VORP -1.63",
+     "value": 2.7848952719203037,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "15 GP this season + 10 weighted from the last 3 seasons -> confidence 0.69",
+     "value": 15.0,
+     "baseline": 0.6923076923076923
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (roster limit 16: would roster 17 players): drop Jakub Dobes (bench) to make room",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "DYNASTY_COST",
+     "text": "Long term: Tristan Luneau 2.7 vs Jakub Dobes 2.7 value (this season + top-3 keepers) (an upgrade, +0.1)",
+     "value": 0.056300575826578214,
+     "baseline": 2.6522812113526704
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Tristan Luneau rostered 57% (+7.0 this week): rising, grab him before the league does (score x1.35)",
+     "value": 7.0,
+     "baseline": 57.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Tristan Luneau: market 4th pct (rostered %/Fantrax projected FP/G) vs model 2nd (-2): market agrees",
+     "value": -1.8,
+     "baseline": 3.6
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Jakub Dobes: market 56th pct (rostered %/Fantrax projected FP/G) vs model 20th (-36): model disagrees with market, rates him lower (goalie save talent (GSAx), goalie start share)",
+     "value": -36.1,
+     "baseline": 56.4
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 3.458 (rank 3/7)",
+     "value": 3.4575654817320896,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 5.7143,
+   "title": "Add Maxwell Crozier, drop Jakub Dobes for this matchup",
+   "add": [
+    {
+     "cid": "fantrax:051ug",
+     "name": "Maxwell Crozier",
+     "nhl_id": null,
+     "team": "TBL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "nhl_id": 8482487,
+     "team": "MTL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 6.8975,
+   "gain_units": "matchup_pts",
+   "horizon_days": 4,
+   "strength": 7.02,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+3.45 FPG (week, best lineup each day) (fills empty D slot; drop bench G Jakub Dobes)",
+     "value": 3.448732370978142,
+     "baseline": 0.6
+    },
+    {
+     "code": "MATCHUP_GAIN",
+     "text": "+6.9 pts through Sun Nov 8 with the best lineup set each day",
+     "value": 6.897464741956284,
+     "baseline": null
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Maxwell Crozier: 4.09 FPG, VORP -1.06",
+     "value": 4.087468359599065,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Jakub Dobes: 2.78 FPG, VORP -1.63",
+     "value": 2.7848952719203037,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "8 GP this season, no prior NHL games -> confidence 0.58",
+     "value": 8.0,
+     "baseline": 0.5833333333333334
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (roster limit 16: would roster 17 players): drop Jakub Dobes (bench) to make room",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "DYNASTY_COST",
+     "text": "Long term: Maxwell Crozier 2.7 vs Jakub Dobes 2.7 value (this season + top-3 keepers) (an upgrade, +0.1)",
+     "value": 0.0645426319798772,
+     "baseline": 2.6522812113526704
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Maxwell Crozier rostered 8% (+0.0 this week)",
+     "value": 0.0,
+     "baseline": 8.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Maxwell Crozier: market 0th pct (rostered %/Fantrax projected FP/G) vs model 2nd (+2): market agrees",
+     "value": 1.7,
+     "baseline": 0.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Jakub Dobes: market 56th pct (rostered %/Fantrax projected FP/G) vs model 20th (-36): model disagrees with market, rates him lower (goalie save talent (GSAx), goalie start share)",
+     "value": -36.1,
+     "baseline": 56.4
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 3.449 (rank 4/7)",
+     "value": 3.448732370978142,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 4.2857,
+   "title": "Add Dougie Hamilton, drop Jakub Dobes",
+   "add": [
+    {
+     "cid": "fantrax:02azf",
+     "name": "Dougie Hamilton",
+     "nhl_id": 8476462,
+     "team": "NJD",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "nhl_id": 8482487,
+     "team": "MTL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 3.7685,
+   "gain_units": "season_fpg",
+   "horizon_days": null,
+   "strength": 10.0,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "fills empty D slot (+3.77 FPG, season); drop bench G Jakub Dobes",
+     "value": 3.7684836961182384,
+     "baseline": 0.6
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Dougie Hamilton: 3.77 FPG, VORP +0.17",
+     "value": 3.7684836961182375,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Jakub Dobes: 2.65 FPG, VORP -0.88",
+     "value": 2.6522812113526704,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "15 GP this season + 140 weighted from the last 3 seasons -> confidence 0.90",
+     "value": 15.0,
+     "baseline": 0.8975409836065573
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (roster limit 16: would roster 17 players): drop Jakub Dobes (bench) to make room",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "DYNASTY_COST",
+     "text": "Long term: Dougie Hamilton 3.8 vs Jakub Dobes 2.7 value (this season + top-3 keepers) (an upgrade, +1.1)",
+     "value": 1.1162024847655672,
+     "baseline": 2.6522812113526704
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Dougie Hamilton rostered 82% (-3.0 this week): falling league-wide, no rush (others are dropping him)",
+     "value": -3.0,
+     "baseline": 82.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Dougie Hamilton: market 32nd pct (rostered %/Fantrax projected FP/G) vs model 21st (-10): market agrees",
+     "value": -10.4,
+     "baseline": 31.5
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Jakub Dobes: market 56th pct (rostered %/Fantrax projected FP/G) vs model 20th (-36): model disagrees with market, rates him lower (goalie save talent (GSAx), goalie start share)",
+     "value": -36.1,
+     "baseline": 56.4
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 3.382 (rank 5/7)",
+     "value": 3.3823685633192384,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 2.8571,
+   "title": "Add John Gibson, drop Jakub Dobes",
+   "add": [
+    {
+     "cid": "fantrax:02b3y",
+     "name": "John Gibson",
+     "nhl_id": 8476434,
+     "team": "DET",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "nhl_id": 8482487,
+     "team": "MTL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 1.0502,
+   "gain_units": "season_fpg",
+   "horizon_days": null,
+   "strength": 5.65,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+1.05 FPG (season) over dropping Jakub Dobes",
+     "value": 1.0501549942815611,
+     "baseline": 0.6
+    },
+    {
+     "code": "WAIVER_CLAIM",
+     "text": "John Gibson is on waivers until Fri: claim, won't be available before then (2 of 3 games Nov 05-Nov 11 count)",
+     "value": 2.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "John Gibson: 3.70 FPG, VORP +0.17",
+     "value": 3.7024362056342315,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Jakub Dobes: 2.65 FPG, VORP -0.88",
+     "value": 2.6522812113526704,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "11 GP this season + 108 weighted from the last 3 seasons -> confidence 0.87",
+     "value": 11.0,
+     "baseline": 0.8740554156171284
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (roster limit 16: would roster 17 players): drop Jakub Dobes (same position) to make room",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "DYNASTY_DROP",
+     "text": "Keeper-league value John Gibson 3.70 vs Jakub Dobes 2.65 (this season + the change in your top-3 keepers; lowest-value droppable same-slot player; needs x1.15)",
+     "value": 3.7024362056342315,
+     "baseline": 2.6522812113526704
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "DYNASTY_GAIN",
+     "text": "Dynasty gain +1.05 over Jakub Dobes (score basis)",
+     "value": 1.0501549942815611,
+     "baseline": null
+    },
+    {
+     "code": "STATUS",
+     "text": "John Gibson is out (Lower Body: out (est. return 2026-11-07))",
+     "value": 0.6415092459748127,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "John Gibson rostered 55% (-4.0 this week): falling league-wide, no rush (others are dropping him)",
+     "value": -4.0,
+     "baseline": 55.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) John Gibson: market 36th pct (rostered %/Fantrax projected FP/G) vs model 62nd (+26): model disagrees with market, rates him higher (goalie save talent (GSAx), injury return estimate, goalie start share)",
+     "value": 26.4,
+     "baseline": 35.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Jakub Dobes: market 56th pct (rostered %/Fantrax projected FP/G) vs model 20th (-36): model disagrees with market, rates him lower (goalie save talent (GSAx), goalie start share)",
+     "value": -36.1,
+     "baseline": 56.4
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 0.918 (rank 6/7)",
+     "value": 0.917893659989173,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "waiver",
+   "score": 1.4286,
+   "title": "Add Dylan Cozens, drop Ivar Stenberg",
+   "add": [
+    {
+     "cid": "fantrax:04mtp",
+     "name": "Dylan Cozens",
+     "nhl_id": 8481528,
+     "team": "OTT",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:06psl",
+     "name": "Ivar Stenberg",
+     "nhl_id": 8486103,
+     "team": "SJS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": null,
+   "predicted_gain": 0.9462,
+   "gain_units": "season_fpg",
+   "horizon_days": null,
+   "strength": 5.45,
+   "reasons": [
+    {
+     "code": "VORP_DELTA",
+     "text": "+0.95 FPG (season) over dropping Ivar Stenberg",
+     "value": 0.9461573450716951,
+     "baseline": 0.6
+    },
+    {
+     "code": "FPG_ADD",
+     "text": "Dylan Cozens: 4.58 FPG, VORP +0.06",
+     "value": 4.584683991284813,
+     "baseline": null
+    },
+    {
+     "code": "FPG_DROP",
+     "text": "Ivar Stenberg: 3.64 FPG, VORP -0.89",
+     "value": 3.6385266462131183,
+     "baseline": null
+    },
+    {
+     "code": "GP",
+     "text": "17 GP this season + 195 weighted from the last 3 seasons -> confidence 0.92",
+     "value": 17.0,
+     "baseline": 0.9206349206349207
+    },
+    {
+     "code": "POSITION_CAP",
+     "text": "League roster maximum (roster limit 16: would roster 17 players): drop Ivar Stenberg (same position) to make room",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "DYNASTY_DROP",
+     "text": "Keeper-league value Dylan Cozens 4.58 vs Ivar Stenberg 3.64 (this season + the change in your top-3 keepers; lowest-value droppable same-slot player; needs x1.15)",
+     "value": 4.584683991284813,
+     "baseline": 3.6385266462131183
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "DYNASTY_GAIN",
+     "text": "Dynasty gain +0.95 over Ivar Stenberg (score basis)",
+     "value": 0.9461573450716951,
+     "baseline": null
+    },
+    {
+     "code": "OWNERSHIP_TREND",
+     "text": "Dylan Cozens rostered 84% (-1.0 this week)",
+     "value": -1.0,
+     "baseline": 84.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (add) Dylan Cozens: market 51st pct (rostered %/Fantrax projected FP/G) vs model 61st (+10): market agrees",
+     "value": 10.0,
+     "baseline": 51.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (drop) Ivar Stenberg: market 16th pct (rostered %/Fantrax projected FP/G) vs model 16th (+0): market agrees",
+     "value": 0.1,
+     "baseline": 16.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "waiver engine score 0.871 (rank 7/7)",
+     "value": 0.8710654922882273,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 10.0,
+   "title": "Anthony Cirelli (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rfl",
+     "name": "Anthony Cirelli",
+     "nhl_id": 8478519,
+     "team": "TBL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Anthony Cirelli: PP2 -> PP1 per Daily Faceoff (Last Game (2026-11-03), updated Nov 04 15:05 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Anthony Cirelli now on PP1 (Daily Faceoff (Last Game (2026-11-03), updated Nov 04 15:05 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 1/26)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 10.0,
+   "title": "Trade William Nylander to Miff Bucannons V4 for Jakob Chychrun + Leo Carlsson + their 2027 R1 pick",
+   "add": [
+    {
+     "cid": "fantrax:03mqg",
+     "name": "Jakob Chychrun",
+     "nhl_id": 8479345,
+     "team": "WSH",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "fantrax:05y3a",
+     "name": "Leo Carlsson",
+     "nhl_id": 8484153,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:02yjj",
+     "name": "William Nylander",
+     "nhl_id": 8477939,
+     "team": "TOR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Miff Bucannons V4",
+   "predicted_gain": 0.6113,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 9.56,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.61 pts/game this season (+1.8 pts/week, +41 rest of season) (dynasty +0.96; balanced edge +1.57)",
+     "value": 1.566984224599515,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (rostered %/Fantrax projected FP/G/dynasty value, +5 worth pts to them); acceptance ~65%",
+     "value": 9.977723983931504,
+     "baseline": 4.977723983931504
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "William Nylander fills Miff Bucannons V4's weakest slot F (starter VORP +0.00)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; Miff Bucannons V4 can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 64% (prior logistic: they get 51, give 46 market pts; +5 fills their weakest slot; x0.85: contender, no help this season -> +10.0 pts). EV = +1.57 x 0.64 = +1.00",
+     "value": 0.6371097276834364,
+     "baseline": 0.7495408560981606
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+1.8 pts/week (+0.61/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 1.8484663438236488,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+41 pts rest of season (+0.61/game x 68 games left)",
+     "value": 41.45845942575898,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.61 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.6113177663315668,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Miff Bucannons V4 lineup -0.61 FPG (our model)",
+     "value": -0.6113177663315597,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Jakob Chychrun (4.89), Leo Carlsson (4.82): 9.71 dynasty",
+     "value": 9.714401361186866,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send William Nylander (5.33): 5.33 dynasty",
+     "value": 5.334599898737065,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 14% (shown only; old band 15%)",
+     "value": 0.13757841352835787,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.17 (Leo Carlsson replaces Seth Jarvis as a keeper); this season +1.73; draft picks +1.16 = dynasty value +3.07 for me (+0.96 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.9556664582679482,
+     "baseline": 3.0657779981235778
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "PICK_IN",
+     "text": "Ask for Miff Bucannons V4's 2027 R1 pick (dynasty value 4.0, 1.2 net of its roster spot; expected slot 11): the deal is far in their favour by market value, so a pick back evens it",
+     "value": 1.163524487779585,
+     "baseline": 3.9865610003519065
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jakob Chychrun: market 70th pct (rostered %/Fantrax projected FP/G) vs model 71st (+1): market agrees",
+     "value": 1.3,
+     "baseline": 70.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Leo Carlsson: market 55th pct (rostered %/Fantrax projected FP/G) vs model 67th (+12): market agrees",
+     "value": 11.8,
+     "baseline": 54.9
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) William Nylander: market 82nd pct (rostered %/Fantrax projected FP/G) vs model 83rd (+2): market agrees",
+     "value": 1.6,
+     "baseline": 81.6
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) 2027 R1 pick: model-only value 4.0 (1.2 net of its roster spot; expected slot 11); no consensus source for draft picks",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.998 (rank 1/10)",
+     "value": 0.9983408926188377,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.6154,
+   "title": "Anton Frondell (free agent) promoted to PP1 (F2 -> F3; PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06jhd",
+     "name": "Anton Frondell",
+     "nhl_id": 8485391,
+     "team": "CHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Anton Frondell: F2 -> F3; PP2 -> PP1 per Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:06 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Anton Frondell now on PP1 (Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:06 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 2/26)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 9.2308,
+   "title": "Mason McTavish (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05gd8",
+     "name": "Mason McTavish",
+     "nhl_id": 8482745,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Mason McTavish: PP2 -> PP1 per Daily Faceoff (Jeremy Rutherford, updated Nov 05 17:31 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Mason McTavish now on PP1 (Daily Faceoff (Jeremy Rutherford, updated Nov 05 17:31 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 3/26)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 9.0,
+   "title": "Trade Jack Eichel to Jaydentrapp for Evan Bouchard + Will Cuylle",
+   "add": [
+    {
+     "cid": "fantrax:04lc0",
+     "name": "Evan Bouchard",
+     "nhl_id": 8480803,
+     "team": "EDM",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "fantrax:05kbn",
+     "name": "Will Cuylle",
+     "nhl_id": 8482157,
+     "team": "NYR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:03924",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Jaydentrapp",
+   "predicted_gain": 0.9767,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 9.35,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.98 pts/game this season (+3.0 pts/week, +66 rest of season) (dynasty +0.83; balanced edge +1.81)",
+     "value": 1.808714515113595,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (rostered %/Fantrax projected FP/G/dynasty value, +4 worth pts to them); acceptance ~50%",
+     "value": 4.305238090738754,
+     "baseline": 4.305238090738754
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; Jaydentrapp can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+4.3 pts) while our model has you gaining +1.81",
+     "value": 1.808714515113595,
+     "baseline": 4.305238090738754
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 52% (prior logistic: they get 71, give 67 market pts; x0.85: contender, no help this season -> +4.3 pts). EV = +1.81 x 0.52 = +0.95",
+     "value": 0.5236752616792766,
+     "baseline": 0.6160885431520902
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.0 pts/week (+0.98/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.953158499525687,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+66 pts rest of season (+0.98/game x 68 games left)",
+     "value": 66.23512634650469,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.98 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.976657358996718,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Jaydentrapp lineup -1.15 FPG (our model)",
+     "value": -1.147229928329736,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Evan Bouchard (9.34), Will Cuylle (4.78): 14.12 dynasty",
+     "value": 14.119962228149792,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (8.80): 8.80 dynasty",
+     "value": 8.79844165997418,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 17% (shown only; old band 15%)",
+     "value": 0.169266049463063,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.58 (Evan Bouchard replaces Jack Eichel as a keeper); this season +2.09 = dynasty value +2.67 for me (+0.83 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.8320571561168771,
+     "baseline": 2.669239356822942
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Evan Bouchard: market 82nd pct (rostered %/Fantrax projected FP/G) vs model 86th (+4): market agrees",
+     "value": 3.7,
+     "baseline": 82.5
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Will Cuylle: market 30th pct (rostered %/Fantrax projected FP/G) vs model 66th (+35): model disagrees with market, rates him higher (assist luck)",
+     "value": 35.4,
+     "baseline": 30.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jack Eichel: market 91st pct (rostered %/Fantrax projected FP/G) vs model 87th (-4): market agrees",
+     "value": -4.3,
+     "baseline": 91.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.947 (rank 2/10)",
+     "value": 0.9471790470052177,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.8462,
+   "title": "Matthew Knies (free agent) promoted to PP1 (F2 -> F1; PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05tur",
+     "name": "Matthew Knies",
+     "nhl_id": 8482720,
+     "team": "CBJ",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Matthew Knies: F2 -> F1; PP2 -> PP1 per Daily Faceoff (Last Game (2026-11-03), updated Nov 04 15:19 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Matthew Knies now on PP1 (Daily Faceoff (Last Game (2026-11-03), updated Nov 04 15:19 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 4/26)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.4615,
+   "title": "Tyler Toffoli (free agent) promoted to PP1 (PP2 -> PP1): waiver watch",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01zti",
+     "name": "Tyler Toffoli",
+     "nhl_id": 8475726,
+     "team": "SJS",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Tyler Toffoli: PP2 -> PP1 per Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:08 UTC)",
+     "value": 7.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Tyler Toffoli now on PP1 (Daily Faceoff (Last Game (2026-11-04), updated Nov 05 15:08 UTC))",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 5/26)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 8.0769,
+   "title": "Role up: David Jiricek (PP1; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05riz",
+     "name": "David Jiricek",
+     "nhl_id": 8483460,
+     "team": "PHI",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 72% of team PP time over the last 5 GP vs 2% baseline - PP1 usage",
+     "value": 0.725,
+     "baseline": 0.019
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 6/26)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 8.0,
+   "title": "Trade Quinn Hughes to DBoyer01 for Mikhail Sergachev + Roman Josi",
+   "add": [
+    {
+     "cid": "fantrax:03yg3",
+     "name": "Mikhail Sergachev",
+     "nhl_id": 8479410,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "fantrax:01fx3",
+     "name": "Roman Josi",
+     "nhl_id": 8474600,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:04lbz",
+     "name": "Quinn Hughes",
+     "nhl_id": 8480800,
+     "team": "MIN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "DBoyer01",
+   "predicted_gain": 1.2653,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 9.1,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.27 pts/game this season (+3.8 pts/week, +86 rest of season) (dynasty +0.75; balanced edge +2.01)",
+     "value": 2.0137524987373627,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in your favor by market value (rostered %/Fantrax projected FP/G/dynasty value, -4 worth pts to them); acceptance ~45%",
+     "value": 0.9935986708917071,
+     "baseline": -4.006401329108293
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Quinn Hughes fills DBoyer01's weakest slot D (starter VORP -0.32)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; DBoyer01 can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+1.0 pts) while our model has you gaining +2.01",
+     "value": 2.0137524987373627,
+     "baseline": 0.9935986708917071
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 45% (prior logistic: they get 46, give 50 market pts; +5 fills their weakest slot; x0.85: contender, no help this season -> +1.0 pts). EV = +2.01 x 0.45 = +0.90",
+     "value": 0.4481730635880403,
+     "baseline": 0.5272624277506357
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.8 pts/week (+1.27/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.8260188225272462,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+86 pts rest of season (+1.27/game x 68 games left)",
+     "value": 85.81213644811109,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.27 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 1.2653264087523084,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "DBoyer01 lineup -1.75 FPG (our model)",
+     "value": -1.7497171323713303,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Mikhail Sergachev (8.06), Roman Josi (5.09): 13.15 dynasty",
+     "value": 13.154602585636933,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Quinn Hughes (8.24): 8.24 dynasty",
+     "value": 8.243931914481633,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 14% (shown only; old band 15%)",
+     "value": 0.14355939593915923,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.02 (Mikhail Sergachev + Roman Josi replace Quinn Hughes + Seth Jarvis as keepers); this season +2.38 = dynasty value +2.40 for me (+0.75 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.7484260899850541,
+     "baseline": 2.400950896672054
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Mikhail Sergachev: market 60th pct (rostered %/Fantrax projected FP/G) vs model 69th (+9): market agrees",
+     "value": 9.4,
+     "baseline": 59.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Roman Josi: market 68th pct (rostered %/Fantrax projected FP/G) vs model 77th (+9): market agrees",
+     "value": 8.5,
+     "baseline": 68.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Quinn Hughes: market 73rd pct (rostered %/Fantrax projected FP/G) vs model 73rd (-1): market agrees",
+     "value": -0.8,
+     "baseline": 73.5
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.903 (rank 3/10)",
+     "value": 0.9025096266671951,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.6923,
+   "title": "Role up: Kasperi Kapanen (PP1; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:039ch",
+     "name": "Kasperi Kapanen",
+     "nhl_id": 8477953,
+     "team": "EDM",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 54% of team PP time over the last 5 GP vs 6% baseline - PP1 usage",
+     "value": 0.5417,
+     "baseline": 0.06
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 7/26)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 7.3077,
+   "title": "Role up: Owen Power (PP1; Jaydentrapp)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04xjf",
+     "name": "Owen Power",
+     "nhl_id": 8482671,
+     "team": "BUF",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "Jaydentrapp",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 71% of team PP time over the last 5 GP vs 19% baseline - PP1 usage",
+     "value": 0.7123,
+     "baseline": 0.187
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 8/26)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 7.0,
+   "title": "Trade Seth Jarvis to Miff Bucannons V4 for Jakob Chychrun + Leo Carlsson",
+   "add": [
+    {
+     "cid": "fantrax:03mqg",
+     "name": "Jakob Chychrun",
+     "nhl_id": 8479345,
+     "team": "WSH",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "fantrax:05y3a",
+     "name": "Leo Carlsson",
+     "nhl_id": 8484153,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05gvq",
+     "name": "Seth Jarvis",
+     "nhl_id": 8482093,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Miff Bucannons V4",
+   "predicted_gain": 0.8115,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 8.68,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.81 pts/game this season (+2.5 pts/week, +55 rest of season) (dynasty +0.66; balanced edge +1.47)",
+     "value": 1.4669147626244663,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (rostered %/Fantrax projected FP/G/dynasty value, +1 worth pts to them); acceptance ~55%",
+     "value": 5.547837664421472,
+     "baseline": 0.547837664421472
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Seth Jarvis fills Miff Bucannons V4's weakest slot F (starter VORP +0.00)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; Miff Bucannons V4 can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 55% (prior logistic: they get 45, give 45 market pts; +5 fills their weakest slot; x0.85: contender, no help this season -> +5.5 pts). EV = +1.47 x 0.55 = +0.81",
+     "value": 0.5506512260235513,
+     "baseline": 0.6478249717924133
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.5 pts/week (+0.81/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.45386236287051,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+55 pts rest of season (+0.81/game x 68 games left)",
+     "value": 55.0366272815243,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.81 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.8115320376632269,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Miff Bucannons V4 lineup -0.81 FPG (our model)",
+     "value": -0.8115320376632198,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Jakob Chychrun (4.89), Leo Carlsson (4.82): 9.71 dynasty",
+     "value": 9.714401361186866,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Seth Jarvis (7.83): 7.83 dynasty",
+     "value": 7.829611192307039,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 27% (shown only; old band 15%)",
+     "value": 0.2657792213290744,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.17 (Leo Carlsson replaces Seth Jarvis as a keeper); this season +1.93 = dynasty value +2.10 for me (+0.66 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.6553827249612395,
+     "baseline": 2.1024677816756565
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jakob Chychrun: market 70th pct (rostered %/Fantrax projected FP/G) vs model 71st (+1): market agrees",
+     "value": 1.3,
+     "baseline": 70.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Leo Carlsson: market 55th pct (rostered %/Fantrax projected FP/G) vs model 67th (+12): market agrees",
+     "value": 11.8,
+     "baseline": 54.9
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Seth Jarvis: market 74th pct (rostered %/Fantrax projected FP/G) vs model 78th (+4): market agrees",
+     "value": 3.8,
+     "baseline": 74.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.808 (rank 4/10)",
+     "value": 0.8077584125112092,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.9231,
+   "title": "Role up: Vasily Podkolzin (PP1; 3-0)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04uqa",
+     "name": "Vasily Podkolzin",
+     "nhl_id": 8481617,
+     "team": "EDM",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "3-0",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 7.0,
+   "reasons": [
+    {
+     "code": "ROLE_PP",
+     "text": "PP share 54% of team PP time over the last 5 GP vs 11% baseline - PP1 usage",
+     "value": 0.5375,
+     "baseline": 0.111
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 7.000 (rank 9/26)",
+     "value": 7.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.5385,
+   "title": "Jakub Dobes confirmed to start tonight vs UTA: start him",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05oxs",
+     "name": "Jakub Dobes",
+     "nhl_id": 8482487,
+     "team": "MTL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.0,
+   "reasons": [
+    {
+     "code": "CONFIRMED_START",
+     "text": "DFO Confirmed: Jakub Dobes starts UTA@MTL (Montreal Canadiens, Nov 05 16:09 UTC)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 10/26)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 6.1538,
+   "title": "Mackenzie Blackwood confirmed to start tonight vs NSH: start him",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03mbn",
+     "name": "Mackenzie Blackwood",
+     "nhl_id": 8478406,
+     "team": "COL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.0,
+   "reasons": [
+    {
+     "code": "CONFIRMED_START",
+     "text": "DFO Confirmed: Mackenzie Blackwood starts NSH@COL (Evan Rawal, Nov 05 17:41 UTC)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 11/26)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 6.0,
+   "title": "Trade Dylan Holloway to Hesham for Joel Eriksson Ek + Brandon Montour",
+   "add": [
+    {
+     "cid": "fantrax:03rae",
+     "name": "Joel Eriksson Ek",
+     "nhl_id": 8478493,
+     "team": "MIN",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:03de2",
+     "name": "Brandon Montour",
+     "nhl_id": 8477986,
+     "team": "SEA",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:051yz",
+     "name": "Dylan Holloway",
+     "nhl_id": 8482077,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Hesham",
+   "predicted_gain": 1.0837,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 8.53,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +1.08 pts/game this season (+3.3 pts/week, +73 rest of season) (dynasty +0.69; balanced edge +1.77)",
+     "value": 1.7694804573426222,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (rostered %/Fantrax projected FP/G/dynasty value, -2 worth pts to them); acceptance ~45%",
+     "value": -2.167655205269245,
+     "baseline": -2.167655205269245
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; Hesham can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-2.2 pts) while our model has you gaining +1.77",
+     "value": 1.66109769707916,
+     "baseline": -2.167655205269245
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 44% (prior logistic: they get 23, give 25 market pts -> -2.2 pts). EV = +1.77 x 0.44 = +0.78",
+     "value": 0.44074445756466124,
+     "baseline": 0.44074445756466124
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.3 pts/week (+1.08/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 3.276886041988887,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+73 pts rest of season (+1.08/game x 68 games left)",
+     "value": 73.49587265603647,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +1.08 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 1.083719301898661,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Hesham lineup -1.15 FPG (our model)",
+     "value": -1.1543928110126913,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Joel Eriksson Ek (5.09), Brandon Montour (4.29): 9.38 dynasty",
+     "value": 9.384316088633085,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Dylan Holloway (4.53): 4.53 dynasty",
+     "value": 4.532113090616187,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 23% (shown only; old band 15%)",
+     "value": 0.22601020166740615,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.00 (keepers unchanged); this season +2.20 = dynasty value +2.20 for me (+0.69 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.685761155443961,
+     "baseline": 2.199921786664227
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Joel Eriksson Ek: market 52nd pct (rostered %/Fantrax projected FP/G) vs model 76th (+24): market agrees",
+     "value": 24.1,
+     "baseline": 52.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Brandon Montour: market 40th pct (rostered %/Fantrax projected FP/G) vs model 47th (+7): market agrees",
+     "value": 6.9,
+     "baseline": 40.5
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Dylan Holloway: market 64th pct (rostered %/Fantrax projected FP/G) vs model 58th (-6): market agrees",
+     "value": -6.2,
+     "baseline": 64.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.780 (rank 5/10)",
+     "value": 0.7798887043427427,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.7692,
+   "title": "Cam Talbot (free agent) confirmed to start tonight vs DAL (weak offense): streamer",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:01t68",
+     "name": "Cam Talbot",
+     "nhl_id": 8475660,
+     "team": "CBJ",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.0,
+   "reasons": [
+    {
+     "code": "CONFIRMED_START",
+     "text": "DFO Confirmed: Cam Talbot starts DAL@CBJ (Aaron Portzline, Nov 05 16:17 UTC)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "OPPONENT",
+     "text": "DAL scores 2.87 goals per game (bottom-10 offense)",
+     "value": 2.8666666666666667,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 12/26)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.3846,
+   "title": "Casey DeSmith (free agent) confirmed to start tonight vs CBJ (weak offense): streamer",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:02ycf",
+     "name": "Casey DeSmith",
+     "nhl_id": 8479193,
+     "team": "DAL",
+     "positions": [
+      "G"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 6.0,
+   "reasons": [
+    {
+     "code": "CONFIRMED_START",
+     "text": "DFO Confirmed: Casey DeSmith starts DAL@CBJ (Mike Heika, Nov 05 17:25 UTC)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "OPPONENT",
+     "text": "CBJ scores 2.69 goals per game (bottom-10 offense)",
+     "value": 2.6923076923076925,
+     "baseline": null
+    },
+    {
+     "code": "MOVE_BUDGET",
+     "text": "3 of 3 moves left this week: adds must gain >= 0.6 FPG",
+     "value": 3.0,
+     "baseline": 3.0
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 6.000 (rank 13/26)",
+     "value": 6.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 5.0,
+   "title": "Preseason standout: Bradly Nadeau (3 GP, 1.00 PTS/GP, TOI 22.5, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06axz",
+     "name": "Bradly Nadeau",
+     "nhl_id": 8484203,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.5,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 2 G, 1 A, 3 PTS, 11 SOG, 0 PPP, 22.5 TOI (1.00 PTS/GP)",
+     "value": 1.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "22.5 min TOI per preseason game",
+     "value": 22.49,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 18 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 18.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.500 (rank 14/26)",
+     "value": 5.5,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 5.0,
+   "title": "Trade Dylan Holloway to Hesham for Joel Eriksson Ek + Brandt Clarke",
+   "add": [
+    {
+     "cid": "fantrax:03rae",
+     "name": "Joel Eriksson Ek",
+     "nhl_id": 8478493,
+     "team": "MIN",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:04znw",
+     "name": "Brandt Clarke",
+     "nhl_id": 8482730,
+     "team": "LAK",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:051yz",
+     "name": "Dylan Holloway",
+     "nhl_id": 8482077,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Hesham",
+   "predicted_gain": 0.9287,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 8.32,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.93 pts/game this season (+2.8 pts/week, +63 rest of season) (dynasty +0.64; balanced edge +1.57)",
+     "value": 1.5661078635838135,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (rostered %/Fantrax projected FP/G/dynasty value, -1 worth pts to them); acceptance ~45%",
+     "value": -1.0858962579018758,
+     "baseline": -1.0858962579018758
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; Hesham can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-1.1 pts) while our model has you gaining +1.57",
+     "value": 1.5118130506887197,
+     "baseline": -1.0858962579018758
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 47% (prior logistic: they get 23, give 24 market pts -> -1.1 pts). EV = +1.57 x 0.47 = +0.74",
+     "value": 0.47021084720003464,
+     "baseline": 0.47021084720003464
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.8 pts/week (+0.93/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.808077424737926,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+63 pts rest of season (+0.93/game x 68 games left)",
+     "value": 62.981165097693484,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.93 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.9286766971509763,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Hesham lineup -1.00 FPG (our model)",
+     "value": -0.9993502062650066,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Joel Eriksson Ek (5.09), Brandt Clarke (4.14): 9.23 dynasty",
+     "value": 9.2292734838854,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Dylan Holloway (4.53): 4.53 dynasty",
+     "value": 4.532113090616187,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 20% (shown only; old band 15%)",
+     "value": 0.20495909021972303,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.00 (keepers unchanged); this season +2.04 = dynasty value +2.04 for me (+0.64 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.6374311664328373,
+     "baseline": 2.044879181916542
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Joel Eriksson Ek: market 52nd pct (rostered %/Fantrax projected FP/G) vs model 76th (+24): market agrees",
+     "value": 24.1,
+     "baseline": 52.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Brandt Clarke: market 37th pct (rostered %/Fantrax projected FP/G) vs model 41st (+4): market agrees",
+     "value": 4.3,
+     "baseline": 37.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Dylan Holloway: market 64th pct (rostered %/Fantrax projected FP/G) vs model 58th (-6): market agrees",
+     "value": -6.2,
+     "baseline": 64.2
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.736 (rank 6/10)",
+     "value": 0.7364009053423812,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.6154,
+   "title": "Preseason standout: David Reinbacher (3 GP, 0.00 PTS/GP, TOI 20.6, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:067yd",
+     "name": "David Reinbacher",
+     "nhl_id": 8484220,
+     "team": "MTL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 5.0,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 2 SOG, 0 PPP, 20.6 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "20.6 min TOI per preseason game",
+     "value": 20.58,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 3 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 3.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 5.000 (rank 15/26)",
+     "value": 5.0,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 4.2308,
+   "title": "Preseason standout: Eric Pohlkamp (3 GP, 0.67 PTS/GP, TOI 19.6, PP2; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:068a6",
+     "name": "Eric Pohlkamp",
+     "nhl_id": 8484421,
+     "team": "SJS",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.91,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 1 G, 1 A, 2 PTS, 9 SOG, 1 PPP, 19.6 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "19.6 min TOI per preseason game",
+     "value": 19.64,
+     "baseline": 16.0
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Daily Faceoff lists him on PP2",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 1 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.910 (rank 16/26)",
+     "value": 4.91,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 4.0,
+   "title": "Trade Seth Jarvis to DBoyer01 for Roman Josi + Tomas Hertl",
+   "add": [
+    {
+     "cid": "fantrax:01fx3",
+     "name": "Roman Josi",
+     "nhl_id": 8474600,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "fantrax:02nok",
+     "name": "Tomas Hertl",
+     "nhl_id": 8476881,
+     "team": "VGK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:05gvq",
+     "name": "Seth Jarvis",
+     "nhl_id": 8482093,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "DBoyer01",
+   "predicted_gain": 0.7886,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 8.31,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.79 pts/game this season (+2.4 pts/week, +53 rest of season) (dynasty +0.64; balanced edge +1.43)",
+     "value": 1.4268577467201422,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (rostered %/Fantrax projected FP/G/dynasty value, +4 worth pts to them); acceptance ~50%",
+     "value": 3.7119664678768487,
+     "baseline": 3.7119664678768487
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; DBoyer01 can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (+3.7 pts) while our model has you gaining +1.43",
+     "value": 1.4268577467201422,
+     "baseline": 3.7119664678768487
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 51% (prior logistic: they get 45, give 42 market pts; x0.85: contender, no help this season -> +3.7 pts). EV = +1.43 x 0.51 = +0.73",
+     "value": 0.5104764507514559,
+     "baseline": 0.6005605302958305
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+2.4 pts/week (+0.79/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.3846417804619193,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+53 pts rest of season (+0.79/game x 68 games left)",
+     "value": 53.484108504645896,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.79 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.7886396696395508,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "DBoyer01 lineup -1.27 FPG (our model)",
+     "value": -1.2730303932585727,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Roman Josi (5.09), Tomas Hertl (4.60): 9.69 dynasty",
+     "value": 9.691508993163184,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Seth Jarvis (7.83): 7.83 dynasty",
+     "value": 7.829611192307039,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 27% (shown only; old band 15%)",
+     "value": 0.27048115732937283,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.14 (Roman Josi replaces Seth Jarvis as a keeper); this season +1.90 = dynasty value +2.05 for me (+0.64 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.6382180770805915,
+     "baseline": 2.047403591274538
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Roman Josi: market 68th pct (rostered %/Fantrax projected FP/G) vs model 77th (+9): market agrees",
+     "value": 8.5,
+     "baseline": 68.3
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Tomas Hertl: market 48th pct (rostered %/Fantrax projected FP/G) vs model 62nd (+14): market agrees",
+     "value": 13.8,
+     "baseline": 48.2
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Seth Jarvis: market 74th pct (rostered %/Fantrax projected FP/G) vs model 78th (+4): market agrees",
+     "value": 3.8,
+     "baseline": 74.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.728 (rank 7/10)",
+     "value": 0.728377278272918,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.8462,
+   "title": "Preseason standout: Jack Ahcan (3 GP, 0.67 PTS/GP, TOI 19.0, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04aoy",
+     "name": "Jack Ahcan",
+     "nhl_id": 8482072,
+     "team": "NSH",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.75,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 2 A, 2 PTS, 5 SOG, 0 PPP, 19.0 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "19.0 min TOI per preseason game",
+     "value": 18.98,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.750 (rank 17/26)",
+     "value": 4.75,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.4615,
+   "title": "Preseason standout: Trey Taylor (3 GP, 0.00 PTS/GP, TOI 18.3, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06rpp",
+     "name": "Trey Taylor",
+     "nhl_id": 8485468,
+     "team": "DAL",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.58,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 4 SOG, 0 PPP, 18.3 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "18.3 min TOI per preseason game",
+     "value": 18.32,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.580 (rank 18/26)",
+     "value": 4.58,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 3.0769,
+   "title": "Preseason standout: Felix Unger Sorum (4 GP, 0.75 PTS/GP, TOI 18.1, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06bui",
+     "name": "Felix Unger Sorum",
+     "nhl_id": 8484392,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.53,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 4 GP: 1 G, 2 A, 3 PTS, 7 SOG, 2 PPP, 18.1 TOI (0.75 PTS/GP)",
+     "value": 0.75,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "18.1 min TOI per preseason game",
+     "value": 18.12,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 4 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 4.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.530 (rank 19/26)",
+     "value": 4.53,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 3.0,
+   "title": "Trade William Nylander to AruDPM for Bo Horvat + Charlie McAvoy",
+   "add": [
+    {
+     "cid": "fantrax:03167",
+     "name": "Bo Horvat",
+     "nhl_id": 8477500,
+     "team": "NYI",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:03wpm",
+     "name": "Charlie McAvoy",
+     "nhl_id": 8479325,
+     "team": "BOS",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:02yjj",
+     "name": "William Nylander",
+     "nhl_id": 8477939,
+     "team": "TOR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "AruDPM",
+   "predicted_gain": 0.6085,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 8.48,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.61 pts/game this season (+1.8 pts/week, +41 rest of season) (dynasty +0.54; balanced edge +1.15)",
+     "value": 1.1460914546684378,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (rostered %/Fantrax projected FP/G/dynasty value, +6 worth pts to them); acceptance ~65%",
+     "value": 6.345718523982484,
+     "baseline": 6.345718523982484
+    },
+    {
+     "code": "MARKET_COST",
+     "text": "You hand over 6 market worth pts (5 free): ranked 0.07 lower, since that value could buy something in another trade",
+     "value": -0.0672859261991242,
+     "baseline": 6.345718523982484
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; AruDPM can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 67% (prior logistic: they get 51, give 45 market pts -> +6.3 pts). EV = +1.15 x 0.67 = +0.77; score +0.70 after the market cost",
+     "value": 0.6675552405855683,
+     "baseline": 0.6675552405855683
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+1.8 pts/week (+0.61/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 1.839867754757246,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+41 pts rest of season (+0.61/game x 68 games left)",
+     "value": 41.26560535669823,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.61 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.6084740736242367,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "AruDPM lineup -0.84 FPG (our model)",
+     "value": -0.8427941280852451,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Bo Horvat (5.20), Charlie McAvoy (4.51): 9.71 dynasty",
+     "value": 9.711557668479532,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send William Nylander (5.33): 5.33 dynasty",
+     "value": 5.334599898737065,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 14% (shown only; old band 15%)",
+     "value": 0.1371817523007247,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.00 (keepers unchanged); this season +1.72 = dynasty value +1.72 for me (+0.54 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.5376173810442011,
+     "baseline": 1.7246765583897972
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Bo Horvat: market 67th pct (rostered %/Fantrax projected FP/G) vs model 80th (+13): market agrees",
+     "value": 12.8,
+     "baseline": 66.9
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Charlie McAvoy: market 63rd pct (rostered %/Fantrax projected FP/G) vs model 57th (-6): market agrees",
+     "value": -5.9,
+     "baseline": 62.7
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) William Nylander: market 82nd pct (rostered %/Fantrax projected FP/G) vs model 83rd (+2): market agrees",
+     "value": 1.6,
+     "baseline": 81.6
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.698 (rank 8/10)",
+     "value": 0.6977934305551287,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.6923,
+   "title": "Preseason standout: Jett Luchanko (3 GP, 1.00 PTS/GP, TOI 13.6, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06lv1",
+     "name": "Jett Luchanko",
+     "nhl_id": 8484779,
+     "team": "PHI",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.5,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 3 A, 3 PTS, 3 SOG, 1 PPP, 13.6 TOI (1.00 PTS/GP)",
+     "value": 1.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "13.6 min TOI per preseason game",
+     "value": 13.56,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: 8 career NHL GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": 8.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.500 (rank 20/26)",
+     "value": 4.5,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 2.3077,
+   "title": "Preseason standout: Kenny Connors (3 GP, 0.67 PTS/GP, TOI 17.9, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:062jw",
+     "name": "Kenny Connors",
+     "nhl_id": 8483675,
+     "team": "LAK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.46,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 2 A, 2 PTS, 1 SOG, 0 PPP, 17.9 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.9 min TOI per preseason game",
+     "value": 17.85,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.460 (rank 21/26)",
+     "value": 4.46,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 2.0,
+   "title": "Trade Jack Eichel to Jaydentrapp for Kirill Kaprizov + Jack Quinn",
+   "add": [
+    {
+     "cid": "fantrax:03rh3",
+     "name": "Kirill Kaprizov",
+     "nhl_id": 8478864,
+     "team": "MIN",
+     "positions": [
+      "F"
+     ]
+    },
+    {
+     "cid": "fantrax:05g42",
+     "name": "Jack Quinn",
+     "nhl_id": 8482097,
+     "team": "BUF",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:03924",
+     "name": "Jack Eichel",
+     "nhl_id": 8478403,
+     "team": "VGK",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Jaydentrapp",
+   "predicted_gain": 0.9771,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 8.12,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.98 pts/game this season (+3.0 pts/week, +66 rest of season) (dynasty +0.92; balanced edge +1.90)",
+     "value": 1.897693413396477,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks even to them by market value (rostered %/Fantrax projected FP/G/dynasty value, -3 worth pts to them); acceptance ~35%",
+     "value": -2.6990088857076415,
+     "baseline": -2.6990088857076415
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; Jaydentrapp can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "SWEET_SPOT",
+     "text": "Sweet spot: the market calls it fair (-2.7 pts) while our model has you gaining +1.90",
+     "value": 1.7627429691110947,
+     "baseline": -2.6990088857076415
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 36% (prior logistic: they get 71, give 74 market pts; x0.85: contender, no help this season -> -2.7 pts). EV = +1.90 x 0.36 = +0.69",
+     "value": 0.36244789662970517,
+     "baseline": 0.4264092901525943
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+3.0 pts/week (+0.98/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 2.954544614440631,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+66 pts rest of season (+0.98/game x 68 games left)",
+     "value": 66.26621492388271,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.98 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.9771157696551072,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Jaydentrapp lineup -0.98 FPG (our model)",
+     "value": -0.9771157696551072,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive Kirill Kaprizov (10.22), Jack Quinn (4.19): 14.40 dynasty",
+     "value": 14.403935952449165,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jack Eichel (8.80): 8.80 dynasty",
+     "value": 8.79844165997418,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 19% (shown only; old band 15%)",
+     "value": 0.19095833177608967,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.44 (Kirill Kaprizov replaces Jack Eichel as a keeper); this season +2.51 = dynasty value +2.95 for me (+0.92 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.9205776437413696,
+     "baseline": 2.953213081122314
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Kirill Kaprizov: market 87th pct (rostered %/Fantrax projected FP/G) vs model 97th (+10): market agrees",
+     "value": 9.8,
+     "baseline": 87.0
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jack Quinn: market 21st pct (rostered %/Fantrax projected FP/G) vs model 43rd (+22): market agrees",
+     "value": 22.4,
+     "baseline": 20.8
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jack Eichel: market 91st pct (rostered %/Fantrax projected FP/G) vs model 87th (-4): market agrees",
+     "value": -4.3,
+     "baseline": 91.1
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.688 (rank 9/10)",
+     "value": 0.6878149861335986,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.9231,
+   "title": "Preseason standout: Charles-Alexis Legault (3 GP, 0.00 PTS/GP, TOI 17.4, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:05u64",
+     "name": "Charles-Alexis Legault",
+     "nhl_id": 8484428,
+     "team": "CAR",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.36,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 1 SOG, 0 PPP, 17.4 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.4 min TOI per preseason game",
+     "value": 17.43,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.360 (rank 22/26)",
+     "value": 4.36,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.5385,
+   "title": "Preseason standout: Skyler Brind'Amour (3 GP, 0.00 PTS/GP, TOI 17.2, PP unit unknown; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:04f83",
+     "name": "Skyler Brind'Amour",
+     "nhl_id": 8480291,
+     "team": "CAR",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.29,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 4 SOG, 0 PPP, 17.2 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "17.2 min TOI per preseason game",
+     "value": 17.17,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.290 (rank 23/26)",
+     "value": 4.29,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 1.1538,
+   "title": "Preseason standout: Nico Myatovic (3 GP, 0.67 PTS/GP, TOI 16.9, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:06bae",
+     "name": "Nico Myatovic",
+     "nhl_id": 8484201,
+     "team": "ANA",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.21,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 2 A, 2 PTS, 0 SOG, 0 PPP, 16.9 TOI (0.67 PTS/GP)",
+     "value": 0.6667,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "16.9 min TOI per preseason game",
+     "value": 16.85,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.210 (rank 24/26)",
+     "value": 4.21,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "trade",
+   "score": 1.0,
+   "title": "Trade Jake Sanderson to Jewlio for MacKenzie Weegar + Jacob Trouba",
+   "add": [
+    {
+     "cid": "fantrax:031v6",
+     "name": "MacKenzie Weegar",
+     "nhl_id": 8477346,
+     "team": "UTA",
+     "positions": [
+      "D"
+     ]
+    },
+    {
+     "cid": "fantrax:02dq3",
+     "name": "Jacob Trouba",
+     "nhl_id": 8476885,
+     "team": "SJS",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "drop": [
+    {
+     "cid": "fantrax:059e0",
+     "name": "Jake Sanderson",
+     "nhl_id": 8482105,
+     "team": "OTT",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "subjects": [],
+   "counterparty": "Jewlio",
+   "predicted_gain": 0.5102,
+   "gain_units": "lineup_fpg",
+   "horizon_days": null,
+   "strength": 7.71,
+   "reasons": [
+    {
+     "code": "MY_EDGE",
+     "text": "You gain +0.51 pts/game this season (+1.5 pts/week, +35 rest of season) (dynasty +0.51; balanced edge +1.02)",
+     "value": 1.0171495201232337,
+     "baseline": 0.3
+    },
+    {
+     "code": "MARKET_VIEW",
+     "text": "Looks slightly in their favor by market value (rostered %/Fantrax projected FP/G/dynasty value, +3 worth pts to them); acceptance ~60%",
+     "value": 8.190706925000075,
+     "baseline": 3.1907069250000752
+    },
+    {
+     "code": "THEIR_NEED",
+     "text": "Jake Sanderson fills Jewlio's weakest slot D (starter VORP -0.37)",
+     "value": 5.0,
+     "baseline": null
+    },
+    {
+     "code": "ROSTER_CONSEQUENCE",
+     "text": "Roster: you drop Jakub Dobes; Jewlio can pick up Dougie Hamilton (FA)",
+     "value": 1.0,
+     "baseline": null
+    },
+    {
+     "code": "P_ACCEPT",
+     "text": "Acceptance 60% (prior logistic: they get 17, give 14 market pts; +5 fills their weakest slot; x0.85: contender, no help this season -> +8.2 pts). EV = +1.02 x 0.60 = +0.61",
+     "value": 0.6042793253050801,
+     "baseline": 0.7109168533000942
+    },
+    {
+     "code": "GAIN_WEEK",
+     "text": "+1.5 pts/week (+0.51/game x 3.0 games/week, your starters' NHL schedule)",
+     "value": 1.5426345390001037,
+     "baseline": 3.0237405906195716
+    },
+    {
+     "code": "GAIN_SEASON",
+     "text": "+35 pts rest of season (+0.51/game x 68 games left)",
+     "value": 34.59908894614518,
+     "baseline": 67.81818181818181
+    },
+    {
+     "code": "DELTA_ME",
+     "text": "My lineup +0.51 FPG (optimal_lineup; before and after both fill your empty slot from waivers (Dougie Hamilton) when that is better)",
+     "value": 0.5101742337903445,
+     "baseline": 0.3
+    },
+    {
+     "code": "DELTA_THEM",
+     "text": "Jewlio lineup -1.04 FPG (our model)",
+     "value": -1.043716451446194,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_IN",
+     "text": "Receive MacKenzie Weegar (4.58), Jacob Trouba (4.02): 8.60 dynasty",
+     "value": 8.601612728052483,
+     "baseline": null
+    },
+    {
+     "code": "VALUE_OUT",
+     "text": "Send Jake Sanderson (4.32): 4.32 dynasty",
+     "value": 4.322954798143905,
+     "baseline": null
+    },
+    {
+     "code": "FAIR_PCT",
+     "text": "Model-value gap 15% (shown only; old band 15%)",
+     "value": 0.14781969786866667,
+     "baseline": 0.1499999999999999
+    },
+    {
+     "code": "DYNASTY_DELTA",
+     "text": "Keepers: top-3 long-term +0.00 (keepers unchanged); this season +1.63 = dynasty value +1.63 for me (+0.51 FPG-equivalent); balanced edge = 1 x lineup + 1 x dynasty",
+     "value": 0.5069752863328891,
+     "baseline": 1.6263767185559086
+    },
+    {
+     "code": "ROSTER_DROP",
+     "text": "You would need to drop Jakub Dobes",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) MacKenzie Weegar: market 44th pct (rostered %/Fantrax projected FP/G) vs model 60th (+16): market agrees",
+     "value": 15.9,
+     "baseline": 44.4
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (receive) Jacob Trouba: market 25th pct (rostered %/Fantrax projected FP/G) vs model 34th (+9): market agrees",
+     "value": 9.3,
+     "baseline": 25.1
+    },
+    {
+     "code": "MARKET_CHECK",
+     "text": "Market check (send) Jake Sanderson: market 61st pct (rostered %/Fantrax projected FP/G) vs model 49th (-12): market agrees",
+     "value": -12.3,
+     "baseline": 60.8
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "trade engine score 0.615 (rank 10/10)",
+     "value": 0.6146424257544536,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.7692,
+   "title": "Preseason standout: Guillaume Brisebois (3 GP, 0.00 PTS/GP, TOI 16.3, no PP unit; free agent)",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:03rfh",
+     "name": "Guillaume Brisebois",
+     "nhl_id": 8478465,
+     "team": "VAN",
+     "positions": [
+      "D"
+     ]
+    }
+   ],
+   "counterparty": "FA",
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.08,
+   "reasons": [
+    {
+     "code": "PRESEASON",
+     "text": "Preseason 3 GP: 0 G, 0 A, 0 PTS, 2 SOG, 0 PPP, 16.3 TOI (0.00 PTS/GP)",
+     "value": 0.0,
+     "baseline": 1.0
+    },
+    {
+     "code": "PRESEASON_TOI",
+     "text": "16.3 min TOI per preseason game",
+     "value": 16.33,
+     "baseline": 16.0
+    },
+    {
+     "code": "UNPROVEN",
+     "text": "Unproven: no NHL season with 20+ GP; preseason is a weak signal (blended at most 25% into his value)",
+     "value": null,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.080 (rank 25/26)",
+     "value": 4.08,
+     "baseline": null
+    }
+   ]
+  },
+  {
+   "kind": "alert",
+   "score": 0.3846,
+   "title": "Dylan Holloway dropped off PP1 (PP1 -> PP2): sell / bench caution",
+   "add": [],
+   "drop": [],
+   "subjects": [
+    {
+     "cid": "fantrax:051yz",
+     "name": "Dylan Holloway",
+     "nhl_id": 8482077,
+     "team": "STL",
+     "positions": [
+      "F"
+     ]
+    }
+   ],
+   "counterparty": null,
+   "predicted_gain": null,
+   "gain_units": null,
+   "horizon_days": null,
+   "strength": 4.0,
+   "reasons": [
+    {
+     "code": "LINE_CHANGE",
+     "text": "Dylan Holloway: PP1 -> PP2 per Daily Faceoff (Jeremy Rutherford, updated Nov 05 17:31 UTC)",
+     "value": 4.0,
+     "baseline": null
+    },
+    {
+     "code": "PP_UNIT",
+     "text": "Dylan Holloway now on PP2 (Daily Faceoff (Jeremy Rutherford, updated Nov 05 17:31 UTC))",
+     "value": 2.0,
+     "baseline": null
+    },
+    {
+     "code": "RAW_SCORE",
+     "text": "alert engine score 4.000 (rank 26/26)",
+     "value": 4.0,
+     "baseline": null
+    }
+   ]
+  }
+ ]
+}
