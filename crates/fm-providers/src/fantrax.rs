@@ -3346,6 +3346,8 @@ impl FantraxProvider {
             game_starts: Map::new(),
             season_start: None,
             lineup_lock: Some(if self.lineup_lock() == "daily" { LineupLock::Daily } else { LineupLock::Weekly }),
+            // the Rules page may be unreadable on this path; unknown wording keeps the first-game rule
+            lock_per_game: parse_lock_per_game(self.rules.as_ref().and_then(|r| r.get(LINEUP_LOCK_RULE))),
             goalie_actual_starts: Map::new(),
             b2b_second_night: Map::new(),
             nhl_goalies: Map::new(),
