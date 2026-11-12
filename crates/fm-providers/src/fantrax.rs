@@ -40,7 +40,7 @@ use fm_core::models::{
     LineupDay, LineupLock, Player, RosterSlot, ScoringConfig, ScoringKind, Split, StatLine, Status, GOALIE_STATS,
     SKATER_STATS,
 };
-use fm_core::provider::LeagueProvider;
+use fm_core::provider::{LeagueProvider, OfficialCalendar, OfficialMatchup};
 use fm_core::snapshot::ProviderExtras;
 pub use fm_core::snapshot::{LeagueRules, PendingTradeInfo, TradeBlockInfo, TransactionInfo};
 use fm_core::{Map, ProviderError, PyDateTime};
@@ -51,6 +51,11 @@ use fm_pycompat::num::{py_round_i64, py_sum, round_to};
 use fm_pycompat::text::py_strip;
 
 use crate::fantrax_auth::FantraxAuth;
+use crate::fantrax_crosscheck::{disagreements, OfficialData, PrivateBasis};
+use crate::fantrax_official::{
+    my_matchup, period_for_date, FantraxOfficial, OfficialDraftPicks, OfficialError, OfficialLeagueInfo, OfficialPeriod,
+    OfficialPlayerName, OfficialRosterItem, OfficialRosterLimits, OfficialRosterStatus, OfficialScoring, OfficialTeamRoster,
+};
 
 pub const FXPA_URL: &str = "https://www.fantrax.com/fxpa/req";
 pub const FANTRAX_TTL: f64 = 15.0 * 60.0;
@@ -2279,6 +2284,51 @@ pub fn rules_weights(rules: &LeagueRules) -> (Map<String, f64>, Map<String, f64>
     (base, goalie, notes)
 }
 
+/// The (base weights, goalie overrides, notes) the official scoring is equivalent to, built the same way
+/// as [`rules_weights`] builds them from the Rules page: skater values are the base, goalie-only stats join
+/// the base and a goalie value that differs from the skater value becomes an override. The official
+/// API names a category by its short name only, so a category the program does not track is named by it.
+pub fn official_weights(s: &OfficialScoring) -> (Map<String, f64>, Map<String, f64>, Vec<String>) {
+    let mut base: Map<String, f64> = Map::new();
+    let mut goalie: Map<String, f64> = Map::new();
+    let mut notes = Vec::new();
+    for (is_goalie, cats) in [(false, &s.skater), (true, &s.goalie)] {
+        for (name, pts) in cats {
+            let Some(key) = stat_key(name) else {
+                notes.push(format!("scoring category {name} = {} is not tracked", general(*pts, None, false)));
+                continue;
+            };
+            if *pts == 0.0 {
+                continue;
+            }
+            if !is_goalie || !base.contains_key(key) {
+                base.entry(key.to_string()).or_insert(*pts);
+            } else if base[key] != *pts {
+                goalie.insert(key.to_string(), *pts);
+            }
+        }
+    }
+    (base, goalie, notes)
+}
+
+/// Put the official roster limits on a roster shape: the active maximum of each position replaces the
+/// starting slots (as the Rules page's table does) and the reserve maximum is the bench size. The
+/// official API has no injured-reserve or minors size, so those stay as they were.
+///
+/// Departs from the Python original, which had no bench size for a league whose Rules page does not
+/// state "Maximum Reserve Players".
+pub fn apply_official_limits(shape: &mut Map<String, i64>, l: &OfficialRosterLimits) {
+    let positions: Vec<(String, i64)> =
+        l.max_active_by_position.iter().filter(|(_, n)| **n != 0).map(|(p, n)| (canonical_slot(p), *n)).collect();
+    if !positions.is_empty() {
+        shape.retain(|k, _| NON_STARTING.contains(&k.as_str()));
+        shape.extend(positions);
+    }
+    if l.max_reserve > 0 {
+        shape.insert("BN".into(), l.max_reserve);
+    }
+}
+
 // ------------------------------------------------------------------ scoring weights: check and fit
 
 pub const FIT_EXCLUDE: &[&str] = &["GP", FPTS_KEY, "GAA", "SVPCT"];
@@ -2619,6 +2669,102 @@ pub fn parse_lineup_lock(text: Option<&str>) -> &'static str {
 
 // ------------------------------------------------------------------ provider
 
+/// An official read's value, or None after adding its failure warning to `warnings` (nothing for an
+/// offline cache miss).
+fn official_or_warn<T>(what: &str, r: Result<T, OfficialError>, warnings: &mut Vec<String>) -> Option<T> {
+    r.map_err(|e| warnings.extend(e.warning(what))).ok()
+}
+
+/// Every team's draft picks from the official `getDraftPicks` (future and current picks, each once),
+/// {holder team id: {year: picks}}. A team of the league that holds no pick gets an empty entry, since
+/// the official list covers every team and so a missing team really holds nothing (the private roster
+/// responses cannot say that, and the engine then assumes such a team holds its own picks). None when the
+/// official list is empty, so the private picks stay.
+///
+/// Departs from the Python original, which only had the private per-team `draftPicksData`.
+fn official_pick_holdings(ctx: &LeagueContext, o: &OfficialDraftPicks) -> Option<Map<String, Map<i64, Vec<DraftPickRef>>>> {
+    if o.future.is_empty() && o.current.is_empty() {
+        return None;
+    }
+    let mut out: Map<String, Map<i64, Vec<DraftPickRef>>> = ctx.teams.iter().map(|t| (t.team_id.clone(), Map::new())).collect();
+    let mut seen: HashSet<(&str, i64, i64, &str)> = HashSet::new();
+    for p in o.future.iter().chain(&o.current) {
+        if !seen.insert((p.owner_team_id.as_str(), p.year, p.round, p.original_owner_team_id.as_str())) {
+            continue;
+        }
+        out.entry(p.owner_team_id.clone()).or_default().entry(p.year).or_default().push(DraftPickRef {
+            round: p.round,
+            original_owner: Some(p.original_owner_team_id.clone()),
+            extra: Map::new(),
+        });
+    }
+    Some(out)
+}
+
+/// An official read for the degraded load, or None after adding its failure warning to `warnings`
+/// (nothing for an offline cache miss). `outcome` says what happens without it, since the usual "using
+/// the private data instead" is not true when the private data is what failed.
+fn degraded_read<T>(what: &str, r: Result<T, OfficialError>, outcome: &str, warnings: &mut Vec<String>) -> Option<T> {
+    r.map_err(|e| {
+        if let OfficialError::Failed(d) = e {
+            warnings.push(format!("Fantrax official API {what} unavailable ({d}); {outcome}"));
+        }
+    })
+    .ok()
+}
+
+/// The roster period holding `day`; before the first period the first one and after the last the last
+/// one, so a degraded load out of season still has rosters.
+fn roster_period_near(periods: &[OfficialPeriod], day: NaiveDate) -> Option<&OfficialPeriod> {
+    periods.iter().find(|p| p.contains(day)).or_else(|| {
+        let first = periods.iter().min_by_key(|p| p.first)?;
+        if day < first.first {
+            Some(first)
+        } else {
+            periods.iter().max_by_key(|p| p.last)
+        }
+    })
+}
+
+/// A lineup slot from an official roster item, for the degraded load: an active player sits in the slot
+/// of the league position the API gives (F, D or G in our league), a reserve player on the bench and an
+/// injured-reserve player on IR. A status the API has not been seen to send goes to its own non-starting
+/// slot when it names one (minors, taxi), else to the bench, so it never counts as a starter. The name and
+/// NHL team come from `getPlayerIds`; the player id stands in for a name it lacks. Positions are the
+/// league position only (the private rows give the same "F" / "D" / "G" in this league).
+fn official_slot(item: &OfficialRosterItem, names: &Map<String, OfficialPlayerName>) -> RosterSlot {
+    let slot = match &item.status {
+        OfficialRosterStatus::Active => canonical_slot(&item.position),
+        OfficialRosterStatus::Reserve => "BN".to_string(),
+        OfficialRosterStatus::InjuredReserve => "IR".to_string(),
+        OfficialRosterStatus::Other(s) => {
+            slot_alias(&py_upper(s)).filter(|a| NON_STARTING.contains(a)).unwrap_or("BN").to_string()
+        }
+    };
+    let n = names.get(&item.player_id);
+    let name = n.map(|n| n.name.clone()).filter(|s| !s.is_empty()).unwrap_or_else(|| item.player_id.clone());
+    let mut ids = Map::new();
+    ids.insert("fantrax".to_string(), item.player_id.clone());
+    let team = n.and_then(|n| fantrax_team_abbrev(&n.team));
+    let player = new_player(format!("fantrax:{}", item.player_id), name, ids, team, player_positions(&item.position));
+    let starting = !NON_STARTING.contains(&slot.as_str());
+    RosterSlot { slot, player: Some(player), starting }
+}
+
+/// Sort key that lists a degraded-load team's starters first (forwards, defence, goalies), then bench,
+/// IR and minors.
+fn slot_order(slot: &str) -> usize {
+    const ORDER: [&str; 12] = ["C", "LW", "RW", "W", "F", "D", "UTIL", "G", "BN", "IR", "MIN", "TAXI"];
+    ORDER.iter().position(|s| *s == slot).unwrap_or(ORDER.len())
+}
+
+/// The one prominent warning of a degraded load. It names what is missing so nobody mistakes the
+/// values for complete ones.
+pub const DEGRADED_WARNING: &str = "Fantrax official API: the private Fantrax data could not be read, so the league was \
+     loaded from the official API alone (teams, rosters and lineup slots, records, draft picks, scoring and roster limits). \
+     Player statistics, projections, rostered percentage, free agents and transactions are missing, so player values and \
+     recommendations are incomplete. Teams are listed in order of team id, not in the site's order.";
+
 /// Loads a Fantrax league into a LeagueContext. After `load()`: `fantasy_points`, `ages`,
 /// `rules`, `draft_picks`, `standings`, `trade_blocks`, `pending_trades`, `transactions` and the
 /// warnings are populated (also mirrored in [`LeagueProvider::extras`]).
@@ -2631,7 +2777,17 @@ pub struct FantraxProvider {
     auth: Mutex<Option<FantraxAuth>>,
     relogged: AtomicBool,
     tape: Option<Tape>,
+    /// Official-API reads (opt-in, live factory only); None keeps the private path byte for byte.
+    official: Option<FantraxOfficial>,
     warnings: Mutex<Vec<String>>,
+    /// Set once the official league-info read failed (calendar, scoring and roster limits all read it), so
+    /// later callers skip it for this run.
+    official_calendar_failed: AtomicBool,
+    /// The private scoring and roster limits the official ones replaced, for the cross-check.
+    private_basis: PrivateBasis,
+    /// "daily" or "weekly" from the official roster periods, set only by the degraded load (which has
+    /// no Rules page to read the lineup lock from).
+    official_lock: Option<&'static str>,
     pub fantasy_points: FantasyPoints,
     pub ages: Map<String, f64>,
     pub standings: Map<String, Map<String, Value>>,
@@ -2675,7 +2831,11 @@ impl FantraxProvider {
             auth: Mutex::new(None),
             relogged: AtomicBool::new(false),
             tape: None,
+            official: None,
             warnings: Mutex::new(Vec::new()),
+            official_calendar_failed: AtomicBool::new(false),
+            private_basis: PrivateBasis::default(),
+            official_lock: None,
             fantasy_points: Map::new(),
             ages: Map::new(),
             standings: Map::new(),
@@ -2720,6 +2880,19 @@ impl FantraxProvider {
     pub fn with_auth(mut self, auth: FantraxAuth) -> Self {
         *self.auth.get_mut().unwrap_or_else(|e| e.into_inner()) = Some(auth);
         self
+    }
+
+    /// Attach the official Fantrax API (`fantrax_official`), read through `cache`. Only the live
+    /// factory calls this; tape, fake-session and snapshot providers never do, so they keep the old path
+    /// and emit no new warnings. Without a league id there is nothing to ask, so it stays off.
+    pub fn with_official(mut self, cache: std::sync::Arc<fm_http::HttpCache>) -> Self {
+        self.official = self.settings.fantrax_league_id.clone().filter(|id| !id.is_empty()).map(|id| FantraxOfficial::new(cache, id));
+        self
+    }
+
+    /// The official API client, when [`with_official`](Self::with_official) attached one.
+    pub fn official(&self) -> Option<&FantraxOfficial> {
+        self.official.as_ref()
     }
 
     pub fn with_today(mut self, today: NaiveDate) -> Self {
@@ -2899,7 +3072,10 @@ impl FantraxProvider {
 
     fn load_inner(&mut self) -> anyhow::Result<LeagueContext> {
         let today = self.effective_today();
-        let r = self.call(&[fx_call("getFantasyLeagueInfo", &[]), fx_call("getTeamRosterInfo", &[("view", "STATS")])], false)?;
+        let r = match self.call(&[fx_call("getFantasyLeagueInfo", &[]), fx_call("getTeamRosterInfo", &[("view", "STATS")])], false) {
+            Ok(r) => r,
+            Err(e) => return self.degraded_load(e),
+        };
         let (info, my_roster_raw) = (r[0].clone(), r[1].clone());
         self.raw_info = info.clone();
         self.codes = timeframe_codes(&my_roster_raw);
@@ -2957,8 +3133,9 @@ impl FantraxProvider {
         if self.fetch_free_agents {
             self.rostered_ownership(&mut teams, &positions);
         }
-        let free_agents = if self.fetch_free_agents { self.free_agents(&rostered, &positions) } else { Vec::new() };
+        let mut free_agents = if self.fetch_free_agents { self.free_agents(&rostered, &positions) } else { Vec::new() };
         self.fa_ids = free_agents.iter().map(|p| p.cid.clone()).collect();
+        self.apply_adp(&mut teams, &mut free_agents);
         if !self.fetch_free_agents {
             self.warn("Free-agent pool disabled; replacement level uses rostered players.".into());
         }
@@ -2966,7 +3143,22 @@ impl FantraxProvider {
         self.load_extras(&positions, &teams_meta);
         self.load_rules();
         let all_players: Vec<&Player> = teams.iter().flat_map(|t| t.players_iter()).chain(free_agents.iter()).collect();
-        let scoring = self.scoring(&all_players);
+        let official_info = self.official_league_info();
+        let scoring = self.scoring(&all_players, official_info.as_ref().and_then(|i| i.scoring.as_ref()));
+        let official_limits = official_info.as_ref().and_then(|i| i.roster_limits.as_ref());
+        let mut roster_shape = self.roster_shape_for(&slot_counts);
+        self.private_basis = PrivateBasis {
+            scoring: self.rules.as_ref().filter(|r| !r.scoring.is_empty()).map(|r| {
+                let (w, g, _) = rules_weights(r);
+                (w, g)
+            }),
+            // Without a Rules page the shape is only the lineup's current slot counts, not limits to compare.
+            roster_shape: if self.rules.as_ref().is_some_and(|r| !rules_empty(r)) { roster_shape.clone() } else { Map::new() },
+            max_roster_size: rules_max_roster(self.rules.as_ref()),
+        };
+        if let Some(l) = official_limits {
+            apply_official_limits(&mut roster_shape, l);
+        }
 
         let rules = self.rules.as_ref();
         let mut draft_picks = self.team_draft_picks.clone();
@@ -2980,10 +3172,10 @@ impl FantraxProvider {
             season: season_from_settings(&fs, today),
             name: jget_t(&fs, "leagueName").map(py_str).unwrap_or_else(|| format!("Fantrax {lid}")),
             scoring,
-            roster_shape: self.roster_shape_for(&slot_counts),
+            roster_shape,
             teams,
             position_limits: rules_position_limits(rules),
-            max_roster_size: rules_max_roster(rules),
+            max_roster_size: official_limits.map(|l| l.max_total).filter(|n| *n > 0).or_else(|| rules_max_roster(rules)),
             stat_limits: rules_stat_limits(rules),
             free_agents,
             matchup_period: None,
@@ -3021,12 +3213,292 @@ impl FantraxProvider {
         };
         self.ctx = Some(ctx);
         self.apply_budget(&my_id);
+        self.cross_check_official();
         Ok(self.ctx.clone().expect("ctx"))
+    }
+
+    /// The degraded load: the private first batch failed (expired login, outage, offline miss; a missing
+    /// league id never gets here because no official client is attached without one), so the league is
+    /// built from the official API alone. Teams come from `getLeagueInfo`, sorted by team id (the private
+    /// order is unknown) with short names from its matchup list; rosters and slots from `getTeamRosters`
+    /// for the roster period holding `as_of`; names (flipped to "First Last", pseudo-players left out) and
+    /// NHL teams from `getPlayerIds`; records from `getStandings`; picks from `getDraftPicks`; scoring and
+    /// roster limits from `getLeagueInfo`; the season from the year of its end date (only here: the
+    /// private settings label it otherwise); the lineup lock from the length of the roster period (one
+    /// day each means a daily lock). FANTRAX_TEAM must name the owner's team, since only the private data
+    /// says which team is theirs. There are no statistics, projections, rostered percentages, free agents,
+    /// transactions, Rules page or IR size, and the claims used are unknown. One prominent warning says so,
+    /// and the private failure is kept as its own warning so the health check still reports it. When
+    /// the league info, rosters or names cannot be read the private error is returned (with no extra
+    /// warning offline when nothing is cached).
+    ///
+    /// Departs from the Python original, which failed the whole load whenever the private first batch failed.
+    fn degraded_load(&mut self, private_err: anyhow::Error) -> anyhow::Result<LeagueContext> {
+        let Some(off) = self.official.as_ref() else { return Err(private_err) };
+        let today = self.effective_today();
+        let mut fails: Vec<String> = Vec::new();
+        let failed = "the league could not be loaded without the private data";
+        let info = degraded_read("league info", off.league_info(), failed, &mut fails);
+        let period = info.as_ref().and_then(|i| roster_period_near(&i.roster_periods, today)).cloned();
+        let rosters = period.as_ref().and_then(|p| degraded_read("rosters", off.team_rosters(Some(p.number)), failed, &mut fails));
+        let names = rosters.as_ref().and_then(|_| degraded_read("player ids", off.player_ids(), failed, &mut fails));
+        let (Some(info), Some(period), Some(rosters), Some(names)) = (info, period, rosters, names) else {
+            fails.into_iter().for_each(|w| self.warn(w));
+            return Err(private_err);
+        };
+        if info.teams.is_empty() {
+            return Err(private_err);
+        }
+        let standings = degraded_read("standings", off.standings(), "records are left out", &mut fails);
+        let picks = degraded_read("draft picks", off.draft_picks(), "draft picks are left out", &mut fails);
+
+        let shorts: HashMap<&str, &str> = info
+            .matchups
+            .iter()
+            .flat_map(|m| &m.pairings)
+            .flat_map(|p| [&p.away, &p.home])
+            .filter_map(|s| Some((s.id.as_str(), s.short_name.as_deref()?)))
+            .collect();
+        let mut sorted: Vec<_> = info.teams.iter().collect();
+        sorted.sort_by(|a, b| a.id.cmp(&b.id));
+        let teams_meta: Map<String, TeamMeta> = sorted
+            .iter()
+            .map(|t| (t.id.clone(), TeamMeta { name: t.name.clone(), short: shorts.get(t.id.as_str()).copied().unwrap_or("").to_string() }))
+            .collect();
+        let my_id = self.my_team_id(&teams_meta, &[]).map_err(|e| {
+            provider_err(format!(
+                "{private_err} The league can still be loaded from the Fantrax official API, but only when FANTRAX_TEAM names your team: {e}"
+            ))
+        })?;
+        self.teams_meta = teams_meta.clone();
+        self.my_id = Some(my_id.clone());
+
+        let by_team: HashMap<&str, &OfficialTeamRoster> = rosters.teams.iter().map(|t| (t.team_id.as_str(), t)).collect();
+        let mut teams: Vec<FantasyTeam> = Vec::new();
+        for (tid, meta) in &teams_meta {
+            let mut slots: Vec<RosterSlot> =
+                by_team.get(tid.as_str()).map(|r| r.items.iter().map(|i| official_slot(i, &names)).collect()).unwrap_or_default();
+            slots.sort_by_key(|s| slot_order(&s.slot));
+            let row = standings.as_deref().and_then(|st| st.iter().find(|s| s.team_id == *tid));
+            if let Some(o) = row {
+                let mut r: Map<String, Value> = Map::new();
+                r.insert("rank".into(), Value::from(o.rank));
+                if let Some((w, l, t)) = o.record {
+                    r.insert("win".into(), Value::from(w));
+                    r.insert("loss".into(), Value::from(l));
+                    r.insert("tie".into(), Value::from(t));
+                }
+                r.insert("points_for".into(), Value::from(o.points_for));
+                r.insert("points_against".into(), Value::Null);
+                r.insert("waiver_order".into(), Value::Null);
+                self.standings.insert(tid.clone(), r);
+            }
+            teams.push(FantasyTeam {
+                team_id: tid.clone(),
+                name: meta.name.clone(),
+                owner_is_me: *tid == my_id,
+                slots,
+                record: row.and_then(|o| o.record),
+            });
+        }
+        self.apply_adp(&mut teams, &mut []);
+
+        let all_players: Vec<&Player> = teams.iter().flat_map(|t| t.players_iter()).collect();
+        let scoring = self.scoring(&all_players, info.scoring.as_ref());
+        let mut my_counts: Map<String, i64> = Map::new();
+        for s in teams.iter().filter(|t| t.owner_is_me).flat_map(|t| &t.slots).filter(|s| s.starting) {
+            *my_counts.entry(s.slot.clone()).or_insert(0) += 1;
+        }
+        let mut roster_shape = roster_shape(&my_counts, &Map::new());
+        if let Some(l) = info.roster_limits.as_ref() {
+            apply_official_limits(&mut roster_shape, l);
+        }
+        self.official_lock = Some(if period.days() == 1 { "daily" } else { "weekly" });
+        let (period_start, period_end) = info
+            .scoring_periods
+            .iter()
+            .find(|p| p.contains(today))
+            .map(|p| (p.first, p.last))
+            .unwrap_or_else(|| self.budget_period(today, false));
+        let lid = self.league_id();
+        let mut ctx = LeagueContext {
+            provider: "fantrax".into(),
+            league_id: lid.clone(),
+            season: info.end_date.map(|d| d.year() as i64).unwrap_or_else(|| season_from_settings(&Value::Null, today)),
+            name: if info.name.is_empty() { format!("Fantrax {lid}") } else { info.name.clone() },
+            scoring,
+            roster_shape,
+            teams,
+            position_limits: Map::new(),
+            max_roster_size: info.roster_limits.as_ref().map(|l| l.max_total).filter(|n| *n > 0),
+            stat_limits: None,
+            free_agents: Vec::new(),
+            matchup_period: None,
+            dynasty: self.settings.fantrax_dynasty,
+            keeper_horizon_years: self.settings.fantrax_keeper_horizon_years,
+            keepers_per_team: self.settings.fantrax_keepers,
+            dynasty_mode: self.settings.fantrax_mode,
+            dynasty_mode_source: None,
+            as_of: today,
+            schedule: Map::new(),
+            games_per_day: Map::new(),
+            opponents: Map::new(),
+            game_starts: Map::new(),
+            season_start: None,
+            lineup_lock: Some(if self.lineup_lock() == "daily" { LineupLock::Daily } else { LineupLock::Weekly }),
+            goalie_actual_starts: Map::new(),
+            b2b_second_night: Map::new(),
+            nhl_goalies: Map::new(),
+            deployment_details: Map::new(),
+            moves_limit_per_period: None,
+            moves_used_this_period: None,
+            moves_period_label: None,
+            moves_limit_season: None,
+            moves_used_season: None,
+            period_start: Some(period_start),
+            period_end: Some(period_end),
+            recent_adds: Map::new(),
+            faab_remaining: None,
+            draft_picks: Map::new(),
+            source_notes: Vec::new(),
+            warnings: Vec::new(),
+            sources: Vec::new(),
+            enrich: Default::default(),
+        };
+        if let Some(by_team) = picks.as_ref().and_then(|p| official_pick_holdings(&ctx, p)) {
+            self.draft_picks = by_team.get(&my_id).cloned().unwrap_or_default();
+            self.team_draft_picks = by_team.iter().filter(|(t, _)| **t != my_id).map(|(t, y)| (t.clone(), y.clone())).collect();
+            ctx.draft_picks = by_team;
+        }
+        // The degraded warning goes first so every list of warnings opens with it.
+        ctx.warnings.push(DEGRADED_WARNING.to_string());
+        lock(&self.warnings).insert(0, DEGRADED_WARNING.to_string());
+        self.warn(format!("Fantrax league data unavailable: {private_err}"));
+        self.ctx = Some(ctx);
+        fails.into_iter().for_each(|w| self.warn_ctx(w));
+        Ok(self.ctx.clone().expect("ctx"))
+    }
+
+    /// Compare the loaded league with the official API's view of it (`fantrax_crosscheck`) and warn about
+    /// each kind of difference, then let the official draft picks and standings (rank, W-L-T, points
+    /// for) replace the private ones. Without the official client attached (replay, snapshot and test
+    /// providers) it does nothing; a failed official read adds one warning, keeps the private value and
+    /// an offline cache miss adds no warning. Rosters are read for the roster period holding `as_of`
+    /// (always passing `period=N`, since the default flips to the next day's lineup in the evening).
+    fn cross_check_official(&mut self) {
+        let Some(off) = self.official.as_ref() else { return };
+        let Some(ctx) = self.ctx.as_mut() else { return };
+        let mut warnings: Vec<String> = Vec::new();
+        let info = official_or_warn("league info", off.league_info(), &mut warnings);
+        let standings = official_or_warn("standings", off.standings(), &mut warnings);
+        let picks = official_or_warn("draft picks", off.draft_picks(), &mut warnings);
+        let period = info.as_ref().and_then(|i| period_for_date(&i.roster_periods, ctx.as_of));
+        let rosters = period.and_then(|n| official_or_warn("rosters", off.team_rosters(Some(n)), &mut warnings));
+        let data = OfficialData { info: info.as_ref(), standings: standings.as_deref(), picks: picks.as_ref(), rosters: rosters.as_ref(), private: Some(&self.private_basis) };
+        warnings.extend(disagreements(ctx, &data));
+        if let Some(p) = picks.as_ref() {
+            if let Some(by_team) = official_pick_holdings(ctx, p) {
+                let own = by_team.get(&self.my_id.clone().unwrap_or_default()).cloned().unwrap_or_default();
+                self.team_draft_picks = by_team.iter().filter(|(t, _)| Some(*t) != self.my_id.as_ref()).map(|(t, y)| (t.clone(), y.clone())).collect();
+                self.draft_picks = own;
+                ctx.draft_picks = by_team;
+            }
+        }
+        if let Some(st) = standings.as_deref() {
+            for t in ctx.teams.iter_mut() {
+                let Some(o) = st.iter().find(|s| s.team_id == t.team_id) else { continue };
+                // The private row keeps waiver_order and points_against, which the official API lacks.
+                let row = self.standings.entry(t.team_id.clone()).or_default();
+                row.insert("rank".into(), Value::from(o.rank));
+                row.insert("points_for".into(), Value::from(o.points_for));
+                for k in ["points_against", "waiver_order"] {
+                    row.entry(k.to_string()).or_insert(Value::Null);
+                }
+                if let Some((w, l, tie)) = o.record {
+                    t.record = Some((w, l, tie));
+                    row.insert("win".into(), Value::from(w));
+                    row.insert("loss".into(), Value::from(l));
+                    row.insert("tie".into(), Value::from(tie));
+                }
+            }
+        }
+        for w in warnings {
+            // The calendar read may already have reported the same failure.
+            if !lock(&self.warnings).contains(&w) {
+                self.warn_ctx(w);
+            }
+        }
+    }
+
+    /// Fill each rostered player's and free agent's `adp` from the official `getAdp`, joined by Fantrax
+    /// player id; a player with no ADP (or the never-drafted sentinel) keeps `None`. Does nothing unless
+    /// FANTRAX_USE_ADP is on and the official client is attached. A failed read adds one warning and
+    /// leaves every `adp` as it was.
+    fn apply_adp(&self, teams: &mut [FantasyTeam], free_agents: &mut [Player]) {
+        if !self.settings.fantrax_use_adp {
+            return;
+        }
+        let Some(off) = self.official.as_ref() else { return };
+        let adp = match off.adp() {
+            Ok(a) => a,
+            Err(OfficialError::Failed(d)) => {
+                self.warn(format!("Fantrax official API ADP unavailable ({d}); average draft position is left out"));
+                return;
+            }
+            Err(OfficialError::NotCached) => return,
+        };
+        let fill = |p: &mut Player| {
+            p.adp = p.ids.get("fantrax").and_then(|id| adp.get(id)).copied();
+        };
+        for t in teams.iter_mut() {
+            t.slots.iter_mut().filter_map(|s| s.player.as_mut()).for_each(fill);
+        }
+        free_agents.iter_mut().for_each(fill);
+    }
+
+    /// The official `getLeagueInfo`, or None without the official client, offline with nothing cached, or
+    /// when the read failed. A failure adds its warning once, however many callers ask.
+    fn official_league_info(&self) -> Option<OfficialLeagueInfo> {
+        if self.official_calendar_failed.load(AtomicOrdering::Relaxed) {
+            return None;
+        }
+        match self.official.as_ref()?.league_info() {
+            Ok(i) => Some(i),
+            Err(e) => {
+                self.official_calendar_failed.store(true, AtomicOrdering::Relaxed);
+                if let Some(w) = e.warning("league info") {
+                    let mut seen = lock(&self.warnings);
+                    if !seen.contains(&w) {
+                        seen.push(w);
+                    }
+                }
+                None
+            }
+        }
+    }
+
+    /// The official calendar (`getLeagueInfo` scoring periods and playoff start), or None without the
+    /// official client, offline with nothing cached, or when the read failed. A failure adds its warning
+    /// once, however many callers ask.
+    fn official_calendar_data(&self) -> Option<OfficialCalendar> {
+        let info = self.official_league_info()?;
+        if info.scoring_periods.is_empty() {
+            return None;
+        }
+        Some(OfficialCalendar {
+            periods: info.scoring_periods.iter().map(|p| (p.number, p.first, p.last)).collect(),
+            playoff_start: info.playoffs.filter(|p| p.used).map(|p| p.first_playoff_period),
+        })
     }
 
     /// The scoring period containing `today` (Fantrax's periods when `need_exact`, else Mon-Sun).
     fn budget_period(&self, today: NaiveDate, need_exact: bool) -> (NaiveDate, NaiveDate) {
         if need_exact {
+            if let Some(cal) = self.official_calendar_data() {
+                if let Some((_, start, end)) = cal.periods.iter().find(|(_, s, e)| *s <= today && today <= *e) {
+                    return (*start, *end);
+                }
+            }
             if let Some(r) = self.try_call("Fantrax scoring periods", &[fx_call("getTeamRosterInfo", &[("view", "GAMES_PER_POS")])]) {
                 if let Some(first) = r.first() {
                     let lst = jlist(jobj(first, "displayedLists"), "scoringPeriodList");
@@ -3150,9 +3622,10 @@ impl FantraxProvider {
         shape
     }
 
-    /// "daily" or "weekly", parsed from the Rules page ("weekly" when unavailable).
+    /// "daily" or "weekly", parsed from the Rules page ("weekly" when unavailable); a degraded load uses
+    /// the official roster periods instead.
     pub fn lineup_lock(&self) -> &'static str {
-        parse_lineup_lock(self.rules.as_ref().and_then(|r| r.get(LINEUP_RULE)))
+        self.official_lock.unwrap_or_else(|| parse_lineup_lock(self.rules.as_ref().and_then(|r| r.get(LINEUP_RULE))))
     }
 
     pub fn rules_dynasty(&self) -> bool {
@@ -3196,8 +3669,9 @@ impl FantraxProvider {
         self.rules = Some(parse_league_rules(&content));
     }
 
-    /// Point values: the league's Rules page, else FANTRAX_POINTS, else Fantrax's own FP/G.
-    fn scoring(&mut self, players: &[&Player]) -> ScoringConfig {
+    /// Point values: the official API, else the league's Rules page, else FANTRAX_POINTS, else Fantrax's
+    /// own FP/G. Only a points league's official scoring is used (a category league has no point values).
+    fn scoring(&mut self, players: &[&Player], official: Option<&OfficialScoring>) -> ScoringConfig {
         let (cfg_base, cfg_goalie) = split_points(&self.settings.fantrax_points);
         if !cfg_base.is_empty() {
             let (m, n) = weights_check(&cfg_base, players.iter().copied(), Some(&cfg_goalie));
@@ -3207,14 +3681,27 @@ impl FantraxProvider {
         let has_fpts = players.iter().any(|p| !fit_lines(p).is_empty());
         let mut weights = Map::new();
         let mut goalie = Map::new();
-        if let Some(rules) = self.rules.as_ref().filter(|r| !r.scoring.is_empty()) {
-            let (w, g, notes) = rules_weights(rules);
-            weights = w;
-            goalie = g;
-            for n in notes {
-                self.warn(format!("Fantrax {n}"));
+        if let Some(o) = official.filter(|o| o.kind.ends_with("POINTS_BASED")) {
+            let (w, g, notes) = official_weights(o);
+            if !w.is_empty() {
+                weights = w;
+                goalie = g;
+                for n in notes {
+                    self.warn(format!("Fantrax {n}"));
+                }
+                self.scoring_source = "Fantrax official API".into();
             }
-            self.scoring_source = "Fantrax league rules".into();
+        }
+        if weights.is_empty() {
+            if let Some(rules) = self.rules.as_ref().filter(|r| !r.scoring.is_empty()) {
+                let (w, g, notes) = rules_weights(rules);
+                weights = w;
+                goalie = g;
+                for n in notes {
+                    self.warn(format!("Fantrax {n}"));
+                }
+                self.scoring_source = "Fantrax league rules".into();
+            }
         }
         if weights.is_empty() && !cfg_base.is_empty() {
             weights = cfg_base;
@@ -3812,6 +4299,7 @@ impl FantraxProvider {
     pub fn sync_extras(&mut self) {
         let nan = |x: f64| if x.is_nan() { None } else { Some(x) };
         let warnings = self.all_warnings();
+        let lock = self.lineup_lock();
         let e = &mut self.extras;
         e.kind = "FantraxProvider".into();
         e.warnings = warnings;
@@ -3829,7 +4317,7 @@ impl FantraxProvider {
         e.team_draft_picks = self.team_draft_picks.clone();
         e.fantasy_points = self.fantasy_points.clone();
         e.rules = self.rules.clone();
-        e.lineup_lock = Some(parse_lineup_lock(self.rules.as_ref().and_then(|r| r.get(LINEUP_RULE))).to_string());
+        e.lineup_lock = Some(lock.to_string());
         e.rules_dynasty = Some(self.rules.as_ref().is_some_and(|r| {
             py_lower(r.get("Keeper league Type").unwrap_or("")).contains("dynasty")
         }));
@@ -3890,6 +4378,36 @@ impl LeagueProvider for FantraxProvider {
 
     fn fantrax_call(&self, calls: &[(String, Map<String, Value>)], fresh: bool) -> anyhow::Result<Vec<Value>> {
         self.client_call(calls, fresh)
+    }
+
+    fn official_calendar(&self) -> anyhow::Result<OfficialCalendar> {
+        self.official_calendar_data().ok_or_else(|| ProviderError::Unavailable("official scoring periods unavailable".into()).into())
+    }
+
+    /// A failed official read is returned as its warning for the caller to show next to the private
+    /// fallback's result.
+    fn official_matchup(&self, my_team_id: &str, period: i64) -> Result<Option<OfficialMatchup>, String> {
+        let Some(off) = self.official.as_ref() else { return Ok(None) };
+        let warn = |what: &str, e: OfficialError| e.warning(what).map_or(Ok(None), Err);
+        let info = match off.league_info() {
+            Ok(i) => i,
+            Err(e) => return warn("league info", e),
+        };
+        if !info.matchups.iter().any(|m| m.period == period && !m.pairings.is_empty()) {
+            return Ok(None);
+        }
+        let board = match off.matchup_scores(Some(period)) {
+            Ok(b) => b,
+            Err(e) => return warn("matchup scores", e),
+        };
+        let mine = my_matchup(&info, &board, my_team_id, period)
+            .map_err(|d| format!("Fantrax official API matchup unavailable ({d}); using the private data instead"))?;
+        Ok(mine.map(|(opponent_id, my_points, their_points)| OfficialMatchup {
+            opponent_id,
+            my_points,
+            their_points,
+            playoffs: info.playoffs.as_ref().is_some_and(|p| p.is_playoff_period(period)),
+        }))
     }
 
     fn raw_settings(&self) -> anyhow::Result<Value> {

@@ -13,6 +13,25 @@ use crate::models::{ActivityItem, LeagueContext, LineupDay};
 use crate::snapshot::{EspnLeagueMeta, LeagueRules, ProviderExtras};
 use crate::{Map, ProviderError};
 
+/// A league's scoring-period calendar as the Fantrax official API reports it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct OfficialCalendar {
+    /// (period number, first day, last day), both days inclusive, in period order.
+    pub periods: Vec<(i64, NaiveDate, NaiveDate)>,
+    /// First playoff period, when the league uses playoffs.
+    pub playoff_start: Option<i64>,
+}
+
+/// One scoring period's head-to-head game of the owner's team, from the Fantrax official API.
+#[derive(Clone, Debug, PartialEq)]
+pub struct OfficialMatchup {
+    pub opponent_id: String,
+    pub my_points: f64,
+    pub their_points: f64,
+    /// Whether the period is a playoff one, from the league's first playoff period.
+    pub playoffs: bool,
+}
+
 pub trait LeagueProvider: Send + Sync {
     /// "espn" | "fantrax"
     fn name(&self) -> &str;
@@ -69,6 +88,23 @@ pub trait LeagueProvider: Send + Sync {
     /// Python: `provider._get_client().call(("getStandings", {"view": "SCHEDULE"}))`.
     fn fantrax_call(&self, _calls: &[(String, Map<String, Value>)], _fresh: bool) -> anyhow::Result<Vec<Value>> {
         Err(ProviderError::Unavailable("not a Fantrax provider".into()).into())
+    }
+
+    /// Scoring periods and playoff start from the Fantrax official API. Unavailable (the default) for
+    /// every provider without that API attached, and when its read failed; callers then use the private
+    /// `fantrax_call` data.
+    fn official_calendar(&self) -> anyhow::Result<OfficialCalendar> {
+        Err(ProviderError::Unavailable("no official Fantrax API".into()).into())
+    }
+
+    /// The pairing and scores of `my_team_id` in scoring period `period` (a finished or the current one)
+    /// from the Fantrax official API: the opponent from `getLeagueInfo` matchups, the points from
+    /// `getMatchupScores`. `Ok(None)` (the default) means there is nothing official to use, silently:
+    /// no official API attached, an offline cache miss, or no pairing of two real teams (playoff periods
+    /// hold seed placeholders). `Err` is a failed read or inconsistent data, holding the one warning to
+    /// show; either way the caller falls back to the private `fantrax_call` data.
+    fn official_matchup(&self, _my_team_id: &str, _period: i64) -> Result<Option<OfficialMatchup>, String> {
+        Ok(None)
     }
 
     /// ESPN `league.espn_request.league_get(params=...)` (e.g. view=mMatchupScore): raw JSON.

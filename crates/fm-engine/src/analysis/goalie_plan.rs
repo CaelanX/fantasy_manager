@@ -122,9 +122,18 @@ impl GoalieWeek {
     }
 }
 
-/// Expected fantasy points if he starts (see the Python module docstring); his FPG when the league
-/// is not a points league or he has no rates.
+/// Expected fantasy points if he starts (see the Python module docstring), floored at zero; his FPG
+/// when the league is not a points league or he has no rates.
 pub fn start_points(scoring: Option<&PointsScoring>, pv: &PlayerValue, win_prob: Option<f64>, ga_factor: Option<f64>) -> f64 {
+    if scoring.is_none() || pv.rates.is_empty() {
+        return pv.fpg;
+    }
+    start_points_signed(scoring, pv, win_prob, ga_factor).max(0.0)
+}
+
+/// [`start_points`] without the floor at zero: under scoring with a goals-against penalty a start
+/// against a strong offence can cost points, and the daily lineup needs that sign to bench him.
+pub fn start_points_signed(scoring: Option<&PointsScoring>, pv: &PlayerValue, win_prob: Option<f64>, ga_factor: Option<f64>) -> f64 {
     let mut rates: Stats = pv.rates.clone();
     let Some(scoring) = scoring.filter(|_| !rates.is_empty()) else { return pv.fpg };
     if let (Some(ga), Some(f)) = (rates.get("GA").copied(), ga_factor.filter(|f| *f > 0.0)) {
@@ -153,11 +162,11 @@ pub fn start_points(scoring: Option<&PointsScoring>, pv: &PlayerValue, win_prob:
         }
         rates.insert("W".to_string(), new_w);
     }
-    scoring.value(&rates).max(0.0)
+    scoring.value(&rates)
 }
 
 /// (win prob, opponent goals shown, GA factor, source) for `team` on `day`.
-fn matchup(team: &str, opp_label: &str, odds: &DayOdds, gf: &TeamFactors) -> (Option<f64>, Option<f64>, Option<f64>, &'static str) {
+pub(crate) fn matchup(team: &str, opp_label: &str, odds: &DayOdds, gf: &TeamFactors) -> (Option<f64>, Option<f64>, Option<f64>, &'static str) {
     let o = odds.get(team);
     let win = o.and_then(|o| o.win_prob);
     let implied: Vec<f64> = odds.values().filter_map(|v| v.implied_total).filter(|x| *x != 0.0).collect();

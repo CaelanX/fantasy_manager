@@ -19,6 +19,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 use chrono::{Datelike, Duration, NaiveDate};
@@ -33,11 +34,14 @@ use fm_pycompat::text::py_upper;
 use fm_pycompat::time::strftime_date;
 use regex::Regex;
 
+use crate::analysis::goalie_plan::{matchup as goalie_opp_matchup, start_points_signed};
 use crate::analysis::schedule_grid::per_game_value;
 use crate::analysis::team_factors::second_night_prob;
+use crate::recommend::base::league_unit;
 use crate::recommend::headline::day_swap_headline;
 use crate::recommend::lineup_lock;
 use crate::recommend::strength::{apply_ranks, apply_strength};
+use crate::scoring::from_config;
 use crate::valuation::replacement::eligible_slots;
 use crate::valuation::schedule::{
     memo_window, night_start_probs, skater_opp_game, week_start_share, OppGame, ScheduleMemo, B2B_SECOND_NIGHT_P,
@@ -551,9 +555,80 @@ pub fn week_opp(pv: &PlayerValue) -> f64 {
     }
 }
 
+static GOALIE_MATCHUP_OFF: AtomicBool = AtomicBool::new(false);
+
+/// Turn the goalie matchup in [`day_value`] off (true) or back on for every later plan in this
+/// process. Off restores Python's goalie day value: the neutral per-start value times the start
+/// probability, floored at zero. Only the Python parity tests and the CLI's hidden
+/// `--from-snapshot` mode turn it off, because their fixtures come from Python.
+pub fn disable_goalie_matchup(off: bool) {
+    GOALIE_MATCHUP_OFF.store(off, Ordering::Relaxed);
+}
+
+/// The goalie planner's view of one start ([`crate::analysis::goalie_plan`]): his expected points
+/// if he starts against that night's opponent, and the same with a neutral matchup.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GoalieMatchup {
+    /// fantasy points if he starts, with the betting win probability and the opponent's expected
+    /// goals (not floored: a start can cost points)
+    pub pts_if_starts: f64,
+    /// fantasy points if he starts against an average opponent (his valued rates)
+    pub neutral: f64,
+    /// "BOS" at home, "@BOS" away
+    pub opponent: Option<String>,
+    pub win_prob: Option<f64>,
+    /// the opponent's implied goals (odds)
+    pub opp_goals: Option<f64>,
+    /// the opponent's expected goals over the league average (odds, else goals per game)
+    pub ga_factor: Option<f64>,
+    /// "odds" / "goals per game" / "neutral" (win probability only)
+    pub source: &'static str,
+}
+
+/// [`GoalieMatchup`] of `p` on `day`; None for skaters, outside points leagues, without rates,
+/// without any matchup data, with `FM_OPP_ADJUST=0`, or after [`disable_goalie_matchup`]. It reads
+/// the same odds archive and opponent goals per game as the goalie planner, through `memo`.
+pub fn goalie_matchup(
+    ctx: &LeagueContext,
+    memo: &ScheduleMemo,
+    p: &Player,
+    pv: &PlayerValue,
+    day: NaiveDate,
+) -> Option<GoalieMatchup> {
+    if !p.is_goalie() || pv.rates.is_empty() || GOALIE_MATCHUP_OFF.load(Ordering::Relaxed) {
+        return None;
+    }
+    let sc = from_config(&ctx.scoring);
+    let scoring = sc.as_points()?;
+    let adj = memo.opponent_adjust(ctx);
+    if !adj.enabled {
+        return None;
+    }
+    let team = normalize_team(p.team.as_deref()).unwrap_or_default();
+    let opponent = ctx.opponents.get(&team).and_then(|m| m.get(&day)).cloned();
+    let odds = adj.odds_for(day);
+    let (win_prob, opp_goals, ga_factor, source) =
+        goalie_opp_matchup(&team, opponent.as_deref().unwrap_or("?"), &odds, adj.gf_factors(ctx));
+    if win_prob.is_none() && ga_factor.is_none() {
+        return None;
+    }
+    Some(GoalieMatchup {
+        pts_if_starts: start_points_signed(Some(scoring), pv, win_prob, ga_factor),
+        neutral: start_points_signed(Some(scoring), pv, None, None),
+        opponent,
+        win_prob,
+        opp_goals,
+        ga_factor,
+        source,
+    })
+}
+
 /// Expected points from `p` on `day` (see the Python docstring): 0 without a game or while he is
 /// out, else his per-game value adjusted for the night's start probability (goalies) or the
-/// game's opponent (skaters).
+/// game's opponent (skaters). A goalie's per-start value moves by the goalie planner's matchup
+/// change ([`goalie_matchup`]: points if he starts against this opponent minus against an average
+/// one) and is not floored at zero, so a start expected to lose points is benched; Python had
+/// neither.
 pub fn day_value(ctx: &LeagueContext, memo: &ScheduleMemo, p: &Player, pv: Option<&PlayerValue>, day: NaiveDate) -> f64 {
     let Some(pv) = pv else { return 0.0 };
     if !plays(ctx, p, day) || !available_on(p, Some(pv), day) {
@@ -577,12 +652,17 @@ pub fn day_value(ctx: &LeagueContext, memo: &ScheduleMemo, p: &Player, pv: Optio
             pv.start_share.unwrap_or(0.0)
         };
         if share > 0.0 {
-            v = v / share * prob;
+            let delta = goalie_matchup(ctx, memo, p, pv, day).map_or(0.0, |g| g.pts_if_starts - g.neutral);
+            v = (v / share + delta) * prob;
         }
     } else if !p.is_goalie() {
         v = v * opp_game(ctx, memo, p, day).mult / if from_week { week_opp(pv) } else { 1.0 };
     }
-    v.max(0.0)
+    if p.is_goalie() && !GOALIE_MATCHUP_OFF.load(Ordering::Relaxed) {
+        v
+    } else {
+        v.max(0.0)
+    }
 }
 
 /// His team's game on `day` has started by `now`.
@@ -815,13 +895,18 @@ fn week_reasons(p: &Player, pv: Option<&PlayerValue>, horizon: Horizon) -> Vec<R
     out
 }
 
-/// Today's expected points, today's opponent adjustment (OPP_ADJ, skaters) and his games left in
-/// the matchup (daily-lineup leagues).
-fn day_reasons(p: &Player, plan: &DailyPlan, ctx: Option<(&LeagueContext, &ScheduleMemo)>) -> Vec<Reason> {
+/// Today's expected points, today's opponent adjustment (OPP_ADJ for skaters, GOALIE_MATCHUP for
+/// goalies) and his games left in the matchup (daily-lineup leagues).
+fn day_reasons(
+    p: &Player,
+    pv: Option<&PlayerValue>,
+    plan: &DailyPlan,
+    ctx: Option<(&LeagueContext, &ScheduleMemo)>,
+) -> Vec<Reason> {
     let day0 = &plan.days[0];
     let today = day0.values.get(&p.cid).copied().unwrap_or(0.0);
     let games = plan.days.iter().filter(|d| d.playing.contains(&p.cid)).count();
-    let text = if today > 0.0 {
+    let text = if today != 0.0 {
         format!("{}: {} projected pts today", p.name, fixed(today, 2, false))
     } else if day0.locked.contains(&p.cid) && day0.playing.contains(&p.cid) {
         format!("{}: game already started today", p.name)
@@ -836,6 +921,9 @@ fn day_reasons(p: &Player, plan: &DailyPlan, ctx: Option<(&LeagueContext, &Sched
             let g = opp_game(ctx, memo, p, day0.day);
             if (g.mult - 1.0).abs() >= OPP_REASON_MIN {
                 out.push(Reason::new("OPP_ADJ", g.text(&p.name)).with_value(Some(g.mult)).with_baseline(Some(1.0)));
+            }
+            if let Some(m) = pv.and_then(|pv| goalie_matchup(ctx, memo, p, pv, day0.day)) {
+                out.push(goalie_matchup_reason(p, &m));
             }
         }
     }
@@ -856,6 +944,33 @@ fn day_reasons(p: &Player, plan: &DailyPlan, ctx: Option<(&LeagueContext, &Sched
         out.push(status_reason(p));
     }
     out
+}
+
+fn goalie_matchup_reason(p: &Player, m: &GoalieMatchup) -> Reason {
+    let opp = m.opponent.as_deref().filter(|o| !o.is_empty()).map_or(String::new(), |o| format!(" {o}"));
+    let mut why: Vec<String> = Vec::new();
+    if let Some(w) = m.win_prob {
+        why.push(format!("win probability {}", percent(w, 0, false)));
+    }
+    match (m.source, m.opp_goals, m.ga_factor) {
+        ("odds", Some(g), _) => why.push(format!("opponent implied {} goals", fixed(g, 2, false))),
+        ("goals per game", _, Some(f)) => {
+            why.push(format!("opponent scores {}x the league's goals per game", fixed(f, 2, false)))
+        }
+        _ => {}
+    }
+    Reason::new(
+        "GOALIE_MATCHUP",
+        format!(
+            "{}: today{opp} - {}: {} pts if he starts ({} against an average opponent)",
+            p.name,
+            why.join(", "),
+            fixed(m.pts_if_starts, 2, false),
+            fixed(m.neutral, 2, false)
+        ),
+    )
+    .with_value(Some(m.pts_if_starts))
+    .with_baseline(Some(m.neutral))
 }
 
 // --------------------------------------------------------------------------- slot changes
@@ -1096,7 +1211,9 @@ fn weekly_lock(mut r: Recommendation) -> Recommendation {
 }
 
 /// Start/sit changes that beat the current lineup, plus injured starters and healthy IR players
-/// (see the Python docstring). `now` is the clock the daily plan locks started games with.
+/// (see the Python docstring). `now` is the clock the daily plan locks started games with. A change
+/// must gain more than `MIN_GAIN_ABS` x [`league_unit`] (Python: the bare 0.5 in every league) and
+/// `MIN_GAIN_REL` of the benched player's value.
 pub fn recommend_lineup(
     ctx: &LeagueContext,
     values: &Map<Cid, PlayerValue>,
@@ -1105,6 +1222,7 @@ pub fn recommend_lineup(
     memo: &ScheduleMemo,
 ) -> Result<Vec<Recommendation>, CoreError> {
     let team = ctx.my_team()?;
+    let unit = league_unit(ctx);
     let view = RosterView::of(team);
     let plan = if horizon == Horizon::Week { daily_plan_view(ctx, &view, values, None, now, memo) } else { None };
     let (values, starts): (Cow<'_, Map<Cid, PlayerValue>>, Map<Cid, (f64, f64)>) = match &plan {
@@ -1160,7 +1278,7 @@ pub fn recommend_lineup(
             .collect();
         let gain = pin.map_or(0.0, |p| vc(&p.cid)) - pout.map_or(0.0, |p| vc(&p.cid));
         let v_out = pout.map_or(0.0, |p| vc(&p.cid));
-        let threshold = MIN_GAIN_ABS.max(MIN_GAIN_REL * v_out.abs());
+        let threshold = (MIN_GAIN_ABS * unit).max(MIN_GAIN_REL * v_out.abs());
         if gain <= threshold {
             continue;
         }
@@ -1177,7 +1295,7 @@ pub fn recommend_lineup(
         for x in [pin, pout].into_iter().flatten() {
             match &plan {
                 None => reasons.extend(week_reasons(x, values.get(&x.cid), horizon)),
-                Some(plan) => reasons.extend(day_reasons(x, plan, Some((ctx, memo)))),
+                Some(plan) => reasons.extend(day_reasons(x, values.get(&x.cid), plan, Some((ctx, memo)))),
             }
         }
         for c in &chain {
@@ -1256,8 +1374,7 @@ pub fn recommend_lineup(
     back.sort_by(|a, b| cmp_f64(-fpg(a), -fpg(b)));
     let swaps: HashMap<&str, &Player> = back.iter().zip(stash.iter()).map(|(b, x)| (b.cid.as_str(), *x)).collect();
     let swapped: HashSet<&str> = swaps.values().map(|x| x.cid.as_str()).collect();
-    let full = team.slots.iter().filter(|s| s.player.is_some() && s.slot != "IR").count() as i64
-        >= ctx.roster_shape.iter().filter(|(k, _)| k.as_str() != "IR").map(|(_, n)| *n).sum::<i64>();
+    let full = crate::recommend::base::open_spots_under_cap(team, ctx) == 0;
 
     let activation_gain = |p: &Player, pv: Option<&PlayerValue>, to_ir: Option<&Player>| -> (Option<f64>, Option<GainUnits>, Option<i64>) {
         let Some(pv) = pv else { return (None, None, None) };
@@ -1373,7 +1490,8 @@ pub fn recommend_lineup(
             if back.is_empty() {
                 continue;
             }
-            let pts = py_sum(back.iter().map(|d| day_value(ctx, memo, p, Some(pv), *d)));
+            // A goalie's day value can be negative; the solver benches him on those days, so they add nothing.
+            let pts = py_sum(back.iter().map(|d| day_value(ctx, memo, p, Some(pv), *d).max(0.0)));
             let note = p.status_note.as_deref().map_or(String::new(), |n| format!(" ({n})"));
             let mut r = Recommendation::new(
                 RecKind::Lineup,
@@ -1874,5 +1992,83 @@ pub(crate) mod tests {
         g.confirmed_start = Some(true);
         assert!((day_value(&ctx, &memo, &g, v.get("g"), d(10, 6)) - 3.0).abs() < 1e-9);
         assert!((day_value(&ctx, &memo, &g, v.get("g"), d(10, 7)) - 3.0 * 0.35).abs() < 1e-9);
+    }
+
+    /// A goalie confirmed to start tonight (Tue Oct 6) under ESPN-like goalie scoring (W 2, GA -1.5,
+    /// SV 0.2, SO 2): 1.9 pts per start against an average opponent, and a market that gives his
+    /// team 1.8 goals and the opponent 4.2 (day average 3.0) with a 25% win probability.
+    fn tough_night() -> (LeagueContext, Map<Cid, PlayerValue>, ScheduleMemo) {
+        use crate::analysis::team_factors::DayOdds;
+        use crate::valuation::schedule::OpponentAdjust;
+        use fm_sources::odds::TeamOddsContext;
+        use std::sync::Arc;
+        let mut g = pl("g", &["G"], "healthy");
+        g.confirmed_start = Some(true);
+        g.start_source = Some("Daily Faceoff: Confirmed".into());
+        let t = team(&[("G", &g)]);
+        let mut ctx = ctx_for(&t, &shape(&[("G", 1)]), "espn", d(10, 6));
+        ctx.scoring.weights = [("W", 2.0), ("GA", -1.5), ("SV", 0.2), ("SO", 2.0)].iter().map(|(k, v)| (k.to_string(), *v)).collect();
+        ctx.period_end = Some(d(10, 11));
+        ctx.schedule.insert("EDM".into(), vec![d(10, 6)]);
+        ctx.opponents.insert("EDM".into(), [(d(10, 6), "@BOS".to_string())].into_iter().collect());
+        let rates: Map<String, f64> =
+            [("W", 0.5), ("L", 0.4), ("OTL", 0.1), ("GA", 2.8), ("SV", 25.0), ("SA", 27.8), ("SO", 0.05), ("GS", 1.0)]
+                .iter()
+                .map(|(k, v)| (k.to_string(), *v))
+                .collect();
+        let mut gv = pv(&g, 1.9, Some(1.9 * 0.6), Some(1));
+        gv.offnight_next7 = Some(0);
+        gv.start_share = Some(0.6);
+        gv.rates = rates;
+        let odds = |win: f64, ours: f64, theirs: f64| TeamOddsContext {
+            implied_total: Some(ours),
+            opp_implied_total: Some(theirs),
+            win_prob: Some(win),
+            opponent: String::new(),
+            home: false,
+            game_total: None,
+            as_of: String::new(),
+        };
+        let table: DayOdds = [("EDM".to_string(), odds(0.25, 1.8, 4.2)), ("BOS".to_string(), odds(0.75, 4.2, 1.8))].into_iter().collect();
+        let memo = ScheduleMemo::new(None);
+        memo.install_opponent_adjust(&ctx, OpponentAdjust::new(Some(Arc::new(move |_d| table.clone())), None, Some(true), None));
+        (ctx, vals(vec![gv]), memo)
+    }
+
+    #[test]
+    fn goalie_day_value_uses_the_planner_matchup_and_can_be_negative() {
+        let (ctx, v, memo) = tough_night();
+        let g = &ctx.teams[0].slots[0].player.clone().unwrap();
+        let m = goalie_matchup(&ctx, &memo, g, &v["g"], d(10, 6)).unwrap();
+        // neutral: 2(0.5) - 1.5(2.8) + 0.2(25) + 2(0.05) = 1.9
+        assert!((m.neutral - 1.9).abs() < 1e-9);
+        // GA x 4.2/3.0 = 3.92 (+1.12), SV 25 - 1.12 = 23.88, SO 0.05 e^-1.12, W 0.25:
+        // 0.5 - 5.88 + 4.776 + 0.032628 = -0.571372
+        let want = 2.0 * 0.25 - 1.5 * 3.92 + 0.2 * 23.88 + 2.0 * 0.05 * (-1.12f64).exp();
+        assert!((want - -0.571372).abs() < 1e-6);
+        assert!((m.pts_if_starts - want).abs() < 1e-9);
+        assert_eq!((m.source, m.win_prob, m.opp_goals), ("odds", Some(0.25), Some(4.2)));
+        // confirmed start (probability 1): his 1.9 per start moved by the matchup, not floored
+        assert!((day_value(&ctx, &memo, g, v.get("g"), d(10, 6)) - want).abs() < 1e-9);
+        // without odds or opponent scoring the matchup is neutral and the old value stands
+        assert!(goalie_matchup(&ctx, &ScheduleMemo::new(None), g, &v["g"], d(10, 6)).is_none());
+        assert!((day_value(&ctx, &ScheduleMemo::new(None), g, v.get("g"), d(10, 6)) - 1.9).abs() < 1e-9);
+    }
+
+    #[test]
+    fn goalie_with_negative_expected_points_is_benched() {
+        let (ctx, v, memo) = tough_night();
+        let p = daily_plan(&ctx, &ctx.teams[0], &v, None, &now_at(12, 0, 1), &memo).unwrap();
+        assert!(p.days[0].assign.is_empty() && p.days[0].optimal == 0.0 && p.days[0].current < -0.57);
+        let r = recommend_lineup(&ctx, &v, Horizon::Week, &now_at(12, 0, 1), &memo).unwrap();
+        assert_eq!(titles(&r), vec!["Bench g (leave G empty) today"]);
+        assert!((r[0].predicted_gain.unwrap() - 0.571372).abs() < 1e-6);
+        assert_eq!(r[0].reason("DAY_VALUE").unwrap().text, "g: -0.57 projected pts today");
+        let why = r[0].reason("GOALIE_MATCHUP").unwrap();
+        assert_eq!(
+            why.text,
+            "g: today @BOS - win probability 25%, opponent implied 4.20 goals: -0.57 pts if he starts (1.90 against an \
+             average opponent)"
+        );
     }
 }

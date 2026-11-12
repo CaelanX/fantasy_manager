@@ -13,6 +13,9 @@
 //! * The "Live matchup scores unavailable (<Type>: <msg>)" warning carries the Rust error text
 //!   (`Error: <msg>`), not the Python exception class name.
 
+use std::collections::BTreeMap;
+use std::sync::RwLock;
+
 use chrono::{Duration, NaiveDate};
 use fm_core::models::{FantasyTeam, LeagueContext, Player, ScoringKind};
 use fm_core::provider::LeagueProvider;
@@ -32,7 +35,7 @@ use crate::analysis::schedule_grid::{
 };
 use crate::recommend::lineup::{daily_plan, opp_game, optimal_lineup, started, starting_slots, week_opp, DailyPlan};
 use crate::recommend::lineup_lock::lineup_lock_for;
-use crate::scoring::{from_config, PointsScoring};
+use crate::scoring::{from_config, point_scale, PointsScoring};
 use crate::valuation::valuate::fit_and_valuate;
 use crate::valuation::schedule::ScheduleMemo;
 
@@ -137,6 +140,9 @@ pub struct Matchup {
     pub lineup_basis: String,
     pub warnings: Vec<String>,
     pub draws: usize,
+    /// the per-game SD constants behind every `sd` above
+    #[serde(skip)]
+    pub sd_model: SdModel,
 }
 
 impl Matchup {
@@ -183,9 +189,82 @@ pub fn apportion(pv: Option<&PlayerValue>, games_left: i64) -> f64 {
     per_game_value(Some(pv)).unwrap_or(0.0) * games_left as f64
 }
 
-/// Per-game SD of fantasy points: 1.3 x sqrt(FPG) skaters, 2.5 x sqrt(FPG) goalies.
+/// Per-game SD of fantasy points with the reference constants (ESPN points): 1.3 x sqrt(FPG)
+/// skaters, 2.5 x sqrt(FPG) goalies. The simulation uses the league's [`SdModel`].
 pub fn game_sd(per_game: f64, goalie: bool) -> f64 {
-    (if goalie { GOALIE_SD_K } else { SKATER_SD_K }) * per_game.max(0.0).sqrt()
+    SdModel::REFERENCE.game_sd(per_game, goalie)
+}
+
+/// The per-game SD constants one league's simulation uses: SD = k x sqrt(FPG).
+///
+/// SKATER_SD_K and GOALIE_SD_K are stated in ESPN reference points. A league whose weights are u
+/// times the reference ([`point_scale`]) scores the same production u times higher, so its true
+/// SD is u x k x sqrt(FPG / u) = k x sqrt(u) x sqrt(FPG): doubling every weight doubles the SD.
+/// Once the harness has graded MIN_MATCHUPS of the league's matchups, its fitted scale s
+/// ([`install_sd_scale`]) is blended with that default in variance terms (see [`SdFit`]). Python
+/// used the reference constants in every league and never applied the fitted scale.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SdModel {
+    pub skater_k: f64,
+    pub goalie_k: f64,
+}
+
+impl SdModel {
+    pub const REFERENCE: SdModel = SdModel { skater_k: SKATER_SD_K, goalie_k: GOALIE_SD_K };
+
+    /// The league's constants: the reference constants times the square root of the league's point
+    /// scale, blended with the installed fitted scale when there is one.
+    pub fn for_league(ctx: &LeagueContext) -> SdModel {
+        let u = point_scale(ctx);
+        // squared multipliers on the reference constants (variances), default first
+        let (mut vs, mut vg) = (u.skater.max(0.0), u.goalie.max(0.0));
+        if let Some(f) = fitted_sd_scale(&ctx.provider) {
+            let fitted = f.scale * f.scale;
+            vs = f.weight * fitted + (1.0 - f.weight) * vs;
+            vg = f.weight * fitted + (1.0 - f.weight) * vg;
+        }
+        SdModel { skater_k: SKATER_SD_K * vs.sqrt(), goalie_k: GOALIE_SD_K * vg.sqrt() }
+    }
+
+    pub fn game_sd(&self, per_game: f64, goalie: bool) -> f64 {
+        (if goalie { self.goalie_k } else { self.skater_k }) * per_game.max(0.0).sqrt()
+    }
+}
+
+/// The harness's fitted SD scale for one league (`fm_harness::matchup_calib`).
+///
+/// `scale` is the multiplier on the reference constants that makes the league's graded margins
+/// standard normal. `weight` (0..1) is the share it gets against the league's default: the
+/// harness passes n / (n + n0) for n graded matchups, which is the posterior mean of a normal
+/// variance under a conjugate prior worth n0 matchups centred on the default.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SdFit {
+    pub scale: f64,
+    pub weight: f64,
+}
+
+/// Fitted SD scales per league (key: `LeagueContext.provider`), installed by the loader.
+static FITTED_SD_SCALE: RwLock<Option<BTreeMap<String, SdFit>>> = RwLock::new(None);
+
+/// Install (Some) or clear (None) the harness's fitted SD scale for `league`. The loader installs
+/// it only once enough matchups are graded. A scale that is not a positive number clears it.
+pub fn install_sd_scale(league: &str, fit: Option<SdFit>) {
+    let mut g = FITTED_SD_SCALE.write().unwrap_or_else(|e| e.into_inner());
+    let m = g.get_or_insert_with(BTreeMap::new);
+    match fit.filter(|f| f.scale.is_finite() && f.scale > 0.0 && f.weight.is_finite()) {
+        Some(f) => {
+            m.insert(league.to_string(), SdFit { weight: f.weight.clamp(0.0, 1.0), ..f });
+        }
+        None => {
+            m.remove(league);
+        }
+    }
+}
+
+/// The installed fitted SD scale of `league`, if any.
+pub fn fitted_sd_scale(league: &str) -> Option<SdFit> {
+    let g = FITTED_SD_SCALE.read().unwrap_or_else(|e| e.into_inner());
+    g.as_ref().and_then(|m| m.get(league)).copied()
 }
 
 fn pos(p: &Player) -> String {
@@ -260,11 +339,12 @@ pub fn project_team(
     locked: bool,
     now: &PyDateTime,
     memo: &ScheduleMemo,
+    sd_model: &SdModel,
 ) -> (Vec<PlayerProjection>, String) {
     if !locked && start <= end {
         let days: Vec<NaiveDate> = (0..=(end - start).num_days()).map(|k| start + Duration::days(k)).collect();
         if let Some(plan) = daily_plan(ctx, team, values, Some(&days), now, memo) {
-            return (project_daily(team, values, &plan), "best lineup each day".into());
+            return (project_daily(team, values, &plan, sd_model), "best lineup each day".into());
         }
     }
     let (starters, basis) = lineup_players(team, ctx, values, locked);
@@ -292,7 +372,7 @@ pub fn project_team(
             }
         }
         let pg = if games > 0 { proj / games as f64 } else { 0.0 };
-        let sd = if games > 0 { (games as f64).sqrt() * game_sd(pg, p.is_goalie()) } else { 0.0 };
+        let sd = if games > 0 { (games as f64).sqrt() * sd_model.game_sd(pg, p.is_goalie()) } else { 0.0 };
         out.push(projection(p, slot, games, proj, sd, pv));
     }
     sort_proj(&mut out);
@@ -301,7 +381,7 @@ pub fn project_team(
 
 /// Projections for daily lineups: each player counts only the days the plan starts him, less
 /// today's games that have already started.
-fn project_daily(team: &FantasyTeam, values: &Map<Cid, PlayerValue>, plan: &DailyPlan) -> Vec<PlayerProjection> {
+fn project_daily(team: &FantasyTeam, values: &Map<Cid, PlayerValue>, plan: &DailyPlan, sd_model: &SdModel) -> Vec<PlayerProjection> {
     let mut out = Vec::new();
     for p in team.players_iter() {
         let games = plan.remaining_starts(&p.cid);
@@ -311,7 +391,7 @@ fn project_daily(team: &FantasyTeam, values: &Map<Cid, PlayerValue>, plan: &Dail
         let proj = plan.points(&p.cid);
         let pv = values.get(&p.cid);
         let slot = team.slots.iter().find(|s| s.player.as_ref().is_some_and(|x| x.cid == p.cid)).map(|s| s.slot.clone());
-        let sd = (games as f64).sqrt() * game_sd(proj / games as f64, p.is_goalie());
+        let sd = (games as f64).sqrt() * sd_model.game_sd(proj / games as f64, p.is_goalie());
         out.push(projection(p, slot, games, proj, sd, pv));
     }
     sort_proj(&mut out);
@@ -636,13 +716,52 @@ pub fn parse_fantrax_schedule(data: &Value) -> Vec<ScheduleTable> {
     out
 }
 
-/// This scoring period's opponent and FPts from Fantrax's schedule view.
+/// This scoring period's opponent and score from the Fantrax official API: the period holding `today`
+/// (else the next one), then the owner's pairing in it. None, with the one warning added when a read
+/// failed, whenever the caller should use the private schedule view instead.
+fn official_fantrax_scores(
+    ctx: &LeagueContext,
+    provider: &dyn LeagueProvider,
+    today: NaiveDate,
+    warnings: &mut Vec<String>,
+) -> Option<ScoreInfo> {
+    let periods = provider.official_calendar().ok()?.periods;
+    let (number, start, end) = periods
+        .iter()
+        .find(|(_, s, e)| *s <= today && today <= *e)
+        .or_else(|| periods.iter().filter(|(_, s, _)| *s > today).min_by_key(|(_, s, _)| *s))
+        .copied()?;
+    let my_id = ctx.my_team().ok()?.team_id.clone();
+    match provider.official_matchup(&my_id, number) {
+        Ok(m) => m.map(|m| ScoreInfo {
+            period: Some(number),
+            start: Some(start),
+            end: Some(end),
+            opponent_id: Some(m.opponent_id),
+            my_points: m.my_points,
+            their_points: m.their_points,
+            playoffs: m.playoffs,
+            source: "Fantrax official API".into(),
+        }),
+        Err(w) => {
+            warnings.push(w);
+            None
+        }
+    }
+}
+
+/// This scoring period's opponent and FPts, from the Fantrax official API when it answers and otherwise
+/// from Fantrax's private schedule view. (Python only had the schedule view.)
 pub fn fantrax_scores(
     ctx: &LeagueContext,
     provider: &dyn LeagueProvider,
     calendar: &PeriodCalendar,
     today: NaiveDate,
+    warnings: &mut Vec<String>,
 ) -> anyhow::Result<Option<ScoreInfo>> {
+    if let Some(found) = official_fantrax_scores(ctx, provider, today, warnings) {
+        return Ok(Some(found));
+    }
     let mut params = Map::new();
     params.insert("view".to_string(), Value::String("SCHEDULE".into()));
     let data = provider.fantrax_call(&[("getStandings".to_string(), params)], false)?;
@@ -693,7 +812,7 @@ pub fn fetch_scores(
     };
     let res = match ctx.provider.as_str() {
         "espn" => espn_scores(ctx, provider, calendar),
-        "fantrax" => fantrax_scores(ctx, provider, calendar, today),
+        "fantrax" => fantrax_scores(ctx, provider, calendar, today, warnings),
         other => {
             warnings.push(format!("Live matchup scores are not supported for provider '{other}'"));
             return None;
@@ -869,9 +988,10 @@ pub fn current_matchup(
             warnings.push(format!("Opponent team {oid} is not in the loaded league"));
         }
     }
-    let (mine, basis) = project_team(ctx, me, values, from_day, end, locked, now, memo);
+    let sd_model = SdModel::for_league(ctx);
+    let (mine, basis) = project_team(ctx, me, values, from_day, end, locked, now, memo, &sd_model);
     let theirs = match opp {
-        Some(o) => project_team(ctx, o, values, from_day, end, locked, now, memo).0,
+        Some(o) => project_team(ctx, o, values, from_day, end, locked, now, memo, &sd_model).0,
         None => vec![],
     };
     if !cal.source.starts_with("ESPN") && !cal.source.starts_with("Fantrax") {
@@ -910,6 +1030,7 @@ pub fn current_matchup(
         lineup_basis: basis,
         warnings,
         draws: opts.draws,
+        sd_model,
     };
     if let Some(o) = opp {
         let a: Vec<(f64, f64)> = m.my_players.iter().map(|x| (x.proj_remaining, x.sd)).collect();
@@ -966,6 +1087,7 @@ mod tests {
     use crate::analysis::schedule_grid::Period;
     use crate::recommend::lineup::tests::now_at;
     use chrono::{TimeZone, Utc};
+    use fm_core::provider::{OfficialCalendar, OfficialMatchup};
     use fm_core::snapshot::{EspnLeagueMeta, LeagueRules, ProviderExtras};
 
     fn d(day: u32) -> NaiveDate {
@@ -1055,11 +1177,13 @@ mod tests {
         fantrax: Option<Value>,
         espn: Option<Value>,
         fail: bool,
+        /// The official API's answer for the owner's game; None means no official API is attached.
+        official: Option<Result<Option<OfficialMatchup>, String>>,
     }
 
     impl Fake {
         fn new() -> Fake {
-            Fake { extras: ProviderExtras::default(), fantrax: None, espn: None, fail: false }
+            Fake { extras: ProviderExtras::default(), fantrax: None, espn: None, fail: false, official: None }
         }
         fn rules(mut self, lock: &str) -> Fake {
             let mut r = LeagueRules::default();
@@ -1082,6 +1206,16 @@ mod tests {
         fn fantrax_call(&self, calls: &[(String, Map<String, Value>)], _fresh: bool) -> anyhow::Result<Vec<Value>> {
             assert_eq!(calls[0].0, "getStandings");
             Ok(vec![self.fantrax.clone().ok_or_else(|| anyhow::anyhow!("no fantrax"))?])
+        }
+        fn official_calendar(&self) -> anyhow::Result<OfficialCalendar> {
+            match self.official {
+                Some(_) => Ok(OfficialCalendar { periods: vec![(1, d(5), d(11)), (2, d(12), d(18))], playoff_start: Some(2) }),
+                None => anyhow::bail!("no official API"),
+            }
+        }
+        fn official_matchup(&self, my_team_id: &str, period: i64) -> Result<Option<OfficialMatchup>, String> {
+            assert_eq!((my_team_id, period), ("1", 1));
+            self.official.clone().unwrap_or(Ok(None))
         }
         fn espn_league_get(&self, params: &[(String, String)]) -> anyhow::Result<Value> {
             if self.fail {
@@ -1261,13 +1395,56 @@ mod tests {
         assert_eq!(tables[0].games[0], (json!("2"), 41.5, json!("1"), 1012.25));
         let mut prov = Fake::new().rules("Daily");
         prov.fantrax = Some(fx_schedule());
-        let s = fantrax_scores(&ctx, &prov, &cal(), today()).unwrap().unwrap();
+        let s = fantrax_scores(&ctx, &prov, &cal(), today(), &mut Vec::new()).unwrap().unwrap();
         assert_eq!((s.period, s.opponent_id.as_deref(), s.my_points, s.their_points), (Some(1), Some("2"), 1012.25, 41.5));
         let m = run(&ctx, Some(&prov), &values, None, 2, true, &noon());
         assert_eq!(m.opponent_team.as_deref(), Some("Theirs"));
         assert_eq!(m.source, "Fantrax schedule");
         assert_eq!(m.lineup_basis, "optimal week lineup");
         assert_eq!(m.win_probability, Some(1.0));
+    }
+
+    fn official_game(mine: f64, theirs: f64) -> Option<Result<Option<OfficialMatchup>, String>> {
+        Some(Ok(Some(OfficialMatchup { opponent_id: "2".into(), my_points: mine, their_points: theirs, playoffs: false })))
+    }
+
+    #[test]
+    fn fantrax_scores_prefer_the_official_api_even_when_the_private_view_is_down() {
+        let (ctx, values) = make_league("fantrax");
+        let mut prov = Fake::new().rules("Daily");
+        prov.official = official_game(12.5, 8.0);
+        // the private schedule view is not set on the fake, so it fails if it is called
+        let mut warnings = Vec::new();
+        let s = fantrax_scores(&ctx, &prov, &cal(), today(), &mut warnings).unwrap().unwrap();
+        assert_eq!((s.period, s.opponent_id.as_deref(), s.my_points, s.their_points), (Some(1), Some("2"), 12.5, 8.0));
+        assert_eq!((s.start, s.end, s.playoffs, s.source.as_str()), (Some(d(5)), Some(d(11)), false, "Fantrax official API"));
+        assert!(warnings.is_empty());
+        let m = run(&ctx, Some(&prov), &values, None, 2, true, &noon());
+        assert_eq!((m.opponent_team.as_deref(), m.my_points_so_far, m.source.as_str()), (Some("Theirs"), 12.5, "Fantrax official API"));
+    }
+
+    #[test]
+    fn fantrax_scores_fall_back_to_the_private_view_when_the_official_api_fails() {
+        let (ctx, _) = make_league("fantrax");
+        let mut prov = Fake::new().rules("Daily");
+        prov.fantrax = Some(fx_schedule());
+        prov.official = Some(Err("Fantrax official API matchup scores unavailable (x); using the private data instead".into()));
+        let mut warnings = Vec::new();
+        let s = fantrax_scores(&ctx, &prov, &cal(), today(), &mut warnings).unwrap().unwrap();
+        assert_eq!((s.source.as_str(), s.my_points, s.their_points), ("Fantrax schedule", 1012.25, 41.5));
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].starts_with("Fantrax official API"), "{warnings:?}");
+        // nothing official to say (offline, or playoff placeholders) falls back silently
+        prov.official = Some(Ok(None));
+        let mut warnings = Vec::new();
+        assert_eq!(fantrax_scores(&ctx, &prov, &cal(), today(), &mut warnings).unwrap().unwrap().source, "Fantrax schedule");
+        assert!(warnings.is_empty());
+        // and through fetch_scores the official warning is kept next to a good private result
+        prov.official = Some(Err("Fantrax official API matchup unavailable (y); using the private data instead".into()));
+        let mut warnings = Vec::new();
+        let s = fetch_scores(&ctx, Some(&prov), &cal(), today(), &mut warnings).unwrap();
+        assert_eq!(s.source, "Fantrax schedule");
+        assert_eq!(warnings, vec!["Fantrax official API matchup unavailable (y); using the private data instead".to_string()]);
     }
 
     #[test]
@@ -1311,6 +1488,67 @@ mod tests {
         assert!((game_sd(4.0, false) - 2.6).abs() < 1e-12);
         assert!((game_sd(4.0, true) - 5.0).abs() < 1e-12);
         assert_eq!(game_sd(-1.0, true), 0.0);
+    }
+
+    /// One rostered skater and goalie with a prior season, scored with `weights` (ESPN-style keys,
+    /// goalie items included).
+    fn scored_ctx(provider: &str, weights: Map<String, f64>) -> LeagueContext {
+        let pl = |cid: &str, pos: &str, stats: Value| -> Player {
+            let gp = stats["GP"].as_f64().unwrap() as i64;
+            serde_json::from_value(json!({"cid": cid, "name": cid, "name_norm": cid, "ids": {}, "positions": [pos],
+                "status": "healthy", "lines": {"prior": {"split": "prior", "gp": gp, "stats": stats}}}))
+            .unwrap()
+        };
+        let sk = pl("s", "C", json!({"GP": 82.0, "G": 10.0, "A": 20.0, "PPP": 5.0, "SOG": 100.0, "HIT": 50.0, "BLK": 20.0}));
+        let g = pl("g", "G", json!({"GP": 60.0, "W": 30.0, "SV": 1500.0, "GA": 150.0, "SO": 3.0}));
+        let team = FantasyTeam {
+            team_id: "1".into(),
+            name: "T".into(),
+            owner_is_me: true,
+            slots: [("C", sk), ("G", g)]
+                .into_iter()
+                .map(|(s, p)| fm_core::models::RosterSlot { slot: s.into(), player: Some(p), starting: true })
+                .collect(),
+            record: None,
+        };
+        serde_json::from_value(json!({"provider": provider, "league_id": "1", "season": 2027, "name": "T",
+            "scoring": {"kind": "points", "weights": weights}, "roster_shape": {"C": 1, "G": 1}, "teams": [team],
+            "free_agents": [], "as_of": "2026-11-11"}))
+        .unwrap()
+    }
+
+    #[test]
+    fn spread_scales_with_the_league_scoring() {
+        let espn = crate::valuation::params::espn_reference_weights();
+        let reference = scored_ctx("sd-espn", espn.clone());
+        assert_eq!(SdModel::for_league(&reference), SdModel::REFERENCE);
+        // every weight doubled: the same player scores 8 instead of 4 points a game and his SD must
+        // double too, 2.6 -> 5.2 (skater) and 5.0 -> 10.0 (goalie); sqrt(FPG) alone would give 3.68
+        let doubled = scored_ctx("sd-double", espn.into_iter().map(|(k, v)| (k, 2.0 * v)).collect());
+        let m = SdModel::for_league(&doubled);
+        assert!((m.skater_k - SKATER_SD_K * 2.0_f64.sqrt()).abs() < 1e-12, "{m:?}");
+        assert!((m.game_sd(8.0, false) - 2.0 * game_sd(4.0, false)).abs() < 1e-12);
+        assert!((m.game_sd(8.0, false) - 5.2).abs() < 1e-12);
+        assert!((m.game_sd(8.0, true) - 10.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn installed_fitted_scale_replaces_the_default_and_can_be_cleared() {
+        let ctx = scored_ctx("sd-fitted", crate::valuation::params::espn_reference_weights());
+        let close = |a: SdModel, b: SdModel| (a.skater_k - b.skater_k).abs() < 1e-12 && (a.goalie_k - b.goalie_k).abs() < 1e-12;
+        // full weight: k x s
+        install_sd_scale("sd-fitted", Some(SdFit { scale: 1.5, weight: 1.0 }));
+        assert!(close(SdModel::for_league(&ctx), SdModel { skater_k: 1.3 * 1.5, goalie_k: 2.5 * 1.5 }));
+        assert!((SdModel::for_league(&ctx).game_sd(4.0, false) - 3.9).abs() < 1e-12);
+        // half weight against the ESPN default (1): variance 0.5 x 2.25 + 0.5 x 1 = 1.625
+        install_sd_scale("sd-fitted", Some(SdFit { scale: 1.5, weight: 0.5 }));
+        let m = SdModel::for_league(&ctx);
+        assert!((m.skater_k - 1.3 * 1.625_f64.sqrt()).abs() < 1e-12 && (m.goalie_k - 2.5 * 1.625_f64.sqrt()).abs() < 1e-12, "{m:?}");
+        install_sd_scale("sd-fitted", Some(SdFit { scale: f64::NAN, weight: 1.0 })); // not a scale: cleared
+        assert_eq!(SdModel::for_league(&ctx), SdModel::REFERENCE);
+        install_sd_scale("sd-fitted", Some(SdFit { scale: 2.0, weight: 1.0 }));
+        install_sd_scale("sd-fitted", None);
+        assert_eq!(fitted_sd_scale("sd-fitted"), None);
     }
 
     #[test]

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use fm_core::models::{GainUnits, Player, Reason, RecKind, Recommendation};
 use fm_core::{Cid, Map};
 use fm_pycompat::fmt::{fixed, percent};
-use fm_pycompat::num::py_round_i64;
+use fm_pycompat::num::{py_round_i64, round_to};
 
 use super::engine::{dyn_weight, g, me_weight, names, TradeEval};
 use super::*;
@@ -116,7 +116,19 @@ pub fn to_rec(ev: &TradeEval<'_>, v: &Map<Cid, f64>, units: &str, source: &str, 
     if ev.roto_adj != 0.0 {
         edge_txt += &format!("; roto balance {}", fixed(-ev.roto_adj, 2, true));
     }
-    let mut reasons = vec![reason("MY_EDGE", edge_txt, Some(ev.my_edge()), Some(MIN_GAIN_ME))];
+    if ev.edge_error > 0.0 {
+        let e = ev.my_edge();
+        edge_txt += &format!(
+            "; projection error puts the edge between {} and {}",
+            fixed(e - ev.edge_error, 2, true),
+            fixed(e + ev.edge_error, 2, true)
+        );
+        if e - ev.edge_error <= 0.0 {
+            // the same rule as the offer verdict (offer::verdict): a range that includes zero is a coin flip
+            edge_txt += ", so it is too close to call";
+        }
+    }
+    let mut reasons = vec![reason("MY_EDGE", edge_txt, Some(ev.my_edge()), Some(MIN_GAIN_ME * ev.unit))];
     if let Some(acc) = acc {
         let src = acc.sources.iter().map(|s| market_source_label(s)).collect::<Vec<_>>().join("/");
         let src = if src.is_empty() { "no market data".to_string() } else { src };
@@ -226,7 +238,7 @@ pub fn to_rec(ev: &TradeEval<'_>, v: &Map<Cid, f64>, units: &str, source: &str, 
         dm += &format!("; before and after both fill your empty slot from waivers ({}) when that is better", f.name);
     }
     dm += ")";
-    reasons.push(reason("DELTA_ME", dm, Some(ev.delta_me), Some(MIN_GAIN_ME)));
+    reasons.push(reason("DELTA_ME", dm, Some(ev.delta_me), Some(MIN_GAIN_ME * ev.unit)));
     reasons.push(reason(
         "DELTA_THEM",
         format!("{} lineup {} FPG (our model)", ev.team.name, fixed(ev.delta_them, 2, true)),
@@ -263,10 +275,10 @@ pub fn to_rec(ev: &TradeEval<'_>, v: &Map<Cid, f64>, units: &str, source: &str, 
             format!(
                 "Costs {} FPG of this season's lineup (contend mode allows {}): future-only",
                 fixed(-ev.delta_me, 2, false),
-                g(WIN_NOW_TOLERANCE)
+                g(round_to(WIN_NOW_TOLERANCE * ev.unit, 2))
             ),
             Some(ev.delta_me),
-            Some(-WIN_NOW_TOLERANCE),
+            Some(-WIN_NOW_TOLERANCE * ev.unit),
         ));
     }
     if !ev.my_ir.is_empty() {

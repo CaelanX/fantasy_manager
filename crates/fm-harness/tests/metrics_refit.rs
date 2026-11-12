@@ -692,6 +692,7 @@ fn hobs(i: i64, gp_td: i64, fpg_td: f64, fpg_rest: f64) -> InseasonObs {
         gp_td,
         fpg_td,
         fpg_base: 1.0,
+        vol_points: Map::new(),
         has_base: true,
         splits: Map::new(),
         gp_rest: 40,

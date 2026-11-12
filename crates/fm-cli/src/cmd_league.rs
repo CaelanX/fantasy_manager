@@ -12,7 +12,7 @@ use clap::Args;
 use fm_core::models::{FantasyTeam, LeagueContext, Player};
 use fm_core::values::{Horizon, PickAsset};
 use fm_core::{DynastyValue, Map, PlayerValue};
-use fm_engine::recommend::base::{move_scarcity_threshold, moves_left, no_moves_text, position_limits_text};
+use fm_engine::recommend::base::{league_unit, move_scarcity_threshold, moves_left, BASE_MIN_GAIN, no_moves_text, position_limits_text};
 use fm_engine::recommend::injuries::{recommend_injuries, History};
 use fm_engine::recommend::lineup::{current_total, daily_plan, optimal_lineup, recommend_lineup, starting_slots, DailyPlan};
 use fm_engine::recommend::waivers::{recommend_waivers, WaiverDebug, WaiverOpts};
@@ -524,7 +524,7 @@ pub fn waivers(cli: &mut Cli, a: &WaiversArgs) -> Result<()> {
         if moves_left(lc) == Some(0) {
             echo(format!("{}.", no_moves_text(lc)));
         } else {
-            let thr = move_scarcity_threshold(lc, false).filter(|t| *t != 0.0).unwrap_or(0.3);
+            let thr = move_scarcity_threshold(lc, false).filter(|t| *t != 0.0).unwrap_or(BASE_MIN_GAIN * league_unit(lc));
             let mut msg = format!("No free agent beats your weakest same-position player by more than {} FPG", fixed(thr, 1, false));
             if d.dyn_values.as_ref().is_some_and(|m| !m.is_empty()) {
                 msg += " while also clearing the dynasty-value bar (x1.15, x1.5 for protected players)";

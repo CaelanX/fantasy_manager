@@ -109,6 +109,12 @@
     ],
     "k_skater": 25.0,
     "k_goalie": 40.0,
+    "k_skater_volume": {
+      "SOG": 5.0,
+      "HIT": 8.0,
+      "BLK": 30.0,
+      "PIM": 100.0
+    },
     "recency_weights": {
       "season": 0.85,
       "last30": 0.15,

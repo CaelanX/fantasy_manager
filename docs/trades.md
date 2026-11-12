@@ -24,6 +24,15 @@ lineup solver) after the trade, including any drop I must make, IR moves and a f
 when I free a roster spot. `predicted_gain` stays ΔMe in `lineup_fpg`, which is what the harness
 grades.
 
+In a daily-lineup league with the NHL schedule loaded (both of ours), a roster's value is its
+started-games value instead (`recommend/started.rs`): each player's season FPG times the share of
+his team's games in the next 28 days he would be in the best lineup of that day. A bench player who
+starts when a starter's team is idle, and a third goalie who fills a goalie slot when one of the top
+two has no game, therefore count for the games they would play. A weekly-lock league keeps the best
+starting lineup's sum. The same value chooses whom a side must drop after taking more
+players than it sends (the player whose starts it misses least) and which free agent fills a spot
+it opens.
+
 ### In points: per week and rest of season
 
 "+0.66 per game" is the change in the sum of my starters' per-game values, which is hard to feel.
@@ -63,13 +72,13 @@ FPG-like units, weighted by the dynasty mode:
 When the league keeps only K players per team each offseason (free, no year limit; everyone else
 is redrafted: `FANTRAX_KEEPERS`, `ctx.keepers_per_team`), a player's value past this season counts
 only while he is one of his team's top K keepers by keeper surplus (his future value over a
-waiver-level roster spot's). Per-player dynasty values then no longer add up, so ΔDyn is my whole
+waiver-level roster spot's at his own position). Per-player dynasty values then no longer add up, so ΔDyn is my whole
 roster's change (IR included, `recommend.base.dynasty_change`):
 
     ΔDyn = this season's part of who comes and goes
          + keeper_total(after) - keeper_total(before)      (the K largest surpluses)
          - roster spot x net players added                 (min replacement FPG x this season's weight)
-         ± draft picks at their net value
+         ± draft picks at their net value                (over the drafted player's own positional spot)
 
 * acquiring a young player who would be my (K+1)-th keeper adds only his this-season part;
 * one who displaces my K-th keeper adds his surplus minus the displaced keeper's;
@@ -123,13 +132,17 @@ The other manager does not see our model; they see consensus. `p_accept` therefo
 
    | perceived | p_accept |
    |---|---|
-   | -20 | 0.10 |
-   | -10 | 0.25 |
-   | 0 (even) | 0.50 |
-   | +10 | 0.75 |
-   | +20 or more | 0.90 |
+   | -15 | 0.10 |
+   | -5 | 0.25 |
+   | 0 (even) | 0.37 |
+   | +5 | 0.50 |
+   | +15 | 0.75 |
+   | +25 or more | 0.90 |
 
-   `p = 1 / (1 + exp(-k (perceived - x0)))` with `x0 = 0`, `k = ln(3) / 10`.
+   `p = 1 / (1 + exp(-k (perceived - x0)))` with `x0 = 5`, `k = ln(3) / 10`. The midpoint is an
+   endowment premium: owners value their own players above market, so an offer that is even by
+   market value is declined more often than accepted (`docs/knowledge/06-trade-strategy.md`,
+   implication 11). Its size is the low end of PFF's 5-10% margin on the 0-100 worth scale.
 
 5. **Multipliers**: 0 when the trade would leave their roster illegal
    (`recommend.base.roster_legal_after`: per-position maximums, maximum roster size). In dynasty
@@ -145,6 +158,10 @@ A candidate is proposed only when:
 
 * my edge > 0.3,
 * p_accept >= 0.25,
+* our own model would not tell them to decline it: their lineup change is not below -0.3 league
+  units with its whole projection-error range below zero (`verdict`'s decline test from their
+  seat; skipped when the deal costs me future value, which they may be buying, or gives them a
+  draft pick, which is compensation outside their lineup),
 * both rosters are legal after the trade,
 * it does not force me to drop a protected young prospect (dynasty; in keeper leagues only a keeper),
 * in contend mode, it does not cost this season's lineup more than 0.3 pts/game.
@@ -248,6 +265,16 @@ value change, the roster moves, the market check and a verdict:
 | counter | edge between -0.3 and EVAL_ACCEPT_EDGE (+0.1); the contend / balanced this-season floor is broken but the edge is still positive; or a clear market overpay (> 10 worth points to them) with an edge under OVERPAY_MIN_EDGE (1.0) |
 | accept | otherwise (edge >= +0.1, floor kept, no unjustified overpay) |
 
+Every points threshold on this page is in ESPN points and is multiplied by the league unit
+(`league_unit`: league points per ESPN point, 1 in the ESPN league, about 2.36 in the Fantrax
+league). The edge also carries a range of +/- the moved players' projection errors added in
+quadrature (`fpg_error`, the backtest error of the player's position group in league points; a
+goalie's is scaled by his start share). An offer is declined only when the whole range is below
+zero, and accepted only when the whole range is above zero; otherwise the verdict is a counter
+that starts "Too close to call". `--json` adds `my_edge_range` and `league_unit`. Proposal lists
+are not filtered by the range, but their MY_EDGE reason shows it and says "too close to call"
+when it includes zero.
+
 The thresholds are lower than the generator's MIN_GAIN_ME (0.3): proposing a trade costs a
 message and goodwill, accepting one you already hold does not. A counter names the cheapest of
 their picks that would turn it into an accept they still plausibly take (p_accept >= 0.25), when
@@ -299,14 +326,19 @@ trades (Fantrax) and `followed` when the trade completes (`rec_episodes.status`)
 
 `recommend.trades.calibrate_acceptance(ledger, league=None)` returns the curve's parameters:
 
-* fewer than 20 logged proposals (`status in ('proposed', 'followed')`): the prior, unchanged;
+* fewer than 20 proposals with an outcome (`followed`, or `proposed` once the match window has
+  passed without the trade completing, which counts as a rejection; a proposal still pending is
+  left out): the prior, unchanged;
 * 20 or more: a logistic regression of accepted (`followed`) on the MARKET_VIEW value logged with
   the episode's first rec, shrunk toward the prior (ridge), giving new `x0` and `k`.
 
-TODO(harness): call it from the refit step and pass the result to `recommend_trades(...,
-accept_params=...)`; count a proposal still pending when its window closes as a rejection. The
-weights (market signals, worth convexity, depth weight, bonuses) are priors too and are the next
-thing to fit once there are enough cases.
+Every league load reads it from the ledger (read-only; `fm_harness::refit::trade_accept_params`)
+and installs it as that league's default (`install_accept_params`), so it replaces the prior on
+its own once 20 outcomes exist. A league whose provider reports no pending proposals (ESPN today:
+only Fantrax pending trades become `PROPOSED` transactions) keeps the prior, because its ledger
+holds only the accepted trades and a fit would read every offer as accepted. The weights (market
+signals, worth convexity, depth weight, bonuses) are priors too and are the next thing to fit once
+there are enough cases.
 
 ## Constants
 
@@ -316,7 +348,7 @@ All in `crates/fm-engine/src/recommend/trades.rs` (and `trades/`):
 |---|---|---|
 | MIN_GAIN_ME | 0.3 | my edge must exceed this |
 | MIN_P_ACCEPT | 0.25 | plausibility floor |
-| ACCEPT_X0, ACCEPT_K | 0, ln(3)/10 | logistic midpoint and slope |
+| ACCEPT_X0, ACCEPT_K | 5, ln(3)/10 | logistic midpoint (endowment premium) and slope |
 | P_CEILING | 0.9 | acceptance cap |
 | MARKET_WEIGHTS | adp 2, proj 2, owned 1, dyn 2 | market signal weights |
 | MARKET_MIN_REF | 10 | rostered players needed for a signal |

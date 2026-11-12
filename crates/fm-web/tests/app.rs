@@ -736,7 +736,7 @@ fn wording_helpers() {
     assert_eq!(app::action_line(&rec("trade", "t", vec![mc, ma], vec![st])), "Propose: Stützle for McDavid + Makar");
     assert_eq!(
         app::action_note(&rec("lineup", "Start X over Y for this week's lineup (locks Monday)", vec![], vec![])).unwrap(),
-        "For this week's lineup: Fantrax locks it on Monday."
+        "For this week's lineup: Fantrax locks it for the whole scoring period."
     );
 
     // overview lede

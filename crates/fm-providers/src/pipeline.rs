@@ -268,9 +268,24 @@ fn finish_load(
     cache: Arc<HttpCache>,
     clock: Clock,
 ) -> Loaded {
+    install_calibrations(&lc, settings);
     let values = valuate(&mut lc, settings);
     let dyn_values = dynasty(&mut lc, &values, Some(provider.as_ref()));
     Loaded { lc, values, dyn_values, provider, cache, errors: Vec::new(), clock }
+}
+
+/// Install what the harness has learned from this league's recorded outcomes, read from the
+/// ledger without writing to it: the matchup simulation's fitted SD scale (once enough matchups
+/// are graded) and the trade acceptance curve (the prior until enough proposals are recorded).
+/// Nothing is installed when the data dir has no ledger.
+fn install_calibrations(lc: &LeagueContext, settings: &Settings) {
+    let Some(ledger) = fm_harness::ledger::Ledger::open_read_only(&settings.fm_data_dir) else { return };
+    let league = lc.provider.as_str();
+    // a ledger read error (for example a busy database) keeps the scale installed earlier
+    if let Ok(fit) = fm_harness::matchup_calib::applied_sd_scale(&ledger, league) {
+        fm_engine::analysis::matchup::install_sd_scale(league, fit);
+    }
+    fm_engine::recommend::trades::install_accept_params(league, fm_harness::refit::trade_accept_params(&ledger, league));
 }
 
 /// `_load_all(league, deep, cache, mode)`: provider.load -> enrich (NHL ids, schedule, injuries,

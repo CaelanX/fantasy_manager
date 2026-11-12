@@ -8,10 +8,16 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use fm_core::Map;
+use fm_engine::recommend::trades::pin_python_acceptance;
+use fm_engine::scoring::disable_point_scale;
+use fm_engine::recommend::started::disable_started_games;
 use fm_engine::recommend::trades::{
     evaluate_offer, exploit_opportunities, find_needs, find_players, offer_summary, pick_assets, recommend_need_trades,
     recommend_trades, EngineOpts, OutlookView, TradeOpts, EXPLOIT_N, EXPLOIT_PER_TEAM, NEED_PER_TEAM,
 };
+use fm_engine::valuation::adjust::{pin_season_length, SeasonLength};
+use fm_engine::valuation::valuate::{disable_ir_fill, disable_team_goalie};
+use fm_engine::valuation::dynasty::disable_positional_dynasty;
 use fm_engine::valuation::params;
 use fm_parity::compare::{compare, report};
 use fm_parity::{skip, Fixtures, Tolerance};
@@ -65,6 +71,19 @@ fn check(failures: &mut Vec<String>, name: &str, expected: &Value, actual: &Valu
 
 fn run_league(league: &str) {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // the fixtures come from Python, which assumed 82 games in 186 days whatever the schedule said
+    pin_season_length(Some(SeasonLength::DEFAULT));
+    // and valued an injured player's missed games at zero even when an IR slot held him
+    disable_ir_fill(true);
+    // and used the ESPN-point thresholds unscaled in every league, with no error ranges
+    disable_point_scale(true);
+    disable_started_games(true);
+    // and projected goalie wins and shots against from the goalie, not his team
+    disable_team_goalie(true);
+    // and valued the dynasty future with one replacement level and a rising goalie curve
+    disable_positional_dynasty(true);
+    // and scored an offer that is even by market value at 50%, without checking it from their seat
+    pin_python_acceptance(true);
     let test = format!("stage_trades_{league}");
     let fx = Fixtures::league(league);
     if !fx.available() {

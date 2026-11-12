@@ -37,6 +37,12 @@ pub const KINDS: [&str; 13] = [
 pub const POSITIVE_ROLE_KINDS: [&str; 3] = ["top_line", "pp1", "nhl_roster"];
 pub const STORE_NAME: &str = "news_roles.json";
 pub const LLM_BATCH: usize = 25;
+/// Marker file (next to [`STORE_NAME`]) recording the last failed LLM batch: {"model", "ts"}.
+pub const FAILED_NAME: &str = "news_roles_llm_failed.json";
+/// Seconds after a failed batch before the same model is tried again. Basis: the RSS news feeds
+/// are cached for 30 minutes (`fm_providers::enrich::TTL_RSS`), so within that window the pass
+/// sees the same items and a retry would only repeat the failure (and its timeout) on every load.
+pub const LLM_RETRY_AFTER_SECS: i64 = 30 * 60;
 pub const QUOTE_CHARS: usize = 220;
 
 /// `RoleSignal` (pydantic).
@@ -578,6 +584,15 @@ pub fn save_store(store_dir: &Path, store: &JsonMap<String, Value>) -> std::io::
     pyshim::write_atomic(&store_dir.join(STORE_NAME), ".json.tmp", &text)
 }
 
+/// True when `model` failed a batch less than [`LLM_RETRY_AFTER_SECS`] before `now`.
+fn recently_failed(store_dir: Option<&Path>, model: Option<&str>, now: DateTime<Utc>) -> bool {
+    let Some(d) = store_dir else { return false };
+    let m = pyshim::read_json_object(&d.join(FAILED_NAME));
+    let same_model = m.get("model").and_then(|v| v.as_str()) == Some(model.unwrap_or(""));
+    let age = m.get("ts").and_then(|v| v.as_i64()).map(|ts| now.timestamp() - ts);
+    same_model && age.is_some_and(|a| (0..LLM_RETRY_AFTER_SECS).contains(&a))
+}
+
 fn norm(s: &str) -> String {
     let s = s.replace(['’', '‘'], "'");
     pyshim::strip(&ws_re().replace_all(&s, " ")).to_lowercase()
@@ -721,7 +736,10 @@ pub fn parse_llm_answer(raw: &str, batch: &[(String, &NewsItem)]) -> anyhow::Res
 
 /// Replace the rules' signals of ambiguous items by the LLM's (cached per item id). Uncached
 /// ambiguous items are sent in ONE batch of at most `max_items` (<= 25) when `llm` is available;
-/// failures leave the rules' answer. Returns the merged signal list.
+/// failures leave the rules' answer. Returns the merged signal list. Unlike the Python original,
+/// a failed batch is remembered in [`FAILED_NAME`] and the call is skipped for
+/// [`LLM_RETRY_AFTER_SECS`], so an unreachable or too-slow LLM costs one timeout per half hour
+/// instead of one on every league load.
 pub fn refine_with_llm(
     items: &[&NewsItem],
     signals: Vec<RoleSignal>,
@@ -751,7 +769,7 @@ pub fn refine_with_llm(
         .take(max_items.min(LLM_BATCH))
         .collect();
     if let Some(llm) = llm.filter(|l| l.available()) {
-        if !todo.is_empty() {
+        if !todo.is_empty() && !recently_failed(store_dir, llm.model().as_deref(), now) {
             let batch: Vec<(String, &NewsItem)> = todo.iter().enumerate().map(|(i, it)| (format!("b{}", i + 1), *it)).collect();
             let opts = CompleteOpts { max_tokens: 1500, temperature: 0.0, json_mode: true, min_chars: 0 };
             let answer = llm
@@ -759,6 +777,13 @@ pub fn refine_with_llm(
                 .and_then(|raw| parse_llm_answer(&raw, &batch))
                 .unwrap_or_else(|e| {
                     tracing::info!("news role LLM batch failed: {}", e);
+                    if let Some(dir) = store_dir {
+                        let mark = json!({"model": llm.model().unwrap_or_default(), "ts": now.timestamp()});
+                        let text = pyshim::dumps(&mark, Some(1), true, None);
+                        if let Err(e) = pyshim::write_atomic(&dir.join(FAILED_NAME), ".json.tmp", &text) {
+                            tracing::info!("news role LLM failure not recorded: {}", e);
+                        }
+                    }
                     Map::new()
                 });
             if !answer.is_empty() {

@@ -157,8 +157,10 @@ Graded weekly (as of Monday; only windows that have fully ended count):
 
 ## Matchup win probability
 
-`fm matchup`'s win probability (Monte Carlo with per-game SDs of 1.3·√FPG for skaters and
-2.5·√FPG for goalies, `crates/fm-engine/src/analysis/matchup.rs`) is graded too (`crates/fm-harness/src/matchup_calib.rs`):
+`fm matchup`'s win probability (Monte Carlo with per-game SDs of k·√FPG, k = 1.3 for skaters and
+2.5 for goalies in ESPN reference points, times √(the league's point scale) so that a league with
+doubled weights gets doubled SDs; `crates/fm-engine/src/analysis/matchup.rs`, `SdModel`) is graded
+too (`crates/fm-harness/src/matchup_calib.rs`):
 
 - **Capture.** `fm harness daily` stores one `matchup_snapshots` row per league per day (the first
   run of the day wins; a rerun changes nothing): period and dates, points so far, my and the
@@ -177,9 +179,14 @@ Graded weekly (as of Monday; only windows that have fully ended count):
   scale is s = √(mean z²), each matchup weighted equally (its daily snapshots share one outcome).
   s > 1.1 means the SDs are too small (overconfident probabilities), s < 0.9 too large. It is
   fitted only from **8 completed matchups** ("insufficient data" before; provisional from 8,
-  reliable from 20), and it is **never applied**: the report suggests constants (1.3·s, 2.5·s)
-  for a manual change to `crates/fm-engine/src/analysis/matchup.rs`. They are not valuation params, so nothing goes
-  into the params store.
+  reliable from 20). Each snapshot's margin SD is first restated with the reference constants
+  (× 1.3 / the skater constant it recorded), so s is always a multiplier on 1.3 and 2.5 whatever
+  the snapshot used. From 8 matchups it is **applied**: every league load reads it from the ledger
+  (read-only) and blends it with the league's default in variance terms, giving the fit weight
+  w = n / (n + 8) for n fitted matchups (half at 8, 0.71 at 20): the skater constant becomes
+  1.3·√(w·s² + (1 − w)·u), with u the league's skater point scale (goalies alike with 2.5 and the
+  goalie scale). A ledger read error keeps the value installed before. It is not a valuation param,
+  so nothing goes into the params store.
 
 Shown by `fm harness status` (summary line + reliability table), `fm harness grade` (one line per
 league) and the league report's `matchup_calibration` key (`/api/health.json`). The Health tab's

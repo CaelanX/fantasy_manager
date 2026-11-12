@@ -1,6 +1,6 @@
 # Fantrax official API (v1.8 Beta)
 
-Reference notes for the Fantrax REST API, taken from the documentation on Fantrax's [developer page](https://www.fantrax.com/developer) as supplied by the owner on 2026-11-10, plus what the real responses for our league showed the same day. The program does not use this API yet; see [README](README.md#fantraxs-official-api).
+Reference notes for the Fantrax REST API, taken from the documentation on Fantrax's [developer page](https://www.fantrax.com/developer) as supplied by the owner on 2026-11-10, plus what the real responses for our league showed the same day. The program reads this API first for scoring, roster limits, the calendar, draft picks, standings and the current score; see the [integration plan](fantrax-official-api-plan.md) for what is built.
 
 ## General rules
 

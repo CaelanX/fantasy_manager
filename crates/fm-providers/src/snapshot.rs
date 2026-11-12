@@ -155,6 +155,17 @@ impl LeagueProvider for SnapshotProvider {
         self.need_remote()?.fantrax_call(calls, fresh)
     }
 
+    fn official_calendar(&self) -> Result<fm_core::provider::OfficialCalendar> {
+        self.need_remote()?.official_calendar()
+    }
+
+    fn official_matchup(&self, my_team_id: &str, period: i64) -> Result<Option<fm_core::provider::OfficialMatchup>, String> {
+        match self.remote() {
+            Some(r) => r.official_matchup(my_team_id, period),
+            None => Ok(None),
+        }
+    }
+
     fn espn_league_get(&self, params: &[(String, String)]) -> Result<Value> {
         self.need_remote()?.espn_league_get(params)
     }

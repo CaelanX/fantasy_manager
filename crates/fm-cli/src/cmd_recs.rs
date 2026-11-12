@@ -21,12 +21,13 @@ use fm_engine::recommend::plan::{build_week_plan, plan_summary, PlanOpts};
 use fm_engine::recommend::trades::{
     acquire_player, evaluate_offer, exploit_opportunities, find_needs, find_pick, find_players, find_team, offer_summary, pick_assets,
     pitch_of, recommend_need_trades, recommend_trades, shop_player, EngineOpts, OfferEval, OutlookView, PickRef, TradeOpts,
-    EXPLOIT_PER_TEAM, NEED_PER_TEAM,
+    EXPLOIT_PER_TEAM, MIN_GAIN_ME, NEED_PER_TEAM,
 };
+use fm_engine::recommend::base::league_unit;
 use fm_harness::metrics::HIT_KINDS;
 use fm_harness::track::{as_json as track_json, rec_record, record_text, TrackBook, TRACK_DAYS};
 use fm_providers::lines_enrich::{build_snapshot, diff_snapshots, LineSnapshotStore};
-use fm_pycompat::fmt::{fixed, percent};
+use fm_pycompat::fmt::{fixed, general, percent};
 use fm_pycompat::num::round_to;
 use fm_pycompat::time::{strftime, strftime_date};
 use fm_sources::dailyfaceoff::{make_cached_fetch_text, DailyFaceoffClient, TEAM_SLUGS};
@@ -247,7 +248,10 @@ pub fn trades(cli: &mut Cli, a: &TradesArgs) -> Result<()> {
         return Ok(());
     }
     if recs.is_empty() {
-        say("No trade gains you more than +0.3 with at least a 25% chance of being accepted.");
+        say(format!(
+            "No trade gains you more than +{} with at least a 25% chance of being accepted.",
+            general(round_to(MIN_GAIN_ME * league_unit(lc), 2), None, false)
+        ));
         print_exploits(&exploits);
         print_future(&future);
         footer(lc, &errors);
@@ -377,7 +381,11 @@ fn targeted_trades_out(
     }
     if recs.is_empty() {
         say(if shop {
-            format!("No team gives a fair package for {}: nothing gains you more than +0.3 with at least a 25% chance of being accepted.", p.name)
+            format!(
+                "No team gives a fair package for {}: nothing gains you more than +{} with at least a 25% chance of being accepted.",
+                p.name,
+                general(round_to(MIN_GAIN_ME * league_unit(lc), 2), None, false)
+            )
         } else {
             format!("No package of yours gets {} with at least a 25% chance of being accepted and leaves you better off.", p.name)
         });

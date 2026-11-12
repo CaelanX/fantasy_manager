@@ -15,6 +15,7 @@ use fm_core::values::PlayerValue;
 use fm_core::Map;
 use fm_engine::archive as A;
 use fm_engine::valuation::params;
+use fm_harness::episode_match::store_lineup_lock;
 use fm_harness::ledger::{Ledger, Row};
 use fm_harness::outcomes::{
     grade_outcomes, predicted_pts, score_archive, scoring_config, season_end, store_scoring, GAMES_PER_DAY,
@@ -315,6 +316,43 @@ fn fantrax_lineup_graded_over_the_locked_week() {
 }
 
 #[test]
+fn daily_lock_fantrax_lineup_graded_from_its_own_day_on_shared_days() {
+    // Weights: G 3, A 2, SOG 0.5. "a" scores 3 on 10-08, 15 on 10-10 and 3 on 10-14; "d" scores 2
+    // on 10-08, 3 on 10-11 and 1 on 10-12.
+    let e = led();
+    let l = &e.led;
+    let wed = d(2026, 10, 7);
+    episode(l, "l", "lineup", wed, Ep { adds: &["a"], drops: &["d"], league: Some("fantrax"), gain: Some(3.0), units: Some("week_pts"), ..Default::default() });
+    pull(
+        l,
+        &days(d(2026, 10, 6), 14),
+        &[
+            (1, d(2026, 10, 8), json!({"G": 1})),
+            (1, d(2026, 10, 10), json!({"G": 5})),
+            (1, d(2026, 10, 14), json!({"G": 1})),
+            (2, d(2026, 10, 8), json!({"A": 1})),
+            (2, d(2026, 10, 11), json!({"G": 1})),
+            (2, d(2026, 10, 12), json!({"SOG": 2})),
+        ],
+    );
+    // no stored lock: Fantrax defaults to weekly, the week from Monday 10-12 counts whole: 3 - 1
+    grade_outcomes(l, "fantrax", d(2026, 10, 25)).unwrap();
+    let r = one(l, &[("kind", json!("lineup"))]);
+    assert_eq!((&r["window_start"], &r["window_end"]), (&json!("2026-10-12"), &json!("2026-10-18")));
+    assert!(close(gain(&r), 3.0 - 1.0));
+    assert_eq!(r["detail"]["lock"], true);
+    // daily lock: 10-07..10-13 from the rec's own day, and only 10-08 has both players: 3 - 2
+    store_lineup_lock(l, "fantrax", "daily").unwrap();
+    grade_outcomes(l, "fantrax", d(2026, 10, 25)).unwrap();
+    let r = one(l, &[("kind", json!("lineup"))]);
+    assert_eq!((&r["window_start"], &r["window_end"]), (&json!("2026-10-07"), &json!("2026-10-13")));
+    assert_eq!(r["detail"]["shared_days"], 1);
+    assert!(close(gain(&r), 3.0 - 2.0));
+    assert_eq!(r["detail"]["lock"], false);
+    assert_eq!((&r["complete"], &r["hit"]), (&json!(1), &json!(1)));
+}
+
+#[test]
 fn flags_are_graded_directionally_against_l15() {
     let e = led();
     let l = &e.led;
@@ -530,6 +568,14 @@ fn predicted_pts_units() {
     assert_eq!(predicted_pts(Some(2.5), Some("day_pts"), 1, g), Some(2.5));
     assert_eq!(predicted_pts(None, Some("week_pts"), 7, g), None);
     assert_eq!(predicted_pts(Some(1.0), None, 7, g), None);
+}
+
+#[test]
+fn default_games_rate_is_the_84_game_season() {
+    // 1 lineup FPG over the whole 194-day 2026-27 season is 84 games, not 82 / 186 x 194 = 85.5
+    assert!(close(predicted_pts(Some(1.0), Some("lineup_fpg"), 194, GAMES_PER_DAY).unwrap(), 84.0));
+    // a week at the default rate: 7 x 84 / 194 = 3.031 games
+    assert!(close(predicted_pts(Some(1.0), Some("lineup_fpg"), 7, GAMES_PER_DAY).unwrap(), 7.0 * 84.0 / 194.0));
 }
 
 #[test]

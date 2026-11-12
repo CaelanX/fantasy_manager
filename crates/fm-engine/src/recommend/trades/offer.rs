@@ -21,6 +21,7 @@ use super::rec::{market_label, roster_text, to_rec, DEFAULT_RATE};
 use super::*;
 use crate::recommend::base::{gain_season, gain_week};
 use crate::recommend::strength::apply_strength;
+use crate::scoring::point_scale_disabled;
 
 fn lookup(msg: impl Into<String>) -> anyhow::Error {
     anyhow::Error::new(CoreError::Lookup(msg.into()))
@@ -173,9 +174,24 @@ pub struct OfferEval<'a> {
     pub units: &'static str,
 }
 
+/// " (range +0.10 to +1.30)" for an edge with a projection error, "" without one.
+fn range_text(edge: f64, err: f64) -> String {
+    if err > 0.0 {
+        format!(" (range {} to {})", fixed(edge - err, 2, true), fixed(edge + err, 2, true))
+    } else {
+        String::new()
+    }
+}
+
 /// `_verdict(ev)`: (accept / counter / decline, reasons).
+///
+/// The edges are in ESPN points times the league unit (`ev.unit`), and the edge carries a range of
+/// +/- `ev.edge_error`: an offer is declined only when the whole range is below zero and the edge
+/// is under the decline edge, and accepted only when the whole range is above zero and the edge
+/// clears the accept edge; anything else is "too close to call". Python had fixed edges and no range.
 pub fn verdict(ev: &TradeEval<'_>) -> (&'static str, Vec<String>) {
     let edge = ev.my_edge();
+    let err = ev.edge_error;
     if let Some(i) = &ev.my_illegal {
         return ("decline", vec![format!("Your roster would be illegal after it ({i})")]);
     }
@@ -183,22 +199,22 @@ pub fn verdict(ev: &TradeEval<'_>) -> (&'static str, Vec<String>) {
         return ("decline", vec![format!("The deal {b}")]);
     }
     let mut why: Vec<String> = Vec::new();
-    let floor_broken = ev.win_now_cost() || (ev.mode == Some("balanced") && ev.delta_me < -BALANCED_TOLERANCE);
+    let floor_broken = ev.win_now_cost() || (ev.mode == Some("balanced") && ev.delta_me < -BALANCED_TOLERANCE * ev.unit);
     let mode_txt = ev.mode.unwrap_or("None");
     if floor_broken {
-        let tol = if ev.mode == Some("contend") { WIN_NOW_TOLERANCE } else { BALANCED_TOLERANCE };
+        let tol = ev.unit * if ev.mode == Some("contend") { WIN_NOW_TOLERANCE } else { BALANCED_TOLERANCE };
         why.push(format!(
             "It costs this season's lineup {} pts/game ({mode_txt} mode allows {})",
             fixed(-ev.delta_me, 2, false),
-            super::engine::g(tol)
+            super::engine::g(round_to(tol, 2))
         ));
     }
     let label = match ev.mode {
         None => "your edge".to_string(),
         Some(m) => format!("your {m} edge"),
     };
-    let e2 = fixed(edge, 2, true);
-    if edge < EVAL_DECLINE_EDGE {
+    let e2 = format!("{}{}", fixed(edge, 2, true), range_text(edge, err));
+    if edge < EVAL_DECLINE_EDGE * ev.unit && edge + err < 0.0 {
         let mut out = vec![format!("You lose: {label} {e2} pts/game-equivalent")];
         out.extend(why);
         return ("decline", out);
@@ -207,10 +223,10 @@ pub fn verdict(ev: &TradeEval<'_>) -> (&'static str, Vec<String>) {
         why.push(format!("{label} {e2}"));
         return (if edge > 0.0 { "counter" } else { "decline" }, why);
     }
-    if edge < EVAL_ACCEPT_EDGE {
+    if edge < EVAL_ACCEPT_EDGE * ev.unit || edge - err <= 0.0 {
         return ("counter", vec![format!("Too close to call: {label} {e2}; ask for a little more")]);
     }
-    if ev.clear_overpay() && edge < OVERPAY_MIN_EDGE {
+    if ev.clear_overpay() && edge < OVERPAY_MIN_EDGE * ev.unit {
         return (
             "counter",
             vec![format!(
@@ -291,7 +307,7 @@ pub fn offer_summary(o: &OfferEval<'_>) -> Value {
         json!({"key": a.key(), "label": a.short(Some(holder)), "value": round_to(a.value, 2), "net": round_to(a.net, 2)})
     };
     let fair_dev = if ev.fair_dev == f64::INFINITY { Value::Null } else { json!(round_to(ev.fair_dev, 3)) };
-    json!({
+    let mut out = json!({
         "team": ev.team.name, "team_id": team_id,
         "give": pl(&ev.give), "get": pl(&ev.get),
         "give_picks": ev.give_picks.iter().map(|a| pk(a, &a.holder)).collect::<Vec<_>>(),
@@ -313,7 +329,13 @@ pub fn offer_summary(o: &OfferEval<'_>) -> Value {
         "roster": roster_text(ev),
         "market_check": r.reasons.iter().filter(|x| x.code == "MARKET_CHECK").map(|x| x.text.clone()).collect::<Vec<_>>(),
         "reasons": r.reasons.iter().map(|x| serde_json::to_value(x).expect("reason json")).collect::<Vec<_>>(),
-    })
+    });
+    // not in Python's summary: the edge's projection-error range and the league unit
+    if !point_scale_disabled() {
+        out["my_edge_range"] = json!([round_to(ev.my_edge() - ev.edge_error, 3), round_to(ev.my_edge() + ev.edge_error, 3)]);
+        out["league_unit"] = json!(round_to(ev.unit, 4));
+    }
+    out
 }
 
 // -- trade blocks -------------------------------------------------------------------------

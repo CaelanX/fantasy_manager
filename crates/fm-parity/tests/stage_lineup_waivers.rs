@@ -9,8 +9,10 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use fm_core::values::Horizon;
+use fm_engine::scoring::disable_point_scale;
+use fm_engine::recommend::started::disable_started_games;
 use fm_engine::analysis::goalie_plan::{goalie_week, GoalieWeekOpts};
-use fm_engine::recommend::lineup::recommend_lineup;
+use fm_engine::recommend::lineup::{disable_goalie_matchup, recommend_lineup};
 use fm_engine::recommend::waivers::{recommend_matchup_waivers, recommend_trending_alerts, recommend_waivers, WaiverOpts};
 use fm_engine::valuation::params;
 use fm_engine::valuation::schedule::ScheduleMemo;
@@ -22,6 +24,12 @@ static LOCK: Mutex<()> = Mutex::new(());
 
 fn run_league(league: &str) {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // the fixtures come from Python, whose lineup valued a goalie start without the opponent and
+    // floored it at zero
+    disable_goalie_matchup(true);
+    // and used the ESPN-point thresholds unscaled in every league, with no error ranges
+    disable_point_scale(true);
+    disable_started_games(true);
     let test = format!("stage_lineup_waivers_{league}");
     let fx = Fixtures::league(league);
     if !fx.available() {

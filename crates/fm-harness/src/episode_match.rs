@@ -11,12 +11,13 @@
 //! + 3d, my ADD of an `add` player: `followed` when the drops of that transaction equal the
 //! rec's, else `partial`), trade (+7d, a completed trade sharing a give and a get: `followed`
 //! when both sets are equal else `partial`; only a matching proposal: `proposed`), lineup (graded
-//! on the first lockable day: ESPN the day itself, Fantrax the next Monday using the first roster
-//! snapshot after the lock), injury (+2d, IR move and/or add; "Activate X" recs), flags
-//! (sell_high / buy_low, +14d) and alerts (free-agent alerts +3d, negative alerts about my own
-//! player +7d, everything else informational and never graded). Unmatched episodes turn
-//! `expired` once `today` is past `window_end`. Matched episodes become decisions; my transaction
-//! groups no episode consumed become `decisions(origin=user_only)`.
+//! on the first lockable day: the day itself when lineups lock daily, the next Monday when they
+//! lock weekly; see `match_lineup` for which lineup snapshot is read), injury (+2d, IR move
+//! and/or add; "Activate X" recs), flags (sell_high / buy_low, +14d) and alerts (free-agent
+//! alerts +3d, negative alerts about my own player +7d, everything else informational and never
+//! graded). Unmatched episodes turn `expired` once `today` is past `window_end`. Matched
+//! episodes become decisions; my transaction groups no episode consumed become
+//! `decisions(origin=user_only)`.
 //!
 //! Deviations from the Python: sets are `BTreeSet`s (only ever compared or emitted sorted, so
 //! the order is the same as Python's `sorted(...)`); the case-insensitive title regex of
@@ -50,12 +51,13 @@ fn window_days(kind: &str) -> i64 {
     }
 }
 
-/// `LINEUP_GRACE.get(provider, 2)`.
-fn lineup_grace(provider: &str) -> i64 {
-    match provider {
-        "espn" => 2,
-        "fantrax" => 7,
-        _ => 2,
+/// Days after the lock day that a lineup episode stays open: a week for a weekly lock, two days
+/// (Python's ESPN value) for a daily one.
+fn lineup_grace(lock: &str) -> i64 {
+    if lock == "weekly" {
+        7
+    } else {
+        2
     }
 }
 
@@ -209,9 +211,11 @@ impl MatchSummary {
     }
 }
 
-/// ESPN locks per game (the rec's own day); Fantrax lineups lock weekly on Monday.
-pub fn first_lockable_day(provider: &str, day: NaiveDate) -> NaiveDate {
-    if provider == "fantrax" {
+/// The first day a lineup change made on `day` takes effect: `day` itself under a daily `lock`,
+/// the next Monday under a "weekly" one. Python keyed this on the provider (Fantrax = weekly);
+/// this port keys it on the league's own lock, because a Fantrax league can lock daily.
+pub fn first_lockable_day(lock: &str, day: NaiveDate) -> NaiveDate {
+    if lock == "weekly" {
         let wd = day.weekday_index();
         return day + Duration::days((7 - wd) % 7);
     }
@@ -229,13 +233,14 @@ impl WeekdayIndex for NaiveDate {
     }
 }
 
-pub fn window_end(ep: &EpisodeRow, provider: &str) -> NaiveDate {
+/// `lock` is the league's lineup lock ("daily" or "weekly"); it only matters for lineup episodes.
+pub fn window_end(ep: &EpisodeRow, lock: &str) -> NaiveDate {
     if ep.kind == "alert" {
         let days = if alert_category(ep) == Some("mine") { ALERT_MINE_DAYS } else { ALERT_FA_DAYS };
         return ep.last_seen + Duration::days(days);
     }
     if ep.kind == "lineup" {
-        return first_lockable_day(provider, ep.first_seen) + Duration::days(lineup_grace(provider));
+        return first_lockable_day(lock, ep.first_seen) + Duration::days(lineup_grace(lock));
     }
     ep.last_seen + Duration::days(window_days(&ep.kind))
 }
@@ -427,11 +432,23 @@ fn lineup_on<'a>(
     None
 }
 
-fn match_lineup(ep: &EpisodeRow, lineups: &[LineupRow], provider: &str) -> Option<Matched> {
-    let lock = first_lockable_day(provider, ep.first_seen);
-    // ESPN: the box score of the lock day itself (pulled the next morning). Fantrax: the first
-    // snapshot taken after the Monday lock (a Monday-morning snapshot predates the lock).
-    let offsets: Vec<i64> = if provider == "fantrax" { (1..7).collect() } else { (0..2).collect() };
+/// Grades a lineup episode on the lineup in force after its lock day. ESPN lineup rows are the box
+/// score of their day (pulled the next morning), so the lock day's own row already shows the
+/// change. Other providers store a live snapshot taken by the daily run that also made the rec,
+/// so the lock day's row predates any change and the first row after it is read instead. Under a
+/// weekly lock any snapshot in the locked week will do; under a daily one only the next two days
+/// count, the same two-day span ESPN gets. A snapshot cannot tell a change made late on the rec
+/// day from one made the next morning, so a change first seen on the next day's snapshot is
+/// credited to the rec day, which can overstate a followed rec's gain by at most that one day.
+fn match_lineup(ep: &EpisodeRow, lineups: &[LineupRow], provider: &str, lock_mode: &str) -> Option<Matched> {
+    let lock = first_lockable_day(lock_mode, ep.first_seen);
+    let offsets: Vec<i64> = if lock_mode == "weekly" {
+        (1..7).collect()
+    } else if provider == "espn" {
+        (0..2).collect()
+    } else {
+        (1..3).collect()
+    };
     let (day, rows) = lineup_on(lineups, offsets.into_iter().map(|i| lock + Duration::days(i)))?;
     let activation = ep.title.starts_with("Activate");
 
@@ -626,13 +643,15 @@ fn row(v: Value) -> Row {
 }
 
 /// Pure matching over ledger rows (see module docs). `txs` / `lineups` may hold every team's
-/// rows; only `my_team`'s are used.
+/// rows; only `my_team`'s are used. `lock` is the league's lineup lock ("daily" or "weekly").
+#[allow(clippy::too_many_arguments)]
 pub fn match_rows(
     episodes: &[EpisodeRow],
     txs: &[TxRow],
     lineups: &[LineupRow],
     my_team: Option<&str>,
     provider: &str,
+    lock: &str,
     today: NaiveDate,
     league: &str,
 ) -> MatchResult {
@@ -660,12 +679,12 @@ pub fn match_rows(
             }
         }
         let ep: &EpisodeRow = &ep;
-        let end = window_end(ep, provider);
+        let end = window_end(ep, lock);
         let m = match ep.kind.as_str() {
             "waiver" => match_waiver(ep, &mine, end),
             "trade" => match_trade(ep, &mine, my_team, end),
             "sell_high" | "buy_low" => match_flag(ep, &mine, my_team, end),
-            "lineup" => match_lineup(ep, &my_lineups, provider),
+            "lineup" => match_lineup(ep, &my_lineups, provider, lock),
             "injury" => match_injury(ep, &mine, &my_lineups, end),
             "alert" => match_alert(ep, &mine, end, category.unwrap_or("info")),
             _ => None,
@@ -781,6 +800,39 @@ pub fn my_team_id(ledger: &Ledger, league: &str) -> Result<Option<String>> {
     Ok(rows.first().and_then(|r| str_of(r, "value")))
 }
 
+/// The lineup lock assumed when the ledger has none stored: "weekly" for Fantrax, "daily"
+/// otherwise (the same fallback as `fm_engine::recommend::lineup_lock::lineup_lock_for`).
+pub fn default_lineup_lock(provider: &str) -> &'static str {
+    if provider == "fantrax" {
+        "weekly"
+    } else {
+        "daily"
+    }
+}
+
+/// The league's lineup lock ("daily" or "weekly") stored by [`store_lineup_lock`], else
+/// [`default_lineup_lock`] of `provider`.
+pub fn lineup_lock(ledger: &Ledger, league: &str, provider: &str) -> Result<&'static str> {
+    let key = format!("lineup_lock:{league}");
+    let rows = ledger.query("SELECT value FROM meta WHERE key=?", &[&key])?;
+    Ok(match rows.first().and_then(|r| str_of(r, "value")).as_deref() {
+        Some("daily") => "daily",
+        Some("weekly") => "weekly",
+        _ => default_lineup_lock(provider),
+    })
+}
+
+/// Remember how the league's lineup changes take effect (`meta['lineup_lock:<league>']`, set at
+/// daily-run time from the loaded league, like the scoring).
+pub fn store_lineup_lock(ledger: &Ledger, league: &str, lock: &str) -> Result<()> {
+    let key = format!("lineup_lock:{league}");
+    ledger.execute(
+        "INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        &[&key, &lock.to_string()],
+    )?;
+    ledger.commit()
+}
+
 pub fn set_my_team_id(ledger: &Ledger, league: &str, team_id: &str) -> Result<()> {
     let key = format!("my_team:{league}");
     ledger.execute(
@@ -892,7 +944,8 @@ pub fn load_lineups(ledger: &Ledger, league: &str, team_id: Option<&str>, all_te
 }
 
 /// Match every episode of `league` and rewrite its decisions. `provider` defaults to `league`
-/// (the ledger keys leagues by provider name); `today` defaults to the local date.
+/// (the ledger keys leagues by provider name); `today` defaults to the local date. Lineup
+/// episodes use the league's stored lineup lock (see [`lineup_lock`]).
 pub fn match_episodes(
     ledger: &Ledger,
     league: &str,
@@ -902,12 +955,14 @@ pub fn match_episodes(
     let today = today.unwrap_or_else(|| chrono::Local::now().date_naive());
     let team = my_team_id(ledger, league)?;
     let eps = load_episodes(ledger, league)?;
+    let provider = provider.unwrap_or(league);
     let res = match_rows(
         &eps,
         &load_txs(ledger, league)?,
         &load_lineups(ledger, league, team.as_deref(), true)?,
         team.as_deref(),
-        provider.unwrap_or(league),
+        provider,
+        lineup_lock(ledger, league, provider)?,
         today,
         league,
     );

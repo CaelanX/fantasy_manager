@@ -8,8 +8,8 @@ use std::process::Command;
 
 use chrono::NaiveDate;
 use fm_harness::episode_match::{
-    alert_category, first_lockable_day, match_episodes, match_rows, set_my_team_id, window_end, EpisodeRow,
-    LineupRow, MatchResult, TxRow,
+    alert_category, default_lineup_lock, first_lockable_day, lineup_lock, match_episodes, match_rows, set_my_team_id,
+    store_lineup_lock, window_end, EpisodeRow, LineupRow, MatchResult, TxRow,
 };
 use fm_harness::ledger::{rec_key, Ledger, Row, ADDED_COLUMNS, DEPLOYMENT_TABLES, MATCHUP_TABLES, TABLES};
 use serde_json::{json, Value};
@@ -208,8 +208,13 @@ impl Run {
     }
 }
 
+/// `provider` with its default lineup lock (Fantrax weekly, ESPN daily).
 fn run_with(eps: Vec<EpisodeRow>, txs: Vec<TxRow>, lineups: Vec<LineupRow>, today: NaiveDate, provider: &str) -> Run {
-    Run { res: match_rows(&eps, &txs, &lineups, Some(ME), provider, today, "espn") }
+    run_lock(eps, txs, lineups, today, provider, default_lineup_lock(provider))
+}
+
+fn run_lock(eps: Vec<EpisodeRow>, txs: Vec<TxRow>, lineups: Vec<LineupRow>, today: NaiveDate, provider: &str, lock: &str) -> Run {
+    Run { res: match_rows(&eps, &txs, &lineups, Some(ME), provider, lock, today, "espn") }
 }
 
 fn run(eps: Vec<EpisodeRow>, txs: Vec<TxRow>, lineups: Vec<LineupRow>) -> Run {
@@ -243,7 +248,7 @@ fn waiver_with_a_different_drop_is_partial() {
 #[test]
 fn add_outside_window_is_user_only_and_episode_expires() {
     let e = epk("waiver", d(2026, 10, 5), &["a"], &["d"]);
-    assert_eq!(window_end(&e, "espn"), d(2026, 10, 8));
+    assert_eq!(window_end(&e, "daily"), d(2026, 10, 8));
     let r = run(
         vec![e.clone()],
         vec![tm("ADD", "a", d(2026, 10, 10)), tm("DROP", "d", d(2026, 10, 10))],
@@ -299,7 +304,7 @@ fn other_teams_moves_are_not_mine() {
 #[test]
 fn two_for_one_trade_subset_is_partial_and_exact_is_followed() {
     let e = epk("trade", d(2026, 10, 5), &["x", "y"], &["m"]);
-    assert_eq!(window_end(&e, "espn"), d(2026, 10, 12));
+    assert_eq!(window_end(&e, "daily"), d(2026, 10, 12));
     let part = vec![
         tx("TRADE_IN", "x", d(2026, 10, 9), "T", ME, None),
         tx("TRADE_OUT", "m", d(2026, 10, 9), "T", ME, None),
@@ -339,9 +344,9 @@ fn trade_proposal_only_is_proposed() {
 #[test]
 fn fantrax_lineup_rec_issued_tuesday_is_graded_the_following_monday() {
     let (tue, mon) = (d(2026, 10, 6), d(2026, 10, 12));
-    assert_eq!(first_lockable_day("fantrax", tue), mon);
-    assert_eq!(first_lockable_day("fantrax", mon), mon);
-    assert_eq!(first_lockable_day("espn", tue), tue);
+    assert_eq!(first_lockable_day("weekly", tue), mon);
+    assert_eq!(first_lockable_day("weekly", mon), mon);
+    assert_eq!(first_lockable_day("daily", tue), tue);
     let e = ep("lineup", tue, None, &["in"], &["out"], &[], "Start in over out for this week's lineup (locks Monday)", "e1");
     let tue2 = d(2026, 10, 13);
     let before = vec![
@@ -367,6 +372,47 @@ fn fantrax_lineup_rec_issued_tuesday_is_graded_the_following_monday() {
     // a rec issued on the Monday itself is graded against that Monday's lock
     let r = run_with(vec![epk("lineup", mon, &["in"], &["out"])], vec![], before, mon, "fantrax");
     assert_eq!(r.status("e1"), "open");
+}
+
+#[test]
+fn daily_lock_fantrax_lineup_rec_is_graded_on_the_next_days_snapshot() {
+    // Thursday rec "start in over out today" in a Fantrax league whose lineups lock daily. The
+    // Thursday snapshot was taken with the rec, so Friday's is the first that can show the change.
+    let (thu, fri, sat) = (d(2026, 11, 5), d(2026, 11, 6), d(2026, 11, 7));
+    let e = ep("lineup", thu, None, &["in"], &["out"], &[], "Start in over out today", "e1");
+    assert_eq!(window_end(&e, "daily"), sat); // Thursday + 2
+    assert_eq!(window_end(&e, "weekly"), d(2026, 11, 16)); // next Monday 11-09 + 7
+    let pre = vec![lr(ME, thu, "in", "BN", false), lr(ME, thu, "out", "G", true)];
+    let changed: Vec<LineupRow> =
+        pre.iter().cloned().chain([lr(ME, fri, "in", "G", true), lr(ME, fri, "out", "BN", false)]).collect();
+    let r = run_lock(vec![e.clone()], vec![], changed.clone(), fri, "fantrax", "daily");
+    assert_eq!(r.status("e1"), "followed");
+    assert_eq!(r.acted("e1"), Some("2026-11-05"));
+    assert_eq!(r.detail("e1")["lock_day"], json!("2026-11-05"));
+    assert_eq!(r.detail("e1")["graded_day"], json!("2026-11-06"));
+    // the weekly reading of the same rows waits for a snapshot after Monday 11-09
+    assert_eq!(run_lock(vec![e.clone()], vec![], changed, fri, "fantrax", "weekly").status("e1"), "open");
+    // only the rec's own snapshot so far: still open on Friday, expired after Saturday
+    assert_eq!(run_lock(vec![e.clone()], vec![], pre.clone(), fri, "fantrax", "daily").status("e1"), "open");
+    assert_eq!(run_lock(vec![e.clone()], vec![], pre.clone(), d(2026, 11, 8), "fantrax", "daily").status("e1"), "expired");
+    // Friday's snapshot unchanged: ignored
+    let same: Vec<LineupRow> =
+        pre.iter().cloned().chain([lr(ME, fri, "in", "BN", false), lr(ME, fri, "out", "G", true)]).collect();
+    let r = run_lock(vec![e], vec![], same, sat, "fantrax", "daily");
+    assert_eq!(r.status("e1"), "expired");
+    assert_eq!(r.detail("e1")["reason"], json!("lineup not changed"));
+}
+
+#[test]
+fn stored_lineup_lock_overrides_the_provider_default() {
+    let tmp = tempfile::tempdir().unwrap();
+    let led = Ledger::open(tmp.path()).unwrap();
+    assert_eq!(lineup_lock(&led, "fantrax", "fantrax").unwrap(), "weekly");
+    assert_eq!(lineup_lock(&led, "espn", "espn").unwrap(), "daily");
+    store_lineup_lock(&led, "fantrax", "daily").unwrap();
+    assert_eq!(lineup_lock(&led, "fantrax", "fantrax").unwrap(), "daily");
+    store_lineup_lock(&led, "fantrax", "weekly").unwrap();
+    assert_eq!(lineup_lock(&led, "fantrax", "fantrax").unwrap(), "weekly");
 }
 
 #[test]
@@ -429,7 +475,7 @@ fn free_agent_alert_followed_by_my_add_is_followed_like_a_waiver() {
         Some("FA"),
         false,
     );
-    assert_eq!(window_end(&e, "fantrax"), d(2026, 10, 8));
+    assert_eq!(window_end(&e, "weekly"), d(2026, 10, 8));
     let r = run_with(
         vec![e],
         vec![tm("ADD", "misa", d(2026, 10, 7)), tm("DROP", "old", d(2026, 10, 7))],
@@ -473,7 +519,7 @@ fn alert_on_a_player_on_no_roster_counts_as_free_agent() {
 #[test]
 fn negative_alert_on_my_player_followed_by_drop_or_trade() {
     let e = alert(d(2026, 10, 5), &["m"], "Role loss: M (TOI -3.1, off PP1; my team)", Some("Me"), false);
-    assert_eq!(window_end(&e, "espn"), d(2026, 10, 12));
+    assert_eq!(window_end(&e, "daily"), d(2026, 10, 12));
     let r = run(vec![e.clone()], vec![tm("DROP", "m", d(2026, 10, 11)), tm("ADD", "n", d(2026, 10, 11))], vec![]);
     assert_eq!(r.status("a1"), "followed");
     let m = r.detail("a1");

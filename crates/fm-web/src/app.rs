@@ -510,7 +510,9 @@ pub fn action_note(r: &Recommendation) -> Option<String> {
     let title = py_strip(&r.title).to_string();
     let lineup = r.kind == RecKind::Lineup;
     if lineup && title.ends_with("(locks Monday)") {
-        return Some("For this week's lineup: Fantrax locks it on Monday.".into());
+        // Only a weekly-lock league's lineup advice carries this suffix (the engine reads the lock mode in
+        // lineup_lock.rs), so a daily-lock league never gets this note and no lock day is named.
+        return Some("For this week's lineup: Fantrax locks it for the whole scoring period.".into());
     }
     if lineup && title.contains("; move ") {
         let rest = py_strip(title.split_once("; ").map(|x| x.1).unwrap_or("")).to_string();
@@ -1935,7 +1937,7 @@ impl App {
     /// with a message. Stops when `emit` returns false (the page went away); the question then
     /// stays pending and the next visit asks again.
     pub fn ask_stream(&self, league: &str, id: &str, emit: &mut dyn FnMut(&str, &str) -> bool) {
-        use fm_sources::llm::openrouter::{chat_prompt, ChatInput, CHAT_OPTS};
+        use fm_sources::llm::openrouter::{chat_prompt_fit, ChatInput, CHAT_OPTS};
         use fm_sources::llm::StreamPart;
         let data_dir = self.settings().fm_data_dir.clone();
         let Some(_writing) = crate::chats::claim(&data_dir, league, id) else {
@@ -1959,13 +1961,23 @@ impl App {
             }
         };
         let news = news_items(&res);
-        let history: Vec<(String, String)> = chat.turns.iter().map(|t| (t.question.clone(), t.answer.clone())).collect();
+        let history: Vec<(String, String)> = chat.turns.iter().map(|t| (t.question.clone(), strip_shortened_notice(&t.answer).to_string())).collect();
         let mut gone = false;
+        // only a model on the user's own PC has a context window this small; OpenRouter's is not cut
+        let st = self.settings();
+        let window = st.fm_llm_base_url.is_some().then(|| st.fm_llm_context_tokens.max(0) as usize);
+        let mut notice = None;
         let r = catch_unwind(AssertUnwindSafe(|| {
             let news = fm_sources::llm::context::NewsInput::ByCid(&news);
             let input = ChatInput { history: &history, focus: &chat.focus, pasted: &chat.pasted, dynasty: res.dynasty.as_ref() };
-            let (system, user) = chat_prompt(&question, &res.ctx, &res.values, &res.recs, news, &input);
-            client.complete_stream(&system, &user, CHAT_OPTS, &mut |part| {
+            let prompt = chat_prompt_fit(&question, &res.ctx, &res.values, &res.recs, news, &input, window);
+            notice = window.and_then(|w| prompt.notice(w)).map(|n| format!("({n})
+
+"));
+            if let Some(n) = &notice {
+                gone = !emit("answer", n);
+            }
+            client.complete_stream(&prompt.system, &prompt.user, CHAT_OPTS, &mut |part| {
                 let ok = match part {
                     StreamPart::Thinking(t) => emit("thinking", t),
                     StreamPart::Answer(t) => emit("answer", t),
@@ -1979,6 +1991,7 @@ impl App {
         }
         let failed = match r {
             Ok(Ok(answer)) => {
+                let answer = format!("{}{answer}", notice.unwrap_or_default());
                 let turn = crate::chats::Turn { question, answer, model: client.model(), at: naive_iso(local_naive(&self.now())) };
                 match crate::chats::answer(&data_dir, league, id, turn) {
                     Ok(()) => {
@@ -2517,4 +2530,14 @@ pub fn export(out: &Path, limit: usize, settings: &Settings) -> anyhow::Result<c
     let router = app.router();
     let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
     rt.block_on(crate::export::export_site(router, out, &LEAGUES, limit))
+}
+
+/// Drops the leading "(Context was shortened ...)" paragraph a saved answer may carry, so the note is not fed back to the model as part of an earlier reply.
+fn strip_shortened_notice(answer: &str) -> &str {
+    match answer.strip_prefix("(Context was shortened").and_then(|r| r.split_once(")
+
+")) {
+        Some((_, rest)) => rest,
+        None => answer,
+    }
 }

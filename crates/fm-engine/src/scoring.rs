@@ -17,8 +17,9 @@
 
 use std::borrow::Borrow;
 use std::ops::{Deref, DerefMut};
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use fm_core::models::{LeagueContext, Player, ScoringConfig, ScoringKind};
+use fm_core::models::{LeagueContext, Player, ScoringConfig, ScoringKind, RATE_STATS};
 use fm_core::Map;
 use fm_pycompat::num::py_sum;
 
@@ -653,5 +654,160 @@ pub fn from_config(cfg: &ScoringConfig) -> Scoring {
             Scoring::Categories(CategoriesScoring::new(cfg.categories.clone(), Some(cfg.weights.clone())))
         }
         ScoringKind::Roto => Scoring::Roto(RotoScoring::new(cfg.categories.clone(), Some(cfg.weights.clone()))),
+    }
+}
+
+// ---------------------------------------------------------------------------------- league unit
+
+/// How many of this league's fantasy points one point of the ESPN reference scoring
+/// ([`crate::valuation::params::ESPN_REFERENCE_WEIGHTS`]) is worth, for skaters and for goalies.
+///
+/// Every fixed recommendation threshold (waiver, lineup, trade and plan bars) and the backtest's
+/// projection errors are in ESPN points, so multiplying them by this scale states them in the
+/// league's own points: the same on-ice production clears the same bar in every league. The ratio
+/// is taken on the summed last-season ("prior") totals of all rostered skaters (goalies
+/// separately), so it measures only the scoring weights, not league depth, and stays fixed all
+/// season. A league scored exactly like the reference gets exactly 1.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PointScale {
+    pub skater: f64,
+    pub goalie: f64,
+}
+
+impl PointScale {
+    pub const REFERENCE: PointScale = PointScale { skater: 1.0, goalie: 1.0 };
+
+    /// The scale for a player's group (goalie or skater).
+    pub fn for_player(&self, p: &Player) -> f64 {
+        if p.is_goalie() {
+            self.goalie
+        } else {
+            self.skater
+        }
+    }
+}
+
+static POINT_SCALE_OFF: AtomicBool = AtomicBool::new(false);
+
+/// Turn the league point scale off (true: every league is treated as ESPN-scored and player values
+/// carry no projection error) or back on for every later call in this process. Only the Python
+/// parity tests and the CLI's hidden `--from-snapshot` mode turn it off: Python used the ESPN
+/// thresholds in every league and had no error ranges.
+pub fn disable_point_scale(off: bool) {
+    POINT_SCALE_OFF.store(off, Ordering::Relaxed);
+}
+
+pub fn point_scale_disabled() -> bool {
+    POINT_SCALE_OFF.load(Ordering::Relaxed)
+}
+
+/// [`PointScale`] of `ctx`'s scoring (the reference scale for non-points leagues, when no rostered
+/// player has a prior season, or after [`disable_point_scale`]).
+pub fn point_scale(ctx: &LeagueContext) -> PointScale {
+    if point_scale_disabled() || ctx.scoring.kind != ScoringKind::Points {
+        return PointScale::REFERENCE;
+    }
+    let reference = crate::valuation::params::espn_reference_weights();
+    if ctx.scoring.goalie_weights.is_empty() && ctx.scoring.weights == reference {
+        return PointScale::REFERENCE;
+    }
+    let league = PointsScoring::new(
+        ctx.scoring.weights.clone(),
+        (!ctx.scoring.goalie_weights.is_empty()).then(|| ctx.scoring.goalie_weights.clone()),
+    );
+    let espn = PointsScoring::new(reference, None);
+    let (mut skaters, mut goalies) = (Stats::new(), Stats::new());
+    for p in ctx.teams.iter().flat_map(|t| t.players_iter()) {
+        let Some(line) = p.lines.get("prior").filter(|l| l.gp > 0) else { continue };
+        let sum = if p.is_goalie() { &mut goalies } else { &mut skaters };
+        for (k, v) in line.stats.iter().filter(|(k, _)| k.as_str() != "GP" && !RATE_STATS.contains(&k.as_str())) {
+            *sum.entry(k.clone()).or_insert(0.0) += *v;
+        }
+    }
+    let ratio = |totals: &Stats| {
+        let (l, e) = (league.value(totals), espn.value(totals));
+        if l > 0.0 && e > 0.0 {
+            l / e
+        } else {
+            1.0
+        }
+    };
+    PointScale { skater: ratio(&skaters), goalie: ratio(&goalies) }
+}
+
+#[cfg(test)]
+mod tests {
+    use fm_core::models::{FantasyTeam, RosterSlot};
+    use serde_json::json;
+
+    use serde_json::Value;
+
+    use super::*;
+    use crate::recommend::base::{league_unit, move_scarcity_threshold};
+    use crate::valuation::params::espn_reference_weights;
+
+    fn player(cid: &str, pos: &str, prior: Value) -> Player {
+        serde_json::from_value(json!({"cid": cid, "name": cid, "name_norm": cid, "ids": {}, "positions": [pos],
+            "status": "healthy", "lines": {"prior": prior}}))
+        .unwrap()
+    }
+
+    /// One team: a skater (82 GP: 10 G, 20 A, 5 PPP, 100 SOG, 50 HIT, 20 BLK) and a goalie (60 GP:
+    /// 30 W, 1500 SV, 150 GA, 3 SO, plus a GAA rate that must be ignored).
+    fn ctx_with(weights: Map<String, f64>, goalie_weights: Map<String, f64>) -> LeagueContext {
+        let sk = player("s", "C", json!({"split": "prior", "gp": 82,
+            "stats": {"GP": 82.0, "G": 10.0, "A": 20.0, "PPP": 5.0, "SOG": 100.0, "HIT": 50.0, "BLK": 20.0}}));
+        let g = player("g", "G", json!({"split": "prior", "gp": 60,
+            "stats": {"GP": 60.0, "GS": 60.0, "W": 30.0, "SV": 1500.0, "GA": 150.0, "SO": 3.0, "GAA": 2.5}}));
+        let team = FantasyTeam {
+            team_id: "1".into(),
+            name: "T".into(),
+            owner_is_me: true,
+            slots: [("C", sk), ("G", g)]
+                .into_iter()
+                .map(|(s, p)| RosterSlot { slot: s.into(), player: Some(p), starting: true })
+                .collect(),
+            record: None,
+        };
+        serde_json::from_value(json!({"provider": "test", "league_id": "1", "season": 2027, "name": "T",
+            "scoring": {"kind": "points", "weights": weights, "goalie_weights": goalie_weights},
+            "roster_shape": {"C": 1, "G": 1}, "teams": [team], "free_agents": [], "as_of": "2026-11-11"}))
+        .unwrap()
+    }
+
+    fn w(pairs: &[(&str, f64)]) -> Map<String, f64> {
+        pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+    }
+
+    #[test]
+    fn espn_scoring_is_the_reference_unit() {
+        let ctx = ctx_with(espn_reference_weights(), Map::new());
+        assert_eq!(point_scale(&ctx), PointScale::REFERENCE);
+        assert_eq!(move_scarcity_threshold(&ctx, false), Some(0.3));
+    }
+
+    #[test]
+    fn fantrax_weights_scale_skaters_and_goalies_separately() {
+        // Fantrax weights: G 4, A 2, PPP 1, SOG 0.5, HIT 0.3, BLK 0.5; W 5, SV 0.25, GA -1, SO 7.5
+        let ctx = ctx_with(
+            w(&[("G", 4.0), ("A", 2.0), ("PPP", 1.0), ("SOG", 0.5), ("HIT", 0.3), ("BLK", 0.5), ("W", 5.0), ("SV", 0.25),
+                ("GA", -1.0), ("SO", 7.5)]),
+            w(&[("A", 3.0)]),
+        );
+        let s = point_scale(&ctx);
+        // skater: league 40 + 40 + 5 + 50 + 15 + 10 = 160, ESPN 20 + 20 + 2.5 + 10 + 5 + 10 = 67.5
+        assert!((s.skater - 160.0 / 67.5).abs() < 1e-12, "{s:?}");
+        // goalie: league 150 + 375 - 150 + 22.5 = 397.5, ESPN 60 + 300 - 225 + 6 = 141
+        assert!((s.goalie - 397.5 / 141.0).abs() < 1e-12, "{s:?}");
+        assert_eq!(league_unit(&ctx), s.skater);
+    }
+
+    #[test]
+    fn doubled_weights_double_the_waiver_bar() {
+        let doubled = espn_reference_weights().into_iter().map(|(k, v)| (k, 2.0 * v)).collect();
+        let ctx = ctx_with(doubled, Map::new());
+        assert_eq!(point_scale(&ctx), PointScale { skater: 2.0, goalie: 2.0 });
+        // BASE_MIN_GAIN 0.3 ESPN points = 0.6 league points
+        assert_eq!(move_scarcity_threshold(&ctx, false), Some(0.6));
     }
 }

@@ -1844,6 +1844,11 @@ pub fn classify_provider_warning(provider: &str, w: &str) -> Option<(SourceSever
     if w.contains("session refreshed by login") {
         return Some((SourceSeverity::Ok, "session refreshed by login".into()));
     }
+    // An official-API read that failed fell back to the private data, so it is a warning, and its
+    // text (see `fantrax_official::OfficialError::warning`) is never an expired-login message.
+    if w.starts_with("Fantrax official API") {
+        return Some((SourceSeverity::Warn, clip(w, 120)));
+    }
     let login = re(
         r"(?i)not logged in|log ?in\b|cookie|espn_s2|swid|\b401\b|\b403\b|unauthori[sz]ed|forbidden|session (?:expired|invalid)",
         &LOGIN_RE,
@@ -2644,6 +2649,38 @@ mod tests {
         assert_eq!(step_source("NHL goalie stats 20252026", Some(20262027), Some(20252026)), "NHL stats");
         assert_eq!(clip("a  b   c", 120), "a b c");
         assert_eq!(clip(&"x".repeat(130), 120), format!("{}...", "x".repeat(117)));
+    }
+
+    /// An official-API failure falls back to private data: a warning, never an expired login.
+    #[test]
+    fn official_api_failures_are_never_an_expired_login() {
+        use crate::fantrax_official::OfficialError;
+        let failures = [
+            OfficialError::Failed("the API rejected the request (User-Agent)".into()),
+            OfficialError::Failed("the API answered with an error".into()),
+            OfficialError::Failed("could not reach the API".into()),
+            OfficialError::Failed("the response was not JSON".into()),
+            OfficialError::Failed("Invalid 'leagueId' parameter - league ID: abc not found".into()),
+        ];
+        for f in failures {
+            let w = f.warning("league info").unwrap();
+            let (sev, detail) = classify_provider_warning("fantrax", &w).expect("attributed to Fantrax");
+            assert_eq!(sev, SourceSeverity::Warn, "{w}");
+            assert!(!detail.contains("login expired"), "{w}");
+            let st = provider_status("fantrax", &[w.clone()], 0.0);
+            assert_eq!(st.severity, SourceSeverity::Warn, "{w}");
+            assert!(!st.detail.unwrap().contains("login expired"), "{w}");
+        }
+        // the classifier itself must not depend on the wording: even with an HTTP 403 and the word
+        // "cookie" inside, the official prefix keeps it a warning
+        let (sev, _) = classify_provider_warning("fantrax", "Fantrax official API standings unavailable (HTTP 403, cookie)").unwrap();
+        assert_eq!(sev, SourceSeverity::Warn);
+        // a real private login failure is unchanged
+        let (sev, d) = classify_provider_warning("fantrax", "Fantrax: not logged in (cookie expired)").unwrap();
+        assert_eq!(sev, SourceSeverity::Fail);
+        assert!(d.starts_with("login expired"));
+        // an offline cache miss adds no warning at all
+        assert_eq!(OfficialError::NotCached.warning("league info"), None);
     }
 
     #[test]

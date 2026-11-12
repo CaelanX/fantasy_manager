@@ -27,7 +27,8 @@
 //! Rust-only, hidden: root `--from-snapshot <fixture dir>` loads every league from a parity
 //! snapshot (`pipeline::from_snapshot`; a directory holding `<league>/snapshot.json` works too)
 //! with the snapshot's pinned clock; `FM_NOW=<ISO datetime>` pins the clock otherwise. In
-//! snapshot mode the data dir is `FM_DATA_DIR` if set, else the fixtures' `_datadir`.
+//! snapshot mode the data dir is `FM_DATA_DIR` if set, else the fixtures' `_datadir`, and the
+//! season length is pinned to Python's 82 games in 186 days.
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
@@ -343,6 +344,24 @@ where
                 }
             };
             let settings = Settings { fm_data_dir: snapshot_data_dir(root, &league), fm_offline: true, ..Settings::default() };
+            // parity snapshots were captured by Python, which assumed 82 games in 186 days
+            // whatever the schedule said; the live path reads the season length from the schedule
+            fm_engine::valuation::adjust::pin_season_length(Some(fm_engine::valuation::adjust::SeasonLength::DEFAULT));
+            // and valued an injured player's missed games at zero even when an IR slot held him
+            fm_engine::valuation::valuate::disable_ir_fill(true);
+            // and valued a goalie start in the daily lineup without the opponent, floored at zero
+            fm_engine::recommend::lineup::disable_goalie_matchup(true);
+            // and used the ESPN-point thresholds unscaled in every league, with no error ranges
+            fm_engine::scoring::disable_point_scale(true);
+            // and valued a roster by its best starting lineup, the bench and a third goalie at zero
+            fm_engine::recommend::started::disable_started_games(true);
+            // and projected goalie wins and shots against from the goalie, not his team
+            fm_engine::valuation::valuate::disable_team_goalie(true);
+            // and valued the dynasty future with one replacement level and a rising goalie curve
+            fm_engine::valuation::dynasty::disable_positional_dynasty(true);
+            // and scored an offer that is even by market value at 50%, without checking it from
+            // the other manager's seat
+            fm_engine::recommend::trades::pin_python_acceptance(true);
             (clock, settings)
         }
         None => {

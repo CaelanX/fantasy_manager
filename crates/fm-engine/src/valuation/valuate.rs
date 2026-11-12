@@ -20,6 +20,7 @@
 //!   fixed union order (`blend` module). Compare rates as maps.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::NaiveDate;
 use fm_core::models::{LeagueContext, Player, Reason, StatLine};
@@ -35,12 +36,12 @@ use serde_json::Value;
 use super::adjust::{availability_multiplier, season_availability, SeasonLength};
 use super::blend::{
     baseline_k, blend_preseason, blend_rates, blend_recency, multi_season_baseline, multi_season_sample,
-    preseason_weight, projection_blend_weight, projection_k, recency_weights, shrink_baseline, shrink_k,
-    shrink_toward, Rates, MULTI_SEASON_WEIGHTS, PRESEASON_STATS, PRIOR_SPLITS,
+    preseason_weight, projection_blend_weight, projection_k, recency_weights, shrink_baseline, shrink_inseason,
+    shrink_k, Rates, MULTI_SEASON_WEIGHTS, PRESEASON_STATS, PRIOR_SPLITS,
 };
 use super::params::{self, age_factor};
 use super::regression::{
-    assist_shrink_rates, gsax_rates, luck_signals, shrink_goals, GsaxExt, ASSIST_SHRINK_CAP, ASSIST_SHRINK_MIN_GP,
+    apply_team_goalie_rates, assist_shrink_rates, gsax_rates, luck_signals, shrink_goals, GsaxExt, ASSIST_SHRINK_CAP, ASSIST_SHRINK_MIN_GP,
     ASSIST_SHRINK_SHARE, GSAX_K_SHOTS, K_GOALS,
 };
 use super::replacement::{best_slot, replacement_with_fallback, vorp, DEFAULT_SLOTS, ROSTERED_FALLBACK_PCT};
@@ -51,7 +52,9 @@ use super::schedule::{
     teammate_shares, ScheduleMemo, TeammateShare, WeekWindow, ACTUAL_SHARE_K, OFFNIGHT_THRESHOLD, OPP_WEEK_REASON,
     ROSTER_ONLY_SHARE, TEAMMATE_CAP,
 };
-use crate::scoring::{fit_to_context, Scoring, ScoringSystem};
+use crate::analysis::team_factors::{team_goalie_rates, TeamGoalieRates, GOALIE_SHOTS_SHRINK_K, GOALIE_WIN_SHRINK_K};
+use crate::recommend::base::{free_ir_slots, ir_movable, IR_SLOT_NAMES};
+use crate::scoring::{fit_to_context, point_scale, point_scale_disabled, PointScale, Scoring, ScoringSystem};
 
 /// team games of a prior season (2025-26 and the seasons before it had 82); this season's count
 /// comes from the schedule ([`SeasonLength`])
@@ -295,6 +298,7 @@ pub fn rates_for(
             pre_base = Some(std::mem::replace(&mut base_rates, blended));
         }
     }
+    // the k of the scoring stats; the volume stats may have their own (`shrink_inseason`)
     let k = shrink_k(p.is_goalie(), params);
     let mut xg: Option<(f64, f64, f64)> = None;
     let shrunk = match season.filter(|_| gp > 0) {
@@ -305,7 +309,7 @@ pub fn rates_for(
                 season_rates = shrink_goals(&season_rates, p.ixg_per_game, gp as f64, K_GOALS);
                 xg = Some((before, p.ixg_per_game.unwrap_or(0.0), season_rates["G"]));
             }
-            shrink_toward(&season_rates, gp as f64, &base_rates, k)
+            shrink_inseason(&season_rates, gp as f64, &base_rates, p.is_goalie(), params)
         }
         None => base_rates.clone(),
     };
@@ -720,6 +724,35 @@ pub fn apply_gsax(
     (new, Some(r))
 }
 
+/// Goalie rates with wins and shots against per start taken from his current team's goalies this
+/// season (reason TEAM_GOALIE); his own save % is kept. This departs from the Python, which
+/// projected wins and shots against from the goalie's own history.
+pub fn team_goalie(rates: &Rates, team: &str, t: &TeamGoalieRates, scoring: &dyn ScoringSystem) -> (Rates, Option<Reason>) {
+    let new = apply_team_goalie_rates(rates, t.wins_per_start, t.shots_per_start);
+    if new == *rates {
+        return (new, None);
+    }
+    let (f0, f1) = (scoring.value(rates), scoring.value(&new));
+    let get = |r: &Rates, k: &str| r.get(k).copied().unwrap_or(0.0);
+    let text = format!(
+        "Wins and shots against from {team}'s goalies this season ({} starts: {} wins and {} shots per start, \
+         shrunk toward the league average with k={} and k={} starts), own save % kept: W {} -> {}/GP, \
+         SA {} -> {}/GP, {} -> {} FPG",
+        fixed(t.starts, 0, false),
+        fixed(t.wins_per_start, 3, false),
+        fixed(t.shots_per_start, 1, false),
+        general(GOALIE_WIN_SHRINK_K, None, false),
+        general(GOALIE_SHOTS_SHRINK_K, None, false),
+        fixed(get(rates, "W"), 3, false),
+        fixed(get(&new, "W"), 3, false),
+        fixed(get(rates, "SA"), 1, false),
+        fixed(get(&new, "SA"), 1, false),
+        fixed(f0, 2, false),
+        fixed(f1, 2, false)
+    );
+    (new, Some(Reason::new("TEAM_GOALIE", text).with_value(Some(f1)).with_baseline(Some(f0))))
+}
+
 /// In-season assist-luck shrink (reason ASSIST_SHRINK).
 pub fn assist_shrink(p: &Player, rates: &Rates, scoring: &dyn ScoringSystem, norms: Option<&Map<String, f64>>) -> (Rates, Option<Reason>) {
     let Some(onice) = p.onice_sh_pct else { return (rates.clone(), None) };
@@ -895,6 +928,7 @@ struct League<'a> {
     rookies: HashMap<String, RookieLookup<'a>>,
     news: HashMap<String, &'a [RoleSignal]>,
     gsax: HashMap<String, &'a GoalieGsax>,
+    goalie_teams: Map<String, TeamGoalieRates>,
     league_sv: Option<f64>,
     norms: Map<String, f64>,
     pp_teams: HashSet<Option<String>>,
@@ -911,7 +945,8 @@ fn f2(x: f64) -> String {
 }
 
 impl League<'_> {
-    fn value_player(&self, p: &Player) -> PlayerValue {
+    /// (his value, his season availability).
+    fn value_player(&self, p: &Player) -> (PlayerValue, f64) {
         let ctx = self.ctx;
         let scoring = self.scoring;
         let rk = self.rookies.get(&p.cid);
@@ -929,6 +964,12 @@ impl League<'_> {
         let (mut rates, mut reasons, est) = (out.rates, out.reasons, out.estimate);
         let val = |r: &Rates| if r.is_empty() { 0.0 } else { scoring.value(r) };
         let fpg_pre = val(&rates);
+        let team_key = normalize_team(p.team.as_deref()).unwrap_or_default();
+        if let Some(t) = self.goalie_teams.get(&team_key).filter(|_| p.is_goalie() && !rates.is_empty()) {
+            let (r, why) = team_goalie(&rates, &team_key, t, scoring);
+            rates = r;
+            reasons.extend(why);
+        }
         if p.is_goalie() && !rates.is_empty() && self.gsax.contains_key(&p.cid) {
             let (r, why) = apply_gsax(&rates, self.gsax[&p.cid], scoring, self.league_sv);
             rates = r;
@@ -938,7 +979,7 @@ impl League<'_> {
             rates = r;
             reasons.extend(why);
         }
-        let fpg_shift = val(&rates) - fpg_pre; // GSAX / ASSIST_SHRINK change
+        let fpg_shift = val(&rates) - fpg_pre; // TEAM_GOALIE / GSAX / ASSIST_SHRINK change
         let mut role: Option<RoleChange> = None;
         if rk.is_none() && !p.is_goalie() && !rates.is_empty() && !is_unproven(p) {
             let team = normalize_team(p.team.as_deref());
@@ -956,7 +997,6 @@ impl League<'_> {
             }
         }
         let fpg = val(&rates);
-        let team_key = normalize_team(p.team.as_deref()).unwrap_or_default();
         let team_dates: &[NaiveDate] = ctx.schedule.get(&team_key).map(|v| v.as_slice()).unwrap_or(&[]);
         let status = p.status.as_str();
         let (a_season, ret_est) =
@@ -1159,6 +1199,8 @@ impl League<'_> {
             player: p.clone(),
             fpg,
             fpg_season,
+            ir_fill: 0.0,
+            fpg_error: 0.0,
             fpg_week: fpg * a_week * share_week * week_share,
             vorp: 0.0,
             vorp_week: 0.0,
@@ -1176,7 +1218,7 @@ impl League<'_> {
             reasons,
             rookie: est,
         };
-        let Some(window) = &self.window else { return pv };
+        let Some(window) = &self.window else { return (pv, a_season) };
         let b2b = if p.is_goalie() { ctx.b2b_second_night.get(&team_key).copied() } else { None };
         let sf = schedule_factor(
             p,
@@ -1187,7 +1229,7 @@ impl League<'_> {
             Some(share_week),
             b2b.map(|b| b.0),
         );
-        let Some(sf) = sf else { return pv };
+        let Some(sf) = sf else { return (pv, a_season) };
         if let Some((bp, seen_n)) = b2b {
             if (sf.start_share - share_week).abs() > 1e-4 {
                 let seen = format!("{seen_n} seen{}", if seen_n >= 5 { "" } else { ", league prior until 5" });
@@ -1256,7 +1298,7 @@ impl League<'_> {
             Reason::new("PROJ_WEEK", format!("Projected {} pts over {}{rk_week}", fixed(pw, 1, false), window.label()))
                 .with_value(Some(pw)),
         );
-        pv
+        (pv, a_season)
     }
 }
 
@@ -1318,6 +1360,7 @@ pub fn valuate_league_with(
         rookies,
         news,
         gsax,
+        goalie_teams: if TEAM_GOALIE_OFF.load(Ordering::Relaxed) { Map::new() } else { team_goalie_rates(ctx) },
         league_sv,
         norms,
         pp_teams,
@@ -1325,23 +1368,107 @@ pub fn valuate_league_with(
         ss_prior: params::start_share_prior(None),
         ss_k: params::start_share_k(None),
     };
-    let pvs: Vec<PlayerValue> = players.par_iter().map(|p| league.value_player(p)).collect();
+    let pvs: Vec<(PlayerValue, f64)> = players.par_iter().map(|p| league.value_player(p)).collect();
     let mut partial: Map<String, PlayerValue> = Map::with_capacity(pvs.len());
-    for pv in pvs {
+    let mut a_season: Map<String, f64> = Map::with_capacity(pvs.len());
+    for (pv, a) in pvs {
+        a_season.insert(pv.player.cid.clone(), a);
         partial.insert(pv.player.cid.clone(), pv);
     }
-    finish_vorp(ctx, &mut partial);
+    finish_vorp(ctx, &mut partial, &a_season);
     partial
 }
 
-/// Replacement levels for both horizons, then VORP / horizon values / VORP reasons.
-fn finish_vorp(ctx: &LeagueContext, partial: &mut Map<String, PlayerValue>) {
+/// Typical error of a player's per-game value in league points: the backtest's mean absolute
+/// error for his group (`preseason.mae_at_fitted_k_multi`: F 0.23, D 0.21, G 0.58 ESPN points)
+/// times the league's [`PointScale`] for skaters or goalies; 0 after `disable_point_scale`.
+pub fn projection_error(p: &Player, scale: &PointScale) -> f64 {
+    if point_scale_disabled() {
+        return 0.0;
+    }
+    params::projection_mae(position_group(p), None) * scale.for_player(p)
+}
+
+static IR_FILL_OFF: AtomicBool = AtomicBool::new(false);
+static TEAM_GOALIE_OFF: AtomicBool = AtomicBool::new(false);
+
+/// Turn the team goalie rates ([`team_goalie`]) off (true) or back on for every later valuation in
+/// this process. Only the Python parity tests and the CLI's hidden `--from-snapshot` mode turn them
+/// off: their fixtures come from Python, which projected wins and shots from the goalie himself.
+pub fn disable_team_goalie(off: bool) {
+    TEAM_GOALIE_OFF.store(off, Ordering::Relaxed);
+}
+
+/// Turn the IR fill ([`ir_holders`]) off (true) or back on for every later valuation in this
+/// process. Only the Python parity tests and the CLI's hidden `--from-snapshot` mode turn it off:
+/// their fixtures come from Python, which valued an injured player's missed games at zero.
+pub fn disable_ir_fill(off: bool) {
+    IR_FILL_OFF.store(off, Ordering::Relaxed);
+}
+
+/// Rostered players whose roster spot is refilled while they are out: everyone in an IR slot, and
+/// on each team the players the waiver and trade engines would move into its free IR slots
+/// ([`ir_movable`], best first, as many as there are free slots).
+pub fn ir_holders(ctx: &LeagueContext, values: &Map<String, PlayerValue>) -> HashSet<String> {
+    let mut out: HashSet<String> = HashSet::new();
+    for t in &ctx.teams {
+        for s in t.slots.iter().filter(|s| IR_SLOT_NAMES.contains(&s.slot.as_str())) {
+            out.extend(s.player.as_ref().map(|p| p.cid.clone()));
+        }
+        let free = free_ir_slots(t, &ctx.roster_shape).max(0) as usize;
+        out.extend(ir_movable(t, Some(values)).into_iter().take(free).map(|p| p.cid.clone()));
+    }
+    out
+}
+
+/// Replacement levels for both horizons, the IR fill, then VORP / horizon values / VORP reasons.
+///
+/// IR fill: a player who is out and held in an IR slot (or can be moved into a free one) does not
+/// block a roster spot, so the spot gets replacement-level production for the games he misses.
+/// His season value becomes availability x FPG + (1 - availability) x replacement, i.e. `fpg_season`
+/// plus (1 - availability) x the replacement level of his VORP slot (floored at 0: an unfilled
+/// slot scores nothing). Python had no fill; [`disable_ir_fill`] restores that for parity.
+///
+/// Each value also gets its projection error ([`projection_error`]), which Python did not have. A
+/// non-points league gets none: the backtest errors are in fantasy points, not category units.
+fn finish_vorp(ctx: &LeagueContext, partial: &mut Map<String, PlayerValue>, a_season: &Map<String, f64>) {
     let (repl_season, fb_season) = replacement(ctx, partial, Horizon::Season);
     let (repl_week, fb_week) = replacement(ctx, partial, Horizon::Week);
     let fallback: HashSet<&String> = fb_season.iter().chain(fb_week.iter()).collect();
     let pct = (ROSTERED_FALLBACK_PCT * 100.0).trunc() as i64;
+    let held = if IR_FILL_OFF.load(Ordering::Relaxed) { HashSet::new() } else { ir_holders(ctx, partial) };
+    let scale = point_scale(ctx);
+    let points = ctx.scoring.kind == fm_core::models::ScoringKind::Points;
     for pv in partial.values_mut() {
+        pv.fpg_error = if points { projection_error(&pv.player, &scale) } else { 0.0 };
+        if pv.player.is_goalie() && pv.fpg > 0.0 {
+            // the backtest error is per start, but a goalie's season value is per team game
+            // (fpg x start share x availability), so his error shrinks by the same factor
+            pv.fpg_error *= (pv.fpg_season / pv.fpg).clamp(0.0, 1.0);
+        }
         let pos = &pv.player.positions;
+        let missed = 1.0 - a_season.get(&pv.player.cid).copied().unwrap_or(1.0);
+        if missed > 0.0 && held.contains(&pv.player.cid) {
+            if let Some(slot) = best_slot(pos, &repl_season) {
+                let r = repl_season[&slot].max(0.0);
+                pv.ir_fill = missed * r;
+                pv.fpg_season += pv.ir_fill;
+                pv.reasons.push(
+                    Reason::new(
+                        "IR_FILL",
+                        format!(
+                            "IR slot: his roster spot is refilled while he is out, +{} FPG ({} of the season at {slot} \
+                             replacement {})",
+                            f2(pv.ir_fill),
+                            pct0(missed),
+                            f2(r)
+                        ),
+                    )
+                    .with_value(Some(pv.ir_fill))
+                    .with_baseline(Some(r)),
+                );
+            }
+        }
         pv.vorp = vorp(pv.fpg_season, pos, &repl_season);
         pv.vorp_week = vorp(pv.fpg_week, pos, &repl_week);
         let slot = best_slot(pos, &repl_season);
@@ -1499,6 +1626,43 @@ mod tests {
         assert!(vals["hurt"].fpg_season < vals["fine"].fpg_season);
         let gap = vals["fine"].fpg_season - vals["hurt"].fpg_season;
         close(dynv["fine"].value - dynv["hurt"].value, gap);
+    }
+
+    /// Two identical injured defensemen, one IR slot: the one in it is worth a x FPG + (1 - a) x
+    /// replacement, the one on the bench a x FPG; a second IR slot refills the bench one too.
+    #[test]
+    fn ir_slot_refills_an_injured_players_missed_games() {
+        let hurt = |cid: &str| {
+            let mut p = dman(cid, 70, 0.8);
+            p.status = fm_core::models::Status::Ir;
+            p
+        };
+        let (stashed, benched, hurt_fa) = (hurt("stashed"), hurt("benched"), hurt("hurt_fa"));
+        let fas: Vec<Player> = (0..3).map(|i| dman(&format!("fa{i}"), 60, 0.3)).chain([hurt_fa]).collect();
+        let league = |ir_slots: i64| {
+            ctx(json!({"roster_shape": {"D": 2, "BN": 3, "IR": ir_slots},
+                       "teams": [team("1", "me", true, &[("IR", &stashed), ("BN", &benched)])],
+                       "free_agents": fas, "matchup_period": 1, "as_of": "2026-09-28"}))
+        };
+        let pts = w(&[("PTS", 1.0)]);
+        let vals = val(&mut league(1), &pts);
+        let (s, b) = (&vals["stashed"], &vals["benched"]);
+        let a = s.reason("STATUS").unwrap().value.unwrap();
+        let r = s.reason("VORP").unwrap().baseline.unwrap();
+        assert!(0.0 < a && a < 1.0 && r > 0.0, "a={a} r={r}");
+        close(s.fpg, b.fpg);
+        close(b.fpg_season, a * b.fpg);
+        assert_eq!(b.ir_fill, 0.0);
+        assert!(!has(b, "IR_FILL"));
+        close(s.fpg_season, a * s.fpg + (1.0 - a) * r);
+        close(s.ir_fill, (1.0 - a) * r);
+        close(s.vorp, a * (s.fpg - r));
+        assert_eq!(s.reason("IR_FILL").unwrap().baseline, Some(r));
+        // an injured free agent has no IR slot of his own: his missed games stay at zero
+        close(vals["hurt_fa"].fpg_season, a * vals["hurt_fa"].fpg);
+        // a free IR slot: the bench player can be moved there
+        let vals = val(&mut league(2), &pts);
+        close(vals["benched"].fpg_season, a * vals["benched"].fpg + (1.0 - a) * r);
     }
 
     #[test]
@@ -1707,6 +1871,34 @@ mod tests {
     }
 
     #[test]
+    fn a_goalie_who_changed_teams_takes_wins_and_shots_from_his_new_team() {
+        // three great seasons' worth of wins on his old team, ten starts with NJD this season
+        let moved = player(json!({"cid": "moved", "team": "NJD", "positions": ["G"], "lines": {
+            "prior": line("prior", 60, json!({"GS": 60, "W": 42, "SA": 1800, "SV": 1638, "GA": 162})),
+            "season": line("season", 10, json!({"GS": 10, "W": 3, "SA": 300, "SV": 270, "GA": 30}))}}));
+        let wpg = player(json!({"cid": "wpg", "team": "WPG", "positions": ["G"], "lines": {
+            "season": line("season", 10, json!({"GS": 10, "W": 7, "SA": 250, "SV": 230, "GA": 20}))}}));
+        let mut c = gctx(&[&moved, &wpg], &[]);
+        let base = val(&mut c, &goalie_w());
+        assert!(!has(&base["moved"], "TEAM_GOALIE"));
+        assert!(base["moved"].rates["W"] > 0.6);
+        let days: Vec<NaiveDate> = (1..=10).map(|d| NaiveDate::from_ymd_opt(2026, 10, d).unwrap()).collect();
+        c.schedule.insert("NJD".into(), days.clone());
+        c.schedule.insert("WPG".into(), days);
+        let vals = val(&mut c, &goalie_w());
+        let (v, b) = (&vals["moved"], &base["moved"]);
+        assert!(has(v, "TEAM_GOALIE"));
+        // league 10 W and 550 SA over 20 starts; NJD 3 W and 300 SA over 10 starts, shrunk with
+        // k=60 (wins) and k=25 (shots); every game was a start, so per start = per game
+        close(v.rates["W"], (3.0 + 60.0 * 0.5) / 70.0);
+        close(v.rates["SA"], (300.0 + 25.0 * 27.5) / 35.0);
+        close(vals["wpg"].rates["W"], (7.0 + 60.0 * 0.5) / 70.0);
+        let sv = |r: &Rates| r["SV"] / (r["SV"] + r["GA"]);
+        close(sv(&v.rates), sv(&b.rates));
+        assert!(v.fpg < b.fpg);
+    }
+
+    #[test]
     fn gsax_replaces_the_raw_save_component() {
         let (good, bad, plain) =
             (ggoalie("good", Some(1), 60, 0.905, "prior", None), ggoalie("bad", Some(2), 60, 0.905, "prior", None),
@@ -1821,5 +2013,20 @@ mod tests {
         assert_eq!(season_span(&[2024, 2025]), "2024-25..2025-26");
         assert_eq!(season_span(&[2025]), "2025-26");
         assert_eq!(season_span(&[]), "");
+    }
+
+    #[test]
+    fn projection_error_is_the_groups_backtest_error_in_league_points() {
+        // the packaged fit: F 0.23, D 0.20981, G 0.57728 ESPN points per game
+        let fit = params::load_packaged(None);
+        assert_eq!(
+            ["F", "D", "G"].map(|g| params::projection_mae(g, Some(&fit))),
+            [0.23, 0.20981, 0.57728]
+        );
+        let scale = PointScale { skater: 2.0, goalie: 3.0 };
+        let mae = |g| params::projection_mae(g, None);
+        close(projection_error(&dman("d", 30, 0.5), &scale), 2.0 * mae("D"));
+        close(projection_error(&goalie("g", 30, 0.905, 0.5, "prior", None), &scale), 3.0 * mae("G"));
+        assert!(projection_error(&goalie("g", 30, 0.905, 0.5, "prior", None), &PointScale::REFERENCE) > mae("F"));
     }
 }

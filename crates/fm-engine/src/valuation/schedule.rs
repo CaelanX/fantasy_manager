@@ -33,7 +33,7 @@ use serde_json::Value;
 
 use super::adjust::{availability_multiplier, return_estimate, ReturnEstimate, SeasonLength};
 use super::params;
-use crate::analysis::team_factors::{odds_fn, team_ga_factors, DayOdds, OddsFn, TeamFactors};
+use crate::analysis::team_factors::{odds_fn, team_ga_factors, team_gf_factors, DayOdds, OddsFn, TeamFactors};
 
 pub const WEEK_DAYS: i64 = 7;
 pub const OFFNIGHT_THRESHOLD: i64 = 8;
@@ -684,6 +684,7 @@ pub fn opp_adjust_env_enabled() -> bool {
 pub struct OpponentAdjust {
     odds: OddsFn,
     ga: OnceLock<TeamFactors>,
+    gf: OnceLock<TeamFactors>,
     days: DashMap<NaiveDate, Arc<DayOdds>>,
     games: DashMap<(String, NaiveDate), OppGame>,
     pub enabled: bool,
@@ -707,13 +708,15 @@ impl OpponentAdjust {
         OpponentAdjust {
             odds: odds.unwrap_or_else(|| odds_fn(data_dir)),
             ga: cell,
+            gf: OnceLock::new(),
             days: DashMap::new(),
             games: DashMap::new(),
             enabled: enabled.unwrap_or_else(opp_adjust_env_enabled),
         }
     }
 
-    fn odds_for(&self, day: NaiveDate) -> Arc<DayOdds> {
+    /// The day's odds table (cached per day); the goalie matchup in the daily lineup reads it too.
+    pub fn odds_for(&self, day: NaiveDate) -> Arc<DayOdds> {
         if let Some(v) = self.days.get(&day) {
             return v.clone();
         }
@@ -723,6 +726,11 @@ impl OpponentAdjust {
 
     fn ga_factors(&self, ctx: &LeagueContext) -> &TeamFactors {
         self.ga.get_or_init(|| team_ga_factors(ctx))
+    }
+
+    /// `team_gf_factors(ctx)`, built on first use: the goalie matchup's fallback without odds.
+    pub fn gf_factors(&self, ctx: &LeagueContext) -> &TeamFactors {
+        self.gf.get_or_init(|| team_gf_factors(ctx))
     }
 
     /// The multiplier for `team`'s game on `day` (neutral when disabled or unknown).

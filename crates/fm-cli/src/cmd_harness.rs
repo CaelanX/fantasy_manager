@@ -24,7 +24,7 @@ use fm_core::prefs::{harness_auto_apply, set_pref, HARNESS_AUTO_APPLY_KEY};
 use fm_engine::recommend::injuries::History;
 use fm_engine::recommend::plan::{archive_plan, build_week_plan, PlanOpts};
 use fm_harness::deployment::pull_deployment;
-use fm_harness::episode_match::match_episodes;
+use fm_harness::episode_match::{match_episodes, store_lineup_lock};
 use fm_harness::ingest::{ingest_archive, record_run};
 use fm_harness::ledger::{Ledger, Row, TABLES};
 use fm_harness::matchup_calib::{calibration_report, capture_matchup, summary_line, MIN_MATCHUPS};
@@ -321,6 +321,9 @@ fn daily_league(
     }
     if let Some(d) = &loaded {
         store_scoring(ledger, lg, &d.lc.scoring)?;
+        // lineup matching and grading below read the lock back from the ledger
+        let lock = fm_engine::recommend::lineup_lock::lineup_lock_for(&d.lc, Some(d.provider.as_ref()));
+        store_lineup_lock(ledger, lg, lock)?;
     }
     let ing = ingest_archive(ledger, &data_dir, Some(&[lg.to_string()]), false)?;
     out.insert(

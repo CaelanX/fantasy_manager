@@ -21,10 +21,11 @@ use anyhow::{anyhow, Result};
 use chrono::{Datelike, Duration, NaiveDate};
 use fm_backtest::data::{load_table, load_windows};
 use fm_backtest::evaluate::{inseason_observations, MIN_GP_REST};
-use fm_backtest::fit::{inseason_projection as fit_inseason_projection, InseasonObs};
+use fm_backtest::fit::{inseason_projection_split, InseasonObs};
 use fm_core::models::{Player, StatLine};
 use fm_core::values::Horizon;
 use fm_core::Map;
+use fm_engine::recommend::trades::{calibrate_acceptance, AcceptParams};
 use fm_engine::scoring::PointsScoring;
 use fm_engine::valuation::params as vparams;
 use fm_engine::valuation::schedule::{proj_week, shrunk_share};
@@ -333,6 +334,8 @@ impl ReplayObs {
             gp_td: season.map(|s| s.gp).unwrap_or(0),
             fpg_td: f(season).1,
             fpg_base: 0.0,
+            // Archived rows carry no per-stat baseline, so they use the single k_skater for every stat.
+            vol_points: Map::new(),
             has_base: false,
             splits,
             gp_rest: self.gp28,
@@ -359,10 +362,12 @@ pub fn inseason_projection(obs: &ReplayObs, params: Option<&Value>) -> f64 {
 }
 
 /// A historical checkpoint under `params`: the backtest's FPG-space formula with the candidate k
-/// and recency weights.
+/// and recency weights. Unlike the Python, a skater's volume stats use their own k
+/// (`k_inseason_volume`), as the app does.
 pub fn hist_projection(obs: &InseasonObs, params: Option<&Value>) -> f64 {
     let k = vparams::k_inseason_for(if obs.group == "G" { "goalie" } else { "skater" }, params);
-    fit_inseason_projection(obs, k, &vparams::recency_weights(params))
+    let volume = if obs.group == "G" { Map::new() } else { vparams::k_inseason_volume(params) };
+    inseason_projection_split(obs, k, &volume, &vparams::recency_weights(params))
 }
 
 /// Projected points over the 7-day window under `params` (None without a schedule).
@@ -696,9 +701,13 @@ pub fn hist_mae(hist: &[InseasonObs], params: &Value) -> Option<f64> {
     let ks = vparams::k_inseason_for("skater", Some(params));
     let kg = vparams::k_inseason_for("goalie", Some(params));
     let rw = vparams::recency_weights(Some(params));
+    let (volume, no_split) = (vparams::k_inseason_volume(Some(params)), Map::new());
     let errs: Vec<f64> = hist
         .par_iter()
-        .map(|o| fit_inseason_projection(o, if o.group == "G" { kg } else { ks }, &rw) - o.fpg_rest)
+        .map(|o| {
+            let (k, kv) = if o.group == "G" { (kg, &no_split) } else { (ks, &volume) };
+            inseason_projection_split(o, k, kv, &rw) - o.fpg_rest
+        })
         .collect();
     mae(&errs)
 }
@@ -1482,6 +1491,23 @@ pub fn run_refit(ledger: &Ledger, as_of: NaiveDate, opts: &RefitOptions<'_>) -> 
     Ok(res)
 }
 
+// --------------------------------------------------------------------------- trade acceptance
+
+/// The trade acceptance curve for `league` fitted on its recorded proposals
+/// (`fm_engine::recommend::trades::calibrate_acceptance`: the prior until CALIBRATION_MIN_N
+/// proposals have an outcome). A declined offer is only visible when the provider reports pending
+/// proposals (`PROPOSED` transactions); without any, the recorded trades are only the accepted
+/// ones and a fit would read every offer as accepted, so the prior is kept. Unlike the valuation
+/// parameters above this is not a projection parameter, so it is not gated on projection error or
+/// kept in the params store: the loader recomputes it from the ledger on every load.
+pub fn trade_accept_params(ledger: &Ledger, league: &str) -> AcceptParams {
+    let proposals = ledger.count("transactions", "WHERE league=? AND action='PROPOSED'", &[&league]).unwrap_or(0);
+    if proposals == 0 {
+        return AcceptParams { source: "prior (no recorded trade proposals)".to_string(), ..AcceptParams::default() };
+    }
+    calibrate_acceptance(ledger, Some(league), None, None)
+}
+
 // --------------------------------------------------------------------------- champion / challenger
 
 /// Shadow-score the version the active one replaced on the snapshot whose 28-day window matured
@@ -1575,4 +1601,67 @@ pub fn shadow_check(ledger: &Ledger, week: NaiveDate, store: Option<&ParamsStore
         let _ = record_run(ledger, "auto-rollback", None, Some(&iso(wk)), Some(&Value::Object(summary)), "ok");
     }
     Ok(Some(Value::Object(result)))
+}
+
+#[cfg(test)]
+mod accept_tests {
+    use super::*;
+    use fm_engine::recommend::trades::{ACCEPT_K, ACCEPT_X0, CALIBRATION_MIN_N};
+    use rusqlite::params;
+
+    /// One trade episode with its first rec's MARKET_VIEW value; `status` and `match_json` as the
+    /// matcher writes them.
+    fn episode(l: &Ledger, i: usize, perceived: f64, status: &str, match_json: &str) {
+        let reasons = format!(r#"[{{"code": "MARKET_VIEW", "text": "", "value": {perceived}}}]"#);
+        l.with_conn(|c| {
+            c.execute(
+                "INSERT INTO recs (league, as_of, rec_key, kind, reasons_json) VALUES ('fantrax', '2026-11-01', ?, 'trade', ?)",
+                params![format!("k{i}"), reasons],
+            )?;
+            c.execute(
+                "INSERT INTO rec_episodes (episode_id, league, rec_key, kind, first_seen, last_seen, n_days, status, match_json) \
+                 VALUES (?, 'fantrax', ?, 'trade', '2026-11-01', '2026-11-01', 1, ?, ?)",
+                params![format!("e{i}"), format!("k{i}"), status, match_json],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn acceptance_is_fitted_from_the_ledger_only_where_proposals_are_recorded() {
+        let dir = tempfile::tempdir().unwrap();
+        let l = Ledger::open(dir.path()).unwrap();
+        // accepted when they gain 10+ worth points, declined (window passed) otherwise
+        for i in 0..CALIBRATION_MIN_N + 10 {
+            let x = -20.0 + 1.5 * i as f64;
+            if x >= 10.0 {
+                episode(&l, i, x, "followed", "{}");
+            } else {
+                episode(&l, i, x, "proposed", r#"{"window_passed": true}"#);
+            }
+        }
+        l.commit().unwrap();
+        // no PROPOSED transactions: declines are invisible, the prior stays
+        let p = trade_accept_params(&l, "fantrax");
+        assert_eq!((p.x0, p.k, p.n), (ACCEPT_X0, ACCEPT_K, 0));
+        assert!(p.source.starts_with("prior (no recorded"));
+        l.with_conn(|c| {
+            c.execute(
+                "INSERT INTO transactions (league, tx_id, action, cid, team_id, ts, day) \
+                 VALUES ('fantrax', 't1', 'PROPOSED', 'x', '1', '2026-11-01T10:00:00', '2026-11-01')",
+                [],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        l.commit().unwrap();
+        // 30 outcomes: fitted; the midpoint moves from 5 toward the observed 10-point threshold
+        let p = trade_accept_params(&l, "fantrax");
+        assert_eq!(p.n, 30);
+        assert!(p.source.starts_with("fit on 30"), "{}", p.source);
+        assert!(p.x0 > ACCEPT_X0 && p.x0 < 12.0, "{p:?}");
+        // another league has no proposals at all
+        assert_eq!(trade_accept_params(&l, "espn").n, 0);
+    }
 }

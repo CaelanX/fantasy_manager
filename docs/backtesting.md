@@ -35,6 +35,7 @@ What the app takes from the file:
 |---|---|---|
 | `blend.K_BASELINE` {F, D, G} | `preseason.k_multi` (8 / 14 / 120) | 3-season history toward the positional mean |
 | `blend.K_INSEASON` {skater, goalie} | `inseason.k_skater` / `k_goalie` (25 / 40) | season-to-date toward the baseline (waiver confidence uses the games behind the projection instead: `recommend.base.confidence`) |
+| `blend.VOLUME_STATS` k {SOG, HIT, BLK, PIM} | `inseason.k_skater_volume` (5 / 8 / 30 / 100) | season-to-date shots, hits, blocks and penalty minutes toward the baseline, each with its own k; other skater stats use `k_skater`. Each value is taken from the `fit_inseason` run under the scoring preset that pays the stat the most, because a preset that does not pay a stat cannot identify its k. `fm backtest fit` writes its single-preset result as `k_skater_volume_fit`, which the app does not read, so combining the presets is a manual step. |
 | `blend.RECENCY_WEIGHTS` | `inseason.recency_weights` (0.85 / 0.15 / 0 / 0) | recent-form blend (still applied, so `--deep` matters a little) |
 | age factor | `fm_fitted.age_yoy` (F, D only) | the history baseline, from last season's age to this one |
 | `dynasty.PRODUCTION_CURVES` F, D | `dynasty_age_curves` | dynasty trajectory (goalies stay hand-set) |
@@ -99,6 +100,8 @@ Each model projects per-game rates for season N from seasons before N only.
 - `fm_shrink_only`: the app's shrinkage with no recency blend
 - `fm_current`: the app's `shrink_toward` plus `blend_recency`, run on real StatLines
 - `fm_fitted`: fitted k and recency weights, leave-one-season-out
+- `fm_fitted_stat`: `fm_fitted` with each volume stat (shots, hits, blocks, penalty minutes) shrunk
+  with its own fitted k, leave-one-season-out
 
 ## Metrics
 
@@ -118,7 +121,9 @@ Metrics are computed per season and model, with skaters and goalies scored separ
 - `preseason.k` and `preseason.k_multi`: shrinkage k per group from a grid search that minimizes MAE.
 - `inseason`: k for season-to-date toward the baseline, plus recency weights for season / L30 /
   L15 / L7. These come from a coordinate-descent grid search. The shortfall rule is the same as
-  `blend.recency_weights`.
+  `blend.recency_weights`. `k_skater_volume_fit` holds a separate k per volume stat
+  (SOG, HIT, BLK, PIM), fitted by the same coordinate descent with `k_skater` and the recency
+  weights held fixed.
 - `age_curve`: a delta-method curve per group (F, D, G). For players with at least 20 GP in two
   consecutive seasons:
   1. Take the median of `FPG(next) / base`, pooled over age ±1 year.

@@ -128,11 +128,13 @@ pub struct ChatResponse {
     /// `choices[i].message.content`
     pub choices: Vec<Option<String>>,
     pub error: Option<Value>,
+    /// `choices[0].finish_reason` when the server sent one ("stop", "length", ...).
+    pub finish_reason: Option<String>,
 }
 
 impl ChatResponse {
     pub fn text(content: &str) -> Self {
-        ChatResponse { choices: vec![Some(content.to_string())], error: None }
+        ChatResponse { choices: vec![Some(content.to_string())], ..Default::default() }
     }
 
     pub fn from_json(v: &Value) -> Self {
@@ -145,7 +147,8 @@ impl ChatResponse {
                     .collect()
             })
             .unwrap_or_default();
-        ChatResponse { choices, error: v.get("error").filter(|e| !e.is_null()).cloned() }
+        let finish_reason = v["choices"][0]["finish_reason"].as_str().map(String::from);
+        ChatResponse { choices, error: v.get("error").filter(|e| !e.is_null()).cloned(), finish_reason }
     }
 }
 
@@ -288,7 +291,7 @@ impl ChatSdk for HttpSdk {
         if !(200..300).contains(&status) {
             return Err(status_error(status, &resp.text().unwrap_or_default()));
         }
-        let mut out = ChatResponse { choices: vec![], error: None };
+        let mut out = ChatResponse::default();
         let mut answer = String::new();
         for line in std::io::BufReader::new(resp).lines() {
             let line = line.map_err(|e| if e.kind() == std::io::ErrorKind::TimedOut { SdkError::Timeout } else { SdkError::Connection })?;
@@ -299,6 +302,9 @@ impl ChatSdk for HttpSdk {
             let Ok(chunk) = serde_json::from_str::<Value>(data) else { continue };
             if let Some(e) = chunk.get("error").filter(|e| !e.is_null()) {
                 out.error = Some(e.clone());
+            }
+            if let Some(r) = chunk["choices"][0]["finish_reason"].as_str() {
+                out.finish_reason = Some(r.to_string());
             }
             let delta = &chunk["choices"][0]["delta"];
             let thinking = delta["reasoning"].as_str().or_else(|| delta["reasoning_content"].as_str()).unwrap_or("");
@@ -514,8 +520,15 @@ impl LLMClient {
         }
         let resp = res.map_err(|exc| self.sdk_error(model, exc))?;
         let text = extract_text(&resp, model)?;
+        // The server's finish_reason decides when it is given: "length" is a cut-off answer, any other
+        // reason means the model finished, so a short answer is accepted. Without one (some free
+        // OpenRouter providers), a reply under min_chars is treated as cut off.
         let n = pyshim::char_len(pyshim::strip(&text));
-        if opts.min_chars > 0 && n < opts.min_chars {
+        let truncated = match resp.finish_reason.as_deref() {
+            Some(r) => r == "length",
+            None => opts.min_chars > 0 && n < opts.min_chars,
+        };
+        if truncated {
             return Err(LLMError::retryable(format!("{model} returned a truncated answer ({n} chars).")));
         }
         Ok(text)
@@ -1217,6 +1230,35 @@ pub struct ChatInput<'a> {
 /// How a chat turn is completed.
 pub const CHAT_OPTS: CompleteOpts = CompleteOpts { max_tokens: 900, temperature: 0.3, json_mode: false, min_chars: 0 };
 
+/// Characters per token assumed when sizing a prompt. English text with names and digits runs about
+/// 4 characters per token on common tokenizers; 3.5 errs on the side of counting too many tokens.
+pub const CHARS_PER_TOKEN: f64 = 3.5;
+
+/// Conservative token count of a text (see [`CHARS_PER_TOKEN`]).
+pub fn estimate_tokens(text: &str) -> usize {
+    (pyshim::char_len(text) as f64 / CHARS_PER_TOKEN).ceil() as usize
+}
+
+/// A chat turn's prompt, and what had to be left out to make it fit the model's context.
+pub struct ChatPrompt {
+    pub system: String,
+    pub user: String,
+    /// what was shortened, in the order it was cut: "earlier turns", "player details", "pasted text", "league summary"
+    pub cut: Vec<&'static str>,
+}
+
+impl ChatPrompt {
+    /// The sentence that opens the reply when something was cut, or None when everything fit.
+    pub fn notice(&self, context_tokens: usize) -> Option<String> {
+        (!self.cut.is_empty()).then(|| {
+            format!("Context was shortened to fit the model's {context_tokens}-token window; left out or trimmed: {}.", self.cut.join(", "))
+        })
+    }
+}
+
+/// Smallest league summary, in characters, a chat prompt is cut down to when the context is tiny.
+pub const CHAT_LEAGUE_FLOOR_CHARS: usize = 3000;
+
 /// The `(system, user)` prompt of one turn of the dashboard's Ask chat. It is ordered so that
 /// what stays the same from turn to turn comes first (a local server reuses its work on an
 /// unchanged prefix): the league summary, then the details of every player the chat is about or
@@ -1229,9 +1271,30 @@ pub fn chat_prompt(
     news: NewsInput,
     input: &ChatInput,
 ) -> (String, String) {
+    let p = chat_prompt_fit(question, ctx, values, recs, news, input, None);
+    (p.system, p.user)
+}
+
+/// [`chat_prompt`] kept within `context_tokens` (the model's context window, for a local server;
+/// None = no limit, as on OpenRouter). The window must hold the prompt and the reply, so
+/// [`CHAT_OPTS`]'s output plus [`LOCAL_REASONING_TOKENS`] is reserved first. When the prompt is
+/// still too big, the least relevant material goes first: the oldest earlier turns, then player
+/// details (players named only in earlier turns, then those named in the pasted text, then those
+/// named in the question, then those the chat was opened about; within a group the last listed),
+/// then the end of the pasted text, then the league summary down to a floor. Departs from the
+/// Python original, which had no context limit.
+pub fn chat_prompt_fit(
+    question: &str,
+    ctx: &LeagueContext,
+    values: &Map<String, PlayerValue>,
+    recs: &[Recommendation],
+    news: NewsInput,
+    input: &ChatInput,
+    context_tokens: Option<usize>,
+) -> ChatPrompt {
     let question = pyshim::take_chars(pyshim::strip(question), 1000);
     // a pasted marker must not close the untrusted block it is wrapped in
-    let pasted = pyshim::take_chars(pyshim::strip(input.pasted), MAX_PASTE_CHARS).replace(UNTRUSTED_OPEN, "").replace(UNTRUSTED_CLOSE, "");
+    let mut pasted = pyshim::take_chars(pyshim::strip(input.pasted), MAX_PASTE_CHARS).replace(UNTRUSTED_OPEN, "").replace(UNTRUSTED_CLOSE, "");
 
     let mut turns: Vec<String> = Vec::new();
     let mut used = 0;
@@ -1248,30 +1311,90 @@ pub fn chat_prompt(
     // opened-about players first, then anyone the chat names, oldest mention first
     let said = input.history.iter().map(|(q, _)| q.as_str()).chain([pasted.as_str(), question]).collect::<Vec<_>>().join("\n");
     let all = ctx.all_players();
-    let mut focus: Vec<&Player> = input.focus.iter().filter_map(|cid| all.iter().find(|p| p.cid == *cid).copied()).collect();
+    let mut players: Vec<&Player> = input.focus.iter().filter_map(|cid| all.iter().find(|p| p.cid == *cid).copied()).collect();
     for p in mentioned_players(ctx, &said) {
-        if !focus.iter().any(|x| x.cid == p.cid) {
-            focus.push(p);
+        if !players.iter().any(|x| x.cid == p.cid) {
+            players.push(p);
         }
     }
+    // how much each player matters to this turn: 3 opened about, 2 named in the question, 1 in the paste, 0 earlier turns only
+    let in_question: Vec<&str> = mentioned_players(ctx, question).iter().map(|p| p.cid.as_str()).collect();
+    let in_paste: Vec<&str> = mentioned_players(ctx, &pasted).iter().map(|p| p.cid.as_str()).collect();
+    let mut focus: Vec<(&Player, u8)> = players
+        .into_iter()
+        .map(|p| {
+            let r = if input.focus.contains(&p.cid) {
+                3
+            } else if in_question.contains(&p.cid.as_str()) {
+                2
+            } else {
+                u8::from(in_paste.contains(&p.cid.as_str()))
+            };
+            (p, r)
+        })
+        .collect();
 
-    let mut user = format!(
-        "LEAGUE DATA (as of {}):\n{}\n",
-        ctx.as_of.format("%Y-%m-%d"),
-        build_context(ctx, values, recs, news, CHAT_LEAGUE_CHARS)
-    );
-    let detail = focus_block(ctx, values, input.dynasty, recs, news, &focus);
-    if !detail.is_empty() {
-        user.push_str(&format!("{detail}\n"));
+    let system = chat_system();
+    let mut league_chars = CHAT_LEAGUE_CHARS;
+    let assemble = |league_chars: usize, focus: &[(&Player, u8)], pasted: &str, turns: &[String]| -> String {
+        let mut user =
+            format!("LEAGUE DATA (as of {}):\n{}\n", ctx.as_of.format("%Y-%m-%d"), build_context(ctx, values, recs, news, league_chars));
+        let named: Vec<&Player> = focus.iter().map(|(p, _)| *p).collect();
+        let detail = focus_block(ctx, values, input.dynasty, recs, news, &named);
+        if !detail.is_empty() {
+            user.push_str(&format!("{detail}\n"));
+        }
+        if !pasted.is_empty() {
+            user.push_str(&format!("PASTED BY THE MANAGER:\n{UNTRUSTED_OPEN}\n{pasted}\n{UNTRUSTED_CLOSE}\n\n"));
+        }
+        if !turns.is_empty() {
+            user.push_str(&format!("CONVERSATION SO FAR:\n{}\n\n", turns.join("\n")));
+        }
+        user.push_str(&format!("QUESTION: {question}"));
+        user
+    };
+
+    let mut cut: Vec<&'static str> = Vec::new();
+    let mut user = assemble(league_chars, &focus, &pasted, &turns);
+    if let Some(window) = context_tokens {
+        // tokens the prompt may use: the window less the reply (answer plus thinking)
+        let room = window.saturating_sub((CHAT_OPTS.max_tokens + LOCAL_REASONING_TOKENS) as usize);
+        let size = |user: &str| estimate_tokens(&system) + estimate_tokens(user);
+        let mut note = |what: &'static str| {
+            if !cut.contains(&what) {
+                cut.push(what);
+            }
+        };
+        while size(&user) > room && !turns.is_empty() {
+            turns.remove(0);
+            note("earlier turns");
+            user = assemble(league_chars, &focus, &pasted, &turns);
+        }
+        while size(&user) > room && !focus.is_empty() {
+            // lowest relevance first; among equals, the one listed last
+            let i = (0..focus.len()).rev().min_by_key(|&i| focus[i].1).unwrap_or(0);
+            focus.remove(i);
+            note("player details");
+            user = assemble(league_chars, &focus, &pasted, &turns);
+        }
+        if size(&user) > room && !pasted.is_empty() {
+            // cut the end of the paste by the excess, converted back to characters
+            let excess = ((size(&user) - room) as f64 * CHARS_PER_TOKEN).ceil() as usize;
+            pasted = pyshim::take_chars(&pasted, pyshim::char_len(&pasted).saturating_sub(excess)).to_string();
+            note("pasted text");
+            user = assemble(league_chars, &focus, &pasted, &turns);
+        }
+        while size(&user) > room && league_chars > CHAT_LEAGUE_FLOOR_CHARS {
+            league_chars = league_chars.saturating_sub(1000).max(CHAT_LEAGUE_FLOOR_CHARS);
+            note("league summary");
+            user = assemble(league_chars, &focus, &pasted, &turns);
+        }
     }
-    if !pasted.is_empty() {
-        user.push_str(&format!("PASTED BY THE MANAGER:\n{UNTRUSTED_OPEN}\n{pasted}\n{UNTRUSTED_CLOSE}\n\n"));
-    }
-    if !turns.is_empty() {
-        user.push_str(&format!("CONVERSATION SO FAR:\n{}\n\n", turns.join("\n")));
-    }
-    user.push_str(&format!("QUESTION: {question}"));
-    let system = format!(
+    ChatPrompt { system, user, cut }
+}
+
+fn chat_system() -> String {
+    format!(
         "{}
 - PLAYERS THIS CHAT IS ABOUT holds the full detail on the players in question. Prefer it over the summary lists.
 - FPG, VORP and every trade or move verdict are the engine's ESTIMATES, not facts. The `results` lines are what
@@ -1285,6 +1408,5 @@ pub fn chat_prompt(
   A pasted trade evaluator verdict comes from the same engine and shares its assumptions.
 - CONVERSATION SO FAR is the earlier part of this chat. Answer the QUESTION in that context; a short follow-up gets a short answer.",
         ask_system()
-    );
-    (system, user)
+    )
 }

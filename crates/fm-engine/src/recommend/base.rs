@@ -26,6 +26,7 @@ use fm_pycompat::num::py_sum;
 use fm_pycompat::order::cmp_f64;
 use fm_pycompat::time::strftime_date;
 
+use crate::scoring::point_scale;
 use crate::valuation::adjust::SeasonLength;
 use crate::valuation::dynasty::{apply_dynasty, keeper_total};
 use crate::valuation::replacement::{eligible_slots, DEFAULT_SLOTS};
@@ -315,6 +316,19 @@ pub fn open_roster_spots(team: &FantasyTeam, roster_shape: &Map<String, i64>) ->
     (cap - used).max(0)
 }
 
+/// [`open_roster_spots`] limited by the league's maximum roster size (excl. IR and minors): the slots of a
+/// shape can add up to more than the league allows (Fantrax here: 12 active + 6 bench slots, 16 players).
+pub fn open_spots_under_cap(team: &FantasyTeam, ctx: &LeagueContext) -> i64 {
+    let spots = open_roster_spots(team, &ctx.roster_shape);
+    match ctx.max_roster_size.filter(|c| *c != 0) {
+        Some(cap) => {
+            let used = team.slots.iter().filter(|s| s.player.is_some() && !SIZE_EXEMPT_SLOTS.contains(&s.slot.as_str())).count() as i64;
+            spots.min((cap - used).max(0))
+        }
+        None => spots,
+    }
+}
+
 // -- per-position roster maximums (LeagueContext.position_limits / max_roster_size) ----------
 
 pub const NO_LIMIT: i64 = 1_000_000;
@@ -557,6 +571,14 @@ pub fn protected_reason(
 
 // -- transaction budget and churn guard (LeagueContext.moves_* / recent_adds) -----------------
 
+/// The league unit every fixed points threshold of the recommenders is multiplied by: the
+/// league's skater [`crate::scoring::PointScale`] (league points per ESPN point, exactly 1 in the
+/// ESPN league). The thresholds below and in lineup, trades and plan were tuned in ESPN points;
+/// times this unit they ask the same on-ice gain in every league.
+pub fn league_unit(ctx: &LeagueContext) -> f64 {
+    point_scale(ctx).skater
+}
+
 /// FPG a waiver add must clear with plenty of moves (waivers.MIN_GAIN)
 pub const BASE_MIN_GAIN: f64 = 0.3;
 /// 2-3 moves left
@@ -586,6 +608,18 @@ pub fn moves_left(ctx: &LeagueContext) -> Option<i64> {
     lefts.into_iter().min()
 }
 
+/// The moves left that are still worth saving: [`moves_left`], except on the last day of the move
+/// period (`ctx.period_end`), when this period's unused adds expire at midnight and only what is
+/// left of a season limit can still make a move scarce. Python kept the full scarcity bar on that
+/// day, when an unused move is worth nothing.
+pub fn moves_left_to_save(ctx: &LeagueContext) -> Option<i64> {
+    let left = moves_left(ctx);
+    if left.is_some_and(|l| l > 0) && ctx.period_end == Some(ctx.as_of) {
+        return ctx.moves_limit_season.filter(|s| *s >= 0).map(|s| (s - ctx.moves_used_season.unwrap_or(0)).max(0));
+    }
+    left
+}
+
 /// True when I added `player` fewer than `days` days before `ctx.as_of`.
 pub fn recently_added(ctx: &LeagueContext, player: &Player, days: i64) -> bool {
     ctx.recent_adds.get(&player.cid).is_some_and(|when| (ctx.as_of - *when).num_days() < days)
@@ -596,11 +630,18 @@ pub fn added_days_ago(ctx: &LeagueContext, player: &Player) -> Option<i64> {
 }
 
 /// Churn guard: never drop a player I added < RECENT_ADD_DAYS days ago unless the add gains >=
-/// CHURN_OVERRIDE_GAIN FPG over him or he is out / IR / suspended.
+/// CHURN_OVERRIDE_GAIN x [`league_unit`] FPG over him or he is out / IR / suspended. Python used
+/// the bare 1.5 in every league.
 pub fn churn_blocked(ctx: &LeagueContext, drop: &Player, gain: f64) -> bool {
+    churn_blocked_at(ctx, drop, gain, CHURN_OVERRIDE_GAIN * league_unit(ctx))
+}
+
+/// [`churn_blocked`] with the scaled override gain already computed (the waiver search checks
+/// every drop candidate, and the unit does not change within a run).
+pub fn churn_blocked_at(ctx: &LeagueContext, drop: &Player, gain: f64, override_gain: f64) -> bool {
     recently_added(ctx, drop, RECENT_ADD_DAYS)
-        && gain < CHURN_OVERRIDE_GAIN
         && !CHURN_EXEMPT_STATUSES.contains(&drop.status.as_str())
+        && gain < override_gain
 }
 
 /// "added 1 day ago" / "added today".
@@ -614,14 +655,36 @@ pub fn churn_text(ctx: &LeagueContext, drop: &Player) -> String {
 
 /// Minimum FPG gain a waiver add must clear given the moves left: unlimited / unknown or >= 4
 /// left -> 0.3; 2-3 -> 0.6; 1 -> 1.0 (0.3 when the add replaces an injured player); 0 -> None.
+/// Each bar is times [`league_unit`]; Python used the bare numbers in every league. The moves
+/// counted are [`moves_left_to_save`], so on the period's last day the bar is 0.3 unless a season
+/// limit is also nearly used up.
 pub fn move_scarcity_threshold(ctx: &LeagueContext, injury_replacement: bool) -> Option<f64> {
-    match moves_left(ctx) {
+    move_scarcity_threshold_at(ctx, injury_replacement, league_unit(ctx))
+}
+
+/// [`move_scarcity_threshold`] with the league unit already computed (the waiver search asks once
+/// per add / drop pair, and the unit does not change within a run).
+pub fn move_scarcity_threshold_at(ctx: &LeagueContext, injury_replacement: bool, unit: f64) -> Option<f64> {
+    scarcity_bar(moves_left_to_save(ctx), injury_replacement, unit)
+}
+
+/// [`move_scarcity_threshold_at`] for adding `add`. A waiver claim (`waiver_until` today or later)
+/// is processed after today, so on the period's last day it spends a move of the next period, not
+/// one that expires tonight; it keeps the bar of [`moves_left`], as in Python.
+pub fn add_scarcity_threshold_at(ctx: &LeagueContext, add: &Player, injury_replacement: bool, unit: f64) -> Option<f64> {
+    let claim = add.waiver_until.is_some_and(|w| w >= ctx.as_of);
+    scarcity_bar(if claim { moves_left(ctx) } else { moves_left_to_save(ctx) }, injury_replacement, unit)
+}
+
+fn scarcity_bar(moves: Option<i64>, injury_replacement: bool, unit: f64) -> Option<f64> {
+    let bar = match moves {
         None => Some(BASE_MIN_GAIN),
         Some(left) if left >= PLENTY_MOVES => Some(BASE_MIN_GAIN),
         Some(left) if left >= 2 => Some(SCARCE_MIN_GAIN),
         Some(1) => Some(if injury_replacement { BASE_MIN_GAIN } else { LAST_MOVE_MIN_GAIN }),
         Some(_) => None,
-    }
+    };
+    bar.map(|b| b * unit)
 }
 
 /// `f"{d:%a %b} {d.day}"`: "Mon Oct 5".
@@ -702,8 +765,12 @@ pub fn moves_note(ctx: &LeagueContext) -> Option<String> {
 pub fn moves_budget_reason(ctx: &LeagueContext) -> Option<Reason> {
     let mut note = moves_note(ctx)?;
     let left = moves_left(ctx);
+    let saved = moves_left_to_save(ctx);
     let thr = move_scarcity_threshold(ctx, false);
-    if let (Some(l), Some(t)) = (left, thr) {
+    if left.is_some_and(|l| l > 0) && saved != left {
+        note += ": unused moves expire after today";
+    }
+    if let (Some(l), Some(t)) = (saved, thr) {
         if 0 < l && l < PLENTY_MOVES {
             note += &format!(": adds must gain >= {} FPG", fixed(t, 1, false));
             if l == 1 {

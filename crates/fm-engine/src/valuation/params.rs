@@ -66,6 +66,22 @@ pub const FALLBACK_AVAILABILITY: [(&str, (f64, f64)); 7] = [
 pub const FALLBACK_START_SHARE_PRIOR: f64 = 0.5;
 pub const FALLBACK_START_SHARE_K: f64 = 10.0;
 pub const FALLBACK_OFFNIGHT_BONUS: f64 = 0.05;
+/// Backtest mean absolute error of a preseason per-game projection, in ESPN points per game, by
+/// group (`preseason.mae_at_fitted_k_multi` of the 2026-09-28 fit).
+pub const FALLBACK_PROJECTION_MAE: [(&str, f64); 3] = [("F", 0.23), ("D", 0.20981), ("G", 0.57728)];
+/// The points weights the backtest errors above were measured in and the recommendation
+/// thresholds were tuned in: the ESPN preset of `fm-backtest/src/scoring.rs` (`PRESETS["espn"]`),
+/// which is also the ESPN league's own scoring.
+pub const ESPN_REFERENCE_WEIGHTS: [(&str, f64); 14] = [
+    ("G", 2.0), ("A", 1.0), ("PPP", 0.5), ("SHP", 0.5), ("SOG", 0.1), ("HIT", 0.1), ("BLK", 0.5), ("DEF", 0.1),
+    ("HAT", 1.0), ("W", 2.0), ("SV", 0.2), ("GA", -1.5), ("SO", 2.0), ("OTL", 1.0),
+];
+
+/// Days of the real NHL schedule, from today, over which a roster's daily lineups are solved to
+/// find the share of his team's games each player would start (`recommend::started`). Four weeks
+/// is the first step suggested for gap B1 in `docs/knowledge/09-engine-gap-analysis.md`; it must
+/// stay at most 32 (one bit per day in a `u32`).
+pub const START_WINDOW_DAYS: i64 = 28;
 
 pub const OVERRIDE_ENV: &str = "FM_PARAMS_OVERRIDE";
 pub const PARAMS_DIR_ENV: &str = "FM_PARAMS_DIR";
@@ -93,6 +109,12 @@ pub fn fallback_recency() -> Map<String, f64> {
 }
 pub fn fallback_k_projection() -> Map<String, f64> {
     fallback_map(&FALLBACK_K_PROJECTION)
+}
+pub fn fallback_projection_mae() -> Map<String, f64> {
+    fallback_map(&FALLBACK_PROJECTION_MAE)
+}
+pub fn espn_reference_weights() -> Map<String, f64> {
+    fallback_map(&ESPN_REFERENCE_WEIGHTS)
 }
 pub fn fallback_availability() -> AvailabilityTable {
     FALLBACK_AVAILABILITY.iter().map(|(k, v)| (k.to_string(), *v)).collect()
@@ -166,6 +188,17 @@ fn k_baseline_all(p: &Value) -> Map<String, f64> {
     out
 }
 
+fn projection_mae_all(p: &Value) -> Map<String, f64> {
+    let raw = truthy_obj(section(p, &["preseason", "mae_at_fitted_k_multi"]));
+    let mut out = fallback_projection_mae();
+    for (g, slot) in out.iter_mut() {
+        if let Some(v) = raw.and_then(|r| num(r.get(g.as_str()))) {
+            *slot = v;
+        }
+    }
+    out
+}
+
 fn k_pair(raw: Option<&Value>, fallback: Map<String, f64>) -> Map<String, f64> {
     let mut out = fallback;
     if let Some(raw) = raw.and_then(|r| r.as_object()) {
@@ -180,6 +213,20 @@ fn k_pair(raw: Option<&Value>, fallback: Map<String, f64>) -> Map<String, f64> {
 
 fn k_inseason_all(p: &Value) -> Map<String, f64> {
     k_pair(section(p, &["inseason"]), fallback_k_inseason())
+}
+
+/// `inseason.k_skater_volume`: {stat: k} for the volume stats (`blend::VOLUME_STATS`) only;
+/// empty (every stat uses `k_skater`) when absent.
+fn k_inseason_volume_all(p: &Value) -> Map<String, f64> {
+    let mut out = Map::new();
+    if let Some(raw) = section(p, &["inseason", "k_skater_volume"]).and_then(|r| r.as_object()) {
+        for stat in super::blend::VOLUME_STATS {
+            if let Some(v) = num(raw.get(stat)) {
+                out.insert(stat.to_string(), v);
+            }
+        }
+    }
+    out
 }
 
 fn recency_all(p: &Value) -> Map<String, f64> {
@@ -323,6 +370,7 @@ fn dynasty_curves_of(p: &Value) -> DynastyCurves {
 pub struct Derived {
     pub k_baseline: Map<String, f64>,
     pub k_inseason: Map<String, f64>,
+    pub k_inseason_volume: Map<String, f64>,
     pub recency_weights: Map<String, f64>,
     pub projection_weight: f64,
     pub k_projection: Map<String, f64>,
@@ -333,6 +381,7 @@ pub struct Derived {
     pub age_groups: Vec<String>,
     pub age_yoy: AgeYoy,
     pub dynasty_age_curves: DynastyCurves,
+    pub projection_mae: Map<String, f64>,
 }
 
 impl Derived {
@@ -340,6 +389,7 @@ impl Derived {
         Derived {
             k_baseline: k_baseline_all(p),
             k_inseason: k_inseason_all(p),
+            k_inseason_volume: k_inseason_volume_all(p),
             recency_weights: recency_all(p),
             projection_weight: projection_weight_of(p),
             k_projection: k_projection_all(p),
@@ -350,6 +400,7 @@ impl Derived {
             age_groups: age_groups_of(p),
             age_yoy: age_yoy_of(p),
             dynasty_age_curves: dynasty_curves_of(p),
+            projection_mae: projection_mae_all(p),
         }
     }
 }
@@ -562,6 +613,18 @@ pub fn k_inseason_goalie(is_goalie: bool, params: Option<&Value>) -> f64 {
     k_inseason_for(if is_goalie { "goalie" } else { "skater" }, params)
 }
 
+/// In-season k of each skater volume stat that has its own fitted k ({stat: k}; the other stats
+/// use `k_inseason_for("skater")`).
+///
+/// The packaged values (SOG 5, HIT 8, BLK 30, PIM 100 games) are `fit_inseason` on the 2021-22 to
+/// 2025-26 checkpoints of the backtest, each stat taken from the scoring preset that pays it most
+/// (shots, hits and penalty minutes from `fantrax`, blocks 30 under both): a preset that pays a
+/// stat little barely constrains its k (the `espn` fit gives shots k = 0). `fm backtest fit`
+/// writes its single-preset fit as `inseason.k_skater_volume_fit`, which is not read here.
+pub fn k_inseason_volume(params: Option<&Value>) -> Map<String, f64> {
+    with_derived(params, |d| d.k_inseason_volume.clone(), k_inseason_volume_all)
+}
+
 /// Base recency weights (season / last30 / last15 / last7), summing to 1.
 pub fn recency_weights(params: Option<&Value>) -> Map<String, f64> {
     with_derived(params, |d| d.recency_weights.clone(), recency_all)
@@ -604,6 +667,14 @@ pub fn availability(status: &str, horizon: Horizon, params: Option<&Value>) -> f
         Horizon::Week => week,
         Horizon::Season => season,
     }
+}
+
+/// Backtest mean absolute error of a per-game projection for group F / D / G, in the ESPN points
+/// of [`ESPN_REFERENCE_WEIGHTS`] (0 for an unknown group).
+pub fn projection_mae(group: &str, params: Option<&Value>) -> f64 {
+    with_derived(params, |d| d.projection_mae.get(group).copied().unwrap_or(0.0), |p| {
+        projection_mae_all(p).get(group).copied().unwrap_or(0.0)
+    })
 }
 
 /// Goalie start-share prior the observed share is shrunk toward.

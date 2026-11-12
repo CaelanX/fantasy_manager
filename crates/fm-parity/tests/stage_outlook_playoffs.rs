@@ -15,7 +15,8 @@ use std::time::Instant;
 use chrono::NaiveDate;
 use fm_core::Map;
 use fm_engine::analysis::matchup::Matchup;
-use fm_engine::analysis::outlook::{build_outlook, outlook_json, SIMS};
+use fm_engine::analysis::outlook::{build_outlook_with, outlook_json, SIMS};
+use fm_engine::recommend::started::disable_started_games;
 use fm_engine::analysis::playoffs::{playoff_plan, TARGETS};
 use fm_engine::analysis::schedule_grid::OFFNIGHT_THRESHOLD;
 use fm_engine::recommend::trades::OutlookView;
@@ -37,6 +38,21 @@ fn strip(mut v: Value, keys: &[&str]) -> Value {
         for k in keys {
             o.shift_remove(*k);
         }
+    }
+    v
+}
+
+/// `outlook_json` minus what Python did not have: the per-team points for and all-play keys, the
+/// this-week playoff swing and its reason line.
+fn without_season_context(mut v: Value) -> Value {
+    v = strip(v, &["this_week"]);
+    if let Some(teams) = v.get_mut("teams").and_then(Value::as_array_mut) {
+        for t in teams.iter_mut() {
+            *t = strip(t.take(), &["points_for", "points_for_rank", "all_play", "expected_wins"]);
+        }
+    }
+    if let Some(reasons) = v.get_mut("reasons").and_then(Value::as_array_mut) {
+        reasons.retain(|r| !r.as_str().is_some_and(|s| s.starts_with("This week's matchup:")));
     }
     v
 }
@@ -64,6 +80,8 @@ fn run_league(league: &str) {
     }
     let snap = fx.snapshot();
     params::install_with_active(snap.params.merged.clone(), Some(snap.params.active.clone()));
+    // Python valued a team's strength by its best starting lineup only
+    disable_started_games(true);
     let values = fx.values(&snap);
     let dynasty = fx.dynasty(&snap);
     let ctx = &snap.ctx;
@@ -76,10 +94,11 @@ fn run_league(league: &str) {
 
     // fm outlook --json
     let t = Instant::now();
-    let o = build_outlook(ctx, &values, dynasty.as_ref(), Some(&prov), SIMS);
+    // without the weekly scores: Python had no points for, all-play record or this-week swing
+    let o = build_outlook_with(ctx, &values, dynasty.as_ref(), Some(&prov), SIMS, None);
     let t_outlook = t.elapsed();
     let expected = strip(fx.cli_output("outlook"), &["errors", "meta"]);
-    let actual = json!({"outlook": outlook_json(&o)});
+    let actual = json!({"outlook": without_season_context(outlook_json(&o))});
     check(&mut failures, &format!("{test}_outlook"), &expected, &actual, &tol);
     // the OutlookView the need-trade search reads
     let view: &dyn OutlookView = &o;
@@ -191,6 +210,7 @@ fn stage_matchup_calibration() {
         lineup_basis: String::new(),
         warnings: vec![],
         draws: 0,
+        sd_model: fm_engine::analysis::matchup::SdModel::REFERENCE,
     };
     let mut row = Value::Object(snapshot_row("espn", NaiveDate::from_ymd_opt(2026, 11, 4).unwrap(), &m).expect("row"));
     row = strip(row, &["recorded_at"]);

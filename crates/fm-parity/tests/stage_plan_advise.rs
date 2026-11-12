@@ -13,10 +13,14 @@
 use std::sync::Mutex;
 use std::time::Instant;
 
+use fm_engine::recommend::trades::pin_python_acceptance;
+use fm_engine::scoring::disable_point_scale;
+use fm_engine::recommend::started::disable_started_games;
 use fm_engine::analysis::matchup::{current_matchup, MatchupOpts, ScoreInfo};
 use fm_engine::recommend::advise::{advise, merge_normalized, AdviseOpts};
 use fm_engine::recommend::claims::{plan_claims, CLAIM_LIMIT};
 use fm_engine::recommend::injuries::{History, StatusHistory};
+use fm_engine::recommend::lineup::disable_goalie_matchup;
 use fm_engine::recommend::plan::{build_week_plan, PlanOpts};
 use fm_engine::recommend::trades::{recommend_trades, EngineOpts, TradeOpts};
 use fm_engine::valuation::params;
@@ -93,6 +97,14 @@ fn check(failures: &mut Vec<String>, name: &str, expected: &Value, actual: &Valu
 
 fn run_league(league: &str) {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // the fixtures come from Python, whose lineup valued a goalie start without the opponent and
+    // floored it at zero
+    disable_goalie_matchup(true);
+    // and used the ESPN-point thresholds unscaled in every league, with no error ranges
+    disable_point_scale(true);
+    disable_started_games(true);
+    // and scored an offer that is even by market value at 50%, without checking it from their seat
+    pin_python_acceptance(true);
     let test = format!("stage_plan_advise_{league}");
     let fx = Fixtures::league(league);
     if !fx.available() {

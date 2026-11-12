@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::recommend::base::{
     cap_text, capped_positions, churn_text, droppable_players, dynasty_floats, dynasty_objects, keeper_k,
-    moves_budget_reason, moves_left, no_moves_text, position_room, protected_reason, recently_added,
+    moves_budget_reason, moves_left, no_moves_text, open_spots_under_cap, position_room, protected_reason, recently_added,
     roster_legal_after, shares_default_slot, swap_values, CHURN_EXEMPT_STATUSES, IR_SLOT_NAMES, RECENT_ADD_DAYS,
 };
 use crate::recommend::strength::{apply_ranks, apply_strength, IR_FLOOR};
@@ -261,7 +261,8 @@ pub fn absence(ctx: &LeagueContext, p: &Player, pv: &PlayerValue) -> Absence {
         season,
         None,
     );
-    let healthy = if a_season > 0.0 { pv.fpg_season / a_season } else { pv.fpg };
+    // fpg_season = a_season x healthy value + the IR fill for the games he misses
+    let healthy = if a_season > 0.0 { (pv.fpg_season - pv.ir_fill) / a_season } else { pv.fpg };
     let Some(est) = est else {
         let remaining = games_remaining(ctx.as_of, team_dates, ctx.season_start, season);
         return Absence {
@@ -701,9 +702,7 @@ pub fn recommend_injuries(
         }
         let mut reasons = vec![Reason::new("STATUS", format!("{} is healthy but in an IR slot", p.name))];
         let mut drop: Option<&Player> = None;
-        let filled = team.slots.iter().filter(|x| x.player.is_some() && x.slot != "IR").count() as i64;
-        let cap: i64 = ctx.roster_shape.iter().filter(|(k, _)| k.as_str() != "IR").map(|(_, n)| *n).sum();
-        let full = filled >= cap;
+        let full = open_spots_under_cap(team, ctx) == 0;
         // churn guard: never drop a player I just added (unless he is hurt) to activate someone
         let pool: Vec<&Player> = droppable
             .iter()
@@ -731,9 +730,10 @@ pub fn recommend_injuries(
             );
             drop = Some(d);
         }
+        // once activated he blocks an active slot, so his IR fill no longer applies
         let gain = values
             .get(&p.cid)
-            .map(|pv| pv.fpg_season - drop.map(|d| values[&d.cid].fpg_season).unwrap_or(0.0));
+            .map(|pv| pv.fpg_season - pv.ir_fill - drop.map(|d| values[&d.cid].fpg_season).unwrap_or(0.0));
         let mut r = Recommendation::new(RecKind::Injury, fpg(p) + 1.0, format!("Activate {} from IR", p.name));
         r.add = vec![p.clone()];
         r.drop = drop.into_iter().cloned().collect();
@@ -999,6 +999,24 @@ mod tests {
         assert_eq!(v.len(), 1);
         assert!(code(&v[0], "RETURN_ESTIMATE").text.contains("a guess"));
         assert!(v[0].title.starts_with("Hold p"));
+    }
+
+    /// The IR fill raises his season value but not the per-game value he is held for.
+    #[test]
+    fn ir_fill_leaves_the_healthy_value_alone() {
+        let mut meh = mk("meh", &["C"], 0.5, "ir");
+        meh.status_note = Some("Knee: out (est. return 2027-03-01)".into());
+        let c = mk("c", &["C"], 0.4, "healthy");
+        let fas = vec![mk("fa", &["C"], 0.6, "healthy")];
+        let stashed = ctx_for(&[("IR", &meh), ("C", &c)], fas.clone(), &[("C", 1), ("BN", 1), ("IR", 1)]);
+        let blocking = ctx_for(&[("BN", &meh), ("C", &c)], fas, &[("C", 1), ("BN", 1)]);
+        let (vs, vb) = (valuate(&stashed), valuate(&blocking));
+        assert!(vs["meh"].ir_fill > 0.0 && vb["meh"].ir_fill == 0.0);
+        assert!((vs["meh"].fpg_season - vb["meh"].fpg_season - vs["meh"].ir_fill).abs() < 1e-9);
+        let (abs, abb) = (absence(&stashed, &meh, &vs["meh"]), absence(&blocking, &meh, &vb["meh"]));
+        assert!(abb.healthy_fpg > 0.0);
+        assert!((abs.healthy_fpg - abb.healthy_fpg).abs() < 1e-9, "{} vs {}", abs.healthy_fpg, abb.healthy_fpg);
+        assert!((abs.hold_pts() - abb.hold_pts()).abs() < 1e-9);
     }
 
     #[test]

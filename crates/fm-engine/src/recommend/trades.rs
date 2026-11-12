@@ -41,12 +41,13 @@ mod target;
 
 pub use crate::recommend::market::CLEAR_FAVOR_PTS;
 pub use accept::{
-    acceptance_observations, calibrate_acceptance, calibrate_from, market_worth, package_value, pick_worth, team_standing,
-    AcceptParams, Acceptance, LedgerQuery,
+    accept_params_for, acceptance_observations, calibrate_acceptance, calibrate_from, install_accept_params, market_worth,
+    package_value, pick_worth, pin_python_acceptance, python_acceptance, team_standing, AcceptParams, Acceptance, LedgerQuery,
 };
 pub use engine::{dyn_weight, dynasty_scale, fairness, me_weight, season_weight, trade_values, EngineOpts, TradeData, TradeEngine, TradeEval};
 pub use exploit::{exploit_opportunities, exploit_text, relieves, team_pressures, Pressure};
 pub use greedy::{eligible, greedy_assignment, starting_slots, Held, Pid, SlotSpec};
+pub(crate) use greedy::augment;
 pub use need::{find_needs, pitch_of, pitch_text, recommend_need_trades, Need, OutlookView};
 pub use offer::{
     evaluate_offer, evaluate_trade, find_pick, find_players, find_team, offer_summary, pick_assets, trade_block_offered,
@@ -99,7 +100,14 @@ pub const ROSTER_SPOT_PENALTY: f64 = 3.0;
 pub const NEED_PTS: f64 = 5.0;
 pub const HOLE_PTS: f64 = 10.0;
 pub const BLOCK_PTS: f64 = 5.0;
-pub const ACCEPT_X0: f64 = 0.0;
+/// Midpoint of the acceptance curve in market worth points: the endowment premium an owner asks
+/// before an offer is a coin flip. Owners value their own players above market, so an offer that
+/// is even by market value is declined more often than accepted (docs/knowledge/06, implication
+/// 11). The size is PFF's 5-10% starting margin from the same implication, taken at its low end
+/// on the 0-100 worth scale (5% of a 100-point star = 5 points). With ACCEPT_K an even offer is
+/// then 1 / (1 + 3^0.5) = 36.6%. `calibrate_acceptance` replaces it once real outcomes exist.
+/// Python used 0 (an even offer at 50%).
+pub const ACCEPT_X0: f64 = 5.0;
 /// logistic slope: +10 points -> 0.75, -10 -> 0.25 (`math.log(3.0) / 10.0`)
 pub const ACCEPT_K: f64 = 0.10986122886681098;
 pub const P_CEILING: f64 = 0.9;

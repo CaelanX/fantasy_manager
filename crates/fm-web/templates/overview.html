@@ -29,7 +29,7 @@
 {% if outlook and outlook.me %}{% set me = outlook.me %}
 <section id="outlook" class="strip" aria-labelledby="h-outlook">
   <h2 id="h-outlook">Outlook <span class="aside">{% if outlook.dynasty %}recommended: <b>{{ outlook.recommended }}</b>{% if outlook.current %} (currently {{ outlook.current }}){% endif %}{% else %}<b>{{ outlook.recommended }}</b>{% endif %}</span></h2>
-  <p class="strip-line">Playoff odds about <b>{{ ((me.playoff_odds or 0) * 100)|round|int }}%</b> &middot; lineup #{{ me.now_rank }} of {{ outlook.teams|length }} now{% if me.future_rank %} &middot; #{{ me.future_rank }} over the next seasons{% endif %}</p>
+  <p class="strip-line">Playoff odds about <b>{{ ((me.playoff_odds or 0) * 100)|round|int }}%</b> &middot; lineup #{{ me.now_rank }} of {{ outlook.teams|length }} now{% if me.future_rank %} &middot; #{{ me.future_rank }} over the next seasons{% endif %}{% if me.points_for_rank %} &middot; points for #{{ me.points_for_rank }}, all-play {{ me.all_play|join('-') }}{% endif %}</p>
   <ul class="why">
     {% for r in outlook.reasons %}<li>{{ r }}</li>{% endfor %}
     {% for a in outlook.sell %}<li><b>Sell</b> {{ a.player.name }}: {{ a.why }}</li>{% endfor %}

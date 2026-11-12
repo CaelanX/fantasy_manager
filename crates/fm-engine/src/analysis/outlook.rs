@@ -24,9 +24,11 @@ use fm_pycompat::order::cmp_f64;
 use fm_pycompat::random::PyRandom;
 use serde_json::{json, Value};
 
+use super::luck::{league_weeks, luck_table, LeagueWeeks, TeamLuck};
 use super::schedule_grid::{playoff_weeks, OFFNIGHT_THRESHOLD};
 pub use super::outlook_values::{age, future_values, future_values_with, FUTURE_YEARS};
 use crate::recommend::base::{keeper_k, keeper_set};
+use crate::recommend::started::{roster_value, StartWindow};
 use crate::recommend::trades::{greedy_assignment, greedy_lineup_value, OutlookView, Pid, SlotSpec};
 use crate::valuation::dynasty::ProductionCurves;
 
@@ -53,15 +55,19 @@ pub struct TeamOutlook<'a> {
     pub team: &'a FantasyTeam,
     pub record: Option<(i64, i64, i64)>,
     pub win_pct: Option<f64>,
-    /// best lineup, rest-of-season FPG
+    /// rest-of-season FPG: the started-games value in a daily-lineup league, else the best lineup
     pub now: f64,
-    /// best lineup FPG 1..FUTURE_YEARS seasons ahead
+    /// best lineup FPG 1..FUTURE_YEARS seasons ahead (of the keepers only in a keeper league). It
+    /// does not count bench starts, so it is not on the same basis as `now`: compare ranks, not values
     pub future: Vec<f64>,
     pub now_rank: usize,
     pub future_rank: Option<usize>,
     pub playoff_odds: Option<f64>,
     /// recommended mode (dynasty) or contender / bubble / pretender
     pub label: String,
+    /// points for, all-play record and expected wins so far (None when the weekly scores are not
+    /// available)
+    pub luck: Option<TeamLuck>,
 }
 
 impl TeamOutlook<'_> {
@@ -104,6 +110,8 @@ pub struct Outlook<'a> {
     pub buy: Vec<Asset<'a>>,
     pub weeks_left: i64,
     pub playoff_teams: i64,
+    /// my playoff odds if I win this week's matchup and if I lose it
+    pub this_week: Option<(f64, f64)>,
     pub notes: Vec<String>,
 }
 
@@ -138,6 +146,15 @@ fn lineup(players: &[&Player], vals: &HashMap<&str, f64>, ctx: &LeagueContext) -
     greedy_lineup_value(players, |p| vals.get(p.cid.as_str()).copied(), &ctx.roster_shape)
 }
 
+/// A team's strength now: its started-games value (`recommend::started`) in a daily-lineup league
+/// with the schedule loaded, else the best lineup's sum as in Python.
+fn lineup_now(players: &[&Player], vals: &HashMap<&str, f64>, ctx: &LeagueContext, win: Option<&StartWindow>) -> f64 {
+    match win {
+        Some(w) => roster_value(w, &SlotSpec::new(&ctx.roster_shape), players, |p| vals.get(p.cid.as_str()).copied().unwrap_or(0.0)),
+        None => lineup(players, vals, ctx),
+    }
+}
+
 /// The cids of the best greedy starting lineup (`_greedy_assignment`, season FPG): the trade
 /// engine's [`greedy_assignment`] over the players' season values.
 fn greedy_starters<'a>(players: &[&'a Player], values: &Map<Cid, PlayerValue>, ctx: &LeagueContext) -> Vec<&'a str> {
@@ -153,6 +170,17 @@ fn greedy_starters<'a>(players: &[&'a Player], values: &Map<Cid, PlayerValue>, c
 
 /// (fantasy regular-season weeks left, how it was found).
 pub fn weeks_left(ctx: &LeagueContext, provider: Option<&dyn LeagueProvider>) -> (i64, String) {
+    weeks_until_playoffs(ctx, provider, false)
+}
+
+/// [`weeks_left`] counting the matchup in progress: a part week before the first playoff period is
+/// the current matchup, which no record or completed week includes yet. Python floored to whole
+/// weeks, which leaves that matchup out of the simulation from Tuesday to Sunday.
+pub fn weeks_to_play(ctx: &LeagueContext, provider: Option<&dyn LeagueProvider>) -> (i64, String) {
+    weeks_until_playoffs(ctx, provider, true)
+}
+
+fn weeks_until_playoffs(ctx: &LeagueContext, provider: Option<&dyn LeagueProvider>, part_week: bool) -> (i64, String) {
     let po = playoff_weeks(ctx, provider, None, OFFNIGHT_THRESHOLD);
     let (start, src) = match po.periods.first() {
         Some(p) => (p.start, "until the league's first playoff period".to_string()),
@@ -164,7 +192,8 @@ pub fn weeks_left(ctx: &LeagueContext, provider: Option<&dyn LeagueProvider>) ->
             }
         }
     };
-    (((start - ctx.as_of).num_days().div_euclid(7)).max(0), src)
+    let days = (start - ctx.as_of).num_days() + if part_week { 6 } else { 0 };
+    (days.div_euclid(7).max(0), src)
 }
 
 /// Playoff spots: ESPN `settings.playoff_team_count`, the Fantrax Rules page "Number of teams
@@ -190,6 +219,27 @@ pub fn playoff_teams(ctx: &LeagueContext, provider: Option<&dyn LeagueProvider>)
 /// team_id -> P(top `spots` after `weeks` more random-opponent weeks) (module docstring of the
 /// Python file).
 pub fn playoff_odds(rows: &[TeamOutlook<'_>], weeks: i64, spots: i64, sims: usize, seed: i64) -> Map<String, f64> {
+    playoff_odds_with(rows, weeks, spots, sims, seed, None)
+}
+
+/// [`playoff_odds`] with the first simulated week's result for team `force.0` (an index into
+/// `rows`) fixed to a win (`force.1`) or a loss. The random draws are the same as without it, so
+/// the two forced runs differ only by that result.
+///
+/// Teams level on wins are ordered by points for when every row has it: points so far plus the
+/// projected weekly mean for each remaining week. Points for is the standings tiebreaker of both
+/// leagues (ESPN's `playoffSeedingRule` is `TOTAL_POINTS_SCORED`, and the Fantrax rules page lists
+/// "Most fantasy points for entire season" first); head-to-head among tied teams is not modelled
+/// because the opponents are random. Python broke ties on projected strength alone, which is
+/// still the order when no row has points for.
+pub fn playoff_odds_with(
+    rows: &[TeamOutlook<'_>],
+    weeks: i64,
+    spots: i64,
+    sims: usize,
+    seed: i64,
+    force: Option<(usize, bool)>,
+) -> Map<String, f64> {
     let mut out: Map<String, f64> = Map::new();
     if rows.is_empty() {
         return out;
@@ -198,6 +248,15 @@ pub fn playoff_odds(rows: &[TeamOutlook<'_>], weeks: i64, spots: i64, sims: usiz
     let n = rows.len();
     let mean: Vec<f64> = rows.iter().map(|r| r.now * GAMES_PER_WEEK).collect();
     let base: Vec<f64> = rows.iter().map(|r| r.record.map_or(0.0, |rec| rec.0 as f64 + 0.5 * rec.2 as f64)).collect();
+    let pf_known = rows.iter().all(|r| r.luck.is_some());
+    let tie: Vec<f64> = rows
+        .iter()
+        .zip(&mean)
+        .map(|(r, m)| match r.luck {
+            Some(l) if pf_known => l.points_for + m * weeks.max(0) as f64,
+            _ => *m,
+        })
+        .collect();
     let p_win = |a: usize, b: usize| -> f64 {
         let h = (WEEKLY_CV * mean[a]).hypot(WEEKLY_CV * mean[b]);
         let sd = if h == 0.0 { 1.0 } else { h };
@@ -217,29 +276,42 @@ pub fn playoff_odds(rows: &[TeamOutlook<'_>], weeks: i64, spots: i64, sims: usiz
     let mut keys: Vec<f64> = vec![0.0; n];
     for _ in 0..sims {
         wins.copy_from_slice(&base);
-        for _w in 0..weeks {
+        for w in 0..weeks {
             for (i, o) in order.iter_mut().enumerate() {
                 *o = i;
             }
             rng.shuffle(&mut order);
+            let forced = force.filter(|_| w == 0);
             let mut i = 0;
             while i + 1 < n {
                 let (a, b) = (order[i], order[i + 1]);
-                if rng.random() < pw[a * n + b] {
+                let a_wins = rng.random() < pw[a * n + b];
+                let a_wins = match forced {
+                    Some((t, won)) if t == a => won,
+                    Some((t, won)) if t == b => !won,
+                    _ => a_wins,
+                };
+                if a_wins {
                     wins[a] += 1.0;
                 } else {
                     wins[b] += 1.0;
                 }
                 i += 2;
             }
+            // odd league: the forced team may have had the bye
+            if let Some((t, won)) = forced {
+                if n % 2 == 1 && order[n - 1] == t && won {
+                    wins[t] += 1.0;
+                }
+            }
         }
-        // sorted(ids, key=(-wins, -mean, rng.random())): the key is built once per team in list order
+        // sorted(ids, key=(-wins, -tiebreak, rng.random())): the key is built once per team in list order
         for k in keys.iter_mut() {
             *k = rng.random();
         }
         let mut ranked: Vec<usize> = (0..n).collect();
         ranked.sort_by(|&a, &b| {
-            cmp_f64(-wins[a], -wins[b]).then(cmp_f64(-mean[a], -mean[b])).then(cmp_f64(keys[a], keys[b]))
+            cmp_f64(-wins[a], -wins[b]).then(cmp_f64(-tie[a], -tie[b])).then(cmp_f64(keys[a], keys[b]))
         });
         for &t in ranked.iter().take(spots.max(0) as usize) {
             made[t] += 1;
@@ -478,13 +550,35 @@ fn assets<'a>(
 }
 
 /// Every team's this-season and future lineup strength, playoff odds, and my recommended mode
-/// with sell / buy lists.
+/// with sell / buy lists. With a provider the league's completed weekly scores are read for points
+/// for and the all-play record ([`super::luck`]); a failure there is a note, not an error.
 pub fn build_outlook<'a>(
     ctx: &'a LeagueContext,
     values: &Map<Cid, PlayerValue>,
     dynasty_values: Option<&Map<Cid, DynastyValue>>,
     provider: Option<&dyn LeagueProvider>,
     sims: usize,
+) -> Outlook<'a> {
+    let (weeks, err) = match provider.map(|p| league_weeks(ctx, p)) {
+        Some(Ok(w)) => (w, None),
+        Some(Err(e)) => (None, Some(format!("Points for and all-play record unavailable: {e}"))),
+        None => (None, None),
+    };
+    let mut o = build_outlook_with(ctx, values, dynasty_values, provider, sims, weeks.as_ref());
+    o.notes.extend(err);
+    o
+}
+
+/// [`build_outlook`] with the completed weekly scores given. With them the simulation also plays
+/// the matchup in progress ([`weeks_to_play`]); None gives Python's outlook: no points for or
+/// all-play, whole weeks left only, and ties in the simulated standings on projected strength.
+pub fn build_outlook_with<'a>(
+    ctx: &'a LeagueContext,
+    values: &Map<Cid, PlayerValue>,
+    dynasty_values: Option<&Map<Cid, DynastyValue>>,
+    provider: Option<&dyn LeagueProvider>,
+    sims: usize,
+    league_weeks: Option<&LeagueWeeks>,
 ) -> Outlook<'a> {
     let dyn_: Option<&Map<Cid, DynastyValue>> = if ctx.dynasty { dynasty_values } else { None };
     let k = if dyn_.is_some_and(|d| !d.is_empty()) { keeper_k(ctx, dyn_) } else { None };
@@ -517,6 +611,9 @@ pub fn build_outlook<'a>(
             }
         }
     }
+    let win = StartWindow::of(ctx);
+    let team_ids: Vec<&str> = ctx.teams.iter().map(|t| t.team_id.as_str()).collect();
+    let luck = league_weeks.filter(|w| !w.weeks.is_empty()).map(|w| luck_table(&w.weeks, &team_ids));
     let mut rows: Vec<TeamOutlook<'a>> = Vec::new();
     for (ti, t) in ctx.teams.iter().enumerate() {
         let rec = t.record;
@@ -529,12 +626,13 @@ pub fn build_outlook<'a>(
                 Some(r) if gp != 0 => Some((r.0 as f64 + 0.5 * r.2 as f64) / gp as f64),
                 _ => None,
             },
-            now: lineup(&players, &now_vals, ctx),
+            now: lineup_now(&players, &now_vals, ctx, win.as_ref()),
             future: if dyn_.is_some() { (0..FUTURE_YEARS).map(|y| lineup(&core[ti], &fut_by_year[y], ctx)).collect() } else { vec![] },
             now_rank: 0,
             future_rank: None,
             playoff_odds: None,
             label: String::new(),
+            luck: luck.as_ref().and_then(|l| l.get(&t.team_id)).copied(),
         });
     }
     let mut by_now: Vec<usize> = (0..rows.len()).collect();
@@ -549,9 +647,20 @@ pub fn build_outlook<'a>(
             rows[r].future_rank = Some(i + 1);
         }
     }
-    let (weeks, wsrc) = weeks_left(ctx, provider);
+    // with the season's results the matchup in progress is simulated too, so "this week" is that matchup
+    let (weeks, wsrc) = if league_weeks.is_some() { weeks_to_play(ctx, provider) } else { weeks_left(ctx, provider) };
     let (spots, ssrc) = playoff_teams(ctx, provider);
     let odds = playoff_odds(&rows, weeks, spots, sims, SEED);
+    // the leverage of this week's matchup: my odds with its result fixed either way
+    let this_week = match rows.iter().position(|r| r.mine()) {
+        Some(mi) if weeks >= 1 => {
+            let id = &rows[mi].team.team_id;
+            let won = playoff_odds_with(&rows, weeks, spots, sims, SEED, Some((mi, true))).get(id).copied();
+            let lost = playoff_odds_with(&rows, weeks, spots, sims, SEED, Some((mi, false))).get(id).copied();
+            won.zip(lost)
+        }
+        _ => None,
+    };
     let n = rows.len();
     for r in rows.iter_mut() {
         r.playoff_odds = odds.get(&r.team.team_id).copied();
@@ -570,11 +679,20 @@ pub fn build_outlook<'a>(
         buy: vec![],
         weeks_left: weeks,
         playoff_teams: spots,
+        this_week,
         notes: vec![],
     };
     out.notes = vec![format!(
         "Playoff odds: {weeks} regular-season weeks left ({wsrc}), {spots} playoff spots ({ssrc}); random opponents, {sims} simulations (approximate)"
     )];
+    if let Some(w) = league_weeks.filter(|w| !w.weeks.is_empty()) {
+        out.notes.push(format!(
+            "Points for and all-play record: {} completed regular-season week{} ({}); ties in the simulated standings go to the team with more points for (so far plus projected)",
+            w.weeks.len(),
+            if w.weeks.len() != 1 { "s" } else { "" },
+            w.source
+        ));
+    }
     if let Some(k) = k {
         out.notes.push(format!(
             "Keeper league: next seasons count only each team's top {k} keeper{} (everyone else is redrafted), so the future lineups hold just those players",
@@ -600,7 +718,35 @@ pub fn build_outlook<'a>(
             ];
             out.recommended = Some(m.label.clone());
         }
+        let extra = season_lines(&out.teams[mi], n, out.this_week);
+        out.reasons.splice(1..1, extra);
         assets(&mut out, ctx, values, dyn_, &fut_avg);
+    }
+    out
+}
+
+/// The reasons that put my record in context: points-for rank and all-play record beside the real
+/// record, and how far this week's result moves my playoff odds.
+fn season_lines(me: &TeamOutlook<'_>, n: usize, this_week: Option<(f64, f64)>) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(l) = me.luck {
+        let (w, lo, t) = l.all_play;
+        let actual = me.record.map_or(String::new(), |r| {
+            format!(" against {} actual (record {}-{}-{})", fixed(r.0 as f64 + 0.5 * r.2 as f64, 1, false), r.0, r.1, r.2)
+        });
+        out.push(format!(
+            "Points for #{} of {n} ({}); all-play record {w}-{lo}-{t}, about {} expected wins{actual}",
+            l.pf_rank,
+            fixed(l.points_for, 1, false),
+            fixed(l.expected_wins, 1, false)
+        ));
+    }
+    if let Some((won, lost)) = this_week {
+        out.push(format!(
+            "This week's matchup: a win puts your playoff odds at about {}, a loss at about {}",
+            percent(won, 0, false),
+            percent(lost, 0, false)
+        ));
     }
     out
 }
@@ -636,12 +782,16 @@ pub fn outlook_json(o: &Outlook<'_>) -> Value {
                    "record": r.record.map_or(Value::Null, |x| json!([x.0, x.1, x.2])),
                    "now_fpg": round_to(r.now, 3), "now_rank": r.now_rank,
                    "future_fpg": r.future.iter().map(|x| round_to(*x, 3)).collect::<Vec<_>>(),
-                   "future_rank": r.future_rank, "playoff_odds": opt3(r.playoff_odds), "label": r.label})
+                   "future_rank": r.future_rank, "playoff_odds": opt3(r.playoff_odds), "label": r.label,
+                   "points_for": r.luck.map(|l| round_to(l.points_for, 1)), "points_for_rank": r.luck.map(|l| l.pf_rank),
+                   "all_play": r.luck.map(|l| [l.all_play.0, l.all_play.1, l.all_play.2]),
+                   "expected_wins": r.luck.map(|l| round_to(l.expected_wins, 2))})
         })
         .collect();
     json!({"recommended": o.recommended, "current": o.current, "dynasty": o.dynasty,
            "text": recommendation_text(o), "reasons": o.reasons, "weeks_left": o.weeks_left,
            "playoff_teams": o.playoff_teams, "notes": o.notes, "teams": teams,
+           "this_week": o.this_week.map(|(w, l)| json!({"if_win": round_to(w, 3), "if_loss": round_to(l, 3)})),
            "sell": o.sell.iter().map(asset).collect::<Vec<_>>(), "buy": o.buy.iter().map(asset).collect::<Vec<_>>()})
 }
 
@@ -654,7 +804,7 @@ mod tests {
     }
 
     fn row<'a>(t: &'a FantasyTeam, now: f64) -> TeamOutlook<'a> {
-        TeamOutlook { team: t, record: t.record, win_pct: None, now, future: vec![], now_rank: 1, future_rank: None, playoff_odds: None, label: String::new() }
+        TeamOutlook { team: t, record: t.record, win_pct: None, now, future: vec![], now_rank: 1, future_rank: None, playoff_odds: None, label: String::new(), luck: None }
     }
 
     #[test]
@@ -666,6 +816,71 @@ mod tests {
         assert!(odds["7"] < 0.1, "{odds:?}");
         // deterministic with the seed
         assert_eq!(odds, playoff_odds(&rows, 10, 4, 500, SEED));
+    }
+
+    fn luck(points_for: f64) -> Option<TeamLuck> {
+        Some(TeamLuck { points_for, pf_rank: 0, all_play: (0, 0, 0), expected_wins: 0.0 })
+    }
+
+    /// No weeks left, so the standings are the records. B (2-2, 30 FPG) and C (2-2, 25 FPG) tie
+    /// for the second of two spots. On projected strength (Python) B gets it; with points for 400
+    /// for B and 500 for C, C does.
+    #[test]
+    fn ties_go_to_points_for() {
+        let mk = |id: &str, rec: (i64, i64, i64)| FantasyTeam { record: Some(rec), ..team(id, false) };
+        let ts = [mk("A", (3, 1, 0)), mk("B", (2, 2, 0)), mk("C", (2, 2, 0)), mk("D", (1, 3, 0))];
+        let mut rows: Vec<TeamOutlook> = ts.iter().zip([20.0, 30.0, 25.0, 20.0]).map(|(t, now)| row(t, now)).collect();
+        let odds = playoff_odds(&rows, 0, 2, 50, SEED);
+        assert_eq!((odds["A"], odds["B"], odds["C"]), (1.0, 1.0, 0.0));
+        for (r, pf) in rows.iter_mut().zip([450.0, 400.0, 500.0, 300.0]) {
+            r.luck = luck(pf);
+        }
+        let odds = playoff_odds(&rows, 0, 2, 50, SEED);
+        assert_eq!((odds["A"], odds["B"], odds["C"]), (1.0, 0.0, 1.0));
+    }
+
+    /// Two equal teams, one week left, one spot: the forced result decides it.
+    #[test]
+    fn forced_result_this_week() {
+        let ts = [team("A", true), team("B", false)];
+        let rows: Vec<TeamOutlook> = ts.iter().map(|t| row(t, 20.0)).collect();
+        let won = playoff_odds_with(&rows, 1, 1, 200, SEED, Some((0, true)));
+        let lost = playoff_odds_with(&rows, 1, 1, 200, SEED, Some((0, false)));
+        assert_eq!((won["A"], won["B"]), (1.0, 0.0));
+        assert_eq!((lost["A"], lost["B"]), (0.0, 1.0));
+        let free = playoff_odds(&rows, 1, 1, 200, SEED);
+        assert!(free["A"] > 0.3 && free["A"] < 0.7, "{free:?}");
+    }
+
+    /// With no league calendar the default Mon-Sun calendar puts the first playoff period on Mon
+    /// 2027-04-12. Through the week of Mon 03-22 the matchup in progress is one of three left to
+    /// play every day; whole weeks (Python) count it only on the Monday.
+    #[test]
+    fn weeks_to_play_counts_the_part_week() {
+        let mut ctx: LeagueContext = serde_json::from_value(serde_json::json!({
+            "provider": "test", "league_id": "1", "season": 2027, "name": "T",
+            "scoring": {"kind": "points", "weights": {"G": 1.0}}, "roster_shape": {"C": 12},
+            "teams": [], "free_agents": [], "matchup_period": 1, "as_of": "2027-03-22",
+            "schedule": {"BOS": ["2027-03-01", "2027-04-26"]},
+        }))
+        .unwrap();
+        for day in 0..7 {
+            ctx.as_of = chrono::NaiveDate::from_ymd_opt(2027, 3, 22 + day).unwrap();
+            assert_eq!(weeks_to_play(&ctx, None).0, 3, "{}", ctx.as_of);
+            assert_eq!(weeks_left(&ctx, None).0, if day == 0 { 3 } else { 2 }, "{}", ctx.as_of);
+        }
+    }
+
+    #[test]
+    fn season_lines_text() {
+        let t = FantasyTeam { record: Some((1, 5, 0)), ..team("a", true) };
+        let mut r = row(&t, 20.0);
+        r.luck = Some(TeamLuck { points_for: 612.34, pf_rank: 4, all_play: (40, 38, 0), expected_wins: 3.08 });
+        let lines = season_lines(&r, 14, Some((0.312, 0.181)));
+        assert_eq!(lines[0], "Points for #4 of 14 (612.3); all-play record 40-38-0, about 3.1 expected wins against 1.0 actual (record 1-5-0)");
+        assert_eq!(lines[1], "This week's matchup: a win puts your playoff odds at about 31%, a loss at about 18%");
+        r.luck = None;
+        assert_eq!(season_lines(&r, 14, None), Vec::<String>::new());
     }
 
     #[test]

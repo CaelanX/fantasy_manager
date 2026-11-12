@@ -431,7 +431,11 @@ pub fn focus_block(
             if let Some(x) = v.proj_week {
                 wk.push(format!("{} projected points", fixed(x, 1, false)));
             }
-            wk.push(format!("FPG after expected missed games {}", fixed(v.fpg_season, 2, false)));
+            // his own production only: ir_fill is what a replacement scores in his IR spot
+            wk.push(format!("FPG after expected missed games {}", fixed(v.fpg_season - v.ir_fill, 2, false)));
+            if v.ir_fill > 0.0 {
+                wk.push(format!("plus {} FPG from a replacement while he is in IR", fixed(v.ir_fill, 2, false)));
+            }
             if let Some(d) = v.return_date {
                 wk.push(format!("expected back {}", d.format("%Y-%m-%d")));
             }

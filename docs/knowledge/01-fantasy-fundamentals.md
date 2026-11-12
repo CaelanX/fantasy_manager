@@ -123,12 +123,12 @@ Everything in this section is inference from the sources above applied to the st
 - Only 2 moves per period: each move must be spent where it adds the most startable games times points per game above the dropped player, planned at the start of the period.
 - Goalie scoring (SV 0.2, GA -1.5, W 2) makes a bad start negative: 20 saves and 5 goals against is 4 - 7.5 = -3.5. A goalie start has to be judged on expected value, and sitting a goalie in a bad matchup can be correct.
 
-**Fantrax (12 teams, dynasty/keeper, 6 F / 4 D / 2 G, 3 moves per week).**
+**Fantrax (12 teams, keep 3 players per team (Fantrax labels it "Dynasty"), 6 F / 4 D / 2 G, 3 moves per week, daily lineups, 16-player roster cap).**
 - Started players: 72 forwards, 48 defensemen, 24 goalies; there is no UTIL slot. Replacement level is much higher than in ESPN (12 x 6 = 72 forwards started versus 126 plus UTIL), so stars carry a larger share of value and mid-tier forwards are near replacement.
 - Goalie scoring (SV 0.25, GA -1, W 5, SO 7.5) is much friendlier: the same 20-save, 5-goal start is 5 - 5 = 0, and an average start is clearly positive. Goalie *volume* is valuable here in a way it is not in ESPN.
 - Shots (0.5) and goals (4) are weighted heavily relative to ESPN; the two leagues need separate valuations from the same projections.
-- Keeper/dynasty: value is multi-year and keeper decisions should rank by surplus over cost, with the rest of the pool inflated accordingly.
-- Whether Fantrax lineups lock daily or weekly was not given; this changes whether reserve players add games (see open questions).
+- Keepers: each team keeps its top 3 players and everyone else is redrafted, so value is multi-year only for a team's best three; keeper decisions should rank by surplus over cost, and every other player is valued for this season.
+- Fantrax lineups change daily (confirmed from the league's Rules page and the official API: about 194 roster periods inside 27 weekly scoring periods), so reserve players can add games as on ESPN. The 16-player cap with 12 active players leaves only 4 reserve spots, fewer than the 6 reserve maximum suggests, so the bench-games benefit is smaller than on ESPN's 5 bench plus 2 IR.
 
 ## Implications for the engine
 
@@ -162,7 +162,7 @@ My own inference (reasonable, not directly sourced):
 - **How much hockey weeks reduce variance** relative to the football figures quoted (58% higher-seed win rate, playoff simulation). Unverified for hockey.
 - **Size of the streaming effect on replacement level.** Zola says he does not know it; Razzball's games-played result is suggestive but small and of unclear format.
 - **Origin date of VBD**: 1996, "mid-90s" or 2000 depending on the page.
-- **Fantrax lineup lock frequency and keeper cost rules** for the owner's league were not supplied.
+- **Fantrax keeper cost rules** for the owner's league were not supplied. (The lineup lock question is settled: Fantrax lineups change daily. See the league facts in [README](README.md#league-facts-confirmed-from-the-app).)
 - **Time discounting in dynasty.** Harstad's recent work reportedly ignores a discount rate for simplicity while other charts apply one (excerpt only).
 
 ## Sources

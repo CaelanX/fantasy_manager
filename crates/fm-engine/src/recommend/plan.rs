@@ -37,10 +37,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::analysis::goalie_plan::{goalie_week, GoalieRow, GoalieWeek, GoalieWeekOpts};
-use crate::analysis::matchup::{current_matchup, game_sd, win_probability, Matchup, MatchupOpts};
+use crate::analysis::matchup::{current_matchup, win_probability, Matchup, MatchupOpts};
 use crate::recommend::advise::{advise, AdviseOpts};
 use crate::recommend::base::{
-    dynasty_delta, dynasty_floats, dynasty_objects, keeper_k, moves_left, shares_default_slot, swap_values,
+    dynasty_delta, dynasty_floats, dynasty_objects, keeper_k, league_unit, moves_left, shares_default_slot, swap_values,
 };
 use crate::recommend::headline::market_suffix;
 use crate::recommend::injuries::History;
@@ -50,7 +50,8 @@ use crate::recommend::waivers::{recommend_waivers, stream_dynasty_tolerance, Wai
 use crate::recommend::{claims, plan_memory};
 use crate::valuation::schedule::ScheduleMemo;
 
-/// matchup points a scheduled move must add, by stance
+/// matchup points a scheduled move must add, by stance, in ESPN points (the plan multiplies them by
+/// [`league_unit`]; Python used them unscaled in every league)
 pub fn min_move_pts(stance: &str) -> f64 {
     match stance {
         "chase" => 0.5,
@@ -70,7 +71,8 @@ pub const WIN_SEED: i64 = 7;
 pub const LOCK_BONUS: f64 = 1e6;
 /// a goalie start probability below this is worth a 5 pm check
 pub const PREGAME_CONFIRMED: f64 = 0.9;
-/// day points the best lineup must beat quick lineup by to call out a start
+/// day points the best lineup must beat quick lineup by to call out a start, in ESPN points (times
+/// [`league_unit`]; Python used the bare 0.5 in every league)
 pub const QUICK_EDGE_MIN: f64 = 0.5;
 pub const CHECKLIST_LIMIT: usize = 3;
 
@@ -975,7 +977,7 @@ fn win(tl: &Timeline<'_>, txs: &[Tx<'_>], m: Option<&Matchup>, as_set: bool) -> 
         .map(|(c, xs)| {
             let mean = py_sum(xs.iter().copied());
             let n = xs.len() as f64;
-            (mean, n.powf(0.5) * game_sd(mean / n, goalie.get(c).copied().unwrap_or(false)))
+            (mean, n.powf(0.5) * m.sd_model.game_sd(mean / n, goalie.get(c).copied().unwrap_or(false)))
         })
         .collect();
     let theirs: Vec<(f64, f64)> = m.their_players.iter().map(|x| (x.proj_remaining, x.sd)).collect();
@@ -1289,7 +1291,7 @@ pub fn build_week_plan(
         cand_recs = r;
         plan.notes.extend(notes);
         pairs = pairs_of(&tl, &cand_recs);
-        let min_pts = min_move_pts(&stance);
+        let min_pts = min_move_pts(&stance) * league_unit(ctx);
         txs = search(ctx, &tl, &pairs, max_moves, min_pts, now, values, lt);
         if let Some(prev) = snaps.as_ref().and_then(|s| s.last()) {
             let (t, k) = plan_memory::stabilize(ctx, &tl, txs, prev, &pairs, max_moves, min_pts, now);
@@ -1610,6 +1612,7 @@ fn day_lines(
         rows.insert(r.cid.as_str(), r);
     }
     let base_days = tl.per_day(&[]);
+    let quick_edge = QUICK_EDGE_MIN * league_unit(ctx);
     for (i, &d) in tl.days.iter().enumerate() {
         let mut line = PlanDayLine {
             day: d,
@@ -1628,9 +1631,9 @@ fn day_lines(
         let roster = tl.roster(d, txs);
         let chosen: Vec<usize> = per_day[i].1.iter().map(|&c| c as usize).collect();
         let playing: HashSet<usize> = roster.iter().copied().filter(|&c| tl.val(c, i) > 0.0).collect();
-        // starts quick lineup would get wrong: only when the best lineup beats it by QUICK_EDGE_MIN
+        // starts quick lineup would get wrong: only when the best lineup beats it by the scaled QUICK_EDGE_MIN
         let (q_pts, quick) = quick_choice(tl, i, &roster);
-        if per_day[i].0 - q_pts >= QUICK_EDGE_MIN {
+        if per_day[i].0 - q_pts >= quick_edge {
             let ins: Vec<usize> = chosen.iter().copied().filter(|c| !quick.contains(c)).collect();
             let mut outs: Vec<usize> = quick.iter().copied().filter(|c| !chosen.contains(c)).collect();
             for (p, mate) in pair_outs(tl, &ins, &outs, &playing) {
@@ -1886,6 +1889,7 @@ pub(crate) mod tests {
             lineup_basis: String::new(),
             warnings: vec![],
             draws: 200,
+            sd_model: crate::analysis::matchup::SdModel::REFERENCE,
         }
     }
 

@@ -93,6 +93,14 @@ codegen-units = 4
 # launch. For profiling: CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release.
 debug = 0
 
+# Line tables only: on windows-gnu full debuginfo is embedded in every test and bin .exe
+# (160-490 MB each), which filled the disk. Backtraces keep file:line; debuggers lose locals.
+[profile.dev]
+debug = "line-tables-only"
+# The windows-gnu std ships its own debug info (~80 MB per exe); strip it at link time. Panic
+# messages keep file:line (they do not use debug info); only full backtraces lose line numbers.
+strip = "debuginfo"
+
 # Parity tests run the full valuation / trade search: keep dependencies optimized in dev builds.
 [profile.dev.package."*"]
 opt-level = 2

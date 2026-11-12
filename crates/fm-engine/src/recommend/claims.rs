@@ -419,6 +419,16 @@ mod tests {
     }
 
     fn ctx_for(mine: &[(&str, Player)], fas: Vec<Player>, faab: Option<f64>, moves: Option<i64>) -> LeagueContext {
+        ctx_shaped(mine, fas, faab, moves, json!({"C": 1, "BN": 2, "IR": 1}))
+    }
+
+    /// Three C slots and no bench: every rostered centre starts each day (team ALL plays daily),
+    /// so a pickup's started-games gain is his FPG over the dropped player's.
+    fn ctx_all_start(mine: &[(&str, Player)], moves: Option<i64>) -> LeagueContext {
+        ctx_shaped(mine, fas(), None, moves, json!({"C": 3, "IR": 1}))
+    }
+
+    fn ctx_shaped(mine: &[(&str, Player)], fas: Vec<Player>, faab: Option<f64>, moves: Option<i64>, shape: serde_json::Value) -> LeagueContext {
         let slots: Vec<RosterSlot> = mine
             .iter()
             .map(|(s, p)| RosterSlot { slot: s.to_string(), player: Some(p.clone()), starting: !["BN", "IR"].contains(s) })
@@ -431,7 +441,7 @@ mod tests {
         let gpd: Map<String, i64> = days7().iter().map(|d| (d.format("%Y-%m-%d").to_string(), 8)).collect();
         let t = FantasyTeam { team_id: "1".into(), name: "me".into(), owner_is_me: true, slots, record: None };
         serde_json::from_value(json!({"provider": "test", "league_id": "1", "season": 2027, "name": "T",
-            "scoring": {"kind": "points", "weights": {"G": 1.0}}, "roster_shape": {"C": 1, "BN": 2, "IR": 1},
+            "scoring": {"kind": "points", "weights": {"G": 1.0}}, "roster_shape": shape,
             "teams": [t], "free_agents": fas, "matchup_period": 1, "as_of": "2026-10-05", "period_end": "2026-10-11",
             "schedule": schedule, "games_per_day": gpd, "moves_limit_per_period": moves,
             "moves_used_this_period": 0, "lineup_lock": "daily", "faab_remaining": faab}))
@@ -451,7 +461,7 @@ mod tests {
 
     #[test]
     fn order_with_dependent_drops() {
-        let ctx = ctx_for(&[("C", mk("my_c", 3.5, None)), ("BN", mk("weak1", 0.1, None)), ("BN", mk("weak2", 0.2, None))], fas(), None, None);
+        let ctx = ctx_all_start(&[("C", mk("my_c", 3.5, None)), ("C", mk("weak1", 0.1, None)), ("C", mk("weak2", 0.2, None))], None);
         let cp = claims_for(&ctx);
         let pairs: Vec<(String, Option<String>)> =
             cp.claims.iter().take(2).map(|c| (c.add.cid.clone(), c.drop.as_ref().map(|d| d.cid.clone()))).collect();
@@ -461,7 +471,7 @@ mod tests {
 
     #[test]
     fn roster_legal_at_processing_after_an_open_spot_fills() {
-        let ctx = ctx_for(&[("C", mk("my_c", 1.0, None)), ("BN", mk("weak1", 0.1, None))], fas(), None, None);
+        let ctx = ctx_all_start(&[("C", mk("my_c", 1.0, None)), ("C", mk("weak1", 0.1, None))], None);
         let cp = claims_for(&ctx);
         assert!(cp.claims[0].add.cid == "x" && cp.claims[0].drop.is_none());
         assert!(cp.claims[1].add.cid == "y" && cp.claims[1].drop.as_ref().is_some_and(|d| d.cid == "weak1"));
@@ -469,7 +479,7 @@ mod tests {
 
     #[test]
     fn claims_capped_by_moves_left() {
-        let mut ctx = ctx_for(&[("C", mk("my_c", 3.5, None)), ("BN", mk("weak1", 0.1, None)), ("BN", mk("weak2", 0.2, None))], fas(), None, Some(1));
+        let mut ctx = ctx_all_start(&[("C", mk("my_c", 3.5, None)), ("C", mk("weak1", 0.1, None)), ("C", mk("weak2", 0.2, None))], Some(1));
         assert_eq!(claims_for(&ctx).claims.len(), 1);
         ctx.moves_used_this_period = Some(1);
         let cp0 = claims_for(&ctx);

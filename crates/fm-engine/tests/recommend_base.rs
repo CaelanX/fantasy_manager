@@ -512,6 +512,41 @@ fn move_scarcity_threshold_table() {
     }
 }
 
+/// On the last day of the move period this period's unused adds expire, so the scarcity bars no
+/// longer apply: 1 or 2 moves left ask the base 0.3 FPG instead of 1.0 or 0.6. A season limit that
+/// is nearly used up still binds, because a move saved today is still there tomorrow.
+#[test]
+fn move_bar_lapses_on_the_period_last_day() {
+    let mut ctx = mk_ctx(vec![], json!({}));
+    budget(&mut ctx, Some(4), Some(3));
+    assert_eq!(move_scarcity_threshold(&ctx, false), Some(1.0));
+    ctx.as_of = d(2026, 10, 4);
+    assert_eq!(moves_left(&ctx), Some(1));
+    assert_eq!(moves_left_to_save(&ctx), None);
+    assert_eq!(move_scarcity_threshold(&ctx, false), Some(0.3));
+    assert_eq!(moves_budget_reason(&ctx).unwrap().text, "1 of 4 moves left this week: unused moves expire after today");
+    // a free agent takes effect today; a waiver claim is processed tomorrow and keeps the full bar
+    let fa = pl("FA");
+    let claim = pl_json("WV", json!({"waiver_until": "2026-10-04"}));
+    assert_eq!(add_scarcity_threshold_at(&ctx, &fa, false, 1.0), Some(0.3));
+    assert_eq!(add_scarcity_threshold_at(&ctx, &claim, false, 1.0), Some(1.0));
+    ctx.moves_used_this_period = Some(2);
+    assert_eq!(move_scarcity_threshold(&ctx, false), Some(0.3));
+    ctx.moves_used_this_period = Some(4);
+    assert_eq!(move_scarcity_threshold(&ctx, false), None);
+    // a season limit with 1 left (9 of 10 used) still makes the last move scarce
+    ctx.moves_used_this_period = Some(0);
+    ctx.moves_limit_season = Some(10);
+    ctx.moves_used_season = Some(9);
+    assert_eq!(moves_left_to_save(&ctx), Some(1));
+    assert_eq!(move_scarcity_threshold(&ctx, false), Some(1.0));
+    // the day before, nothing changes
+    ctx.moves_limit_season = None;
+    ctx.moves_used_this_period = Some(3);
+    ctx.as_of = d(2026, 10, 3);
+    assert_eq!(move_scarcity_threshold(&ctx, false), Some(1.0));
+}
+
 #[test]
 fn moves_left_texts_and_season_cap() {
     let mut ctx = mk_ctx(vec![], json!({}));
@@ -705,6 +740,14 @@ fn ir_and_roster_spots() {
     let team = ctx.my_team().unwrap();
     assert_eq!(free_ir_slots(team, &ctx.roster_shape), 1);
     assert_eq!(open_roster_spots(team, &ctx.roster_shape), 2);
+    // The shape's slots (C 2 + BN 3 = 5, 3 used) leave 2 open, but a league maximum of 4 leaves 1.
+    let mut capped = ctx.clone();
+    capped.max_roster_size = Some(4);
+    assert_eq!(open_spots_under_cap(team, &ctx), 2);
+    assert_eq!(open_spots_under_cap(capped.my_team().unwrap(), &capped), 1);
+    // At the maximum the roster reads as full (the IR-activation checks rely on this) though the shape has room.
+    capped.max_roster_size = Some(3);
+    assert_eq!(open_spots_under_cap(capped.my_team().unwrap(), &capped), 0);
     let mut values = Map::new();
     values.insert("h".to_string(), pv(&hurt, 2.0, vec![]));
     values.insert("h2".to_string(), pv(&hurt2, 3.0, vec![]));
@@ -1179,4 +1222,46 @@ fn parity_strength_and_headline_for_engine_recs() {
     }
     eprintln!("strength checked {checked_s}, headline checked {checked_h}");
     assert!(fails.is_empty(), "{} mismatches:\n{}", fails.len(), fails.iter().take(15).cloned().collect::<Vec<_>>().join("\n"));
+}
+
+/// A Fantrax provider whose official API answers; its private calls and Rules page must not be used.
+struct OfficialFantrax {
+    extras: ProviderExtras,
+}
+
+impl LeagueProvider for OfficialFantrax {
+    fn name(&self) -> &str {
+        "fantrax"
+    }
+    fn load(&mut self) -> anyhow::Result<LeagueContext> {
+        anyhow::bail!("not used")
+    }
+    fn extras(&self) -> &ProviderExtras {
+        &self.extras
+    }
+    fn official_calendar(&self) -> anyhow::Result<fm_core::provider::OfficialCalendar> {
+        Ok(fm_core::provider::OfficialCalendar {
+            periods: vec![(18, d(2027, 1, 18), d(2027, 1, 31)), (19, d(2027, 2, 1), d(2027, 2, 14)), (20, d(2027, 2, 15), d(2027, 2, 21))],
+            playoff_start: Some(20),
+        })
+    }
+}
+
+#[test]
+fn sg_fantrax_calendar_prefers_official_periods_and_playoff_start_but_env_wins() {
+    let _g = lock();
+    std::env::remove_var(sg::PLAYOFF_ENV);
+    let ctx = make_ctx("fantrax", vec![], d(2027, 2, 1));
+    let prov = OfficialFantrax { extras: ProviderExtras::default() };
+    let cal = sg::fantrax_calendar(&ctx, &prov).unwrap();
+    assert_eq!(cal.source, "Fantrax official scoring periods");
+    assert_eq!(cal.get(19).unwrap().days(), 14);
+    assert_eq!(cal.get(18).unwrap().days(), 14);
+    assert_eq!(cal.playoff_start, Some(20));
+    assert_eq!(cal.periods.iter().map(|p| p.playoffs).collect::<Vec<_>>(), vec![false, false, true]);
+    assert_eq!(cal.notes, vec!["Playoffs start period 20 (Fantrax official API)"]);
+    // The environment override stays ahead of the official value.
+    std::env::set_var(sg::PLAYOFF_ENV, "19");
+    assert_eq!(sg::fantrax_playoff_start(&prov), (Some(19), sg::PLAYOFF_ENV.to_string()));
+    std::env::remove_var(sg::PLAYOFF_ENV);
 }

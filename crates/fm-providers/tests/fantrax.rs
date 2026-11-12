@@ -1653,3 +1653,643 @@ fn set_cookie_header_parsing() {
     let c = parse_set_cookie("JSESSIONID=x", "www.fantrax.com").unwrap();
     assert_eq!((c.domain.as_str(), c.expires), ("www.fantrax.com", None));
 }
+
+// ------------------------------------------------------------------ official API cross-check (plan step 3)
+
+mod crosscheck {
+    use super::*;
+    use fm_http::tape::{TapeData, TapeHttp};
+    use fm_http::{cache_key, HttpCache, ParamValue, Params};
+    use fm_providers::fantrax_official::BASE_URL;
+
+    const INFO: &str = include_str!("../../../tests/fixtures/fantrax/fxea_league_info.json");
+
+    /// The official responses that agree with `Fake::live()`'s private data (league lg1, teams t1 and t2).
+    struct Official {
+        info: Value,
+        standings: Value,
+        picks: Value,
+        rosters: Value,
+    }
+
+    fn cfg(short: &str, points: f64) -> Value {
+        json!({"scoringCategory": {"shortName": short}, "points": points})
+    }
+
+    fn tape_cache(rows: &[(&str, Params, &Value)]) -> Arc<HttpCache> {
+        let mut http = HashMap::new();
+        for (endpoint, params, body) in rows {
+            let url = format!("{BASE_URL}/{endpoint}");
+            http.insert(
+                cache_key("GET", &url, params, &[]),
+                TapeHttp { url: url.clone(), params: Value::Null, key_headers: HashMap::new(), status: 200, final_url: url, body: body.to_string() },
+            );
+        }
+        Arc::new(HttpCache::from_tape(Tape(Arc::new(TapeData { http, fxpa: HashMap::new() }))))
+    }
+
+    fn params(items: &[(&str, &str)]) -> Params {
+        items.iter().map(|(k, v)| ((*k).to_string(), ParamValue::Str((*v).to_string()))).collect()
+    }
+
+    impl Official {
+        fn matching() -> Official {
+            let mut info: Value = serde_json::from_str(INFO).unwrap();
+            info["teamInfo"] = json!({"t1": {"name": "Caelan's Crushers", "id": "t1"}, "t2": {"name": "Rival Team", "id": "t2"}});
+            // One roster period that holds the test's date, 2026-09-28 (its end date minus one day is the same day).
+            info["rosterPeriods"] = json!([{"number": 1, "startDate": "2026-09-28T09:00:00.0-0400", "endDate": "2026-09-29T08:59:59.0-0400"}]);
+            info["scoringSystem"] = json!({"type": "HEAD_TO_HEAD_POINTS_BASED", "scoringCategorySettings": [
+                {"group": {"code": "HOCKEY_SKATING"}, "configs": [cfg("A", 2.0), cfg("Blk", 0.5), cfg("ENG", 2.0), cfg("G", 4.0),
+                    cfg("Hit", 0.3), cfg("Ft", 3.0), cfg("PIM", 0.5), cfg("SHG", 2.0), cfg("SOG", 0.5), cfg("PPP", 1.0)]},
+                {"group": {"code": "HOCKEY_GOALIE"}, "configs": [cfg("A", 3.0), cfg("G", 20.0), cfg("PIM", 0.5), cfg("GA", -1.0),
+                    cfg("SV", 0.25), cfg("SHO", 7.5), cfg("W", 5.0)]},
+            ]});
+            info["rosterInfo"] = json!({"positionConstraints": {"F": {"maxActive": 5}, "D": {"maxActive": 3}, "G": {"maxActive": 2}},
+                "maxTotalPlayers": 16, "maxTotalActivePlayers": 10, "maxTotalReservePlayers": 6});
+            let standings = json!([
+                {"teamName": "Rival Team", "totalPointsFor": 1234.5, "teamId": "t2", "rank": 1, "points": "3-1-0"},
+                {"teamName": "Caelan's Crushers", "totalPointsFor": 1150.0, "teamId": "t1", "rank": 2, "points": "2-2-0"},
+            ]);
+            // The private fixture gives both teams the same pick list: three years of ten rounds, all originally t1's.
+            let picks: Vec<Value> = ["t1", "t2"]
+                .iter()
+                .flat_map(|holder| {
+                    (2027..=2029).flat_map(move |year| {
+                        (1..=10).map(move |round| json!({"currentOwnerTeamId": holder, "round": round, "year": year, "originalOwnerTeamId": "t1"}))
+                    })
+                })
+                .collect();
+            let item = |id: &str, pos: &str, status: &str| json!({"id": id, "position": pos, "status": status});
+            let rosters = json!({"period": 1, "rosters": {
+                "t1": {"teamName": "Caelan's Crushers", "rosterItems": [item("03924", "F", "ACTIVE"), item("051yz", "F", "ACTIVE"),
+                    item("02yjj", "F", "ACTIVE"), item("03mbn", "G", "ACTIVE")]},
+                "t2": {"teamName": "Rival Team", "rosterItems": []},
+            }});
+            Official { info, standings, picks: json!({"futureDraftPicks": picks, "currentDraftPicks": []}), rosters }
+        }
+
+        fn cache(&self) -> Arc<HttpCache> {
+            tape_cache(&[
+                ("getLeagueInfo", params(&[("leagueId", "lg1"), ("excludePlayerInfo", "true")]), &self.info),
+                ("getStandings", params(&[("leagueId", "lg1")]), &self.standings),
+                ("getDraftPicks", params(&[("leagueId", "lg1")]), &self.picks),
+                ("getTeamRosters", params(&[("leagueId", "lg1"), ("period", "1")]), &self.rosters),
+            ])
+        }
+
+        /// The official warnings from loading the live-shaped fake league with this official data attached.
+        fn load_warnings(&self) -> Vec<String> {
+            load_with(Some(self.cache()))
+        }
+    }
+
+    fn load_with(cache: Option<Arc<HttpCache>>) -> Vec<String> {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut s = settings(tmp.path());
+        s.fantrax_dynasty = false;
+        let mut prov = provider_with(s, Fake::live());
+        if let Some(c) = cache {
+            prov = prov.with_official(c);
+        }
+        prov.load().unwrap();
+        prov.all_warnings().into_iter().filter(|w| w.starts_with("Fantrax official API")).collect()
+    }
+
+    #[test]
+    fn matching_official_data_gives_no_warning() {
+        let w = Official::matching().load_warnings();
+        assert!(w.is_empty(), "{w:?}");
+    }
+
+    #[test]
+    fn without_the_official_client_nothing_is_added() {
+        assert!(load_with(None).is_empty());
+    }
+
+    #[test]
+    fn an_altered_roster_status_warns_once_naming_the_player() {
+        let mut o = Official::matching();
+        o.rosters["rosters"]["t1"]["rosterItems"][1]["status"] = json!("RESERVE"); // Dylan Holloway, 051yz
+        let w = o.load_warnings();
+        assert_eq!(
+            w,
+            ["Fantrax official API disagrees: roster slots: Dylan Holloway is active in the private data but bench in the official data"]
+        );
+    }
+
+    #[test]
+    fn an_altered_roster_id_warns_once_naming_the_player() {
+        let mut o = Official::matching();
+        o.rosters["rosters"]["t1"]["rosterItems"][3]["id"] = json!("03mbx"); // Mackenzie Blackwood, 03mbn
+        let w = o.load_warnings();
+        assert_eq!(w.len(), 1, "{w:?}");
+        assert!(w[0].starts_with("Fantrax official API disagrees: roster membership: "), "{w:?}");
+        assert!(w[0].contains("Mackenzie Blackwood is on My Team in the private data but on no team"), "{w:?}");
+        assert!(w[0].contains("official player id 03mbx is on My Team in the official data"), "{w:?}");
+    }
+
+    #[test]
+    fn a_player_on_another_team_is_a_membership_difference() {
+        let mut o = Official::matching();
+        let moved = o.rosters["rosters"]["t1"]["rosterItems"].as_array_mut().unwrap().remove(0); // Jack Eichel, 03924
+        o.rosters["rosters"]["t2"]["rosterItems"] = json!([moved]);
+        let w = o.load_warnings();
+        assert_eq!(
+            w,
+            ["Fantrax official API disagrees: roster membership: Jack Eichel is on My Team in the private data but on Rival Team in the official data"]
+        );
+    }
+
+    #[test]
+    fn each_kind_of_mismatch_is_its_own_warning() {
+        let mut o = Official::matching();
+        o.standings[0]["points"] = json!("4-0-0");
+        o.picks["futureDraftPicks"][0]["currentOwnerTeamId"] = json!("t2");
+        o.info["scoringSystem"]["scoringCategorySettings"][0]["configs"][3]["points"] = json!(5.0); // skater goals 4 -> 5
+        o.info["rosterInfo"]["maxTotalPlayers"] = json!(15);
+        o.info["teamInfo"]["t3"] = json!({"name": "Newcomer", "id": "t3"});
+        let w = o.load_warnings();
+        let kinds: Vec<&str> = w.iter().map(|x| x.trim_start_matches("Fantrax official API disagrees: ").split(':').next().unwrap()).collect();
+        assert_eq!(kinds, ["team ids", "scoring weights", "roster limits", "records", "draft picks"], "{w:?}");
+        assert!(w[0].ends_with("Newcomer (t3) is only in the official team list"), "{w:?}");
+        assert!(w[1].ends_with("G is 4 in the private data but 5 in the official data"), "{w:?}");
+        assert!(w[2].ends_with("maximum roster size is 16 in the private data but 15 in the official data"), "{w:?}");
+        assert!(w[3].ends_with("Rival Team is 3-1-0 in the private data but 4-0-0 in the official data"), "{w:?}");
+        assert!(w[4].contains("2027 round 1 (originally My Team) held by My Team in the private data only"), "{w:?}");
+    }
+
+    // ---- official scoring weights, roster limits and ADP (plan steps 8 and 9)
+
+    fn load_with_settings(cache: Arc<HttpCache>, empty_rules: bool, use_adp: bool) -> (FantraxProvider, fm_core::LeagueContext) {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut s = settings(tmp.path());
+        s.fantrax_dynasty = false;
+        s.fantrax_use_adp = use_adp;
+        let fake = if empty_rules {
+            Fake::live().with_override(|m, _| (m == "getLeagueRulesOld").then(|| json!({"content": ""})))
+        } else {
+            Fake::live()
+        };
+        let mut prov = provider_with(s, fake).with_official(cache);
+        let ctx = prov.load().unwrap();
+        (prov, ctx)
+    }
+
+    fn official_warnings(prov: &FantraxProvider) -> Vec<String> {
+        prov.all_warnings().into_iter().filter(|w| w.starts_with("Fantrax official API")).collect()
+    }
+
+    #[test]
+    fn official_weights_and_limits_replace_an_unreadable_rules_page() {
+        // The Rules page is empty, so before this step the weights came from FANTRAX_POINTS (G = 3) and the
+        // shape from the lineup (F 3, G 1) with no maximum roster size.
+        let (prov, ctx) = load_with_settings(Official::matching().cache(), true, false);
+        assert_eq!(prov.scoring_source, "Fantrax official API");
+        assert_eq!(ctx.scoring.weights, rule_weights());
+        assert_eq!(ctx.scoring.goalie_weights, fmap(&[("A", 3.0), ("G", 20.0)]));
+        assert_eq!(ctx.roster_shape.iter().map(|(k, v)| (k.as_str(), *v)).collect::<Vec<_>>(), [("BN", 6), ("F", 5), ("D", 3), ("G", 2)]);
+        assert_eq!(ctx.max_roster_size, Some(16));
+        let w = official_warnings(&prov);
+        assert!(w.is_empty(), "{w:?}");
+    }
+
+    #[test]
+    fn official_limits_win_over_the_rules_page_and_the_difference_is_one_warning() {
+        let mut o = Official::matching();
+        o.info["rosterInfo"]["positionConstraints"]["F"]["maxActive"] = json!(6); // the Rules page says 5
+        o.info["rosterInfo"]["maxTotalReservePlayers"] = json!(7); // the Rules page says 6
+        let (prov, ctx) = load_with_settings(o.cache(), false, false);
+        assert_eq!(prov.scoring_source, "Fantrax official API");
+        assert_eq!(ctx.roster_shape.iter().map(|(k, v)| (k.as_str(), *v)).collect::<Vec<_>>(), [("BN", 7), ("F", 6), ("D", 3), ("G", 2)]);
+        let w = official_warnings(&prov);
+        assert_eq!(w.len(), 1, "{w:?}");
+        assert!(w[0].starts_with("Fantrax official API disagrees: roster limits: "), "{w:?}");
+        assert!(w[0].contains("active F maximum is 5 in the private data but 6 in the official data"), "{w:?}");
+        assert!(w[0].contains("bench maximum is 6 in the private data but 7 in the official data"), "{w:?}");
+    }
+
+    #[test]
+    fn official_scoring_that_differs_from_the_rules_page_still_warns() {
+        let mut o = Official::matching();
+        o.info["scoringSystem"]["scoringCategorySettings"][0]["configs"][3]["points"] = json!(5.0); // skater goals
+        let (prov, ctx) = load_with_settings(o.cache(), false, false);
+        assert_eq!(ctx.scoring.weights["G"], 5.0); // the official value is the one in use
+        let w = official_warnings(&prov);
+        assert_eq!(w.len(), 1, "{w:?}");
+        assert!(w[0].ends_with("G is 4 in the private data but 5 in the official data"), "{w:?}");
+    }
+
+    #[test]
+    fn a_category_league_keeps_the_rules_page_weights() {
+        let mut o = Official::matching();
+        o.info["scoringSystem"]["type"] = json!("HEAD_TO_HEAD_ROTI_MULTI_WIN");
+        let (prov, ctx) = load_with_settings(o.cache(), false, false);
+        assert_eq!(prov.scoring_source, "Fantrax league rules");
+        assert_eq!(ctx.scoring.weights, rule_weights());
+    }
+
+    fn adp_cache(o: &Official, rows: &Value) -> Arc<HttpCache> {
+        tape_cache(&[
+            ("getLeagueInfo", params(&[("leagueId", "lg1"), ("excludePlayerInfo", "true")]), &o.info),
+            ("getStandings", params(&[("leagueId", "lg1")]), &o.standings),
+            ("getDraftPicks", params(&[("leagueId", "lg1")]), &o.picks),
+            ("getTeamRosters", params(&[("leagueId", "lg1"), ("period", "1")]), &o.rosters),
+            ("getAdp", params(&[("sport", "NHL")]), rows),
+        ])
+    }
+
+    fn adp_of(ctx: &fm_core::LeagueContext, name: &str) -> Option<f64> {
+        ctx.teams.iter().flat_map(|t| t.players_iter()).chain(ctx.free_agents.iter()).find(|p| p.name == name).unwrap().adp
+    }
+
+    #[test]
+    fn adp_is_filled_by_fantrax_id_only_when_the_setting_is_on() {
+        let o = Official::matching();
+        // Eichel 03924 and a free agent, Murashov 061i2, have an ADP; Holloway 051yz has the never-drafted
+        // 10000 value; Nylander 02yjj is not listed at all.
+        let rows = json!([
+            {"pos": "C", "name": "Eichel, Jack", "id": "03924", "ADP": 41.5},
+            {"pos": "G", "name": "Murashov, Sergei", "id": "061i2", "ADP": 180.25},
+            {"pos": "LW", "name": "Holloway, Dylan", "id": "051yz", "ADP": 10000.0},
+        ]);
+        let (_, ctx) = load_with_settings(adp_cache(&o, &rows), false, true);
+        assert_eq!(adp_of(&ctx, "Jack Eichel"), Some(41.5));
+        assert_eq!(adp_of(&ctx, "Sergei Murashov"), Some(180.25));
+        assert_eq!(adp_of(&ctx, "Dylan Holloway"), None);
+        assert_eq!(adp_of(&ctx, "William Nylander"), None);
+        // Off (the default): the same data leaves every ADP empty, and the load equals one without ADP rows.
+        let (_, off) = load_with_settings(adp_cache(&o, &rows), false, false);
+        assert!(off.teams.iter().flat_map(|t| t.players_iter()).chain(off.free_agents.iter()).all(|p| p.adp.is_none()));
+        let (_, none) = load_with_settings(o.cache(), false, false);
+        assert_eq!(serde_json::to_value(&off).unwrap(), serde_json::to_value(&none).unwrap());
+    }
+
+    #[test]
+    fn a_failed_adp_read_is_one_warning_and_leaves_adp_empty() {
+        let o = Official::matching();
+        let (prov, ctx) = load_with_settings(adp_cache(&o, &json!({"error": {"message": "nope"}})), false, true);
+        assert_eq!(adp_of(&ctx, "Jack Eichel"), None);
+        let w: Vec<String> = prov.all_warnings().into_iter().filter(|w| w.contains("ADP")).collect();
+        assert_eq!(w.len(), 1, "{w:?}");
+        assert!(w[0].starts_with("Fantrax official API ADP unavailable"), "{w:?}");
+        // Offline with nothing cached: silent.
+        let (prov, _) = load_with_settings(o.cache(), false, true);
+        assert!(prov.all_warnings().iter().all(|w| !w.contains("ADP")));
+    }
+
+    #[test]
+    fn a_missing_official_response_is_silent_offline_and_one_warning_when_unusable() {
+        // The tape cache is offline and holds nothing: a cache miss adds no warning.
+        assert!(load_with(Some(tape_cache(&[]))).is_empty());
+        // A body the client cannot use is one warning for that endpoint, and nothing is compared from it.
+        let mut o = Official::matching();
+        o.standings = json!({"error": {"message": "nope"}});
+        let w = o.load_warnings();
+        assert_eq!(w.len(), 1, "{w:?}");
+        assert!(w[0].starts_with("Fantrax official API standings unavailable"), "{w:?}");
+        for banned in ["http", "login", "cookie", "session", "403"] {
+            assert!(!w[0].to_lowercase().contains(banned), "{w:?}");
+        }
+    }
+
+    // ---- official scoring-period calendar and playoff start (plan step 6)
+
+    fn calendar_provider(cache: Arc<HttpCache>) -> FantraxProvider {
+        let tmp = tempfile::tempdir().unwrap();
+        provider_with(settings(tmp.path()), Fake::live()).with_official(cache)
+    }
+
+    #[test]
+    fn official_calendar_gives_the_periods_and_playoff_start() {
+        let prov = calendar_provider(Official::matching().cache());
+        let cal = LeagueProvider::official_calendar(&prov).unwrap();
+        assert_eq!(cal.periods.len(), 27);
+        let d = |y, m, day| NaiveDate::from_ymd_opt(y, m, day).unwrap();
+        // Period 6 is 2026-11-02 to 2026-11-08 and period 19 is the 14-day stretch 2027-02-01 to 2027-02-14.
+        assert!(cal.periods.contains(&(6, d(2026, 11, 2), d(2026, 11, 8))));
+        let (_, first, last) = *cal.periods.iter().find(|p| p.0 == 19).unwrap();
+        assert_eq!((last - first).num_days() + 1, 14);
+        assert_eq!(cal.playoff_start, Some(25));
+        assert!(prov.all_warnings().is_empty());
+    }
+
+    #[test]
+    fn unusable_official_calendar_is_unavailable_with_one_warning_and_none_offline() {
+        let prov = calendar_provider(tape_cache(&[]));
+        assert!(LeagueProvider::official_calendar(&prov).is_err());
+        assert!(prov.all_warnings().is_empty());
+        let mut o = Official::matching();
+        o.info = json!({"error": {"message": "nope"}});
+        let prov = calendar_provider(o.cache());
+        assert!(LeagueProvider::official_calendar(&prov).is_err());
+        assert!(LeagueProvider::official_calendar(&prov).is_err());
+        let w: Vec<_> = prov.all_warnings().into_iter().filter(|w| w.starts_with("Fantrax official API")).collect();
+        assert_eq!(w.len(), 1, "{w:?}");
+    }
+
+    // ---- official current matchup (plan step 7)
+
+    fn pairing(away: (&str, &str), home: (&str, &str)) -> Value {
+        json!({"away": {"id": away.0, "name": away.1}, "home": {"id": home.0, "name": home.1}})
+    }
+
+    fn side(id: &str, name: &str, score: f64) -> Value {
+        json!({"teamId": id, "teamName": name, "score": score, "gamesPlayed": 3})
+    }
+
+    /// Official data with t1 (the owner) at home against t2 in period 7 (a regular period) and in period 25
+    /// (the first playoff period; real teams are used here only to test the playoff flag), and seed
+    /// placeholders in period 27.
+    fn matchup_cache(scores7: &Value) -> Arc<HttpCache> {
+        let mut o = Official::matching();
+        let real = || json!([pairing(("t2", "Rival Team"), ("t1", "Caelan's Crushers"))]);
+        o.info["matchups"] = json!([
+            {"period": 7, "matchupList": real()},
+            {"period": 25, "matchupList": real()},
+            {"period": 27, "matchupList": [{"away": {"seed": 2}, "home": {"seed": 1}}]},
+        ]);
+        let board = |period: i64| {
+            json!({"period": period, "matchups": [{"away": side("t2", "Rival Team", 42.9), "home": side("t1", "Caelan's Crushers", 73.2)}]})
+        };
+        let (b25, b27) = (board(25), board(27));
+        tape_cache(&[
+            ("getLeagueInfo", params(&[("leagueId", "lg1"), ("excludePlayerInfo", "true")]), &o.info),
+            ("getMatchupScores", params(&[("leagueId", "lg1"), ("period", "7")]), scores7),
+            ("getMatchupScores", params(&[("leagueId", "lg1"), ("period", "25")]), &b25),
+            ("getMatchupScores", params(&[("leagueId", "lg1"), ("period", "27")]), &b27),
+        ])
+    }
+
+    #[test]
+    fn official_matchup_takes_the_opponent_from_the_list_and_points_from_the_scores() {
+        let scores = json!({"period": 7, "matchups": [
+            {"away": side("t9", "Other", 1.0), "home": side("t8", "Another", 2.0)},
+            {"away": side("t2", "Rival Team", 42.9), "home": side("t1", "Caelan's Crushers", 73.2)}]});
+        let prov = calendar_provider(matchup_cache(&scores));
+        let m = LeagueProvider::official_matchup(&prov, "t1", 7).unwrap().unwrap();
+        assert_eq!((m.opponent_id.as_str(), m.my_points, m.their_points, m.playoffs), ("t2", 73.2, 42.9, false));
+        // the same game seen from the other team swaps the two scores
+        let m = LeagueProvider::official_matchup(&prov, "t2", 7).unwrap().unwrap();
+        assert_eq!((m.opponent_id.as_str(), m.my_points, m.their_points), ("t1", 42.9, 73.2));
+        // the playoff flag comes from the first playoff period (25 in the sample), not from the matchup list
+        assert!(LeagueProvider::official_matchup(&prov, "t1", 25).unwrap().unwrap().playoffs);
+    }
+
+    #[test]
+    fn official_matchup_is_none_without_a_pairing_of_two_real_teams_or_a_cached_answer() {
+        let scores = json!({"period": 7, "matchups": []});
+        let prov = calendar_provider(matchup_cache(&scores));
+        // playoff placeholders, and a period the matchup list does not hold
+        assert_eq!(LeagueProvider::official_matchup(&prov, "t1", 27), Ok(None));
+        assert_eq!(LeagueProvider::official_matchup(&prov, "t1", 8), Ok(None));
+        // a team without a game in the period
+        assert_eq!(LeagueProvider::official_matchup(&prov, "t3", 7), Ok(None));
+        // no official client, and an offline cache miss, are silent
+        let tmp = tempfile::tempdir().unwrap();
+        let bare = provider_with(settings(tmp.path()), Fake::live());
+        assert_eq!(LeagueProvider::official_matchup(&bare, "t1", 7), Ok(None));
+        let offline = calendar_provider(tape_cache(&[]));
+        assert_eq!(LeagueProvider::official_matchup(&offline, "t1", 7), Ok(None));
+    }
+
+    #[test]
+    fn official_matchup_failures_are_one_plain_warning() {
+        let mut all = Vec::new();
+        // an error body in the scores
+        let prov = calendar_provider(matchup_cache(&json!({"error": {"message": "nope"}})));
+        let w = LeagueProvider::official_matchup(&prov, "t1", 7).unwrap_err();
+        assert!(w.starts_with("Fantrax official API matchup scores unavailable"), "{w}");
+        all.push(w);
+        // scores that lack the owner's game contradict the matchup list
+        let prov = calendar_provider(matchup_cache(&json!({"period": 7, "matchups": []})));
+        let w = LeagueProvider::official_matchup(&prov, "t1", 7).unwrap_err();
+        assert!(w.starts_with("Fantrax official API matchup unavailable") && w.contains("disagree"), "{w}");
+        all.push(w);
+        // an error body in the league info
+        let mut o = Official::matching();
+        o.info = json!({"error": {"message": "nope"}});
+        let prov = calendar_provider(o.cache());
+        let w = LeagueProvider::official_matchup(&prov, "t1", 7).unwrap_err();
+        assert!(w.starts_with("Fantrax official API league info unavailable"), "{w}");
+        all.push(w);
+        for text in all {
+            for banned in ["http", "login", "cookie", "session", "403"] {
+                assert!(!text.to_lowercase().contains(banned), "{text}");
+            }
+        }
+    }
+
+    // ---- official draft picks and standings replace the private ones (plan steps 4 and 5)
+
+    fn load_full(fake: Fake, cache: Arc<HttpCache>) -> (fm_core::models::LeagueContext, fm_core::snapshot::ProviderExtras) {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut s = settings(tmp.path());
+        s.fantrax_dynasty = false;
+        let mut prov = provider_with(s, fake).with_official(cache);
+        let ctx = prov.load().unwrap();
+        (ctx, prov.extras().clone())
+    }
+
+    fn pick_count(ctx: &fm_core::models::LeagueContext, team: &str) -> usize {
+        ctx.draft_picks.get(team).map_or(0, |y| y.values().map(Vec::len).sum())
+    }
+
+    #[test]
+    fn official_standings_replace_rank_record_and_points_for_but_private_keeps_waiver_order() {
+        let mut o = Official::matching();
+        o.standings = json!([
+            {"teamName": "Caelan's Crushers", "totalPointsFor": 2000.0, "teamId": "t1", "rank": 1, "points": "5-0-0"},
+            {"teamName": "Rival Team", "totalPointsFor": 1500.5, "teamId": "t2", "rank": 2, "points": "4-1-0"},
+        ]);
+        let (ctx, extras) = load_full(Fake::live(), o.cache());
+        assert_eq!(ctx.team("t1").unwrap().record, Some((5, 0, 0)));
+        assert_eq!(ctx.team("t2").unwrap().record, Some((4, 1, 0)));
+        let row = &extras.standings["t1"];
+        assert_eq!(row["rank"], json!(1));
+        assert_eq!((row["win"].clone(), row["loss"].clone(), row["tie"].clone()), (json!(5), json!(0), json!(0)));
+        assert_eq!(row["points_for"], json!(2000.0));
+        // The private fixture gives t1 points against 1200.0 and waiver position 1; the official API has neither.
+        assert_eq!(row["points_against"], json!(1200.0));
+        assert_eq!(row["waiver_order"], json!(1));
+        assert_eq!(extras.standings["t2"]["waiver_order"], json!(2));
+    }
+
+    #[test]
+    fn failed_private_standings_still_give_official_records() {
+        let fake = Fake::live().page_error("getStandings", "UNEXPECTED_ERROR", Some("nope"));
+        let (ctx, extras) = load_full(fake, Official::matching().cache());
+        assert_eq!(ctx.team("t1").unwrap().record, Some((2, 2, 0)));
+        assert_eq!(extras.standings["t1"]["rank"], json!(2));
+        assert_eq!(extras.standings["t1"]["points_for"], json!(1150.0));
+        assert!(extras.standings["t1"]["waiver_order"].is_null());
+        assert!(extras.warnings.iter().any(|w| w.starts_with("Standings unavailable")), "{:?}", extras.warnings);
+    }
+
+    #[test]
+    fn failed_official_standings_keep_the_private_standings_and_warn_once() {
+        let mut o = Official::matching();
+        o.standings = json!({"error": {"message": "nope"}});
+        let (ctx, extras) = load_full(Fake::live(), o.cache());
+        assert_eq!(ctx.team("t2").unwrap().record, Some((3, 1, 0)));
+        assert_eq!(extras.standings["t2"]["rank"], json!(1));
+        assert_eq!(extras.standings["t2"]["waiver_order"], json!(2));
+        let w: Vec<_> = extras.warnings.iter().filter(|w| w.starts_with("Fantrax official API")).collect();
+        assert_eq!(w.len(), 1, "{w:?}");
+    }
+
+    #[test]
+    fn official_draft_picks_replace_the_private_ones() {
+        let mut o = Official::matching();
+        // t2 keeps only its 2027 round 1 pick; t1 loses its 2029 picks.
+        o.picks["futureDraftPicks"].as_array_mut().unwrap().retain(|p| {
+            let (holder, year, round) = (p["currentOwnerTeamId"].as_str().unwrap(), p["year"].as_i64().unwrap(), p["round"].as_i64().unwrap());
+            !(holder == "t2" && !(year == 2027 && round == 1)) && !(holder == "t1" && year == 2029)
+        });
+        let (ctx, extras) = load_full(Fake::live(), o.cache());
+        assert_eq!(pick_count(&ctx, "t1"), 20);
+        assert_eq!(pick_count(&ctx, "t2"), 1);
+        assert_eq!(ctx.draft_picks["t2"][&2027][0].round, 1);
+        assert_eq!(ctx.draft_picks["t2"][&2027][0].original_owner.as_deref(), Some("t1"));
+        assert_eq!(extras.draft_picks.keys().copied().collect::<Vec<_>>(), [2027, 2028]);
+        assert_eq!(extras.team_draft_picks["t2"][&2027].len(), 1);
+    }
+
+    #[test]
+    fn a_team_with_no_official_pick_is_known_to_hold_none() {
+        let mut o = Official::matching();
+        o.picks["futureDraftPicks"].as_array_mut().unwrap().retain(|p| p["currentOwnerTeamId"] != "t2");
+        let (ctx, _) = load_full(Fake::live(), o.cache());
+        assert!(ctx.draft_picks.contains_key("t2") && pick_count(&ctx, "t2") == 0);
+        assert_eq!(pick_count(&ctx, "t1"), 30);
+    }
+
+    #[test]
+    fn failed_official_draft_picks_keep_the_private_ones_and_warn_once() {
+        let mut o = Official::matching();
+        o.picks = json!({"error": {"message": "nope"}});
+        let (ctx, extras) = load_full(Fake::live(), o.cache());
+        assert_eq!((pick_count(&ctx, "t1"), pick_count(&ctx, "t2")), (30, 30));
+        let w: Vec<_> = extras.warnings.iter().filter(|w| w.starts_with("Fantrax official API")).collect();
+        assert_eq!(w.len(), 1, "{w:?}");
+        assert!(w[0].starts_with("Fantrax official API draft picks unavailable"), "{w:?}");
+    }
+
+    // ---- degraded load from the official API when the private first batch fails (plan step 10)
+
+    /// The real official responses for our league (trimmed), served as league "lg1": 12 teams, the 208
+    /// players rostered in roster period 42 (2026-11-09), 360 draft picks and the standings after period 6.
+    fn real_official(info: &Value, player_ids: &Value) -> Arc<HttpCache> {
+        let read = |name: &str| -> Value { serde_json::from_str(&std::fs::read_to_string(fixtures_fxea(name)).unwrap()).unwrap() };
+        let (rosters, standings, picks) = (read("fxea_rosters_p42"), read("fxea_standings"), read("fxea_draft_picks"));
+        tape_cache(&[
+            ("getLeagueInfo", params(&[("leagueId", "lg1"), ("excludePlayerInfo", "true")]), info),
+            ("getTeamRosters", params(&[("leagueId", "lg1"), ("period", "42")]), &rosters),
+            ("getPlayerIds", params(&[("sport", "NHL")]), player_ids),
+            ("getStandings", params(&[("leagueId", "lg1")]), &standings),
+            ("getDraftPicks", params(&[("leagueId", "lg1")]), &picks),
+        ])
+    }
+
+    fn fixtures_fxea(name: &str) -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/fantrax").join(format!("{name}.json"))
+    }
+
+    fn real_cache() -> Arc<HttpCache> {
+        let info: Value = serde_json::from_str(INFO).unwrap();
+        let ids: Value = serde_json::from_str(&std::fs::read_to_string(fixtures_fxea("fxea_player_ids")).unwrap()).unwrap();
+        real_official(&info, &ids)
+    }
+
+    /// A provider whose private first batch answers "not logged in", with the official data attached.
+    fn degraded(team: Option<&str>, cache: Arc<HttpCache>) -> (FantraxProvider, anyhow::Result<fm_core::LeagueContext>) {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut s = settings(tmp.path());
+        s.fantrax_dynasty = false;
+        s.fantrax_team = team.map(str::to_string);
+        let fake = Fake::live().not_logged_in(&["getFantasyLeagueInfo", "getTeamRosterInfo"]);
+        let mut prov = provider_with(s, fake).with_today(NaiveDate::from_ymd_opt(2026, 11, 9).unwrap()).with_official(cache);
+        let res = prov.load();
+        (prov, res)
+    }
+
+    #[test]
+    fn a_failed_private_login_loads_the_league_from_the_official_api() {
+        let (prov, res) = degraded(Some("qvljl1xumuhhm8sk"), real_cache());
+        let ctx = res.unwrap();
+        // 12 teams in team-id order, 208 rostered players.
+        let ids: Vec<&str> = ctx.teams.iter().map(|t| t.team_id.as_str()).collect();
+        let mut sorted = ids.clone();
+        sorted.sort();
+        assert_eq!((ids.len(), ids.clone()), (12, sorted));
+        let players: Vec<_> = ctx.teams.iter().flat_map(|t| &t.slots).collect();
+        assert_eq!(players.len(), 208);
+        assert!(players.iter().all(|s| s.player.is_some()));
+        // Slots: 137 active, 55 bench, 16 injured reserve in the official response.
+        let count = |slot: &str| players.iter().filter(|s| s.slot == slot).count();
+        assert_eq!((count("F") + count("D") + count("G"), count("BN"), count("IR")), (137, 55, 16));
+        assert!(players.iter().all(|s| s.starting == !matches!(s.slot.as_str(), "BN" | "IR")));
+        // Gwinzzz, the owner here: Jesper Bratt (042ye, F reserve) is on the bench, Justin Faulk (01zu5, D active)
+        // starts at D, 04an5 (D injured reserve) is on IR; starters come first.
+        let me = ctx.my_team().unwrap();
+        assert_eq!((me.team_id.as_str(), me.name.as_str()), ("qvljl1xumuhhm8sk", "Gwinzzz"));
+        let slot_of = |name: &str| me.slots.iter().find(|s| s.player.as_ref().unwrap().name == name).unwrap().slot.clone();
+        assert_eq!(slot_of("Jesper Bratt"), "BN");
+        assert_eq!(slot_of("Justin Faulk"), "D");
+        let faulk = me.slots.iter().filter_map(|s| s.player.as_ref()).find(|p| p.name == "Justin Faulk").unwrap();
+        assert_eq!((faulk.cid.as_str(), faulk.team.as_deref(), faulk.positions.clone()), ("fantrax:01zu5", Some("DET"), vec!["D".to_string()]));
+        let ir = me.slots.iter().find(|s| s.slot == "IR").unwrap().player.as_ref().unwrap();
+        assert_eq!(ir.ids["fantrax"], "04an5");
+        assert_eq!(me.slots.iter().map(|s| s.slot.as_str()).collect::<Vec<_>>()[..12], ["F", "F", "F", "F", "F", "F", "D", "D", "D", "D", "G", "G"]);
+        // Records, picks, scoring, limits, season and lock from the official data.
+        assert_eq!(ctx.team("gfrdo5nimuga7o9r").unwrap().record, Some((6, 0, 0)));
+        assert_eq!(pick_count(&ctx, "qvljl1xumuhhm8sk"), 30);
+        assert_eq!(ctx.draft_picks.values().flat_map(|y| y.values()).map(Vec::len).sum::<usize>(), 360);
+        assert_eq!(prov.scoring_source, "Fantrax official API");
+        assert_eq!(ctx.scoring.weights["G"], 4.0);
+        assert_eq!(ctx.roster_shape.get("F"), Some(&6));
+        assert_eq!(ctx.roster_shape.get("D"), Some(&4));
+        assert_eq!(ctx.roster_shape.get("G"), Some(&2));
+        assert_eq!(ctx.roster_shape.get("BN"), Some(&6));
+        assert_eq!(ctx.max_roster_size, Some(16));
+        assert_eq!(ctx.season, 2027);
+        assert_eq!(ctx.lineup_lock, Some(fm_core::models::LineupLock::Daily));
+        assert_eq!(prov.extras().lineup_lock.as_deref(), Some("daily"));
+        // Scoring period 7 holds 2026-11-09.
+        assert_eq!((ctx.period_start, ctx.period_end), (NaiveDate::from_ymd_opt(2026, 11, 9), NaiveDate::from_ymd_opt(2026, 11, 15)));
+        assert!(ctx.free_agents.is_empty() && ctx.moves_used_this_period.is_none());
+        // One clear official warning, first everywhere, plus the private failure for the health check.
+        let w = &prov.extras().warnings;
+        assert_eq!(w.iter().filter(|x| x.starts_with("Fantrax official API")).collect::<Vec<_>>(), [DEGRADED_WARNING]);
+        assert_eq!((w[0].as_str(), ctx.warnings[0].as_str()), (DEGRADED_WARNING, DEGRADED_WARNING));
+        assert!(w.iter().any(|x| x.starts_with("Fantrax league data unavailable: Fantrax says you are not logged in")), "{w:?}");
+        for banned in ["http", "login", "cookie", "session", "403"] {
+            assert!(!DEGRADED_WARNING.to_lowercase().contains(banned));
+        }
+    }
+
+    #[test]
+    fn the_degraded_load_needs_fantrax_team_and_accepts_a_short_name() {
+        let (_, res) = degraded(None, real_cache());
+        let e = res.unwrap_err().to_string();
+        assert!(e.contains("not logged in") && e.contains("only when FANTRAX_TEAM names your team"), "{e}");
+        assert!(e.contains("qvljl1xumuhhm8sk=Gwinzzz"), "{e}");
+        // "Zoommba" is the short name of team "3-0", known only from the official matchup list.
+        let (_, res) = degraded(Some("zoommba"), real_cache());
+        assert_eq!(res.unwrap().my_team().unwrap().team_id, "1phb4gpkmufzry6m");
+    }
+
+    #[test]
+    fn without_official_data_the_private_error_stands() {
+        // Offline with nothing cached: the private error, no official warning.
+        let (prov, res) = degraded(Some("qvljl1xumuhhm8sk"), tape_cache(&[]));
+        assert!(res.unwrap_err().to_string().contains("not logged in"));
+        assert!(prov.all_warnings().iter().all(|w| !w.starts_with("Fantrax official API")));
+        // Unreadable player names: the private error and one warning naming the official read.
+        let info: Value = serde_json::from_str(INFO).unwrap();
+        let (prov, res) = degraded(Some("qvljl1xumuhhm8sk"), real_official(&info, &json!({"error": {"message": "nope"}})));
+        assert!(res.unwrap_err().to_string().contains("not logged in"));
+        let w: Vec<_> = prov.all_warnings().into_iter().filter(|w| w.starts_with("Fantrax official API")).collect();
+        assert_eq!(w.len(), 1, "{w:?}");
+        assert!(w[0].starts_with("Fantrax official API player ids unavailable"), "{w:?}");
+    }
+}

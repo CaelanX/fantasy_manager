@@ -566,6 +566,25 @@ fn llm_failure_or_absence_keeps_the_rules() {
 }
 
 #[test]
+fn llm_failure_is_not_retried_for_half_an_hour() {
+    let tmp = tempfile::tempdir().unwrap();
+    let failing = FakeLlm { fail: true, ..FakeLlm::new(json!({})) };
+    let run = |llm: &FakeLlm, mins: i64| {
+        let got = nr::extract_role_signals(&[ambig()], Some(llm), Some(tmp.path()), nr::LLM_BATCH, now0() + chrono::Duration::minutes(mins));
+        assert_eq!(got.iter().map(|s| (s.kind.as_str(), s.origin.as_str())).collect::<Vec<_>>(), vec![("top_line", "rules")]);
+    };
+    run(&failing, 0);
+    assert_eq!(failing.calls.borrow().len(), 1);
+    // 29 minutes later the same model is skipped (same rules answer, no second timeout)
+    run(&failing, 29);
+    assert_eq!(failing.calls.borrow().len(), 1);
+    // 30 minutes after the failure it is tried again
+    run(&failing, 30);
+    assert_eq!(failing.calls.borrow().len(), 2);
+    assert!(!tmp.path().join(nr::STORE_NAME).exists());
+}
+
+#[test]
 fn llm_batches_at_most_25_items() {
     let tmp = tempfile::tempdir().unwrap();
     let items: Vec<NewsItem> = (0..40)
@@ -1176,6 +1195,67 @@ fn chat_prompt_is_stable_first_and_focused_on_named_players() {
 }
 
 #[test]
+fn chat_prompt_is_cut_to_the_context_window_least_relevant_first() {
+    use fm_sources::llm::openrouter::{chat_prompt_fit, estimate_tokens, ChatInput, CHAT_OPTS, LOCAL_REASONING_TOKENS};
+    let (ctx, mut values) = make_league();
+    // long engine reasoning on every player, so six players in detail are big
+    let long = "the engine weighed his recent shots, power play time and schedule ".repeat(2);
+    for v in values.values_mut() {
+        v.reasons = (0..8).map(|i| fm_core::Reason::new(format!("R{i}"), long.clone())).collect();
+    }
+    // opened about: Stutzle, Tkachuk. Named in the question: Makar, McDavid. In the paste: Ullmark. Only in an earlier turn: Sanderson.
+    let focus = ["a".to_string(), "b".to_string()];
+    let history: Vec<(String, String)> =
+        (0..4).map(|i| (format!("Question {i} about Jake Sanderson {}", "q".repeat(600)), format!("Answer {i} {}", "a".repeat(900)))).collect();
+    let paste = format!("Ullmark offer: {}", "lots of pasted words ".repeat(300));
+    let input = ChatInput { history: &history, focus: &focus, pasted: &paste, dynasty: None };
+    let ask = "Is Cale Makar or Connor McDavid the better pickup?";
+    let room = |window: usize| window - (CHAT_OPTS.max_tokens + LOCAL_REASONING_TOKENS) as usize;
+    let size = |p: &fm_sources::llm::openrouter::ChatPrompt| estimate_tokens(&p.system) + estimate_tokens(&p.user);
+    let run = |w: Option<usize>| chat_prompt_fit(ask, &ctx, &values, &[], NewsInput::Items(&[]), &input, w);
+
+    // no limit: everything is sent, and it is more than an 8k window can take
+    let full = run(None);
+    assert!(full.cut.is_empty() && full.notice(8192).is_none());
+    assert!(size(&full) > room(8192), "{}", size(&full));
+    for who in ["Tim St", "Brady Tkachuk", "Cale Makar", "Connor McDavid", "Linus Ullmark", "Jake Sanderson"] {
+        assert!(full.user.contains(&format!("- {who}")), "{who} missing");
+    }
+
+    // the real setting: this prompt fits 16384 untouched
+    let p = run(Some(16384));
+    assert!(p.cut.is_empty() && size(&p) <= room(16384) && p.user == full.user);
+
+    // smaller windows: always fits, turns go first, then players by relevance, then the paste
+    let mut seen_cut = Vec::new();
+    for window in [8192usize, 7600, 7200, 6800, 6500] {
+        let p = run(Some(window));
+        assert!(size(&p) <= room(window), "window {window}: {} > {}", size(&p), room(window));
+        assert!(p.user.ends_with(&format!("QUESTION: {ask}")));
+        let detail = p.user.find("## PLAYERS THIS CHAT IS ABOUT").map(|i| &p.user[i..]).unwrap_or("");
+        let has = |who: &str| detail.contains(&format!("- {who} ["));
+        // a less relevant player is never kept over a more relevant one
+        if has("Jake Sanderson") {
+            assert!(has("Linus Ullmark"), "window {window}");
+        }
+        if has("Linus Ullmark") {
+            assert!(has("Cale Makar") && has("Connor McDavid"), "window {window}");
+        }
+        if has("Cale Makar") || has("Connor McDavid") {
+            assert!(has("Tim St") && has("Brady Tkachuk"), "window {window}");
+        }
+        if !p.cut.is_empty() {
+            assert_eq!(p.cut[0], "earlier turns");
+            assert!(p.notice(window).unwrap().contains(&format!("{window}-token window")));
+        }
+        seen_cut.push(p.cut.clone());
+    }
+    assert!(seen_cut[0].contains(&"earlier turns") && !seen_cut[0].contains(&"pasted text"), "{seen_cut:?}");
+    assert!(seen_cut.iter().any(|c| c.contains(&"player details")), "{seen_cut:?}");
+    assert!(seen_cut.last().unwrap().contains(&"pasted text"), "{seen_cut:?}");
+}
+
+#[test]
 fn streaming_falls_back_to_one_piece_and_drops_inline_thinking() {
     use fm_sources::llm::StreamPart;
     // an SDK without streaming of its own hands the reply over whole
@@ -1301,7 +1381,7 @@ fn complete_maps_errors_to_llmerror() {
     let (s, _) = sdk(vec![Ok(ChatResponse::text("   "))]);
     let err = LLMClient::new(None, Some(s), None, Some(vec![]), 60.0).complete_text("s", "u", CompleteOpts::default()).unwrap_err();
     assert!(err.message.contains("empty"));
-    let (s, _) = sdk(vec![Ok(ChatResponse { choices: vec![], error: Some(json!({"message": "provider down"})) })]);
+    let (s, _) = sdk(vec![Ok(ChatResponse { choices: vec![], error: Some(json!({"message": "provider down"})), ..Default::default() })]);
     let err = LLMClient::new(None, Some(s), None, Some(vec![]), 60.0).complete_text("s", "u", CompleteOpts::default()).unwrap_err();
     assert!(err.message.contains("provider down"));
 }
@@ -1427,6 +1507,15 @@ fn client_side_fallback_on_retryable_error_and_truncation() {
     let c = LLMClient::new(Some(&settings_with_key(Some("k"))), Some(s), Some("a/p:free"), Some(vec!["b/q:free".into()]), 60.0);
     assert_eq!(c.complete_text("s", "u", CompleteOpts { min_chars: 120, ..Default::default() }).unwrap().len(), 200);
     assert_eq!(calls.borrow().iter().map(|r| r.model.as_str()).collect::<Vec<_>>(), vec!["a/p:free", "b/q:free"]);
+    // a finish_reason overrides the length check: "stop" accepts a short answer, "length" is cut off
+    let reply = |text: &str, reason: &str| ChatResponse { finish_reason: Some(reason.into()), ..ChatResponse::text(text) };
+    let (s, _) = sdk(vec![Ok(reply("Start Sorokin.", "stop"))]);
+    let c = LLMClient::new(Some(&settings_with_key(Some("k"))), Some(s), Some("a/p:free"), Some(vec![]), 60.0);
+    assert_eq!(c.complete_text("s", "u", CompleteOpts { min_chars: 120, ..Default::default() }).unwrap(), "Start Sorokin.");
+    let (s, calls) = sdk(vec![Ok(reply(&"A".repeat(200), "length")), Ok(reply("Start Sorokin.", "stop"))]);
+    let c = LLMClient::new(Some(&settings_with_key(Some("k"))), Some(s), Some("a/p:free"), Some(vec!["b/q:free".into()]), 60.0);
+    assert_eq!(c.complete_text("s", "u", CompleteOpts { min_chars: 120, ..Default::default() }).unwrap(), "Start Sorokin.");
+    assert_eq!(calls.borrow().len(), 2);
     // auth errors do not fall back
     let (s, calls) = sdk(vec![Err(status(401, "no"))]);
     let c = LLMClient::new(None, Some(s), Some("a/p:free"), Some(vec!["b/q:free".into()]), 60.0);

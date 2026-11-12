@@ -7,7 +7,7 @@
 //! `fancy-regex` only for `_MONTH_PHRASE`, which has a negative lookahead).
 //! Dates are `chrono::NaiveDate`; `team_dates` is `Option<&[NaiveDate]>` (None / empty = no schedule).
 
-use std::sync::{LazyLock, OnceLock};
+use std::sync::{LazyLock, OnceLock, RwLock};
 
 use chrono::{Datelike, Duration, NaiveDate};
 use fancy_regex::Regex as FancyRegex;
@@ -268,13 +268,27 @@ impl SeasonLength {
     /// Read from the loaded schedule (team -> regular-season game dates): the most game dates any
     /// team has, over the days from the league's first game to its last. DEFAULT when it is empty.
     /// Python always assumed 82 games in 186 days; the 2026-27 schedule has 84 in 194.
+    /// A length pinned with [`pin_season_length`] wins over the schedule.
     pub fn of(schedule: &Map<String, Vec<NaiveDate>>) -> SeasonLength {
+        if let Some(pinned) = *PINNED_SEASON.read().unwrap_or_else(|e| e.into_inner()) {
+            return pinned;
+        }
         let mut all = schedule.values().flatten();
         let Some(&first) = all.next() else { return SeasonLength::DEFAULT };
         let (lo, hi) = all.fold((first, first), |(lo, hi), &d| (lo.min(d), hi.max(d)));
         let games = schedule.values().map(|ds| Dates::new(Some(ds)).0.len()).max().unwrap_or(0);
         SeasonLength { games: games as f64, days: ((hi - lo).num_days() + 1) as f64 }
     }
+}
+
+static PINNED_SEASON: RwLock<Option<SeasonLength>> = RwLock::new(None);
+
+/// Make every later [`SeasonLength::of`] in this process return `season` whatever the schedule
+/// says (None: read the schedule again). Only the Python parity tests and the CLI's hidden
+/// `--from-snapshot` mode use it: their fixtures were produced by code that assumed 82 games in
+/// 186 days, so they pin [`SeasonLength::DEFAULT`] to compare everything else exactly.
+pub fn pin_season_length(season: Option<SeasonLength>) {
+    *PINNED_SEASON.write().unwrap_or_else(|e| e.into_inner()) = season;
 }
 
 /// `set(team_dates)` sorted; empty = no schedule.

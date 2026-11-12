@@ -29,6 +29,12 @@ pub const MULTI_SEASON_WEIGHTS: [f64; 3] = [5.0, 4.0, 3.0];
 pub const PRIOR_SPLITS: [&str; 3] = ["prior", "prior2", "prior3"];
 pub const PROJECTION_BLEND_FULL_GP: i64 = 40;
 
+/// Counting stats that may be shrunk in season with their own k (`params::k_inseason_volume`)
+/// instead of the scoring stats' k. File 04 section 1 of the knowledge base: hits and blocked
+/// shots repeat year to year, and shot volume far more than shooting percentage. Penalty minutes
+/// are included as a volume stat too, though their fitted k came out slower, not faster.
+pub const VOLUME_STATS: [&str; 4] = ["SOG", "HIT", "BLK", "PIM"];
+
 pub const PRESEASON_STATS: [&str; 7] = ["G", "A", "PTS", "SOG", "PPP", "PPG", "PPA"];
 pub const PRESEASON_MAX_WEIGHT: f64 = 0.25;
 pub const PRESEASON_FULL_GP: i64 = 12;
@@ -84,6 +90,22 @@ pub fn projection_k(is_goalie: bool, params: Params) -> f64 {
 ///
 /// A stat missing from `cur` borrows the prior. A stat missing from the prior shrinks toward 0.
 pub fn shrink_toward(cur: &Rates, gp: f64, prior: &Rates, k: f64) -> Rates {
+    shrink_toward_by_stat(cur, gp, prior, |_| k)
+}
+
+/// Season-to-date rates shrunk toward `prior` in season: a skater volume stat with its own fitted
+/// k (`params::k_inseason_volume`) uses it, every other stat uses [`shrink_k`].
+///
+/// Departs from the Python, which used one k for every stat: shot, hit and block rates stabilise
+/// much sooner than scoring rates, and the per-stat k won out of sample in the in-season backtest.
+pub fn shrink_inseason(cur: &Rates, gp: f64, prior: &Rates, is_goalie: bool, params: Params) -> Rates {
+    let volume = if is_goalie { Map::new() } else { params::k_inseason_volume(params) };
+    let k = shrink_k(is_goalie, params);
+    shrink_toward_by_stat(cur, gp, prior, |stat| volume.get(stat).copied().unwrap_or(k))
+}
+
+/// [`shrink_toward`] with the k of each stat given by `k_of(stat)`.
+pub fn shrink_toward_by_stat(cur: &Rates, gp: f64, prior: &Rates, k_of: impl Fn(&str) -> f64) -> Rates {
     if gp <= 0.0 || cur.is_empty() {
         return prior.clone();
     }
@@ -94,6 +116,7 @@ pub fn shrink_toward(cur: &Rates, gp: f64, prior: &Rates, k: f64) -> Rates {
     let mut put = |key: &String| {
         let c = cur.get(key).copied().unwrap_or_else(|| prior.get(key).copied().unwrap_or(0.0));
         let p = prior.get(key).copied().unwrap_or(0.0);
+        let k = k_of(key);
         out.insert(key.clone(), (gp * c + k * p) / (gp + k));
     };
     for key in cur.keys() {
@@ -114,7 +137,7 @@ pub fn shrunk_rates(current: Option<&StatLine>, prior_or_proj: Option<&StatLine>
     if gp <= 0 {
         return prior;
     }
-    shrink_toward(&current.unwrap().per_game(), gp as f64, &prior, shrink_k(is_goalie, params))
+    shrink_inseason(&current.unwrap().per_game(), gp as f64, &prior, is_goalie, params)
 }
 
 /// Effective games behind a baseline line for shrinking it toward the positional mean.

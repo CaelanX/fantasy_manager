@@ -169,9 +169,12 @@ fn positional_need_swap_is_proposed() {
             .iter()
             .find(|r| r.counterparty.as_deref() == Some("Team A") && r.drop.iter().map(|p| p.cid.as_str()).collect::<Vec<_>>() == ["m_c2"])
             .expect("a C-for-D swap with Team A");
-        assert!(["a_d1", "a_d2"].contains(&top.add[0].cid.as_str()));
+        // m_c2 for a_d1 (their best D) is now below the plausibility floor: with the endowment
+        // premium (ACCEPT_X0 = 5) its acceptance is 0.20 < 0.25. The swap for a_d2 hands them more
+        // market worth than the free 5 points, so a MARKET_COST reason precedes THEIR_NEED.
+        assert_eq!(top.add[0].cid, "a_d2");
         let codes: Vec<&str> = top.reasons.iter().map(|r| r.code.as_str()).collect();
-        assert_eq!(&codes[..3], &["MY_EDGE", "MARKET_VIEW", "THEIR_NEED"]);
+        assert_eq!(&codes[..4], &["MY_EDGE", "MARKET_VIEW", "MARKET_COST", "THEIR_NEED"]);
         for c in ["P_ACCEPT", "ROSTER_CONSEQUENCE", "DELTA_ME", "DELTA_THEM", "FAIR_PCT"] {
             assert!(codes.contains(&c), "{c}");
         }
@@ -180,7 +183,11 @@ fn positional_need_swap_is_proposed() {
         assert!(edge.value.unwrap() > 0.3 && p >= 0.25 && edge.text.starts_with("You gain +"));
         let mv = &top.reason("MARKET_VIEW").unwrap().text;
         assert!(mv.contains("by market value") && mv.contains("acceptance ~"));
-        assert!(approx(top.score, edge.value.unwrap() * p));
+        // score = EV - overpay cost: they get 10.55 market worth points net of the +5 need bonus
+        // (MARKET_VIEW 15.55), 5.55 over the free 5, at 0.05 FPG each = 0.278
+        let cost = top.reason("MARKET_COST").unwrap().value.unwrap();
+        assert!(approx(cost, -OVERPAY_COST_FPG * (top.reason("MARKET_VIEW").unwrap().value.unwrap() - NEED_PTS - OVERPAY_FREE_PTS)));
+        assert!(approx(top.score, edge.value.unwrap() * p + cost));
         let scores: Vec<f64> = recs.iter().map(|r| r.score).collect();
         assert!(scores.windows(2).all(|w| w[0] >= w[1]));
     }
@@ -449,9 +456,12 @@ fn market_worth_package_and_logistic() {
     assert!(approx(package_value([60.0, 80.0]), 80.0 + DEPTH_WEIGHT * 60.0));
     assert_eq!(package_value(std::iter::empty()), 0.0);
     let a = AcceptParams::default();
-    assert!(approx(a.p(0.0), 0.5) && approx(a.p(10.0), 0.75) && approx(a.p(-10.0), 0.25));
+    // midpoint at the 5-point endowment premium: an offer even by market value is
+    // 1 / (1 + 3^0.5) = 0.366, a 5-point sweetener makes it a coin flip
+    assert!(approx(a.p(0.0), 1.0 / (1.0 + 3.0_f64.sqrt())) && a.p(0.0) < 0.37 && a.p(0.0) > 0.36);
+    assert!(approx(a.p(5.0), 0.5) && approx(a.p(15.0), 0.75) && approx(a.p(-5.0), 0.25));
     assert!(approx(a.p(60.0), a.ceiling) && a.p(-1e6) >= 0.0);
-    assert!(approx(a.perceived_for(0.25), -10.0) && approx(a.perceived_for(0.75), 10.0));
+    assert!(approx(a.perceived_for(0.25), -5.0) && approx(a.perceived_for(0.75), 15.0));
 }
 
 #[test]
@@ -471,6 +481,7 @@ fn team_standing_contenders_and_rebuilders() {
     assert!(team_standing(&ctx).is_empty());
 }
 
+/// (perceived, accepted) proposals; a declined one is `proposed` with its match window passed.
 struct FakeLedger(Vec<(f64, i64)>);
 
 impl LedgerQuery for FakeLedger {
@@ -481,7 +492,8 @@ impl LedgerQuery for FakeLedger {
                 .iter()
                 .enumerate()
                 .map(|(i, (_, y))| {
-                    json!({"league": "L", "rec_key": format!("k{i}"), "status": if *y == 1 { "followed" } else { "proposed" }})
+                    json!({"league": "L", "rec_key": format!("k{i}"), "status": if *y == 1 { "followed" } else { "proposed" },
+                           "match_json": if *y == 1 { "{}" } else { r#"{"window_passed": true}"# }})
                         .as_object()
                         .unwrap()
                         .clone()
@@ -520,6 +532,85 @@ fn calibrate_acceptance_keeps_the_prior_until_twenty_proposals() {
         .collect();
     let fit = calibrate_acceptance(&FakeLedger(obs), None, None, None);
     assert!(fit.n == 241 && fit.source.starts_with("fit on") && fit.x0 > 4.0 && fit.k > 0.0);
+}
+
+/// Like [`FakeLedger`], but every `proposed` episode is still inside its match window.
+struct PendingLedger(Vec<(f64, i64)>);
+
+impl LedgerQuery for PendingLedger {
+    fn query(&self, sql: &str, args: &[serde_json::Value]) -> anyhow::Result<Vec<Map<String, serde_json::Value>>> {
+        let mut rows = FakeLedger(self.0.clone()).query(sql, args)?;
+        if sql.contains("rec_episodes") {
+            for r in rows.iter_mut().filter(|r| r["status"] == "proposed") {
+                r.insert("match_json".into(), json!(r#"{"gave": ["x"]}"#));
+            }
+        }
+        Ok(rows)
+    }
+}
+
+#[test]
+fn pending_proposals_are_not_counted_as_declined() {
+    let obs = vec![(0.0, 1), (2.0, 0), (-4.0, 0)];
+    assert_eq!(acceptance_observations(&FakeLedger(obs.clone()), None), obs);
+    assert_eq!(acceptance_observations(&PendingLedger(obs), None), vec![(0.0, 1)]);
+}
+
+#[test]
+fn installed_acceptance_params_are_the_engine_default_for_their_league() {
+    assert_eq!(accept_params_for("accept-unset"), AcceptParams::default());
+    let fitted = AcceptParams { x0: 9.0, n: 25, source: "fit on 25 proposals".into(), ..AcceptParams::default() };
+    // a league key of its own: tests run in parallel and the others use "test"
+    let (mut ctx, values) = build();
+    ctx.provider = "accept-installed".into();
+    install_accept_params("accept-installed", fitted.clone());
+    let ev = eval(&ctx, &values, &["m_c2"], &["a_d1"], None, &greedy());
+    assert_eq!(ev.acceptance.as_ref().unwrap().params, fitted);
+    // an explicit `accept_params` still wins
+    let ev = eval(&ctx, &values, &["m_c2"], &["a_d1"], None, &EngineOpts { accept_params: Some(AcceptParams::default()), ..greedy() });
+    assert_eq!(ev.acceptance.as_ref().unwrap().params, AcceptParams::default());
+}
+
+#[test]
+fn offers_our_model_would_decline_in_their_seat_are_not_proposed() {
+    let (ctx, values) = build();
+    // m_c2 (C, 2.8) for a_d2 (D, 2.7): my D slot 0.4 -> 2.7 (+2.3); A's C slot 1.2 -> 2.8 (+1.6)
+    // and its D slot 2.7 -> 1.0 (-1.7), so A changes by -0.1: a close call, offered
+    let mut ev = eval(&ctx, &values, &["m_c2"], &["a_d2"], None, &greedy());
+    assert!((ev.delta_them + 0.1).abs() < 1e-9);
+    assert!(ev.accepted() && !ev.they_would_decline(), "{} {} {}", ev.my_edge(), ev.p(), ev.delta_them);
+    assert_eq!((ev.unit, ev.edge_error, ev.delta_dyn_n), (1.0, 0.0, 0.0));
+    // their lineup change below EVAL_DECLINE_EDGE (-0.3) with no error range: our verdict in their
+    // seat is "decline", so the offer is not listed
+    ev.delta_them = -0.31;
+    assert!(ev.they_would_decline() && !ev.accepted());
+    ev.delta_them = -0.29; // a close call for them, still offered
+    assert!(!ev.they_would_decline() && ev.accepted());
+    ev.delta_them = -0.5;
+    ev.edge_error = 0.6; // could still be a gain for them within the projection error
+    assert!(!ev.they_would_decline());
+    // in contend mode edge_error is the lineup error x (1 + 0.5): their lineup error is 0.4, and
+    // -0.5 + 0.4 < 0 is a decline
+    ev.mode = Some("contend");
+    assert!(ev.they_would_decline());
+    ev.mode = None;
+    ev.edge_error = 0.0;
+    ev.delta_dyn_n = -0.2; // I give up future value they may be buying: not judged on lineup alone
+    assert!(!ev.they_would_decline());
+    // a pick I add is compensation outside their lineup: a sweetened offer is not judged on it
+    // alone, even when my net future value stays >= 0
+    ev.delta_dyn_n = 0.0;
+    assert!(ev.they_would_decline());
+    ev.give_picks.push(pick("M", "M", 2027, 2));
+    assert!(!ev.they_would_decline());
+    ev.give_picks.clear();
+    // every listed proposal passes the test (no error ranges here, so their gain is >= -0.3)
+    let recs = recommend_trades(&ctx, &values, &opts_g(50, 10), None, Some(&mut Vec::new())).unwrap();
+    assert!(!recs.is_empty());
+    for r in &recs {
+        let them = r.reason("DELTA_THEM").and_then(|x| x.value).unwrap();
+        assert!(them >= EVAL_DECLINE_EDGE - 1e-9, "{} offered with their gain {them}", r.title);
+    }
 }
 
 #[test]
@@ -578,6 +669,45 @@ fn losing_near_even_and_bad_offers() {
     assert!(evaluate_offer(&ctx, &values, &[], &[], None, None, &[], &[], &greedy()).is_err());
     let e = evaluate_offer(&ctx, &values, &["m_c2"], &["a_d1"], None, None, &[], &[PickRef::Key("pick:2027:1:A".into())], &greedy());
     assert!(err(e).contains("dynasty"));
+}
+
+#[test]
+fn an_edge_whose_error_range_includes_zero_is_too_close_to_call() {
+    let (ctx, mut values) = build();
+    let sure = evaluate_offer(&ctx, &values, &["m_c2"], &["a_d1"], None, None, &[], &[], &greedy()).unwrap();
+    assert!(sure.verdict == "accept" && sure.ev.edge_error == 0.0);
+    let sure_edge = sure.ev.my_edge();
+    drop(sure);
+    // errors of 3 and 4 points per game add in quadrature to a range of +/- 5
+    values.get_mut("m_c2").unwrap().fpg_error = 3.0;
+    values.get_mut("a_d1").unwrap().fpg_error = 4.0;
+    let o = evaluate_offer(&ctx, &values, &["m_c2"], &["a_d1"], None, None, &[], &[], &greedy()).unwrap();
+    assert!(approx(o.ev.edge_error, 5.0) && approx(o.ev.my_edge(), sure_edge));
+    assert!(o.ev.my_edge() > EVAL_ACCEPT_EDGE && o.ev.my_edge() < 5.0);
+    assert_eq!(o.verdict, "counter");
+    assert!(o.why[0].starts_with("Too close to call") && o.why[0].contains(" to +"), "{:?}", o.why);
+    let s = offer_summary(&o);
+    let r = s["my_edge_range"].as_array().unwrap();
+    assert!(approx(r[1].as_f64().unwrap() - r[0].as_f64().unwrap(), 10.0));
+    // a losing offer whose range reaches above zero is not declined either
+    let lose = evaluate_offer(&ctx, &values, &["m_c1", "m_c2"], &["a_d3"], None, None, &[], &[], &greedy()).unwrap();
+    assert!(lose.ev.my_edge() < EVAL_DECLINE_EDGE && lose.ev.my_edge() + lose.ev.edge_error > 0.0);
+    assert_eq!(lose.verdict, "counter");
+}
+
+#[test]
+fn the_verdict_edges_scale_with_the_league_unit() {
+    let (ctx, values) = build();
+    let mut o = evaluate_offer(&ctx, &values, &["m_c2"], &["a_d1"], None, None, &[], &[], &greedy()).unwrap();
+    assert_eq!(super::offer::verdict(&o.ev).0, "accept");
+    // where a point is worth less, the same edge no longer clears the (scaled) accept edge
+    o.ev.unit = 2.0 * o.ev.my_edge() / EVAL_ACCEPT_EDGE;
+    assert_eq!(super::offer::verdict(&o.ev).0, "counter");
+    let mut lose = evaluate_offer(&ctx, &values, &["m_c1", "m_c2"], &["a_d3"], None, None, &[], &[], &greedy()).unwrap();
+    assert_eq!(super::offer::verdict(&lose.ev).0, "decline");
+    // ... and the same loss no longer reaches the (scaled) decline edge
+    lose.ev.unit = 2.0 * lose.ev.my_edge() / EVAL_DECLINE_EDGE;
+    assert_eq!(super::offer::verdict(&lose.ev).0, "counter");
 }
 
 fn named(cid: &str, name: &str, team: &str) -> Player {
@@ -895,4 +1025,100 @@ fn shop_and_acquire_reject_players_on_the_wrong_side() {
     assert!(err(shop_player(&ctx, &values, "a_d1", None, &greedy(), 10)).contains("not on your roster"));
     assert!(err(acquire_player(&ctx, &values, "m_c1", None, &greedy(), 10)).contains("another team"));
     assert!(err(acquire_player(&ctx, &values, "fa_c", None, &greedy(), 10)).contains("another team"));
+}
+
+/// Gap D7 (`docs/knowledge/06-trade-strategy.md` implication 17): a bench goalie and a bench
+/// winger for one better centre. Daily lineups over six days of schedule (C 1, LW 1, G 2, BN 2):
+///
+/// * before: m_c 2.0 starts 4/4, m_lw 1.5 4/4, m_lw2 1.0 starts both CAR days when EDM is idle,
+///   g1 2.0 2/2, g2 1.6 2/2, the third goalie g3 1.2 3/3 (one of the top two is idle each of his
+///   days): 2.0 + 1.5 + 1.0 + 2.0 + 1.6 + 1.2 = 9.3 per team game.
+/// * after: a_c 3.0 starts 4/4 and m_c only on the 2 of his 4 days a_c is idle (1.0), m_lw 1.5,
+///   g1 2.0, g2 1.6: 9.1.
+///
+/// The centre upgrade (+2.0) is smaller than the winger and goalie-slot loss (1.0 + 1.2), so the
+/// gain is -0.2 and the trade is not accepted. With a weekly lock the bench never plays and the
+/// best-lineup sum gives +1.0 (3.0 + 1.5 + 2.0 + 1.6 against 2.0 + 1.5 + 2.0 + 1.6).
+#[test]
+fn bench_goalie_and_winger_for_a_centre_counts_their_started_games() {
+    let sh = [("C", 1), ("LW", 1), ("G", 2), ("BN", 2)];
+    let mk = |cid: &str, pos: &str, team: &str| -> Player {
+        serde_json::from_value(json!({"cid": cid, "name": cid, "name_norm": cid, "ids": {}, "team": team,
+                                      "positions": [pos], "status": "healthy"}))
+        .unwrap()
+    };
+    let rows: [(&str, &str, &str, &str, &str, f64); 10] = [
+        ("me", "C", "m_c", "C", "EDM", 2.0),
+        ("me", "LW", "m_lw", "LW", "EDM", 1.5),
+        ("me", "G", "g1", "G", "TOR", 2.0),
+        ("me", "G", "g2", "G", "BOS", 1.6),
+        ("me", "BN", "g3", "G", "NYR", 1.2),
+        ("me", "BN", "m_lw2", "LW", "CAR", 1.0),
+        ("A", "C", "a_c", "C", "COL", 3.0),
+        ("A", "LW", "a_lw", "LW", "COL", 1.0),
+        ("A", "G", "a_g1", "G", "COL", 1.0),
+        ("A", "G", "a_g2", "G", "COL", 0.9),
+    ];
+    let mut values = Map::new();
+    let mut by_team: Map<String, Vec<(&str, Player)>> = Map::new();
+    for (tid, slot, cid, pos, nhl, f) in rows {
+        let p = mk(cid, pos, nhl);
+        values.insert(cid.to_string(), pv(&p, f));
+        by_team.entry(tid.to_string()).or_default().push((slot, p));
+    }
+    let teams: Vec<FantasyTeam> = by_team.into_iter().map(|(tid, e)| team(&tid, &tid, tid == "me", e)).collect();
+    let mut ctx = ctx_of(teams, vec![], &sh);
+    let day = |k: u32| chrono::NaiveDate::from_ymd_opt(2026, 10, 1 + k).unwrap();
+    for (nhl, days) in [("EDM", &[0, 1, 2, 3][..]), ("TOR", &[0, 1]), ("BOS", &[0, 2]), ("NYR", &[1, 2, 3]), ("CAR", &[4, 5]), ("COL", &[0, 2, 4, 5])] {
+        ctx.schedule.insert(nhl.to_string(), days.iter().map(|&k| day(k)).collect());
+    }
+    {
+        let ev = eval(&ctx, &values, &["g3", "m_lw2"], &["a_c"], None, &EngineOpts::default());
+        assert!(approx(ev.delta_me, -0.2), "{}", ev.delta_me);
+        assert!(!ev.accepted());
+    }
+    ctx.lineup_lock = Some(fm_core::models::LineupLock::Weekly);
+    let ev = eval(&ctx, &values, &["g3", "m_lw2"], &["a_c"], None, &EngineOpts::default());
+    assert!(approx(ev.delta_me, 1.0), "{}", ev.delta_me);
+}
+
+/// Daily lineups, C 1, LW 1, BN 2. Getting two for one forces me to drop a bench player. The LW
+/// b_lw (0.3, CAR) starts both of his games, on the days EDM is idle; the C b_c (0.5, TOR) never
+/// starts, as m_c (EDM) holds the only C slot on all of TOR's days. Dropping b_c costs nothing,
+/// so he goes, though the lowest-FPG bench player is b_lw: my gain is a_lw over m_lw, +1.0
+/// (dropping b_lw would also lose his 0.3).
+#[test]
+fn forced_drop_is_the_bench_player_who_starts_least() {
+    let sh = [("C", 1), ("LW", 1), ("BN", 2)];
+    let mk = |cid: &str, pos: &str, team: &str| -> Player {
+        serde_json::from_value(json!({"cid": cid, "name": cid, "name_norm": cid, "ids": {}, "team": team,
+                                      "positions": [pos], "status": "healthy"}))
+        .unwrap()
+    };
+    let rows: [(&str, &str, &str, &str, &str, f64); 7] = [
+        ("me", "C", "m_c", "C", "EDM", 2.0),
+        ("me", "LW", "m_lw", "LW", "EDM", 1.5),
+        ("me", "BN", "b_lw", "LW", "CAR", 0.3),
+        ("me", "BN", "b_c", "C", "TOR", 0.5),
+        ("A", "LW", "a_lw", "LW", "EDM", 2.5),
+        ("A", "BN", "a_c2", "C", "EDM", 0.2),
+        ("A", "C", "a_c", "C", "COL", 1.0),
+    ];
+    let mut values = Map::new();
+    let mut by_team: Map<String, Vec<(&str, Player)>> = Map::new();
+    for (tid, slot, cid, pos, nhl, f) in rows {
+        let p = mk(cid, pos, nhl);
+        values.insert(cid.to_string(), pv(&p, f));
+        by_team.entry(tid.to_string()).or_default().push((slot, p));
+    }
+    let teams: Vec<FantasyTeam> = by_team.into_iter().map(|(tid, e)| team(&tid, &tid, tid == "me", e)).collect();
+    let mut ctx = ctx_of(teams, vec![], &sh);
+    let day = |k: u32| chrono::NaiveDate::from_ymd_opt(2026, 10, 1 + k).unwrap();
+    for (nhl, days) in [("EDM", &[0, 1, 2, 3][..]), ("TOR", &[0, 1, 2, 3]), ("CAR", &[4, 5]), ("COL", &[0, 2, 4])] {
+        ctx.schedule.insert(nhl.to_string(), days.iter().map(|&k| day(k)).collect());
+    }
+    let ev = eval(&ctx, &values, &["m_lw"], &["a_lw", "a_c2"], None, &EngineOpts::default());
+    let drops: Vec<&str> = ev.my_drops.iter().map(|p| p.cid.as_str()).collect();
+    assert_eq!(drops, ["b_c"]);
+    assert!(approx(ev.delta_me, 1.0), "{}", ev.delta_me);
 }

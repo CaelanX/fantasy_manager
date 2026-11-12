@@ -128,6 +128,9 @@ pub struct Settings {
     pub fantrax_keeper_horizon_years: i64,
     pub fantrax_keepers: Option<i64>,
     pub fantrax_mode: DynastyMode,
+    /// Fill each Fantrax player's average draft position from the official API (`getAdp`). Off by
+    /// default: it adds a new input to the market value, so the owner turns it on deliberately.
+    pub fantrax_use_adp: bool,
     // LLM / notifications
     pub openrouter_api_key: Option<Secret>,
     pub fm_llm_model: String,
@@ -136,6 +139,9 @@ pub struct Settings {
     /// an OpenAI-compatible server to use instead of OpenRouter (e.g. Ollama's
     /// `http://localhost:11434/v1`); no API key or free-only guard applies to it
     pub fm_llm_base_url: Option<String>,
+    /// context window, in tokens, of the model behind `fm_llm_base_url` (Ollama's `OLLAMA_CONTEXT_LENGTH`);
+    /// the Ask chat prompt is cut to fit it
+    pub fm_llm_context_tokens: i64,
     pub discord_webhook_url: Option<Secret>,
     pub slack_webhook_url: Option<Secret>,
     // odds
@@ -174,11 +180,13 @@ impl Default for Settings {
             fantrax_keeper_horizon_years: 3,
             fantrax_keepers: None,
             fantrax_mode: DynastyMode::Balanced,
+            fantrax_use_adp: false,
             openrouter_api_key: None,
             fm_llm_model: "openrouter/free".into(),
             fm_llm_fallbacks: String::new(),
             fm_llm_allow_paid: false,
             fm_llm_base_url: None,
+            fm_llm_context_tokens: 16384,
             discord_webhook_url: None,
             slack_webhook_url: None,
             odds_api_key: None,
@@ -288,6 +296,9 @@ impl Settings {
                 ))
             })?;
         }
+        if let Some(v) = get("fantrax_use_adp") {
+            s.fantrax_use_adp = parse_bool("fantrax_use_adp", &v)?;
+        }
         s.openrouter_api_key = secret(get("openrouter_api_key"));
         if let Some(v) = get("fm_llm_model") {
             s.fm_llm_model = v;
@@ -299,6 +310,9 @@ impl Settings {
             s.fm_llm_allow_paid = parse_bool("fm_llm_allow_paid", &v)?;
         }
         s.fm_llm_base_url = get("fm_llm_base_url");
+        if let Some(v) = get("fm_llm_context_tokens") {
+            s.fm_llm_context_tokens = parse_int("fm_llm_context_tokens", &v)?;
+        }
         s.discord_webhook_url = secret(get("discord_webhook_url"));
         s.slack_webhook_url = secret(get("slack_webhook_url"));
         s.odds_api_key = secret(get("odds_api_key"));

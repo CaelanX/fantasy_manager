@@ -415,7 +415,12 @@ pub fn outlook_cmd(cli: &mut Cli, a: &OutlookArgs) -> Result<()> {
         say(format!("  - {r}"));
     }
     let mut tbl = Table::new("League outlook (best lineup per game; playoff odds approximate)");
-    tbl.cols(&[("Team", L), ("Record", R), ("Now", R), ("#", R)]);
+    tbl.cols(&[("Team", L), ("Record", R)]);
+    let luck = o.teams.iter().any(|r| r.luck.is_some());
+    if luck {
+        tbl.cols(&[("All-play", R), ("xW", R), ("PF", R), ("PF #", R)]);
+    }
+    tbl.cols(&[("Now", R), ("#", R)]);
     if o.dynasty {
         for y in 1..=FUTURE_YEARS {
             tbl.col(format!("+{y}y"), R);
@@ -426,7 +431,19 @@ pub fn outlook_cmd(cli: &mut Cli, a: &OutlookArgs) -> Result<()> {
     for r in &o.teams {
         let name = if r.mine() { format!("{} (me)", r.team.name) } else { r.team.name.clone() };
         let record = r.record.map(|(w, l, t)| format!("{w}-{l}-{t}")).unwrap_or_else(|| "-".into());
-        let mut row = vec![name, record, fixed(r.now, 1, false), r.now_rank.to_string()];
+        let mut row = vec![name, record];
+        if luck {
+            match r.luck {
+                Some(l) => row.extend([
+                    format!("{}-{}-{}", l.all_play.0, l.all_play.1, l.all_play.2),
+                    fixed(l.expected_wins, 1, false),
+                    fixed(l.points_for, 1, false),
+                    l.pf_rank.to_string(),
+                ]),
+                None => row.extend(["-".to_string(), "-".to_string(), "-".to_string(), "-".to_string()]),
+            }
+        }
+        row.extend([fixed(r.now, 1, false), r.now_rank.to_string()]);
         if o.dynasty {
             row.extend(r.future.iter().map(|x| fixed(*x, 1, false)));
             row.push(r.future_rank.map(|x| x.to_string()).unwrap_or_else(|| "-".into()));

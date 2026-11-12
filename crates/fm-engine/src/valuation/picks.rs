@@ -17,8 +17,8 @@ use fm_pycompat::order::{cmp_f64, sort_desc_by};
 
 use super::adjust::SeasonLength;
 use super::dynasty::{
-    age_on, apply_dynasty, healthy_fpg, keeper_count, min_replacement_fpg, mode_weights, position_group,
-    ProductionCurves, DISCOUNT,
+    age_on, apply_dynasty, healthy_fpg, keeper_count, min_replacement_fpg, mode_weights, own_replacement, position_group,
+    positional_off, ProductionCurves, DISCOUNT,
 };
 use super::rookie::is_unproven;
 use super::valuate::replacement_for;
@@ -183,24 +183,69 @@ pub fn keeper_slot_curve(
     values: &Map<String, PlayerValue>,
     dynasty_values: &Map<String, DynastyValue>,
 ) -> Vec<f64> {
+    keeper_pool(ctx, values, dynasty_values).into_iter().map(|(v, _)| v).collect()
+}
+
+/// The redraft pool of [`keeper_slot_curve`] as (w_1 x next-season value, w_1 x the replacement
+/// level of the player's own VORP slot), best value first.
+fn keeper_pool(
+    ctx: &LeagueContext,
+    values: &Map<String, PlayerValue>,
+    dynasty_values: &Map<String, DynastyValue>,
+) -> Vec<(f64, f64)> {
     let curves = ProductionCurves::current();
     let rostered: HashSet<&str> = ctx.teams.iter().flat_map(|t| t.players_iter()).map(|p| p.cid.as_str()).collect();
+    let levels = replacement_for(ctx, values, Horizon::Season);
     let w1 = next_season_weight(ctx);
-    let mut pool: Vec<f64> = Vec::new();
+    let mut pool: Vec<(f64, f64)> = Vec::new();
     for (cid, pv) in values {
         let dv = dynasty_values.get(cid);
         if rostered.contains(cid.as_str()) && dv.is_some_and(|d| d.keeper) {
             continue;
         }
-        pool.push(next_season_fpg_with(&curves, ctx, pv, dv));
+        pool.push((next_season_fpg_with(&curves, ctx, pv, dv), own_replacement(&pv.player, &levels).1));
     }
-    sort_desc_by(&mut pool, |a, b| cmp_f64(*a, *b));
-    pool.into_iter().map(|v| w1 * v).collect()
+    sort_desc_by(&mut pool, |a, b| cmp_f64(a.0, b.0));
+    pool.into_iter().map(|(v, r)| (w1 * v, w1 * r)).collect()
 }
 
 /// Keeper leagues: next season's value of the roster spot a draftee takes, repl x w_1.
 pub fn keeper_spot_value(ctx: &LeagueContext, values: &Map<String, PlayerValue>) -> f64 {
     min_replacement_fpg(ctx, values) * next_season_weight(ctx)
+}
+
+/// Keeper leagues: the roster-spot cost of each redraft pick, aligned with [`keeper_slot_curve`]:
+/// w_1 x the replacement level of the drafted player's own VORP slot, so a pick's net is measured
+/// over the same positional spot a kept player's surplus is. Unlike Python, which netted every
+/// pick against [`keeper_spot_value`] (the league's lowest level). None while the positional
+/// dynasty rules are off, which means that flat spot.
+pub fn keeper_spot_curve(
+    ctx: &LeagueContext,
+    values: &Map<String, PlayerValue>,
+    dynasty_values: &Map<String, DynastyValue>,
+) -> Option<Vec<f64>> {
+    if positional_off() {
+        return None;
+    }
+    Some(keeper_pool(ctx, values, dynasty_values).into_iter().map(|(_, s)| s).collect())
+}
+
+/// A pick's roster-spot cost: with `spot_curve`, the expected positional spot of its draftee,
+/// priced like the pick itself ([`pick_value`]); without one, the flat `spot` discounted to the
+/// pick's year.
+pub fn pick_spot_cost(
+    spot_curve: Option<&[f64]>,
+    spot: f64,
+    n_teams: i64,
+    rnd: i64,
+    slot: f64,
+    years_ahead: i64,
+    elapsed: f64,
+) -> f64 {
+    match spot_curve {
+        Some(sc) => pick_value(sc, n_teams, rnd, slot, years_ahead, elapsed),
+        None => spot * DISCOUNT.powf(years_ahead as f64),
+    }
 }
 
 pub fn curve_at(curve: &[f64], overall: i64) -> f64 {
@@ -296,8 +341,8 @@ pub fn value_picks(
     let names: Map<&str, &str> = ctx.teams.iter().map(|t| (t.team_id.as_str(), t.name.as_str())).collect();
     let n = ctx.teams.len().max(1) as i64;
     let first = rows.iter().map(|r| r.1).min().expect("rows");
-    let (curve, spot) = if keeper_count(ctx).is_none() {
-        (slot_curve(ctx, &dyn_values), roster_spot_value(ctx, values))
+    let (curve, spot, spot_curve) = if keeper_count(ctx).is_none() {
+        (slot_curve(ctx, &dyn_values), roster_spot_value(ctx, values), None)
     } else {
         // `_has_keeper_flags`: typed DynastyValues always carry the flag; an empty map is recomputed
         let recomputed;
@@ -307,7 +352,7 @@ pub fn value_picks(
         } else {
             dynasty_values
         };
-        (keeper_slot_curve(ctx, values, full), keeper_spot_value(ctx, values))
+        (keeper_slot_curve(ctx, values, full), keeper_spot_value(ctx, values), keeper_spot_curve(ctx, values, full))
     };
     let el = elapsed(ctx);
     let mut slots: Map<i64, Map<String, f64>> = Map::new();
@@ -330,7 +375,7 @@ pub fn value_picks(
             overall: (rnd - 1) as f64 * n as f64 + slot,
             value,
             inferred,
-            net: (value - spot * DISCOUNT.powf(ahead as f64)).max(0.0),
+            net: (value - pick_spot_cost(spot_curve.as_deref(), spot, n, rnd, slot, ahead, el)).max(0.0),
         });
     }
     out.sort_by(|a, b| cmp_f64(-a.value, -b.value).then(a.year.cmp(&b.year)).then(a.round.cmp(&b.round)));
@@ -556,6 +601,39 @@ mod tests {
             close(a.net, (a.value - repl * 0.8 * DISCOUNT.powi(a.years_ahead as i32)).max(0.0));
         }
         assert!(picks.iter().any(|a| a.net > 0.0));
+    }
+
+    #[test]
+    fn keeper_pick_net_is_over_the_draftees_own_positional_spot() {
+        let (mut c, vals, mut dynv) = build(None, None);
+        c.keepers_per_team = Some(1);
+        for dv in dynv.values_mut() {
+            dv.keeper = false;
+        }
+        let levels = replacement_for(&c, &vals, Horizon::Season);
+        let w1 = next_season_weight(&c);
+        let curve = keeper_slot_curve(&c, &vals, &dynv);
+        let spots = keeper_spot_curve(&c, &vals, &dynv).unwrap();
+        // every pool player's spot is w_1 x his own slot's level, in the slot curve's order
+        let mut pairs: Vec<(f64, f64)> = vals
+            .values()
+            .map(|pv| (w1 * next_season_fpg(&c, pv, dynv.get(&pv.player.cid)), w1 * own_replacement(&pv.player, &levels).1))
+            .collect();
+        sort_desc_by(&mut pairs, |a, b| cmp_f64(a.0, b.0));
+        assert_eq!((curve.len(), spots.len()), (pairs.len(), pairs.len()));
+        for (i, (v, s)) in pairs.iter().enumerate() {
+            close(curve[i], *v);
+            close(spots[i], *s);
+        }
+        // the levels differ by position, so some draftees cost more than the league's lowest spot
+        let lo = keeper_spot_value(&c, &vals);
+        assert!(spots.iter().all(|s| *s >= lo - 1e-12) && spots.iter().any(|s| *s > lo + 1e-9));
+        let picks = value_picks(&c, &vals, Some(&dynv));
+        assert!(!picks.is_empty());
+        for a in &picks {
+            let cost = pick_value(&spots, 3, a.round, a.expected_slot, a.years_ahead, elapsed(&c));
+            close(a.net, (a.value - cost).max(0.0));
+        }
     }
 
     #[test]

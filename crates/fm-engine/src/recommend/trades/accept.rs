@@ -7,6 +7,9 @@ use fm_core::Map;
 use fm_pycompat::num::py_sum;
 use fm_pycompat::order::{cmp_f64, sort_desc_by};
 use serde_json::Value;
+use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::RwLock;
 
 use super::{ACCEPT_K, ACCEPT_X0, CALIBRATION_MIN_N, DEPTH_WEIGHT, MARKET_CONVEXITY, PICK_CONTENDER_MULT, PICK_REBUILDER_MULT, P_CEILING};
 use crate::recommend::market::{pick_percentile, MarketPool};
@@ -48,8 +51,23 @@ pub struct AcceptParams {
 
 impl Default for AcceptParams {
     fn default() -> Self {
-        AcceptParams { x0: ACCEPT_X0, k: ACCEPT_K, ceiling: P_CEILING, n: 0, source: "prior".to_string() }
+        let x0 = if python_acceptance() { 0.0 } else { ACCEPT_X0 };
+        AcceptParams { x0, k: ACCEPT_K, ceiling: P_CEILING, n: 0, source: "prior".to_string() }
     }
+}
+
+static PYTHON_ACCEPTANCE: AtomicBool = AtomicBool::new(false);
+
+/// Restore Python's acceptance model (true) or this port's (false) for every later call in this
+/// process: an even offer at 50% (midpoint 0 instead of ACCEPT_X0) and no check of the deal from
+/// the other manager's seat (`TradeEval::they_would_decline`). Only the Python parity tests and
+/// the CLI's hidden `--from-snapshot` mode turn it on.
+pub fn pin_python_acceptance(on: bool) {
+    PYTHON_ACCEPTANCE.store(on, Ordering::Relaxed);
+}
+
+pub fn python_acceptance() -> bool {
+    PYTHON_ACCEPTANCE.load(Ordering::Relaxed)
 }
 
 impl AcceptParams {
@@ -125,10 +143,13 @@ pub trait LedgerQuery {
 }
 
 /// (perceived fairness, accepted) per logged trade proposal (MARKET_VIEW value of the episode's
-/// first logged rec); [] on any ledger error.
+/// first logged rec); [] on any ledger error. A `proposed` episode counts as declined only once its
+/// match window has passed (`window_passed` in `match_json`); Python also counted proposals that
+/// were still pending as declined.
 pub fn acceptance_observations(ledger: &dyn LedgerQuery, league: Option<&str>) -> Vec<(f64, i64)> {
-    let mut sql = "SELECT league, rec_key, status FROM rec_episodes WHERE kind='trade' AND status IN ('proposed','followed')"
-        .to_string();
+    let mut sql =
+        "SELECT league, rec_key, status, match_json FROM rec_episodes WHERE kind='trade' AND status IN ('proposed','followed')"
+            .to_string();
     let mut args: Vec<Value> = Vec::new();
     if let Some(l) = league.filter(|l| !l.is_empty()) {
         sql += " AND league=?";
@@ -137,6 +158,10 @@ pub fn acceptance_observations(ledger: &dyn LedgerQuery, league: Option<&str>) -
     let run = || -> anyhow::Result<Vec<(f64, i64)>> {
         let mut out = Vec::new();
         for ep in ledger.query(&sql, &args)? {
+            let followed = ep.get("status").and_then(|s| s.as_str()) == Some("followed");
+            if !followed && !window_passed(ep.get("match_json")) {
+                continue; // still pending: neither accepted nor declined yet
+            }
             let rows = ledger.query(
                 "SELECT reasons_json FROM recs WHERE league=? AND rec_key=? ORDER BY as_of LIMIT 1",
                 &[ep.get("league").cloned().unwrap_or(Value::Null), ep.get("rec_key").cloned().unwrap_or(Value::Null)],
@@ -154,13 +179,21 @@ pub fn acceptance_observations(ledger: &dyn LedgerQuery, league: Option<&str>) -
             });
             // `isinstance(x, (int, float))` (a JSON bool is not a number here)
             if let Some(x) = x.as_ref().and_then(|v| v.as_f64()) {
-                let followed = ep.get("status").and_then(|s| s.as_str()) == Some("followed");
                 out.push((x, if followed { 1 } else { 0 }));
             }
         }
         Ok(out)
     };
     run().unwrap_or_default()
+}
+
+/// Whether an episode's `match_json` (a JSON object as text) says its match window has passed.
+fn window_passed(match_json: Option<&Value>) -> bool {
+    match_json
+        .and_then(|v| v.as_str())
+        .and_then(|t| serde_json::from_str::<Value>(t).ok())
+        .and_then(|m| m.get("window_passed").and_then(|b| b.as_bool()))
+        .unwrap_or(false)
 }
 
 /// Logistic parameters for `p_accept` from logged observations: the prior (with `n`) until
@@ -205,4 +238,22 @@ pub fn calibrate_acceptance(ledger: &dyn LedgerQuery, league: Option<&str>, min_
     let obs = acceptance_observations(ledger, league);
     let default = AcceptParams::default();
     calibrate_from(&obs, min_n.unwrap_or(CALIBRATION_MIN_N), prior.unwrap_or(&default))
+}
+
+/// Acceptance parameters installed per league (key: `LeagueContext.provider`) by the loader from
+/// the harness ledger; see [`install_accept_params`].
+static INSTALLED: RwLock<Option<BTreeMap<String, AcceptParams>>> = RwLock::new(None);
+
+/// Install the acceptance parameters every later trade evaluation of `league` uses when the caller
+/// passes none (`EngineOpts::accept_params`): the loader installs `calibrate_acceptance`'s result,
+/// which is the prior until CALIBRATION_MIN_N real proposals are recorded.
+pub fn install_accept_params(league: &str, params: AcceptParams) {
+    let mut g = INSTALLED.write().unwrap_or_else(|e| e.into_inner());
+    g.get_or_insert_with(BTreeMap::new).insert(league.to_string(), params);
+}
+
+/// The installed acceptance parameters of `league`, else the prior.
+pub fn accept_params_for(league: &str) -> AcceptParams {
+    let g = INSTALLED.read().unwrap_or_else(|e| e.into_inner());
+    g.as_ref().and_then(|m| m.get(league)).cloned().unwrap_or_default()
 }

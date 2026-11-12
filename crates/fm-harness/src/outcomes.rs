@@ -28,12 +28,15 @@ use fm_pycompat::num::{py_sum, round_to};
 use serde_json::{json, Value};
 use sha1::{Digest, Sha1};
 
-use crate::episode_match::{first_lockable_day, load_episodes};
+use crate::episode_match::{first_lockable_day, lineup_lock, load_episodes};
 use crate::ledger::{json_dumps, now_iso, Ledger, Row};
 
 pub const ROS: &str = "ros";
-/// an NHL team's regular season: 82 games in ~186 days
-pub const GAMES_PER_DAY: f64 = 82.0 / 186.0;
+/// An NHL team's games per day in the regular season the ledger grades. The harness has no
+/// schedule, so this is the 2026-27 season: 84 games per team from 29 Sep 2026 to 10 Apr 2027,
+/// 194 days (docs/knowledge/05-in-season-management.md; the loaded schedule agrees). Python used
+/// 82 games in 186 days.
+pub const GAMES_PER_DAY: f64 = 84.0 / 194.0;
 pub const REPLACEMENT_N: usize = 5;
 pub const FLAG_KINDS: [&str; 2] = ["sell_high", "buy_low"];
 /// regular season over by April 30 (ros windows complete after)
@@ -586,19 +589,23 @@ fn obj(pairs: Vec<(&str, Value)>) -> serde_json::Map<String, Value> {
     pairs.into_iter().map(|(k, v)| (k.to_string(), v)).collect()
 }
 
+/// Grade one subject. `lock` is the league's lineup lock ("daily" or "weekly"): a weekly-locked
+/// lineup rec is graded over the whole locked week from the next Monday, a daily one from its own
+/// day on the days both sides played. Python chose between the two by provider (Fantrax =
+/// weekly); this port uses the league's lock, because a Fantrax league can lock daily.
 pub fn grade_subject(
     s: &Subject,
     players: &Players,
     realized: &Realized,
     as_of: NaiveDate,
     sc: &PointsScoring,
-    provider: &str,
+    lock: &str,
     mut repl_cache: Option<&mut ReplCache>,
 ) -> Vec<Row> {
     let mut out: Vec<Row> = Vec::new();
     let units = s.gain_units.as_deref();
     if s.kind == "lineup" {
-        let start = if provider == "fantrax" { first_lockable_day("fantrax", s.day) } else { s.day };
+        let start = first_lockable_day(lock, s.day);
         // a daily start/sit (day_pts) is about that day only
         let days: i64 = if units == Some("day_pts") { 1 } else { 7 };
         let Some(w) = make_window("7d", start, start + Duration::days(days - 1), as_of, realized) else {
@@ -617,14 +624,14 @@ pub fn grade_subject(
             let n = w.graded.iter().filter(|d| s.adds.iter().any(|c| realized.day(nid(c), **d).0 != 0)).count() as i64;
             shared = n;
             gain = if n != 0 { Some(pts_of(players, realized, &s.adds, &w.graded).0) } else { None };
-        } else if provider == "fantrax" {
+        } else if lock == "weekly" {
             // weekly lock: the whole locked week counts
             let (p_in, g_in, _) = pts_of(players, realized, &s.adds, &w.graded);
             let (p_out, g_out, _) = pts_of(players, realized, &s.drops, &w.graded);
             gain = if g_in + g_out != 0 { Some(p_in - p_out) } else { None };
             shared = w.graded.len() as i64;
         } else {
-            // ESPN daily: only days both sides played
+            // daily lock: only days both sides played
             let (mut g, mut sh) = (0.0, 0);
             for d in &w.graded {
                 let ins: Vec<(i64, f64)> = s.adds.iter().map(|c| realized.day(nid(c), *d)).collect();
@@ -644,7 +651,7 @@ pub fn grade_subject(
         let detail = obj(vec![
             ("shared_days", json!(shared)),
             ("unmatched", json!(unmatched)),
-            ("lock", json!(provider == "fantrax")),
+            ("lock", json!(lock == "weekly")),
         ]);
         out.push(row_of(s, &w, gain, hit_of(gain), pp, detail, None, None));
         return out;
@@ -973,9 +980,10 @@ pub fn grade_outcomes(ledger: &Ledger, league: &str, as_of: NaiveDate) -> Result
     let first = subjects.iter().map(|s| s.day).min().unwrap_or(as_of);
     let realized = Realized::new(ledger, &sc, Some(first), Some(as_of))?;
     let mut repl_cache = ReplCache::new();
+    let lock = lineup_lock(ledger, league, league)?;
     let mut rows: Vec<Row> = Vec::new();
     for s in &subjects {
-        let mut graded = grade_subject(s, &players, &realized, as_of, &sc, league, Some(&mut repl_cache));
+        let mut graded = grade_subject(s, &players, &realized, as_of, &sc, lock, Some(&mut repl_cache));
         if s.origin == "user_only" && !graded.is_empty() {
             attach_alternative(s, &mut graded, &subjects, &players, &realized, &mut repl_cache)?;
         }

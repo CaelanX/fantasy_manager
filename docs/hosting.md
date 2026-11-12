@@ -291,7 +291,7 @@ To move to a new server, run the installer there, copy `.env`, and restore the n
 
 ## Refreshing the Fantrax cookie remotely
 
-Fantrax has no API keys, so the server needs a logged-in session. The saved session is in `data/fantrax_session.json`. The daily `fm auth fantrax --ping` keeps it alive, and with `FANTRAX_USERNAME` / `FANTRAX_PASSWORD` set the tool logs in again by itself when it expires.
+Fantrax's official API needs no key or login, and the tool reads the league's scoring, roster limits, calendar, picks, standings and current score from it. Player statistics, free agents and transactions exist only on Fantrax's private endpoint, so the server still needs a logged-in session. The saved session is in `data/fantrax_session.json`. The daily `fm auth fantrax --ping` keeps it alive, and with `FANTRAX_USERNAME` / `FANTRAX_PASSWORD` set the tool logs in again by itself when it expires.
 
 **Captcha caveat.** Fantrax's login page uses reCAPTCHA. A scripted login from a datacenter IP address (any VPS) is much more likely to be rejected than one from your home connection. When that happens, the error mentions `BAD_INTERACTION` and `auth.log` shows the failed ping. The tool never tries to get around the captcha. So **keep a copied browser cookie in `FANTRAX_COOKIE` as a fallback** even when you use the username and password: its `FX_RM` "remember me" part lasts a long time.
 

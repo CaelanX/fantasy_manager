@@ -380,3 +380,80 @@ pub fn gsax_rates(
     }
     (out, Some(before), Some(after))
 }
+
+/// Goalie per-game rates with the team-dependent parts taken from his current team: `W =
+/// wins_per_start x starts per game` and `SA = shots_per_start x starts per game`, where starts per
+/// game is his own GS rate (1 without one, capped at 1). His own save % (SV / (SV + GA), else
+/// SV / SA or 1 - GA / SA) is kept, so `SV = SA x sv`, `GA = SA x (1 - sv)` and GAA scales with GA. Only keys already in
+/// `rates` change; without a W rate they are returned unchanged. Not in the Python.
+pub fn apply_team_goalie_rates(rates: &Map<String, f64>, wins_per_start: f64, shots_per_start: f64) -> Map<String, f64> {
+    let mut out = rates.clone();
+    if !out.contains_key("W") {
+        return out;
+    }
+    let per_gp = out.get("GS").copied().unwrap_or(1.0).clamp(0.0, 1.0);
+    out.insert("W".to_string(), wins_per_start * per_gp);
+    // SV + GA first: blended rates can carry an SA rate from different lines than SV and GA (a
+    // Fantrax projection has no SA), and his save % must come from the same shots as his saves
+    let sa_old = (|| Some(out.get("SV")? + out.get("GA")?))().or_else(|| out.get("SA").copied()).filter(|x| *x > 0.0);
+    let Some(sa_old) = sa_old else { return out };
+    let sv = match (out.get("SV"), out.get("GA")) {
+        (Some(sv), _) => sv / sa_old,
+        (None, Some(ga)) => 1.0 - ga / sa_old,
+        (None, None) => return out,
+    };
+    let sa = shots_per_start * per_gp;
+    let ga_old = out.get("GA").copied();
+    if out.contains_key("SA") {
+        out.insert("SA".to_string(), sa);
+    }
+    if out.contains_key("SV") {
+        out.insert("SV".to_string(), sa * sv);
+    }
+    if out.contains_key("GA") {
+        out.insert("GA".to_string(), sa * (1.0 - sv));
+    }
+    if let (Some(gaa), Some(ga_old)) = (out.get("GAA").copied(), ga_old.filter(|g| *g > 0.0)) {
+        out.insert("GAA".to_string(), gaa * sa * (1.0 - sv) / ga_old);
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn m(xs: &[(&str, f64)]) -> Map<String, f64> {
+        xs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+    }
+
+    fn close(a: f64, b: f64) {
+        assert!((a - b).abs() < 1e-9, "{a} vs {b}");
+    }
+
+    #[test]
+    fn team_goalie_rates_replace_wins_and_shots_and_keep_save_pct() {
+        let r = m(&[("W", 0.4), ("GS", 0.9), ("SA", 28.0), ("SV", 25.2), ("GA", 2.8), ("GAA", 2.8), ("SO", 0.05)]);
+        let out = apply_team_goalie_rates(&r, 0.55, 30.0);
+        close(out["W"], 0.55 * 0.9);
+        close(out["SA"], 27.0);
+        close(out["SV"], 24.3); // .900 of 27 shots
+        close(out["GA"], 2.7);
+        close(out["GAA"], 2.8 * 2.7 / 2.8);
+        close(out["SO"], 0.05);
+        // no SA key: shots are SV + GA, and no GS rate means every game is a start
+        let out = apply_team_goalie_rates(&m(&[("W", 0.5), ("SV", 27.0), ("GA", 3.0)]), 0.45, 25.0);
+        close(out["W"], 0.45);
+        close(out["SV"], 22.5);
+        close(out["GA"], 2.5);
+        assert!(!out.contains_key("SA"));
+        // an SA rate from other lines than SV and GA: save % from SV / (SV + GA) = 24 / 26
+        let out = apply_team_goalie_rates(&m(&[("W", 0.5), ("SA", 30.0), ("SV", 24.0), ("GA", 2.0)]), 0.5, 26.0);
+        close(out["SA"], 26.0);
+        close(out["SV"], 24.0);
+        close(out["GA"], 2.0);
+        // no wins rate: unchanged
+        let r = m(&[("SV", 27.0), ("GA", 3.0)]);
+        assert_eq!(apply_team_goalie_rates(&r, 0.45, 25.0), r);
+    }
+}

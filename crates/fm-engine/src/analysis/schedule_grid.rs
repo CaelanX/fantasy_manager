@@ -622,8 +622,15 @@ fn env_playoff_start() -> Option<i64> {
     }
 }
 
-/// (playoff start period, where it came from): Rules page, raw settings, env override, default.
+/// (playoff start period, where it came from): env override, official API, Rules page, raw settings,
+/// default. Departs from the Python order, where the Rules page came before the env override.
 pub fn fantrax_playoff_start(provider: &dyn LeagueProvider) -> (Option<i64>, String) {
+    if let Some(env) = env_playoff_start().filter(|e| *e != 0) {
+        return (Some(env), PLAYOFF_ENV.to_string());
+    }
+    if let Some(v) = provider.official_calendar().ok().and_then(|c| c.playoff_start).filter(|v| *v != 0) {
+        return (Some(v), "Fantrax official API".to_string());
+    }
     if let Some(rules) = provider.rules() {
         if let Some(v) = rules.get_int(FANTRAX_PLAYOFF_LABEL).filter(|v| *v != 0) {
             return (Some(v), "Fantrax Rules page".to_string());
@@ -649,9 +656,6 @@ pub fn fantrax_playoff_start(provider: &dyn LeagueProvider) -> (Option<i64>, Str
             }
         }
     }
-    if let Some(env) = env_playoff_start().filter(|e| *e != 0) {
-        return (Some(env), PLAYOFF_ENV.to_string());
-    }
     (default_playoff_start("fantrax"), "default for this league (period 25)".to_string())
 }
 
@@ -659,9 +663,21 @@ fn opt_str(v: Option<i64>) -> String {
     v.map_or("None".to_string(), |x| x.to_string())
 }
 
-/// Scoring periods from `getTeamRosterInfo` (view GAMES_PER_POS) via the provider's Fantrax
-/// client, playoff start from the Rules page.
+/// Scoring periods from the official API when the provider has it, else from `getTeamRosterInfo`
+/// (view GAMES_PER_POS) via the provider's Fantrax client; playoff start per `fantrax_playoff_start`.
 pub fn fantrax_calendar(_ctx: &LeagueContext, provider: &dyn LeagueProvider) -> Result<PeriodCalendar, CalendarError> {
+    if let Ok(cal) = provider.official_calendar() {
+        let periods: Vec<Period> = cal.periods.iter().map(|&(n, a, b)| Period::new(n, a, b)).collect();
+        if !periods.is_empty() {
+            let (start, src) = fantrax_playoff_start(provider);
+            return Ok(PeriodCalendar {
+                periods: mark_playoffs(periods, start),
+                playoff_start: start,
+                source: "Fantrax official scoring periods".to_string(),
+                notes: vec![format!("Playoffs start period {} ({src})", opt_str(start))],
+            });
+        }
+    }
     let mut params: Map<String, Value> = Map::new();
     params.insert("view".to_string(), Value::String("GAMES_PER_POS".to_string()));
     let out = provider

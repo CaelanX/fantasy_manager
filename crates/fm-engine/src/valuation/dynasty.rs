@@ -8,6 +8,8 @@
 //!   them once at import); [`ProductionCurves::current`] snapshots them per `apply_dynasty` call.
 //! * `ages` / `mode` keyword arguments are `Option`s; `values` is always `Map<Cid, PlayerValue>`.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use chrono::NaiveDate;
 use fm_core::models::{FantasyTeam, LeagueContext, Player, Reason};
 use fm_core::values::{DynastyValue, Horizon, PlayerValue};
@@ -17,6 +19,7 @@ use fm_pycompat::num::py_sum;
 use fm_pycompat::order::{cmp_f64, sort_desc_by};
 
 use super::params;
+use super::replacement::best_slot;
 use super::valuate::replacement_for;
 
 pub const DISCOUNT: f64 = 0.8;
@@ -34,13 +37,45 @@ pub fn mode_base(mode: &str) -> Option<(&'static [f64], f64)> {
     })
 }
 
-/// Hand-set goalie production curve.
-pub const GOALIE_CURVE: [(f64, f64); 8] =
+/// Hand-set goalie production curve. Flat at the peak for every age up to 32: goalies get no youth
+/// growth term (07 implication 3; goalie performance "varies little by age"), unlike the Python
+/// curve, which rose from 0.55 at 18 to 1.00 at 27. The decline after 32 is unchanged.
+pub const GOALIE_CURVE: [(f64, f64); 4] = [(18.0, 1.00), (32.0, 1.00), (34.0, 0.85), (36.0, 0.70)];
+/// The Python goalie curve, used only while [`disable_positional_dynasty`] is on.
+const PYTHON_GOALIE_CURVE: [(f64, f64); 8] =
     [(18.0, 0.55), (20.0, 0.65), (22.0, 0.75), (24.0, 0.85), (27.0, 1.00), (32.0, 1.00), (34.0, 0.85), (36.0, 0.70)];
+
+static POSITIONAL_OFF: AtomicBool = AtomicBool::new(false);
+
+/// Turn the positional dynasty rules (keeper spot at the player's own VORP slot, flat goalie curve,
+/// goalie and defenseman pedigree) off (true) or back on for every later valuation in this
+/// process. Only the Python parity tests and the CLI's hidden `--from-snapshot` mode turn them
+/// off: their fixtures come from Python, which used one spot, one pedigree rule and a rising
+/// goalie curve for every position.
+pub fn disable_positional_dynasty(off: bool) {
+    POSITIONAL_OFF.store(off, Ordering::Relaxed);
+}
+
+pub(crate) fn positional_off() -> bool {
+    POSITIONAL_OFF.load(Ordering::Relaxed)
+}
 
 pub const PEDIGREE_MAX_AGE: f64 = 23.0;
 pub const PEDIGREE_FADE_AGE: f64 = 25.0;
 pub const PEDIGREE_PROVEN_GP: f64 = 200.0;
+/// Defensemen show their real level at about 400 career NHL games, against 200 for forwards
+/// (07 section 3 and implication 5, Dobber's breakout threshold), so their pedigree fades over 400.
+pub const PEDIGREE_PROVEN_GP_D: f64 = 400.0;
+/// Share of the skater first-round pedigree premium a goalie drafted in rounds 1-2 keeps. File 07
+/// says only that goalie pedigree is "much flatter by slot and weaker overall" (implication 4) and
+/// gives no size, so this is a judgment: it borrows the weak goalie draft-position to career-games
+/// correlation, |r| = 0.24 (07 "Goalie prospects", Canucks Army), as the scale of "weaker". A
+/// correlation is not a share of a premium, and nothing validates the number. Goalie outcomes are
+/// level by slot after round 2 (Schuckers), so every goalie taken in rounds 1-2 gets
+/// 1 + 0.24 x (1.10 - 1) = 1.024 and later goalies get none.
+pub const GOALIE_PEDIGREE_SHARE: f64 = 0.24;
+/// The skater first-round tier of [`pedigree_base`], the basis of the goalie premium.
+const FIRST_ROUND_PEDIGREE: f64 = 1.10;
 
 pub const ROOKIE_UPSIDE_FLOOR: f64 = 0.6;
 
@@ -62,7 +97,7 @@ impl ProductionCurves {
         ProductionCurves {
             f: c.get("F").cloned().unwrap_or_default(),
             d: c.get("D").cloned().unwrap_or_default(),
-            g: GOALIE_CURVE.to_vec(),
+            g: if positional_off() { PYTHON_GOALIE_CURVE.to_vec() } else { GOALIE_CURVE.to_vec() },
         }
     }
 
@@ -167,9 +202,17 @@ pub fn pedigree_base(p: &Player) -> (f64, String) {
 }
 
 /// Draft-pedigree boost to the growth trajectory, fading to 1.0 by age 25 and by 200 career NHL
-/// games. (1.0, None) when it does not apply.
+/// games (400 for defensemen). Goalies get only the flat, weak premium of
+/// [`GOALIE_PEDIGREE_SHARE`]. Unlike Python, which used the skater tiers and 200 games for every
+/// position. (1.0, None) when it does not apply.
 pub fn pedigree_multiplier(p: &Player, age: Option<f64>) -> (f64, Option<String>) {
-    let (base, label) = pedigree_base(p);
+    let (mut base, label) = pedigree_base(p);
+    let group = position_group(p);
+    let off = positional_off();
+    if !off && group == "G" && base > 1.0 {
+        base = 1.0 + (FIRST_ROUND_PEDIGREE - 1.0) * GOALIE_PEDIGREE_SHARE;
+    }
+    let proven_gp = if !off && group == "D" { PEDIGREE_PROVEN_GP_D } else { PEDIGREE_PROVEN_GP };
     let Some(age) = age else { return (1.0, None) };
     if base <= 1.0 || age >= PEDIGREE_FADE_AGE {
         return (1.0, None);
@@ -180,7 +223,7 @@ pub fn pedigree_multiplier(p: &Player, age: Option<f64>) -> (f64, Option<String>
         (PEDIGREE_FADE_AGE - age) / (PEDIGREE_FADE_AGE - PEDIGREE_MAX_AGE)
     };
     let gp = p.career_gp.unwrap_or(0);
-    let f_gp = (1.0 - gp as f64 / PEDIGREE_PROVEN_GP).max(0.0);
+    let f_gp = (1.0 - gp as f64 / proven_gp).max(0.0);
     let mult = 1.0 + (base - 1.0) * f_age * f_gp;
     if mult <= 1.0 + 1e-9 {
         return (1.0, None);
@@ -303,9 +346,27 @@ pub fn min_replacement_fpg(ctx: &LeagueContext, values: &Map<String, PlayerValue
 /// Future value of a waiver-level roster spot: `min_replacement_fpg` held flat over the seasons
 /// after this one (`sum_{y>=1} w_y + 0.8^H * T`).
 pub fn spot_future(ctx: &LeagueContext, values: &Map<String, PlayerValue>, mode: Option<&str>) -> f64 {
+    min_replacement_fpg(ctx, values) * future_weight(ctx, mode.unwrap_or(ctx.dynasty_mode.as_str()))
+}
+
+/// Total weight of the seasons after this one, `sum_{y>=1} w_y + 0.8^H * T`: the future value of
+/// 1 FPG held flat.
+fn future_weight(ctx: &LeagueContext, mode: &str) -> f64 {
     let years = ctx.keeper_horizon_years.max(1);
-    let (w, terminal) = mode_weights(Some(mode.unwrap_or(ctx.dynasty_mode.as_str())), years);
-    min_replacement_fpg(ctx, values) * (py_sum(w[1..].iter().copied()) + DISCOUNT.powf(years as f64) * terminal)
+    let (w, terminal) = mode_weights(Some(mode), years);
+    py_sum(w[1..].iter().copied()) + DISCOUNT.powf(years as f64) * terminal
+}
+
+/// (slot, replacement FPG) at the player's own VORP slot: the cheapest slot he is eligible for,
+/// as `vorp` uses. A player who fits no slot gets the league's lowest level (slot "any").
+pub fn own_replacement(p: &Player, levels: &Map<String, f64>) -> (String, f64) {
+    match best_slot(&p.positions, levels).filter(|_| !positional_off()) {
+        Some(slot) => {
+            let r = levels[&slot];
+            (slot, r)
+        }
+        None => ("any".to_string(), levels.values().copied().reduce(f64::min).unwrap_or(0.0)),
+    }
 }
 
 fn ctx_years(ctx: &LeagueContext) -> i64 {
@@ -462,19 +523,21 @@ pub fn apply_dynasty(
 enum Field {
     Value,
     Future,
+    /// `future` while it holds the future over the player's positional spot (keeper leagues)
+    FutureOverSpot,
 }
 
 impl Field {
     fn get(self, dv: &DynastyValue) -> f64 {
         match self {
             Field::Value => dv.value,
-            Field::Future => dv.future,
+            Field::Future | Field::FutureOverSpot => dv.future,
         }
     }
     fn set(self, dv: &mut DynastyValue, x: f64) {
         match self {
             Field::Value => dv.value = x,
-            Field::Future => dv.future = x,
+            Field::Future | Field::FutureOverSpot => dv.future = x,
         }
     }
 }
@@ -497,6 +560,7 @@ fn apply_market(out: &mut Map<String, DynastyValue>, ctx: &LeagueContext, field:
     let (what, mdl) = match field {
         Field::Value => ("market value", "model"),
         Field::Future => ("market future value", "model future"),
+        Field::FutureOverSpot => ("market future value over replacement", "model future over replacement"),
     };
     for (cid, mv) in &market {
         let dv = out.get_mut(cid).expect("market cid in out");
@@ -539,29 +603,60 @@ pub fn ordinal(n: i64) -> String {
 }
 
 /// `_apply_keepers`: keeper-league pass (market prior on the future part, surplus over a
-/// waiver-level spot, keeper flags per team, free agents against my team).
+/// waiver-level spot at the player's own position, keeper flags per team, free agents against my
+/// team). Unlike Python, which used one spot at the league's lowest replacement level for every
+/// position and blended the market into the raw future, the spot is the replacement level of the
+/// player's own VORP slot and the market is blended into the future over that spot.
 fn apply_keepers(out: &mut Map<String, DynastyValue>, values: &Map<String, PlayerValue>, ctx: &LeagueContext, k: i64, mode: &str) {
     let model_future: Map<String, f64> = out.iter().map(|(c, dv)| (c.clone(), dv.future)).collect();
-    apply_market(out, ctx, Field::Future);
-    let spot = spot_future(ctx, values, Some(mode));
-    for dv in out.values_mut() {
-        dv.keeper_surplus = (dv.future - spot).max(0.0);
+    // A spot's future value is its replacement FPG held flat over the seasons after this one.
+    let per = future_weight(ctx, mode);
+    let levels = replacement_for(ctx, values, Horizon::Season);
+    let spots: Map<String, (String, f64)> = out
+        .iter()
+        .map(|(c, dv)| {
+            let (slot, r) = own_replacement(&dv.player, &levels);
+            // Python's text names no slot (it had one spot for everyone)
+            let label = if positional_off() { String::new() } else { format!("{slot} ") };
+            (c.clone(), (label, r * per))
+        })
+        .collect();
+    // Blend the market into the future over replacement, so equal ownership means equal surplus
+    // whatever the position. With one spot for everyone (Python) this equals blending the raw
+    // future, which is what the Python text describes.
+    let shift = !positional_off();
+    if shift {
+        for (c, dv) in out.iter_mut() {
+            dv.future -= spots[c].1;
+        }
     }
+    apply_market(out, ctx, if shift { Field::FutureOverSpot } else { Field::Future });
+    for (c, dv) in out.iter_mut() {
+        let s = spots[c].1;
+        if shift {
+            dv.future += s;
+            dv.market_value = dv.market_value.map(|m| m + s);
+        }
+        dv.keeper_surplus = (dv.future - s).max(0.0);
+    }
+    let spot_of = |dv: &DynastyValue| spots[&dv.player.cid].1;
     let surplus_text = |dv: &DynastyValue| {
+        let (slot, s) = &spots[&dv.player.cid];
         format!(
-            "long-term surplus {} over a waiver-level spot (future {} - spot {})",
+            "long-term surplus {} over a waiver-level {slot}spot (future {} - spot {})",
             fixed(dv.keeper_surplus, 2, true),
             fixed(dv.future, 2, false),
-            fixed(spot, 2, false)
+            fixed(*s, 2, false)
         )
     };
     let no_surplus = |dv: &DynastyValue| {
+        let (slot, s) = &spots[&dv.player.cid];
         Reason::new(
             "NOT_KEEPER",
             format!(
-                "No keeper value: future {} does not beat a waiver-level spot ({}); valued on this season only",
+                "No keeper value: future {} does not beat a waiver-level {slot}spot ({}); valued on this season only",
                 fixed(dv.future, 2, false),
-                fixed(spot, 2, false)
+                fixed(*s, 2, false)
             ),
         )
         .with_value(Some(dv.keeper_surplus))
@@ -594,7 +689,7 @@ fn apply_keepers(out: &mut Map<String, DynastyValue>, values: &Map<String, Playe
             let r = if dv.keeper {
                 Reason::new("KEEPER", format!("Keeper #{} of {k} on {}: {}", i + 1, t.name, surplus_text(dv)))
                     .with_value(Some(dv.keeper_surplus))
-                    .with_baseline(Some(spot))
+                    .with_baseline(Some(spot_of(dv)))
             } else if k == 0 {
                 no_keepers(dv.keeper_surplus)
             } else if dv.keeper_surplus <= 0.0 {
@@ -639,7 +734,7 @@ fn apply_keepers(out: &mut Map<String, DynastyValue>, values: &Map<String, Playe
                 format!("Free agent: would be keeper #{rank} of {k} on {my_name}: {}", surplus_text(dv)),
             )
             .with_value(Some(s))
-            .with_baseline(Some(spot))
+            .with_baseline(Some(spot_of(dv)))
         } else if k == 0 {
             no_keepers(s)
         } else if s <= 0.0 {
@@ -660,7 +755,7 @@ fn apply_keepers(out: &mut Map<String, DynastyValue>, values: &Map<String, Playe
     }
 
     for (cid, dv) in out.iter_mut() {
-        let model_surplus = (model_future[cid] - spot).max(0.0);
+        let model_surplus = (model_future[cid] - spots[cid].1).max(0.0);
         dv.model_value = Some(dv.season_part + if dv.keeper { model_surplus } else { 0.0 });
         dv.value = dv.season_part + if dv.keeper { dv.keeper_surplus } else { 0.0 };
     }
@@ -725,6 +820,8 @@ pub(crate) mod test_support {
             player: p.clone(),
             fpg,
             fpg_season: s,
+            ir_fill: 0.0,
+            fpg_error: 0.0,
             fpg_week: s,
             vorp: 0.0,
             vorp_week: 0.0,
@@ -811,7 +908,7 @@ mod tests {
             ("F", 24.0, 0.99), ("F", 25.0, 1.00), ("F", 26.0, (1.0 + 0.969) / 2.0), ("F", 29.0, 0.897),
             ("F", 33.0, 0.697), ("F", 35.0, 0.576), ("F", 40.0, 0.459), ("F", 16.0, 0.762),
             ("D", 20.0, (0.848 + 0.946) / 2.0), ("D", 23.0, 1.00), ("D", 29.0, 0.943), ("D", 33.0, 0.831),
-            ("D", 35.0, 0.746), ("G", 22.0, 0.75), ("G", 24.0, 0.85), ("G", 30.0, 1.00), ("G", 34.0, 0.85),
+            ("D", 35.0, 0.746), ("G", 18.0, 1.00), ("G", 22.0, 1.00), ("G", 24.0, 1.00), ("G", 30.0, 1.00), ("G", 34.0, 0.85),
             ("G", 36.0, 0.70), ("G", 40.0, 0.70),
         ];
         for (g, a, lv) in cases {
@@ -923,6 +1020,43 @@ mod tests {
         close(mult(Some(20.0), a(1, 1, 100)), 1.15);
         assert_eq!(mult(Some(20.0), a(1, 1, 250)), 1.0);
         assert_eq!(mult(None, a(1, 1, 0)), 1.0);
+    }
+
+    #[test]
+    fn goalies_have_no_youth_growth_and_weak_flat_pedigree() {
+        // 07 implication 3: a young goalie's future is today's rate, not a rising curve.
+        close(growth_ratio("G", Some(20.0), 3.0), 1.0);
+        close(growth_ratio("G", Some(24.0), 2.0), 1.0);
+        let g = |extra: serde_json::Value| {
+            let mut v = json!({"cid": "g", "positions": ["G"]});
+            for (k, x) in extra.as_object().unwrap() {
+                v[k] = x.clone();
+            }
+            pedigree_multiplier(&player(v), Some(20.0)).0
+        };
+        // Rounds 1-2 all get 1 + 0.24 x 0.10; later rounds get nothing.
+        close(g(json!({"draft_overall": 1, "draft_round": 1, "career_gp": 0})), 1.024);
+        close(g(json!({"draft_overall": 50, "draft_round": 2, "career_gp": 0})), 1.024);
+        assert_eq!(g(json!({"draft_overall": 80, "draft_round": 3, "career_gp": 0})), 1.0);
+        let kid = sk("kid", &["G"], Some(20), json!({"draft_overall": 10, "draft_round": 1, "career_gp": 0}));
+        let vet = sk("vet", &["G"], Some(28), json!({}));
+        let vals = values(vec![pv(&kid, 3.0, None), pv(&vet, 3.0, None)]);
+        let out = apply_dynasty(&vals, &dctx(&[&kid, &vet], 3, "balanced"), None, None);
+        // Balanced, 3 years, flat: 3 x (1 + 0.8 + 0.64) + 0.8^3 x 3 x 1.5 = 9.624, future 6.624.
+        close(out["vet"].value, 9.624);
+        close(out["vet"].upside, 0.0);
+        close(out["kid"].upside, 0.024 * 6.624);
+        close(out["kid"].value, 9.624 + 0.024 * 6.624);
+    }
+
+    #[test]
+    fn defenseman_pedigree_fades_over_400_games() {
+        let m = |pos: &str| {
+            let p = player(json!({"cid": "p", "positions": [pos], "draft_overall": 1, "draft_round": 1, "career_gp": 300}));
+            pedigree_multiplier(&p, Some(20.0)).0
+        };
+        close(m("D"), 1.0 + 0.30 * (1.0 - 300.0 / 400.0));
+        assert_eq!(m("C"), 1.0);
     }
 
     #[test]
@@ -1161,7 +1295,7 @@ pub(crate) mod keeper_tests {
             assert_eq!(kept, want, "{tid}");
         }
         let r = reason(&d["m_ir"], "KEEPER");
-        assert!(r.text.contains("of 3 on Team mine") && r.text.contains("waiver-level spot"));
+        assert!(r.text.contains("of 3 on Team mine") && r.text.contains("waiver-level C spot"));
         close(r.value.unwrap(), d["m_ir"].keeper_surplus);
         assert!(reason(&d["s1"], "KEEPER").text.starts_with("Keeper #1 of 3 on Team stack"));
     }
@@ -1218,6 +1352,35 @@ pub(crate) mod keeper_tests {
         assert!(0.0 < t2.future && t2.future < spot && t2.keeper_surplus == 0.0 && !t2.keeper);
         close(t2.value, t2.season_part);
         assert!(reason(t2, "NOT_KEEPER").text.starts_with("No keeper value"));
+    }
+
+    /// The gap's worked example (09 B6): replacement 4.45 at F and 3.64 at D. Ages are unknown, so
+    /// the trajectory is flat; balanced over one year weighs the future at 0.8 x 1.5 = 1.2.
+    #[test]
+    fn surplus_is_over_the_players_own_positional_spot() {
+        let mk = |cid: &str, pos: &[&str]| player(json!({"cid": cid, "positions": pos}));
+        let (fwd, dman) = (mk("fwd", &["C", "F"]), mk("dman", &["D"]));
+        let fa: Vec<Player> = (0..3).map(|i| mk(&format!("faf{i}"), &["C", "F"]))
+            .chain((0..3).map(|i| mk(&format!("fad{i}"), &["D"])))
+            .collect();
+        let mut vals = vec![pv(&fwd, 5.0, None), pv(&dman, 4.5, None)];
+        for p in &fa {
+            vals.push(pv(p, if p.cid.starts_with("faf") { 4.45 } else { 3.64 }, None));
+        }
+        let c = ctx(json!({"roster_shape": {"F": 2, "D": 2, "BN": 2},
+            "teams": [team("1", "a", true, &[("F", &fwd), ("D", &dman)])], "free_agents": fa,
+            "dynasty": true, "keeper_horizon_years": 1, "dynasty_mode": "balanced", "keepers_per_team": 3}));
+        let d = apply_dynasty(&values(vals), &c, None, None);
+        close(d["fwd"].future, 1.2 * 5.0);
+        close(d["fwd"].keeper_surplus, 1.2 * (5.0 - 4.45));
+        close(d["dman"].keeper_surplus, 1.2 * (4.5 - 3.64));
+        assert!(d["dman"].keeper_surplus > d["fwd"].keeper_surplus);
+        let r = reason(&d["fwd"], "KEEPER");
+        assert!(r.text.contains("waiver-level F spot"), "{}", r.text);
+        close(r.baseline.unwrap(), 1.2 * 4.45);
+        // A free-agent forward at replacement has no surplus; under the old league-wide lowest
+        // level (D, 3.64) he had 1.2 x 0.81.
+        close(d["faf0"].keeper_surplus, 0.0);
     }
 
     #[test]

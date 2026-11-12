@@ -6,6 +6,8 @@ pub mod enrich;
 pub mod espn;
 pub mod fantrax;
 pub mod fantrax_auth;
+pub mod fantrax_crosscheck;
+pub mod fantrax_official;
 pub mod lines_enrich;
 pub mod pipeline;
 pub mod preseason_enrich;

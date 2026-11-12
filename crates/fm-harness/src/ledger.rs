@@ -254,6 +254,20 @@ impl Ledger {
         Ok(ledger)
     }
 
+    /// The default ledger of `data_dir` opened read-only, without creating or migrating it: None
+    /// when the file does not exist or cannot be opened. For readers that must not write (the
+    /// league loader reading calibrations).
+    pub fn open_read_only(data_dir: impl AsRef<Path>) -> Option<Ledger> {
+        let data_dir = data_dir.as_ref().to_path_buf();
+        let path = data_dir.join(DB_NAME);
+        if !path.is_file() {
+            return None;
+        }
+        let flags = rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX;
+        let conn = Connection::open_with_flags(&path, flags).ok()?;
+        Some(Ledger { data_dir, path, db: Mutex::new(conn) })
+    }
+
     fn conn(&self) -> MutexGuard<'_, Connection> {
         self.db.lock().unwrap_or_else(|e| e.into_inner())
     }
@@ -430,6 +444,15 @@ impl Ledger {
             )?;
         }
         self.commit()
+    }
+}
+
+/// The engine's ledger reader (`calibrate_acceptance` lives in fm-engine, below this crate).
+impl fm_engine::recommend::trades::LedgerQuery for Ledger {
+    fn query(&self, sql: &str, args: &[Value]) -> Result<Vec<fm_core::Map<String, Value>>> {
+        let vals: Vec<SqlValue> = args.iter().map(json_to_sql).collect();
+        let refs: Vec<&dyn ToSql> = vals.iter().map(|v| v as &dyn ToSql).collect();
+        Ok(Ledger::query(self, sql, &refs)?.into_iter().map(|r| r.into_iter().collect()).collect())
     }
 }
 

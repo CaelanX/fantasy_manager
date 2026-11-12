@@ -200,6 +200,9 @@ pub fn run_fit(
         Some(i) => json!({
             "seasons": ins_seasons,
             "k_skater": i.k_skater, "k_goalie": i.k_goalie,
+            // not `k_skater_volume`, which the app reads: one preset only identifies the k of the
+            // stats it pays for well (see `params::k_inseason_volume`)
+            "k_skater_volume_fit": i.k_skater_volume,
             "recency_weights": i.recency_weights,
             "app": {"k_skater": k_in["skater"], "k_goalie": k_in["goalie"],
                     "recency_weights": recency_weights_snapshot()},

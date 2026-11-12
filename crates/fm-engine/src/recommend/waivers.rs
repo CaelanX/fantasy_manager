@@ -30,21 +30,26 @@ use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::recommend::base::{
-    churn_blocked, churn_text, confidence, droppable_players, dynasty_floats, dynasty_objects, evidence_games,
-    free_ir_slots, has_data, ir_movable, keeper_k, move_scarcity_threshold, moves_budget_reason, open_roster_spots,
+    add_scarcity_threshold_at, churn_blocked_at, churn_text, confidence, droppable_players, dynasty_floats, dynasty_objects, evidence_games,
+    free_ir_slots, has_data, ir_movable, keeper_k, move_scarcity_threshold_at, moves_budget_reason, open_roster_spots,
     protected_reason, recently_added, roster_legal_after, shares_default_slot, swap_values, CHURN_EXEMPT_STATUSES,
-    CHURN_OVERRIDE_GAIN, INJURY_REPLACEMENT_STATUSES, PROTECT_OVERRIDE, RECENT_ADD_DAYS,
+    CHURN_OVERRIDE_GAIN, INJURY_REPLACEMENT_STATUSES, league_unit, PROTECT_OVERRIDE, RECENT_ADD_DAYS,
 };
 use crate::recommend::lineup::{dp_idx, plan_days, starting_slots, DailyPlan, Entry, PlanCache, RosterView};
 use crate::recommend::lineup_lock;
 use crate::recommend::market::{market_check_reasons, MarketPool};
+use crate::recommend::started::{roster_value, StartWindow};
+use crate::recommend::trades::SlotSpec;
 use crate::recommend::strength::{apply_ranks, apply_strength};
 use crate::scoring::from_config;
+use crate::valuation::params::START_WINDOW_DAYS;
 use crate::valuation::schedule::{context_window, ScheduleMemo, WEEK_DAYS};
 use crate::valuation::valuate::valuate_league;
 
 pub const MIN_GAIN: f64 = 0.3;
 pub const DYNASTY_MIN_RATIO: f64 = 1.15;
+/// Contend mode may drop a protected player for an add that gains this many FPG (ESPN points;
+/// times the league unit, as is CONTEND_LOW_FPG) when he projects to contribute little this season.
 pub const CONTEND_CLEAR_GAIN: f64 = 1.0;
 pub const CONTEND_LOW_GP: i64 = 40;
 pub const CONTEND_LOW_FPG: f64 = 2.0;
@@ -126,13 +131,15 @@ pub fn waiver_adjust<'v>(ctx: &LeagueContext, fa: &Player, fv: &'v PlayerValue) 
     )
 }
 
-/// Why `p` projects to contribute little this season, or None.
-fn low_this_season(p: &Player, pv: &PlayerValue) -> Option<String> {
+/// Why `p` projects to contribute little this season, or None. The FPG bar is CONTEND_LOW_FPG x
+/// `unit` (the league unit, [`crate::recommend::base::league_unit`]); Python used the bare 2.0 in
+/// every league.
+fn low_this_season(p: &Player, pv: &PlayerValue, unit: f64) -> Option<String> {
     let gp = p.lines.get("projected").map_or(0, |l| l.gp);
     if gp < CONTEND_LOW_GP {
         return Some(format!("projected {gp} GP this season"));
     }
-    if pv.fpg_season < CONTEND_LOW_FPG {
+    if pv.fpg_season < CONTEND_LOW_FPG * unit {
         return Some(format!("projected {} FPG this season", fixed(pv.fpg_season, 2, false)));
     }
     None
@@ -201,7 +208,9 @@ fn status_text(p: &Player) -> String {
 }
 
 /// Ranked waiver pickups (see the module docs). `debug` collects drops that prospect protection,
-/// the churn guard or a position cap blocked. [] when the league's move limit is used up.
+/// the churn guard or a position cap blocked. [] when the league's move limit is used up. Unlike
+/// Python, a season-horizon pickup in a daily-lineup league is scored, and its drop chosen, by the
+/// roster's started-games value (`recommend::started`) rather than by best-lineup FPG.
 pub fn recommend_waivers(
     ctx: &LeagueContext,
     values: &Map<Cid, PlayerValue>,
@@ -210,9 +219,13 @@ pub fn recommend_waivers(
     now: &PyDateTime,
     memo: &ScheduleMemo,
 ) -> Result<Vec<Recommendation>, CoreError> {
-    if move_scarcity_threshold(ctx, true).is_none() {
+    // the league unit, computed once: the bars below are checked for every add / drop pair
+    let unit = league_unit(ctx);
+    if move_scarcity_threshold_at(ctx, true, unit).is_none() {
         return Ok(vec![]); // no moves left this period
     }
+    let churn_gain = CHURN_OVERRIDE_GAIN * unit;
+    let contend_gain = CONTEND_CLEAR_GAIN * unit;
     let horizon = opts.horizon;
     let stream = opts.stream;
     let want_debug = debug.is_some();
@@ -331,10 +344,28 @@ pub fn recommend_waivers(
     let fill_pool: Vec<&Player> = active.iter().copied().filter(|p| values.contains_key(&p.cid)).chain(in_ir).collect();
     let (fill_before, fill_starters) = lineup_fpg(&fill_pool, &slots, &fpg_of);
     let slots_empty = fill_starters.len() < slots.len();
+    // season horizon in a daily-lineup league: a pickup's gain is the change in the roster's
+    // started-games value (`recommend::started`), so a bench add counts the games he would start
+    let start_win = if horizon == Horizon::Season { StartWindow::of(ctx) } else { None };
+    let spec = SlotSpec::new(&ctx.roster_shape);
+    let started_before = start_win.as_ref().map(|w| roster_value(w, &spec, &fill_pool, &fpg_of));
+    // what dropping each player costs in started-games value; it replaces his own FPG in the drop
+    // order below, so the drop is the player whose starts the roster misses least (a rarely used
+    // bench player before a third goalie who starts most of his team's games)
+    let started_loss: HashMap<&str, f64> = match (start_win.as_ref(), started_before) {
+        (Some(w), Some(before)) => mine
+            .iter()
+            .map(|d| {
+                let pool: Vec<&Player> = fill_pool.iter().copied().filter(|p| p.cid != d.cid).collect();
+                (d.cid.as_str(), before - roster_value(w, &spec, &pool, &fpg_of))
+            })
+            .collect(),
+        _ => HashMap::new(),
+    };
 
     let drop_key = |p: &Player| -> (f64, f64) {
         let pv = &values[&p.cid];
-        let fpg = pv.fpg_for(horizon);
+        let fpg = started_loss.get(p.cid.as_str()).copied().unwrap_or_else(|| pv.fpg_for(horizon));
         if let Some(d) = dyn_.as_ref().and_then(|d| d.get(&p.cid)) {
             return (if keepers.is_none() { *d } else { contrib.get(p.cid.as_str()).copied().unwrap_or(0.0) }, fpg);
         }
@@ -398,7 +429,7 @@ pub fn recommend_waivers(
             for p in pool_legal {
                 let pv = &values[&p.cid];
                 let g_p = fa_fpg - pv.fpg_for(horizon);
-                if churn_blocked(ctx, p, g_p) {
+                if churn_blocked_at(ctx, p, g_p, churn_gain) {
                     kept_recent.push(p);
                     if want_debug {
                         dbg.push(WaiverDebug {
@@ -414,11 +445,11 @@ pub fn recommend_waivers(
                                     churn_text(ctx, p),
                                     fa.name,
                                     fixed(g_p, 2, true),
-                                    general(CHURN_OVERRIDE_GAIN, None, false)
+                                    general(round_to(churn_gain, 2), None, false)
                                 ),
                             )
                             .with_value(Some(g_p))
-                            .with_baseline(Some(CHURN_OVERRIDE_GAIN)),
+                            .with_baseline(Some(churn_gain)),
                         });
                     }
                 } else {
@@ -451,8 +482,8 @@ pub fn recommend_waivers(
                     };
                     let pv = &values[&p.cid];
                     let gain_p = fa_fpg - pv.fpg_for(horizon);
-                    let low = low_this_season(p, pv);
-                    if contend && gain_p >= CONTEND_CLEAR_GAIN {
+                    let low = low_this_season(p, pv, unit);
+                    if contend && gain_p >= contend_gain {
                         if let Some(low) = low {
                             chosen = Some(p);
                             extra.push(
@@ -465,7 +496,7 @@ pub fn recommend_waivers(
                                     ),
                                 )
                                 .with_value(Some(gain_p))
-                                .with_baseline(Some(CONTEND_CLEAR_GAIN)),
+                                .with_baseline(Some(contend_gain)),
                             );
                             break;
                         }
@@ -506,7 +537,7 @@ pub fn recommend_waivers(
                         format!(
                             "Keeping {names}: just added, so {} is the drop instead (a recent add is only dropped for +{} FPG or an injury)",
                             d.name,
-                            general(CHURN_OVERRIDE_GAIN, None, false)
+                            general(round_to(churn_gain, 2), None, false)
                         ),
                     ));
                 }
@@ -521,7 +552,7 @@ pub fn recommend_waivers(
                 extra.push(
                     Reason::new("CHURN_GUARD", format!("{} was {}, dropping him anyway: {why_ok}", d.name, churn_text(ctx, d)))
                         .with_value(Some(g_d))
-                        .with_baseline(Some(CHURN_OVERRIDE_GAIN)),
+                        .with_baseline(Some(churn_gain)),
                 );
             }
         }
@@ -551,6 +582,11 @@ pub fn recommend_waivers(
             gain = after - before;
             cmp = fm_pycompat::order::first_min_by(out, |a, b| cmp_f64(fpg_of(a), fpg_of(b)));
         }
+        if let (Some(w), Some(before)) = (start_win.as_ref(), started_before) {
+            let pool: Vec<&Player> =
+                fill_pool.iter().copied().filter(|p| drop.is_none_or(|d| p.cid != d.cid)).chain(std::iter::once(fa)).collect();
+            gain = roster_value(w, &spec, &pool, &with_fa_val) - before;
+        }
         let mut cv: Option<&PlayerValue> = cmp.and_then(|c| values.get(&c.cid));
         if cv.is_none() {
             cmp = None;
@@ -566,7 +602,7 @@ pub fn recommend_waivers(
         }
         let injury_replacement =
             spot_ir.is_some() || drop.is_some_and(|d| INJURY_REPLACEMENT_STATUSES.contains(&d.status.as_str()));
-        let threshold = match move_scarcity_threshold(ctx, injury_replacement) {
+        let threshold = match add_scarcity_threshold_at(ctx, fa, injury_replacement, unit) {
             Some(t) if gain > t => t,
             _ => return (None, dbg),
         };
@@ -632,6 +668,14 @@ pub fn recommend_waivers(
             )
             .with_value(Some(fa_fpg)),
         ];
+        if started_before.is_some() {
+            reasons.push(Reason::new(
+                "STARTED_GAMES",
+                format!(
+                    "Gain counts the games each player would start: the best lineup each day over the next {START_WINDOW_DAYS} days of the NHL schedule"
+                ),
+            ));
+        }
         if let (Some(c), Some(cvv)) = (cmp, cv) {
             reasons.push(
                 Reason::new(
@@ -1336,5 +1380,68 @@ mod tests {
         assert!(r.reason("DYNASTY_COST").is_some());
         let dv2 = dynv(&ctx, &[("fa_d", 8.0), ("bench_lw", 10.0), ("my_c", 20.0)]);
         assert!(run(&ctx, &values, &WaiverOpts { dynasty_values: Some(&dv2), ..WaiverOpts::default() }).is_empty());
+    }
+
+    /// Season horizon, daily lineups (C 1, BN 1): the bench centre (CAR) starts both of his games
+    /// because my_c's team (EDM) is idle those days. A free agent whose team plays only on EDM's
+    /// days would never start, so swapping him in loses the bench player's games, whatever his FPG;
+    /// one who plays on CAR's days gains exactly his FPG over the dropped player's.
+    #[test]
+    fn season_pickup_gain_counts_the_games_he_would_start() {
+        let day = |d: u32| NaiveDate::from_ymd_opt(2026, 10, d).unwrap();
+        let with_team = |mut p: Player, t: &str| {
+            p.team = Some(t.to_string());
+            p
+        };
+        let my_c = mk("my_c", &["C"], 1.5, 0, "healthy");
+        let bench = with_team(mk("bench", &["C"], 0.2, 0, "healthy"), "CAR");
+        let build = |fa_team: &str| {
+            let fa = with_team(mk("fa", &["C"], 1.0, 20, "healthy"), fa_team);
+            let mut ctx = league(vec![fa], &[("C", &my_c), ("BN", &bench)], Some(&[("C", 1), ("BN", 1)]));
+            for (t, ds) in [("EDM", [1, 2, 3].as_slice()), ("TOR", &[1, 2, 3]), ("CAR", &[4, 5]), ("BOS", &[4, 5])] {
+                ctx.schedule.insert(t.into(), ds.iter().map(|&d| day(d)).collect());
+            }
+            ctx
+        };
+        // the best-lineup rule called this +0.8 FPG (fa 1.0 over bench 0.2); he would never start
+        let ctx = build("TOR");
+        assert!(run(&ctx, &valuate(&ctx), &WaiverOpts::default()).is_empty());
+
+        let ctx = build("BOS");
+        let values = valuate(&ctx);
+        let r = run(&ctx, &values, &WaiverOpts::default());
+        assert_eq!(r.len(), 1);
+        assert_eq!((r[0].add[0].cid.as_str(), r[0].drop[0].cid.as_str()), ("fa", "bench"));
+        let want = values["fa"].fpg_season - values["bench"].fpg_season;
+        assert!((r[0].reason("VORP_DELTA").and_then(|x| x.value).unwrap() - want).abs() < 1e-9);
+        assert!(r[0].reason("STARTED_GAMES").is_some());
+    }
+
+    /// Season horizon, daily lineups (C 1, BN 2). bench_a (CAR) starts both of his games, on days
+    /// my_c's team (EDM) is idle; bench_b (TOR, more FPG) plays only on EDM's days and never
+    /// starts. The free agent (BOS) plays on days nobody else does, so the drop that costs least
+    /// is bench_b, not the lowest-FPG bench_a, and the gain is the free agent's whole FPG.
+    #[test]
+    fn season_drop_is_the_player_whose_starts_are_missed_least() {
+        let day = |d: u32| NaiveDate::from_ymd_opt(2026, 10, d).unwrap();
+        let with_team = |mut p: Player, t: &str| {
+            p.team = Some(t.to_string());
+            p
+        };
+        let my_c = mk("my_c", &["C"], 1.5, 0, "healthy");
+        let bench_a = with_team(mk("bench_a", &["C"], 0.2, 0, "healthy"), "CAR");
+        let bench_b = with_team(mk("bench_b", &["C"], 0.4, 0, "healthy"), "TOR");
+        let fa = with_team(mk("fa", &["C"], 1.0, 20, "healthy"), "BOS");
+        let mut ctx = league(vec![fa], &[("C", &my_c), ("BN", &bench_a), ("BN", &bench_b)], Some(&[("C", 1), ("BN", 2)]));
+        for (t, ds) in [("EDM", [1, 2, 3].as_slice()), ("TOR", &[1, 2, 3]), ("CAR", &[4, 5]), ("BOS", &[6, 7])] {
+            ctx.schedule.insert(t.into(), ds.iter().map(|&d| day(d)).collect());
+        }
+        let values = valuate(&ctx);
+        assert!(values["bench_a"].fpg_season < values["bench_b"].fpg_season);
+        let r = run(&ctx, &values, &WaiverOpts::default());
+        assert_eq!(r.len(), 1);
+        assert_eq!(r[0].drop[0].cid.as_str(), "bench_b");
+        let want = values["fa"].fpg_season;
+        assert!((r[0].reason("VORP_DELTA").and_then(|x| x.value).unwrap() - want).abs() < 1e-9);
     }
 }

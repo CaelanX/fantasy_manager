@@ -18,13 +18,14 @@ use fm_pycompat::pyjson::{dumps, DumpOpts};
 use fm_pycompat::time::strftime_date;
 use serde_json::{json, Value};
 
-use crate::recommend::base::{open_roster_spots, shares_default_slot, SIZE_EXEMPT_SLOTS};
+use crate::recommend::base::{league_unit, open_spots_under_cap, shares_default_slot};
 use crate::recommend::lineup::unavailable;
 use crate::recommend::plan::{
     clock, earliest, move_day, slot_label, to_local, utc_seconds, Pair, PlanMove, PlanSince, Timeline, Tx, WeekPlan,
 };
 
-/// matchup points a new plan must add over the kept steps to replace them
+/// matchup points a new plan must add over the kept steps to replace them, in ESPN points (times
+/// [`league_unit`]; Python used the bare 1.5 in every league)
 pub const STABLE_PTS: f64 = 1.5;
 /// ... or this share of the kept steps' gain, whichever is larger
 pub const STABLE_PCT: f64 = 0.20;
@@ -373,7 +374,7 @@ pub(crate) fn stabilize<'r>(
     }
     let base = tl.total(&[]);
     let (new_gain, old_gain) = (tl.total(&txs) - base, tl.total(&forced) - base);
-    let bar = STABLE_PTS.max(STABLE_PCT * old_gain.max(0.0));
+    let bar = (STABLE_PTS * league_unit(ctx)).max(STABLE_PCT * old_gain.max(0.0));
     if new_gain - old_gain >= bar {
         return (txs, Map::new());
     }
@@ -782,12 +783,7 @@ pub fn roster_diff(prev: Option<&Value>, ctx: &LeagueContext) -> (Vec<String>, i
             }
         }
     }
-    let mut spots = open_roster_spots(team, &ctx.roster_shape);
-    if let Some(cap) = ctx.max_roster_size.filter(|c| *c != 0) {
-        let used = team.slots.iter().filter(|s| s.player.is_some() && !SIZE_EXEMPT_SLOTS.contains(&s.slot.as_str())).count() as i64;
-        spots = spots.min((cap - used).max(0));
-    }
-    (out, spots)
+    (out, open_spots_under_cap(team, ctx))
 }
 
 /// (banner text, is_warning, retry once more) after "Did it".

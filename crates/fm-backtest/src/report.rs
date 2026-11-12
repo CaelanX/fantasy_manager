@@ -646,7 +646,9 @@ pub fn render(
                 s("Players with >= 1 GP before the checkpoint and >= 10 GP after it. `preseason` = the app's \
                    baseline alone, `to_date` = season-to-date FPG, `fm_shrink_only` = the app's shrinkage with no \
                    recency blend, `fm_current` = the app's shrinkage + recency blend (blend.py functions), \
-                   `fm_fitted` = fitted k and recency weights (leave-one-season-out)."),
+                   `fm_fitted` = fitted k and recency weights (leave-one-season-out), `fm_fitted_stat` = \
+                   `fm_fitted` with each volume stat (shots, hits, blocks, penalty minutes) shrunk with its own \
+                   fitted k."),
                 s(""),
             ],
         );

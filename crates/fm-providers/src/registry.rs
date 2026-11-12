@@ -71,7 +71,7 @@ pub fn get_provider_at(
             Ok(Box::new(p))
         }
         "fantrax" => {
-            let mut p = FantraxProvider::new(settings.clone(), cache.offline);
+            let mut p = FantraxProvider::new(settings.clone(), cache.offline).with_official(cache.clone());
             if let Some(t) = today {
                 p = p.with_today(t);
             }
@@ -95,8 +95,16 @@ pub fn clear_league_cache(name: &str, settings: &Settings, cache: Option<&HttpCa
             Some(c) => c.clear(Some(ESPN_HOST)),
             None => Ok(0),
         },
-        // fantrax.clear_cache(settings.fm_data_dir): every json file under <data_dir>/fantrax_cache
-        "fantrax" => Ok(FxpaFileCache::new(&settings.fm_data_dir, false).clear()),
+        // fantrax.clear_cache(settings.fm_data_dir): every json file under <data_dir>/fantrax_cache, plus the
+        // official-API responses, which live in the shared cache.db
+        "fantrax" => {
+            let files = FxpaFileCache::new(&settings.fm_data_dir, false).clear();
+            let official = match cache {
+                Some(c) => c.clear(Some(crate::fantrax_official::URL_MARK))?,
+                None => 0,
+            };
+            Ok(files + official)
+        }
         _ => Ok(0),
     }
 }
@@ -163,5 +171,37 @@ mod tests {
         assert_eq!(clear_league_cache("fantrax", &s, None).unwrap(), 1);
         assert!(fx.get("abc", 900.0).is_none()); // read live after the clear
         assert_eq!(clear_league_cache("fantrax", &s, None).unwrap(), 0);
+    }
+
+    /// The Fantrax clear also drops official-API rows from cache.db and leaves other hosts alone.
+    #[test]
+    fn clear_league_cache_fantrax_drops_official_rows() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = HttpCache::open(dir.path(), false).unwrap();
+        let urls = [
+            "https://www.fantrax.com/fxea/general/getLeagueInfo",
+            "https://www.fantrax.com/fxea/general/getAdp",
+            "https://api-web.nhle.com/v1/roster/EDM/current",
+        ];
+        for (i, url) in urls.iter().enumerate() {
+            let resp = CachedResponse { url: (*url).into(), status_code: 200, text: "{}".into(), from_cache: false };
+            cache.store(&format!("k{i}"), url, &resp).unwrap();
+        }
+        let s = Settings { fm_data_dir: dir.path().to_path_buf(), ..Settings::default() };
+        assert_eq!(clear_league_cache("fantrax", &s, Some(&cache)).unwrap(), 2);
+        assert!(cache.lookup("k0").is_none() && cache.lookup("k1").is_none());
+        assert!(cache.lookup("k2").is_some());
+    }
+
+    /// Only the live factory attaches the official client, and only when a league id is set.
+    #[test]
+    fn live_factory_attaches_the_official_client() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = Arc::new(HttpCache::open(dir.path(), true).unwrap());
+        let with_id = Settings { fantrax_league_id: Some("abc".into()), ..Settings::default() };
+        let p = FantraxProvider::new(with_id.clone(), true);
+        assert!(p.official().is_none(), "a plain provider has no official client");
+        assert!(p.with_official(cache.clone()).official().is_some());
+        assert!(FantraxProvider::new(Settings::default(), true).with_official(cache).official().is_none());
     }
 }

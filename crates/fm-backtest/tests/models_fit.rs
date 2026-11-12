@@ -11,6 +11,7 @@ use fm_backtest::evaluate::{
 };
 use fm_backtest::fit::{
     components, dynasty_anchors, fit_age_curve, fit_inseason, fit_shrinkage_k_default, inseason_projection,
+    inseason_projection_split, InseasonObs,
     k_grid, mae_components, recency_weights_for, AgeCurveOpts, Pair,
 };
 use fm_backtest::models::{
@@ -326,6 +327,31 @@ fn inseason_scalar_matches_app_blend() {
 }
 
 #[test]
+fn inseason_projection_split_shrinks_each_volume_stat_with_its_own_k() {
+    // 10 GP to date: 3.0 FPG of which SOG 1.0 and BLK 0.5; baseline 2.0 of which SOG 0.6, BLK 0.4
+    let vol: Map<String, (f64, f64)> =
+        [("SOG".to_string(), (1.0, 0.6)), ("BLK".to_string(), (0.5, 0.4))].into_iter().collect();
+    let o = InseasonObs {
+        gp_td: 10,
+        fpg_td: 3.0,
+        fpg_base: 2.0,
+        vol_points: vol,
+        has_base: true,
+        group: "F".into(),
+        ..Default::default()
+    };
+    let season_only: Map<String, f64> =
+        [("season", 1.0), ("last30", 0.0), ("last15", 0.0), ("last7", 0.0)].iter().map(|(k, v)| (k.to_string(), *v)).collect();
+    let kv: Map<String, f64> = [("SOG".to_string(), 5.0)].into_iter().collect();
+    // rest (1.5 vs 1.0) and BLK (0.5 vs 0.4) with k 25, SOG (1.0 vs 0.6) with k 5
+    let want = (10.0 * 1.5 + 25.0 * 1.0) / 35.0 + (10.0 * 0.5 + 25.0 * 0.4) / 35.0 + (10.0 * 1.0 + 5.0 * 0.6) / 15.0;
+    assert!(approx(inseason_projection_split(&o, 25.0, &kv, &season_only), want)); // 1.571429 + 0.866667
+    // no per-stat k: the single-k projection
+    assert!(approx(inseason_projection_split(&o, 25.0, &Map::new(), &season_only), inseason_projection(&o, 25.0, &season_only)));
+    assert!(approx(inseason_projection(&o, 25.0, &season_only), (10.0 * 3.0 + 25.0 * 2.0) / 35.0));
+}
+
+#[test]
 fn recency_weights_for_matches_app() {
     let gps: Map<String, i64> = [("last30", 5), ("last15", 2), ("last7", 4)].iter().map(|(k, v)| (k.to_string(), *v)).collect();
     let got = recency_weights_for(recency_weights_snapshot(), &gps);
@@ -426,11 +452,41 @@ fn diff(a: &Value, b: &Value, path: &str, out: &mut Vec<String>, ignore: &[&str]
     }
 }
 
+/// The loaded params as the Python had them: without the per-stat in-season k of the volume
+/// stats, which the Rust port added (`params::k_inseason_volume`). Every parity test installs the
+/// same value, so their running in parallel does not matter.
+fn install_python_params() {
+    let cur = params::current();
+    let mut p = cur.merged.clone();
+    if let Some(ins) = p.get_mut("inseason").and_then(|v| v.as_object_mut()) {
+        ins.shift_remove("k_skater_volume");
+    }
+    params::install_with_active(p, cur.active.clone());
+}
+
+/// Drop what the Rust port added to the backtest output (the `fm_fitted_stat` model and the
+/// per-stat k fits), so the rest can be compared with the Python files.
+fn strip_per_stat_additions(v: &mut Value) {
+    if let Some(ins) = v.get_mut("inseason").and_then(|x| x.as_object_mut()) {
+        ins.shift_remove("k_skater_volume_fit");
+    }
+    if let Some(rows) = v.get_mut("rows").and_then(|x| x.as_array_mut()) {
+        rows.retain(|r| r["model"] != "fm_fitted_stat");
+    }
+    if let Some(fits) = v.get_mut("inseason_fits").and_then(|x| x.as_object_mut()) {
+        for f in fits.values_mut().filter_map(|f| f.as_object_mut()) {
+            f.shift_remove("k_skater_volume");
+            f.shift_remove("mae_fitted_split");
+        }
+    }
+}
+
 fn fit_parity(scoring: &str, file: &str) {
     let Some(src) = data_dir() else {
         eprintln!("skip: no data/backtest");
         return;
     };
+    install_python_params();
     let dir = tempfile::tempdir().unwrap();
     let bt = dir.path().join("backtest");
     std::fs::create_dir_all(&bt).unwrap();
@@ -442,7 +498,8 @@ fn fit_parity(scoring: &str, file: &str) {
     let got = run_fit(dir.path(), scoring, 200, None, now, None).unwrap();
     eprintln!("run_fit({scoring}) took {:?}", t0.elapsed());
     let want: Value = serde_json::from_str(&std::fs::read_to_string(src.join(file)).unwrap()).unwrap();
-    let on_disk: Value = serde_json::from_str(&std::fs::read_to_string(fitted_params_path(dir.path(), scoring).unwrap()).unwrap()).unwrap();
+    let mut on_disk: Value = serde_json::from_str(&std::fs::read_to_string(fitted_params_path(dir.path(), scoring).unwrap()).unwrap()).unwrap();
+    strip_per_stat_additions(&mut on_disk);
     let mut errs = Vec::new();
     diff(&on_disk, &want, "", &mut errs, &["/generated"]);
     for e in errs.iter().take(40) {
@@ -467,6 +524,7 @@ fn eval_parity(scoring: &str, file: &str) {
         eprintln!("skip: no data/backtest");
         return;
     };
+    install_python_params();
     let want: Value = serde_json::from_str(&std::fs::read_to_string(src.join(file)).unwrap()).unwrap();
     let dir = tempfile::tempdir().unwrap();
     let bt = dir.path().join("backtest");
@@ -479,7 +537,20 @@ fn eval_parity(scoring: &str, file: &str) {
     let t0 = std::time::Instant::now();
     let out = run_evaluation(dir.path(), scoring, None, Some(&seasons), true, None, today, None, None).unwrap();
     eprintln!("run_evaluation({scoring}) took {:?}", t0.elapsed());
-    let got: Value = serde_json::from_str(&std::fs::read_to_string(&out.results).unwrap()).unwrap();
+    let mut got: Value = serde_json::from_str(&std::fs::read_to_string(&out.results).unwrap()).unwrap();
+    strip_per_stat_additions(&mut got);
+    let mut want = want;
+    // In-season goalie `fm_current` rows deliberately depart from the Python (wins and shots against
+    // per start come from the goalie's team); every other row must still match.
+    let departs = |r: &Value| r["kind"] == "inseason" && r["pool"] == "goalies" && r["model"] == "fm_current";
+    let mut moved = 0;
+    for v in [&mut got, &mut want] {
+        let rows = v["rows"].as_array_mut().unwrap();
+        let before = rows.len();
+        rows.retain(|r| !departs(r));
+        moved += before - rows.len();
+    }
+    assert!(moved > 0 && moved % 2 == 0, "departing rows: {moved}");
     let mut errs = Vec::new();
     diff(&got, &want, "", &mut errs, &["elapsed_seconds"]);
     for e in errs.iter().take(40) {

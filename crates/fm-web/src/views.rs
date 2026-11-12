@@ -752,7 +752,9 @@ fn ts_asset(a: &fm_engine::analysis::outlook::Asset<'_>) -> Value {
 fn team_outlook_value(t: &fm_engine::analysis::outlook::TeamOutlook<'_>) -> Value {
     json!({"team": ser(t.team), "record": ser(&t.record), "win_pct": t.win_pct, "now": t.now, "future": t.future,
            "now_rank": t.now_rank, "future_rank": t.future_rank, "playoff_odds": t.playoff_odds, "label": t.label,
-           "future_avg": t.future_avg(), "mine": t.mine()})
+           "future_avg": t.future_avg(), "mine": t.mine(),
+           "points_for": t.luck.map(|l| l.points_for), "points_for_rank": t.luck.map(|l| l.pf_rank),
+           "all_play": t.luck.map(|l| [l.all_play.0, l.all_play.1, l.all_play.2]), "expected_wins": t.luck.map(|l| l.expected_wins)})
 }
 
 /// The `Outlook` dataclass as a template context.
@@ -761,7 +763,8 @@ pub fn outlook_value(o: &Outlook<'_>) -> Value {
            "me": o.me().map(team_outlook_value), "dynasty": o.dynasty, "recommended": o.recommended,
            "current": o.current, "reasons": o.reasons, "sell": o.sell.iter().map(ts_asset).collect::<Vec<_>>(),
            "buy": o.buy.iter().map(ts_asset).collect::<Vec<_>>(), "weeks_left": o.weeks_left,
-           "playoff_teams": o.playoff_teams, "notes": o.notes})
+           "playoff_teams": o.playoff_teams, "notes": o.notes,
+           "this_week": o.this_week.map(|(w, l)| json!({"if_win": w, "if_loss": l}))})
 }
 
 /// `analysis.outlook.build_outlook` on the loaded result (memoised); null when it fails.

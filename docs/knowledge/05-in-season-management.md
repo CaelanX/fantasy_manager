@@ -45,7 +45,7 @@ The 2026-27 schedule has more back-to-backs for some teams than others: Pittsbur
 
 ESPN's default is "Lock Individually at Scheduled Game Time": each player can be moved between active and bench slots until his own game starts ([ESPN lock times](https://support.espn.com/hc/en-us/articles/360055424451-Lineup-and-Roster-Lock-Times)). The same page says trades, add/drops and IR moves lock at the first scheduled game of the day. The practical consequence is that a late scratch on a 10 pm game can still be swapped for a bench player whose game has not started, but an add may need to be made before the day's first puck drop. Confirm the exact behaviour in the league's own settings page **(unverified for this league)**.
 
-For Fantrax I could not find an official hockey help page. One public Fantrax league's rules page shows daily lineup changes with a lock five minutes before each player's game, but lock rules are a commissioner setting ([example Fantrax rules, MLB league](https://www.fantrax.com/newui/fantasy/gameRules.go?leagueId=6anh3s46iwe1kp9z)). **(unverified for our league)**
+For Fantrax I could not find an official hockey help page. One public Fantrax league's rules page shows daily lineup changes with a lock five minutes before each player's game, but lock rules are a commissioner setting ([example Fantrax rules, MLB league](https://www.fantrax.com/newui/fantasy/gameRules.go?leagueId=6anh3s46iwe1kp9z)). **(unverified for our league)** Correction: for our Fantrax league this is now confirmed. Lineups change daily (the Rules page and the official API show about 194 roster periods inside 27 weekly scoring periods), so reserve players add games and daily lineup setting applies on Fantrax as on ESPN. The exact lock time within the day has not been checked.
 
 ## 2. Streaming
 
@@ -174,7 +174,7 @@ So in the Fantrax league a confirmed goalie start should essentially always be p
 
 **ESPN (14 teams, 9 F / 5 D / 1 UTIL / 2 G, 5 bench, 2 IR, 2 adds per matchup).** There are 22 non-IR roster spots (17 active plus 5 bench). With three goalies that leaves 19 skaters for 15 skater slots, so the skater bench is four deep (five with only two goalies). On light nights, when only about 5 NHL games (10 of 32 teams) are played, many of the 15 slots will be empty, and that cannot be fixed by streaming at two adds a week. The durable fix is roster composition: prefer skaters from teams with many off-night games when values are close. Five defence slots make blocks (0.5) and shots matter, and a 14-team league has a thin free-agent pool, so a dropped player is likely to be claimed.
 
-**Fantrax (12 teams, 6 F / 4 D / 2 G, 6 reserve, 2 IR, 3 moves per week, dynasty).** There are only ten skater slots. With the stated 16-player maximum and two or three goalies, that means 13 or 14 skaters for ten slots, a higher bench-to-slot ratio than the ESPN league, so heavy-night conflicts are more frequent and light nights are easier to fill **(inference)**. The lineup problem is more often choosing the best ten each day, so per-game quality and matchup matter relatively more than raw games. Dynasty value limits who can be dropped for a streamer; the streaming spot should be a reserve player with no long-term value. High shot (0.5) and goal (4) weights reward volume shooters.
+**Fantrax (12 teams, 6 F / 4 D / 2 G, up to 6 reserve but 4 in practice under the 16-player cap, 2 IR, 3 moves per week, daily lineups, keep 3 per team).** There are only ten skater slots. With the stated 16-player maximum and two or three goalies, that means 13 or 14 skaters for ten slots, a higher bench-to-slot ratio than the ESPN league, so heavy-night conflicts are more frequent and light nights are easier to fill **(inference)**. The lineup problem is more often choosing the best ten each day, so per-game quality and matchup matter relatively more than raw games. Only a team's top 3 players carry over, so long-term value limits who can be dropped for a streamer only for those keepers; the streaming spot should be a reserve player with no long-term value. High shot (0.5) and goal (4) weights reward volume shooters.
 
 ## Implications for the engine
 
@@ -206,7 +206,7 @@ Own inference, to be tested:
 - **Quantity versus quality.** Allen says quantity usually wins below the top 100; Daily Faceoff repeatedly downgrades teams with games but weak offence. No source gives a number.
 - **Streaming value in points leagues** is not quantified anywhere I looked.
 - **Buy-low/sell-high effectiveness** is asserted, not tested.
-- **League-specific unknowns:** waiver system and processing times in both leagues, IR eligibility rules, what counts as a "move", exact lock behaviour for adds, fantasy trade deadlines, and the 2026-27 playoff weeks.
+- **League-specific unknowns (most now known, see the [README](README.md#league-facts-confirmed-from-the-app)):** waivers are ESPN priority with a 24-hour hold after a drop, and Fantrax free agents first come first served with waivers 2 days in priority order; the ESPN trade deadline is 2027-02-26 and Fantrax has none; playoffs are periods 25 to 27 in both leagues; Fantrax lineups change daily. Still unknown: IR eligibility rules (Fantrax), what counts as a "move", and exact lock behaviour for ESPN adds.
 - **Home/away and betting-total adjustments** for skater start/sit have no verified size.
 
 ## Sources

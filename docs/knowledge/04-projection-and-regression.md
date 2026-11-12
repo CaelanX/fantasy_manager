@@ -157,19 +157,19 @@ Supported by the evidence:
 
 Questionable or worth testing:
 
-- **One k per position on total fantasy points per game.** The evidence says components differ by an order of magnitude (shots and hits versus shooting percentage and secondary assists). A single k is a compromise that over-regresses volume and under-regresses conversion.
-- **GSAx correction for goalies.** GSAx repeats no better than save percentage (r = 0.12), so a single season's GSAx should move the projection very little. If the correction pulls goals against toward expected goals against, that is sound; if it rewards a high GSAx as skill, it is not supported.
+- **One k per statistic, not per component.** (Corrected after checking the code, [09](09-engine-gap-analysis.md) D1: the engine shrinks each statistic's rate, not total fantasy points per game, and goals, assists and saves have their own regressions.) The evidence says components differ by an order of magnitude (shots and hits versus shooting percentage and secondary assists). A single k of 25 games for skaters still over-regresses volume statistics (shots, hits, blocks, penalty minutes) relative to conversion statistics; that remaining issue is 09's B8.
+- **GSAx correction for goalies.** GSAx repeats no better than save percentage (r = 0.12), so a single season's GSAx should move the projection very little. (Corrected, 09 D2: the engine pools GSAx over three seasons and regresses it with 3,000 shots before rebuilding the save component, which is the treatment this file asks for. Goalies with fewer than 500 weighted shots fall back to k = 40 games.)
 - **Regressing finishing to exactly xG.** A few elite shooters reliably beat xG; a career finishing ratio regressed with several hundred shots is better supported than 1.0.
 - **In-season k of 25 games (skaters) and 40 (goalies).** For goalie rate skill the literature implies far more than 40 games; the fitted value is probably being driven by volume (who is starting), which is a role signal, not a skill signal.
-- **Age factor for goalies** is hand-set; published within-goalie studies show no improvement after the early twenties and decline from about 30.
+- **Age factor for goalies.** (Corrected, 09 D5: the season projection has no goalie age factor at all; only the dynasty goalie curve is hand-set.) Published within-goalie studies show no improvement after the early twenties and decline from about 30, so the dynasty curve is the place to check.
 
-Missing:
+Missing (two of the original five items turned out to exist; see 09 D3 and D4):
 
-- An explicit **role-change path**: ice time and power-play unit changes should update opportunity immediately, separately from rate regression.
+- A **role-change path** exists in the engine (09 D4); the open question is whether its size is right (09 B4). Ice time and power-play unit changes should update opportunity immediately, separately from rate regression.
 - **Assist split**: primary and secondary assists regressed differently, especially for defensemen.
 - **League-environment adjustment**: power-play opportunities and scoring level drift year to year and bias every player at once.
 - **Team-change handling** for on-ice percentages and power-play role.
-- **NHLe prior** for players with no NHL history when no provider projection exists.
+- **NHLe prior** for players with no NHL history when no provider projection exists. This exists in the engine (09 D3: `rookie.rs`, `nhle_factors.json`); it is listed here only as a design requirement the engine already meets.
 
 ## Implications for the engine
 
@@ -178,7 +178,7 @@ Well supported by sources:
 1. Regress individual shooting percentage with about 375 shots of position-average shooting for forwards and 275 for defensemen, or equivalently toward individual xG. Test: backtest goals with and without; expect lower error with.
 2. Treat secondary assists for defensemen as league-average rate times ice time; give forwards' secondary assists roughly half the trust of primary assists. Test: split assists in the season table and compare rest-of-season assist error.
 3. Do not let last-7 or last-15-day results change a ranking by themselves. Check: recency weights for those windows stay at or near zero in every refit.
-4. Goalie single-season save percentage or GSAx should receive weight of roughly n / (n + 3,000) shots. Check: a goalie with 600 shots of .930 should project within about .003 of his prior.
+4. Goalie single-season save percentage or GSAx should receive weight of roughly n / (n + 3,000) shots. Check: the weight on 600 shots is 600 / (600 + 3,000) = 1/6, so a goalie with 600 shots of .930 (.034 above a .896 league mean) should project about .034 / 6 = .006 above his prior, that is within about .006 of the prior, not .003.
 5. Always report a naive (last season) and Marcel baseline next to the engine in backtests, fitted on earlier seasons only. Already done by `fm backtest run`; keep it a release gate.
 6. Track bias (projected minus actual) per season and per stat, not only MAE, to expose environment drift.
 

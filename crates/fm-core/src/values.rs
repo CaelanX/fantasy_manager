@@ -38,8 +38,18 @@ pub struct PlayerValue {
     pub player: Player,
     /// healthy per-game value (blended rates)
     pub fpg: f64,
-    /// fpg * season availability
+    /// fpg * season availability, plus `ir_fill`
     pub fpg_season: f64,
+    /// Season FPG that a replacement-level player adds in this player's roster spot while he is
+    /// out, when an IR slot holds him or a free one can: (1 - season availability) x the
+    /// replacement level of his slot. 0 when he is healthy or has no IR slot to go to.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub ir_fill: f64,
+    /// Typical error of `fpg` in league points per game: the backtest's mean absolute error of a
+    /// per-game projection for his group (F / D / G), times the league's point scale for skaters
+    /// or goalies. 0 when the engine's point scale is turned off (Python parity).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub fpg_error: f64,
     /// week per-game value (see valuate module docs)
     pub fpg_week: f64,
     /// season horizon
@@ -82,6 +92,10 @@ pub struct PlayerValue {
 
 fn one() -> f64 {
     1.0
+}
+
+fn is_zero(x: &f64) -> bool {
+    *x == 0.0
 }
 
 impl PlayerValue {
@@ -138,7 +152,7 @@ pub struct DynastyValue {
     /// seasons after this one (years >= 1 + terminal), market-blended
     #[serde(default)]
     pub future: f64,
-    /// max(0, future - a waiver-level roster spot's future value)
+    /// max(0, future - the future value of a waiver-level roster spot at his own VORP slot)
     #[serde(default)]
     pub keeper_surplus: f64,
     /// among his holder's top keepers_per_team by keeper_surplus (free agents: would enter MY top)

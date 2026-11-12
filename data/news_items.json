@@ -297,7 +297,7 @@
   "headline": "\u26a1 Seven teams that could trade for Nikita Kucherov",
   "id": "US-EN-50382836",
   "player_name": null,
-  "published": "2026-11-10T20:36:04Z",
+  "published": "2026-11-12T05:15:21Z",
   "seen": "2026-11-05T17:43:02.145180+00:00",
   "source": "espn",
   "tags": [
@@ -474,7 +474,7 @@
   "headline": "NHL Awards Watch: Believe it or not, McDavid not the unanimous MVP pick right now",
   "id": "US-EN-50432982",
   "player_name": null,
-  "published": "2026-11-10T15:47:08Z",
+  "published": "2026-11-11T05:47:19Z",
   "seen": "2026-11-10T16:04:05.616628+00:00",
   "source": "espn",
   "tags": [],
@@ -538,7 +538,7 @@
   "headline": "PWHL unveils branding for new franchises Detroit, Hamilton, San Jose and Las Vegas",
   "id": "US-EN-50439123",
   "player_name": null,
-  "published": "2026-11-10T14:52:56Z",
+  "published": "2026-11-11T01:01:35Z",
   "seen": "2026-11-10T16:04:05.616628+00:00",
   "source": "espn",
   "tags": [],
@@ -570,12 +570,23 @@
   ],
   "url": "https://www.espn.com/nhl/story/_/id/50444087/canucks-winger-evander-kane-signs-rest-khl-season"
  },
+ "US-EN-50444541": {
+  "blurb": "Find game previews, betting intel, broadcast information, stats and highlights here.",
+  "headline": "NHL Tonight: What to watch in Mammoth-Knights, five other games on Wednesday",
+  "id": "US-EN-50444541",
+  "player_name": null,
+  "published": "2026-11-11T14:47:12Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "espn",
+  "tags": [],
+  "url": "https://www.espn.com/nhl/story/_/id/50444541/nhl-2026-27-tonight-games-schedule-matchups-stats-top-players-betting"
+ },
  "US-EN-50444702": {
   "blurb": "Alex Ovechkin didn't weigh in on CAS' decision to allow Russian players back in hockey worlds, but said they just want to represent their country.",
   "headline": "Ovechkin doesn't weigh in on allowing Russian players in worlds: 'It's not up to us'",
   "id": "US-EN-50444702",
   "player_name": null,
-  "published": "2026-11-10T20:36:04Z",
+  "published": "2026-11-12T05:15:21Z",
   "seen": "2026-11-10T20:34:44.660317+00:00",
   "source": "espn",
   "tags": [],
@@ -599,11 +610,76 @@
   "headline": "Kings' Fiala to make season debut this week, sources say; Zuccarello back vs. Preds",
   "id": "US-EN-50444957",
   "player_name": null,
-  "published": "2026-11-10T20:36:04Z",
+  "published": "2026-11-12T05:15:21Z",
   "seen": "2026-11-10T20:34:44.660317+00:00",
   "source": "espn",
   "tags": [],
   "url": "https://www.espn.com/nhl/story/_/id/50444957/kings-expect-get-kevin-fiala-back-week-sources-say"
+ },
+ "US-EN-50447631": {
+  "blurb": "At the annual fall meeting that follows Hockey Hall of Fame weekend in Toronto, NHL general managers discussed ways to use technology and other means to help on-ice officials, among other topics, on Tuesday.",
+  "headline": "NHL GMs discuss how technology can help officials at fall meeting",
+  "id": "US-EN-50447631",
+  "player_name": null,
+  "published": "2026-11-12T05:15:21Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "espn",
+  "tags": [],
+  "url": "https://www.espn.com/nhl/story/_/id/50447631/gms-discussing-ways-technology-assist-nhl-officials"
+ },
+ "US-EN-50448279": {
+  "blurb": "The Flyers have not received a formal trade request from Matvei Michkov and were surprised to hear he wanted to play elsewhere, sources told ESPN on Tuesday.",
+  "headline": "Sources: Michkov has not formally requested trade; Flyers surprised by chatter",
+  "id": "US-EN-50448279",
+  "player_name": null,
+  "published": "2026-11-11T15:13:07Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "espn",
+  "tags": [
+   "trade"
+  ],
+  "url": "https://www.espn.com/nhl/story/_/id/50448279/flyers-not-received-formal-trade-request-matvei-michkov"
+ },
+ "US-EN-50449980": {
+  "blurb": "Although he did not play Tuesday night in his return to Winnipeg after being traded to New Jersey, goaltender Connor Hellebuyck was booed when he took the ice for the Devils' pregame warmup.",
+  "headline": "Hellebuyck booed pregame in Winnipeg return as Jets go on to beat Devils",
+  "id": "US-EN-50449980",
+  "player_name": null,
+  "published": "2026-11-12T05:15:21Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "espn",
+  "tags": [
+   "return",
+   "trade",
+   "goalie"
+  ],
+  "url": "https://www.espn.com/nhl/story/_/id/50449980/connor-hellebuyck-booed-pregame-winnipeg-return-jets-go-beat-devils"
+ },
+ "US-EN-50452880": {
+  "blurb": "Senators forward Nick Cousins will be out for a week to 10 days following a thunderous hit by Capitals defenseman Jakob Chychrun that was ruled as legal during Tuesday night's game.",
+  "headline": "Sens' Cousins out 7-10 days after legal hit from Caps' Chychrun",
+  "id": "US-EN-50452880",
+  "player_name": null,
+  "published": "2026-11-12T05:15:21Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "espn",
+  "tags": [
+   "out"
+  ],
+  "url": "https://www.espn.com/nhl/story/_/id/50452880/hit-capitals-chychrun-senators-cousins-deemed-clean"
+ },
+ "US-EN-50454698": {
+  "blurb": "Flyers coach Rick Tocchet said Wednesday that winger Matvei Michkov has not asked the organization for a trade.",
+  "headline": "Flyers' Michkov didn't ask team for trade, Tocchet says",
+  "id": "US-EN-50454698",
+  "player_name": null,
+  "published": "2026-11-12T05:15:21Z",
+  "seen": "2026-11-11T20:58:25.793068+00:00",
+  "source": "espn",
+  "tags": [
+   "trade"
+  ],
+  "url": "https://www.espn.com/nhl/story/_/id/50454698/matvei-michkov-ask-flyers-trade-rick-tocchet-says"
  },
  "nhl596156": {
   "blurb": "Head coach Rod Brind'Amour said Friday that Hall (upper body) is considered week-to-week, Chip Alexander of The Raleigh News & Observer reports.",
@@ -1481,5 +1557,330 @@
    "start"
   ],
   "url": "https://www.rotowire.com/hockey/player/logan-thompson-6355"
+ },
+ "nhl599308": {
+  "blurb": "Cooley is set to start at home against the Rangers on Wednesday, per Pat Steinberg of QR Calgary 770 AM.",
+  "headline": "Expected to start Wednesday",
+  "id": "nhl599308",
+  "player_name": "Devin Cooley",
+  "published": "2026-11-11T16:42:00Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "rotowire",
+  "tags": [
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/devin-cooley-6360"
+ },
+ "nhl599311": {
+  "blurb": "Korpisalo was the first goalie off the ice during Wednesday's morning skate, Mollie Walker of the New York Post reports, indicating that he'll draw the road start against Calgary.",
+  "headline": "Starting against Calgary",
+  "id": "nhl599311",
+  "player_name": "Joonas Korpisalo",
+  "published": "2026-11-11T17:09:00Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "rotowire",
+  "tags": [
+   "goalie",
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/joonas-korpisalo-4031"
+ },
+ "nhl599314": {
+  "blurb": "Ristolainen (hand) is expected to play Wednesday in Edmonton, per Jackie Spiegel of The Philadelphia Inquirer.",
+  "headline": "Probable Wednesday",
+  "id": "nhl599314",
+  "player_name": "Rasmus Ristolainen",
+  "published": "2026-11-11T17:45:00Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/rasmus-ristolainen-4162"
+ },
+ "nhl599315": {
+  "blurb": "Fowler will start Thursday's road game against Boston, Stu Cowan of The Montreal Gazette reports.",
+  "headline": "Drawing start Thursday",
+  "id": "nhl599315",
+  "player_name": "Jacob Fowler",
+  "published": "2026-11-11T17:47:00Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "rotowire",
+  "tags": [
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/jacob-fowler-6988"
+ },
+ "nhl599316": {
+  "blurb": "Matheson (lower body) will travel with the Canadiens ahead of Thursday's road game against Boston, Renaud Lavoie of TVA Sports reports.",
+  "headline": "Slated to travel with team",
+  "id": "nhl599316",
+  "player_name": "Mike Matheson",
+  "published": "2026-11-11T17:54:00Z",
+  "seen": "2026-11-11T18:18:52.020596+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "lower-body"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/mike-matheson-3995"
+ },
+ "nhl599326": {
+  "blurb": "Ristolainen (hand) is considered a game-time decision for Wednesday's game against the Oilers, Jackie Spiegel of The Philadelphia Inquirer reports.",
+  "headline": "Considered game-time decision",
+  "id": "nhl599326",
+  "player_name": "Rasmus Ristolainen",
+  "published": "2026-11-11T18:49:00Z",
+  "seen": "2026-11-11T19:51:54.704761+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/rasmus-ristolainen-4162"
+ },
+ "nhl599328": {
+  "blurb": "Jarry will start Wednesday's home game against the Flyers, Ryan Rishaug of TSN reports.",
+  "headline": "Defending home crease Wednesday",
+  "id": "nhl599328",
+  "player_name": "Tristan Jarry",
+  "published": "2026-11-11T19:07:00Z",
+  "seen": "2026-11-11T19:51:54.704761+00:00",
+  "source": "rotowire",
+  "tags": [
+   "goalie",
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/tristan-jarry-4198"
+ },
+ "nhl599330": {
+  "blurb": "Hart was the first goalie off during Wednesday's morning skate, Danny Webster of the Las Vegas Review-Journal reports, indicating that he'll draw the home start against the Mammoth.",
+  "headline": "First goalie off Wednesday",
+  "id": "nhl599330",
+  "player_name": "Carter Hart",
+  "published": "2026-11-11T19:09:00Z",
+  "seen": "2026-11-11T19:51:54.704761+00:00",
+  "source": "rotowire",
+  "tags": [
+   "goalie",
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/carter-hart-5156"
+ },
+ "nhl599331": {
+  "blurb": "Terry (hip) has been cleared to make his regular-season debut during Wednesday's game against Nashville.",
+  "headline": "Returning to action Wednesday",
+  "id": "nhl599331",
+  "player_name": "Troy Terry",
+  "published": "2026-11-11T19:19:00Z",
+  "seen": "2026-11-11T19:51:54.704761+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "return"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/troy-terry-5581"
+ },
+ "nhl599332": {
+  "blurb": "Murashov was the first goalie off during Wednesday's morning skate, Josh Getzoff of SportsNet Pittsburgh reports, indicating that he'll draw the road start against San Jose.",
+  "headline": "Starting Wednesday's matchup",
+  "id": "nhl599332",
+  "player_name": "Sergei Murashov",
+  "published": "2026-11-11T19:24:00Z",
+  "seen": "2026-11-11T19:51:54.704761+00:00",
+  "source": "rotowire",
+  "tags": [
+   "goalie",
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/sergei-murashov-7267"
+ },
+ "nhl599338": {
+  "blurb": "Ristolainen (hand) was taken off injured reserve Wednesday.",
+  "headline": "Off injured reserve",
+  "id": "nhl599338",
+  "player_name": "Rasmus Ristolainen",
+  "published": "2026-11-11T20:37:00Z",
+  "seen": "2026-11-11T20:58:25.793068+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "ir"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/rasmus-ristolainen-4162"
+ },
+ "nhl599339": {
+  "blurb": "Doughty missed practice Wednesday after he sustained an apparent lower-body injury Tuesday against the Predators, Alexander Legget of MayorsManor.com reports.",
+  "headline": "Absent from practice Wednesday",
+  "id": "nhl599339",
+  "player_name": "Drew Doughty",
+  "published": "2026-11-11T20:39:00Z",
+  "seen": "2026-11-11T20:58:25.793068+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "lower-body"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/drew-doughty-2991"
+ },
+ "nhl599346": {
+  "blurb": "Vasilevskiy will protect the road goal versus the Sabres on Wednesday, Heather Engel of NHL.com reports.",
+  "headline": "In goal Wednesday",
+  "id": "nhl599346",
+  "player_name": "Andrei Vasilevskiy",
+  "published": "2026-11-11T23:32:00Z",
+  "seen": "2026-11-11T14:00:00+00:00",
+  "source": "rotowire",
+  "tags": [],
+  "url": "https://www.rotowire.com/hockey/player/andrei-vasilevskiy-3989"
+ },
+ "nhl599347": {
+  "blurb": "Luukkonen will protect the home goal versus the Lightning on Wednesday, Heather Engel of NHL.com reports.",
+  "headline": "Tending twine versus Lightning",
+  "id": "nhl599347",
+  "player_name": "Ukko-Pekka Luukkonen",
+  "published": "2026-11-11T23:34:00Z",
+  "seen": "2026-11-11T14:00:00+00:00",
+  "source": "rotowire",
+  "tags": [],
+  "url": "https://www.rotowire.com/hockey/player/ukko-pekka-luukkonen-5516"
+ },
+ "nhl599348": {
+  "blurb": "Guenther (upper body) was placed on injured reserve Wednesday and is expected to miss 2-4 weeks.",
+  "headline": "Lands on IR",
+  "id": "nhl599348",
+  "player_name": "Dylan Guenther",
+  "published": "2026-11-12T01:22:00Z",
+  "seen": "2026-11-11T14:00:00+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "ir",
+   "upper-body"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/dylan-guenther-6456"
+ },
+ "nhl599353": {
+  "blurb": "Cooley (upper body) won't play versus the Golden Knights on Wednesday.",
+  "headline": "Absent from lineup",
+  "id": "nhl599353",
+  "player_name": "Logan Cooley",
+  "published": "2026-11-12T02:11:00Z",
+  "seen": "2026-11-12T02:16:37.650580+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "upper-body",
+   "line"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/logan-cooley-6677"
+ },
+ "nhl599354": {
+  "blurb": "Cossa will protect the road goal versus the Golden Knights on Wednesday, Danny Webster of the Las Vegas Review-Journal reports.",
+  "headline": "Guarding goal in Vegas",
+  "id": "nhl599354",
+  "player_name": "Sebastian Cossa",
+  "published": "2026-11-12T02:14:00Z",
+  "seen": "2026-11-12T02:16:37.650580+00:00",
+  "source": "rotowire",
+  "tags": [],
+  "url": "https://www.rotowire.com/hockey/player/sebastian-cossa-6477"
+ },
+ "nhl599355": {
+  "blurb": "Annunen will guard the road goal versus the Ducks on Wednesday.",
+  "headline": "Starting in Anaheim",
+  "id": "nhl599355",
+  "player_name": "Justus Annunen",
+  "published": "2026-11-12T02:31:00Z",
+  "seen": "2026-11-12T03:17:25.541654+00:00",
+  "source": "rotowire",
+  "tags": [
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/justus-annunen-5794"
+ },
+ "nhl599365": {
+  "blurb": "Schmaltz (lower body) is questionable to return to Wednesday's game versus the Golden Knights.",
+  "headline": "Questionable to finish game",
+  "id": "nhl599365",
+  "player_name": "Nick Schmaltz",
+  "published": "2026-11-12T04:46:00Z",
+  "seen": "2026-11-12T05:03:34.571573+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "lower-body",
+   "return"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/nick-schmaltz-4413"
+ },
+ "nhl599368": {
+  "blurb": "Barbashev scored twice in Wednesday's 5-3 win over the Mammoth.",
+  "headline": "Buries pair of goals in win",
+  "id": "nhl599368",
+  "player_name": "Ivan Barbashev",
+  "published": "2026-11-12T06:26:00Z",
+  "seen": "2026-11-11T14:00:00+00:00",
+  "source": "rotowire",
+  "tags": [],
+  "url": "https://www.rotowire.com/hockey/player/ivan-barbashev-4404"
+ },
+ "nhl599369": {
+  "blurb": "Olofsson scored a power-play goal on six shots and added two assists in Wednesday's 5-3 win over the Mammoth.",
+  "headline": "Racks up three points in win",
+  "id": "nhl599369",
+  "player_name": "Victor Olofsson",
+  "published": "2026-11-12T06:28:00Z",
+  "seen": "2026-11-11T14:00:00+00:00",
+  "source": "rotowire",
+  "tags": [
+   "power-play"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/victor-olofsson-5669"
+ },
+ "nhl599372": {
+  "blurb": "Marner logged three assists, including two on the power play, and fired three shots on net in Wednesday's 5-3 win over the Mammoth.",
+  "headline": "Distributes three helpers",
+  "id": "nhl599372",
+  "player_name": "Mitch Marner",
+  "published": "2026-11-12T06:34:00Z",
+  "seen": "2026-11-11T14:00:00+00:00",
+  "source": "rotowire",
+  "tags": [
+   "power-play"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/mitch-marner-4774"
+ },
+ "nhl599374": {
+  "blurb": "McBain scored a goal on two shots, added two assists, levied six hits and went plus-2 in Wednesday's 5-3 loss to the Golden Knights.",
+  "headline": "Generates three points in loss",
+  "id": "nhl599374",
+  "player_name": "Jack McBain",
+  "published": "2026-11-12T06:38:00Z",
+  "seen": "2026-11-11T14:00:00+00:00",
+  "source": "rotowire",
+  "tags": [],
+  "url": "https://www.rotowire.com/hockey/player/jack-mcbain-5709"
+ },
+ "nhl599379": {
+  "blurb": "Wright scored a goal on four shots and added two assists in Wednesday's 4-2 win over the Ducks.",
+  "headline": "Makes first marks with new team",
+  "id": "nhl599379",
+  "player_name": "Shane Wright",
+  "published": "2026-11-12T06:50:00Z",
+  "seen": "2026-11-11T14:00:00+00:00",
+  "source": "rotowire",
+  "tags": [],
+  "url": "https://www.rotowire.com/hockey/player/shane-wright-6675"
+ },
+ "nhl599383": {
+  "blurb": "Josi had two assists and two blocked shots in Wednesday's 4-2 win over the Ducks.",
+  "headline": "Crosses 800-point mark in career",
+  "id": "nhl599383",
+  "player_name": "Roman Josi",
+  "published": "2026-11-12T07:03:00Z",
+  "seen": "2026-11-11T14:00:00+00:00",
+  "source": "rotowire",
+  "tags": [],
+  "url": "https://www.rotowire.com/hockey/player/roman-josi-3037"
  }
 }

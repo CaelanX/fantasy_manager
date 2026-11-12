@@ -14,6 +14,11 @@ use std::time::Instant;
 
 use fm_core::provider::LeagueProvider;
 use fm_core::{DynastyValue, Map, PickAsset, PlayerValue};
+use fm_engine::scoring::disable_point_scale;
+use fm_engine::recommend::started::disable_started_games;
+use fm_engine::valuation::adjust::{pin_season_length, SeasonLength};
+use fm_engine::valuation::valuate::{disable_ir_fill, disable_team_goalie};
+use fm_engine::valuation::dynasty::disable_positional_dynasty;
 use fm_engine::valuation::params;
 use fm_engine::valuation::picks::{picks_by_holder, value_picks};
 use fm_http::{HttpCache, Tape};
@@ -100,6 +105,17 @@ fn check_outputs(test: &str, fx: &Fixtures, d: &Loaded) {
 
 fn from_snapshot(league: &str) {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // the fixtures come from Python, which assumed 82 games in 186 days whatever the schedule said
+    pin_season_length(Some(SeasonLength::DEFAULT));
+    // and valued an injured player's missed games at zero even when an IR slot held him
+    disable_ir_fill(true);
+    // and used the ESPN-point thresholds unscaled in every league, with no error ranges
+    disable_point_scale(true);
+    disable_started_games(true);
+    // and projected goalie wins and shots against from the goalie, not his team
+    disable_team_goalie(true);
+    // and valued the dynasty future with one replacement level and a rising goalie curve
+    disable_positional_dynasty(true);
     let test = format!("pipeline_from_snapshot_{league}");
     let fx = Fixtures::league(league);
     if !fx.available() {
@@ -140,6 +156,17 @@ fn pipeline_from_snapshot_fantrax() {
 
 fn end_to_end(league: &str) {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // the fixtures come from Python, which assumed 82 games in 186 days whatever the schedule said
+    pin_season_length(Some(SeasonLength::DEFAULT));
+    // and valued an injured player's missed games at zero even when an IR slot held him
+    disable_ir_fill(true);
+    // and used the ESPN-point thresholds unscaled in every league, with no error ranges
+    disable_point_scale(true);
+    disable_started_games(true);
+    // and projected goalie wins and shots against from the goalie, not his team
+    disable_team_goalie(true);
+    // and valued the dynasty future with one replacement level and a rising goalie curve
+    disable_positional_dynasty(true);
     let test = format!("pipeline_end_to_end_{league}");
     let fx = Fixtures::league(league);
     if !fx.available() {

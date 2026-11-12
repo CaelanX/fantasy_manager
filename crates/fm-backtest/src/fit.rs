@@ -16,7 +16,7 @@
 use fm_core::Map;
 use fm_engine::scoring::PointsScoring;
 use fm_engine::valuation::blend::{
-    k_baseline_snapshot, k_inseason_snapshot, recency_weights_snapshot, EXPECTED_GAMES,
+    k_baseline_snapshot, k_inseason_snapshot, recency_weights_snapshot, EXPECTED_GAMES, VOLUME_STATS,
 };
 use fm_pycompat::num::{median, py_sum, round_to};
 use fm_pycompat::random::PyRandom;
@@ -476,6 +476,8 @@ pub struct InseasonObs {
     pub gp_td: i64,
     pub fpg_td: f64,
     pub fpg_base: f64,
+    /// volume stat (`blend::VOLUME_STATS`) -> (its points per game in `fpg_td`, in `fpg_base`)
+    pub vol_points: Map<String, (f64, f64)>,
     pub has_base: bool,
     /// last30 / last15 / last7 -> (gp, fpg)
     pub splits: Map<String, (i64, f64)>,
@@ -515,6 +517,11 @@ pub fn inseason_projection(o: &InseasonObs, k: f64, weights: &Map<String, f64>) 
     if o.gp_td <= 0 {
         shrunk = o.fpg_base;
     }
+    with_recency(o, shrunk, weights)
+}
+
+/// The season-to-date rate `shrunk` blended with the recent splits (shortfall to 'season').
+fn with_recency(o: &InseasonObs, shrunk: f64, weights: &Map<String, f64>) -> f64 {
     let gps: Map<String, i64> = o.splits.iter().map(|(s, (gp, _))| (s.clone(), *gp)).collect();
     let w = recency_weights_for(weights, &gps);
     let mut out = w["season"] * shrunk;
@@ -525,6 +532,39 @@ pub fn inseason_projection(o: &InseasonObs, k: f64, weights: &Map<String, f64>) 
         }
     }
     out
+}
+
+/// [`inseason_projection`] with each volume stat's points shrunk with its own k from `k_volume`
+/// and the other stats' points with `k`; with an empty `k_volume` it is `inseason_projection`.
+/// FPG is linear in the per-stat rates, so this equals scoring the rates shrunk stat by stat
+/// (`blend::shrink_inseason`).
+pub fn inseason_projection_split(
+    o: &InseasonObs,
+    k: f64,
+    k_volume: &Map<String, f64>,
+    weights: &Map<String, f64>,
+) -> f64 {
+    let shrunk = if o.gp_td <= 0 {
+        o.fpg_base
+    } else if o.has_base {
+        let gp = o.gp_td as f64;
+        let (mut td_rest, mut base_rest, mut vol) = (o.fpg_td, o.fpg_base, 0.0);
+        for (stat, (td, base)) in &o.vol_points {
+            let Some(&kv) = k_volume.get(stat) else { continue };
+            td_rest -= td;
+            base_rest -= base;
+            vol += (gp * td + kv * base) / (gp + kv);
+        }
+        (gp * td_rest + k * base_rest) / (gp + k) + vol
+    } else {
+        o.fpg_td
+    };
+    with_recency(o, shrunk, weights)
+}
+
+fn inseason_mae_split(obs: &[InseasonObs], k: f64, k_volume: &Map<String, f64>, weights: &Map<String, f64>) -> f64 {
+    let errs: Vec<f64> = obs.iter().map(|o| inseason_projection_split(o, k, k_volume, weights) - o.fpg_rest).collect();
+    mae(&errs)
 }
 
 pub fn inseason_mae(obs: &[InseasonObs], k: f64, weights: &Map<String, f64>) -> f64 {
@@ -591,6 +631,10 @@ pub struct InseasonFit {
     pub mae_shrink_only_fitted_k: Option<f64>,
     /// {k: MAE} over `INSEASON_K_GRID` (empty without skater observations)
     pub k_curve_skater: Vec<(i64, f64)>,
+    /// skater k of each volume stat the scoring pays for (the other stats keep `k_skater`), fitted
+    /// on `INSEASON_K_GRID` with the fitted recency weights
+    pub k_skater_volume: Map<String, f64>,
+    pub mae_fitted_split: Option<f64>,
     pub n_skater_obs: usize,
     pub n_goalie_obs: usize,
 }
@@ -605,6 +649,8 @@ impl InseasonFit {
             "mae_app": self.mae_app, "mae_fitted": self.mae_fitted,
             "mae_shrink_only_fitted_k": self.mae_shrink_only_fitted_k,
             "k_curve_skater": Value::Object(curve),
+            "k_skater_volume": self.k_skater_volume,
+            "mae_fitted_split": self.mae_fitted_split,
             "n_skater_obs": self.n_skater_obs, "n_goalie_obs": self.n_goalie_obs,
         })
     }
@@ -650,6 +696,37 @@ pub fn fit_inseason(obs: &[InseasonObs], rounds: usize) -> InseasonFit {
         k = best_k(&sk, &weights);
     }
     let kg = if !gl.is_empty() { best_k(&gl, &weights) } else { k_app["goalie"] };
+    // Each volume stat's k by coordinate descent from the single k, one stat at a time over the grid,
+    // moved only on a strict improvement; the other stats keep `k`, so `k_skater` keeps its meaning.
+    // A volume stat the scoring does not pay for has no points and is left out.
+    let mut k_volume: Map<String, f64> = VOLUME_STATS
+        .iter()
+        .filter(|s| sk.iter().any(|o| o.vol_points.contains_key(**s)))
+        .map(|s| (s.to_string(), k))
+        .collect();
+    let stats: Vec<String> = k_volume.keys().cloned().collect();
+    for _ in 0..=rounds {
+        for stat in &stats {
+            let with = |kk: f64| -> Map<String, f64> {
+                let mut kv = k_volume.clone();
+                kv.insert(stat.clone(), kk);
+                kv
+            };
+            let scores: Vec<f64> =
+                INSEASON_K_GRID.par_iter().map(|&kk| inseason_mae_split(&sk, k, &with(kk as f64), &weights)).collect();
+            let mut best = inseason_mae_split(&sk, k, &k_volume, &weights);
+            let mut pick = None;
+            for (i, v) in scores.iter().enumerate() {
+                if *v < best {
+                    best = *v;
+                    pick = Some(INSEASON_K_GRID[i] as f64);
+                }
+            }
+            if let Some(kk) = pick {
+                k_volume = with(kk);
+            }
+        }
+    }
     let shrink_only = rw(1.0, 0.0, 0.0, 0.0);
     let have = !sk.is_empty();
     InseasonFit {
@@ -663,6 +740,8 @@ pub fn fit_inseason(obs: &[InseasonObs], rounds: usize) -> InseasonFit {
         } else {
             Vec::new()
         },
+        mae_fitted_split: have.then(|| inseason_mae_split(&sk, k, &k_volume, &weights)),
+        k_skater_volume: k_volume,
         recency_weights: weights,
         n_skater_obs: sk.len(),
         n_goalie_obs: gl.len(),

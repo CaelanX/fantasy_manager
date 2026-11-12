@@ -17,20 +17,21 @@ use fm_pycompat::num::py_sum;
 use fm_pycompat::order::{cmp_f64, first_min_by, sort_desc_by};
 use smallvec::SmallVec;
 
-use super::accept::{market_worth, package_value, pick_worth, team_standing, AcceptParams, Acceptance};
+use super::accept::{accept_params_for, python_acceptance, market_worth, package_value, pick_worth, team_standing, AcceptParams, Acceptance};
 use super::greedy::{greedy_assignment, key_of, summarize, GreedySummary, Memo, Pid, RosterKey, SlotSpec};
 use super::*;
 use crate::recommend::base::{
-    cap_text, dynasty_change, dynasty_objects, game_rate, has_data, keeper_k, limit_positions, player_age, protected_reason,
+    cap_text, dynasty_change, dynasty_objects, game_rate, has_data, keeper_k, league_unit, limit_positions, player_age, protected_reason,
     roster_legal_after, DynastyChange, GameRate, PROTECT_OVERRIDE,
 };
 use crate::recommend::lineup::{self, Entry, RosterView};
 use crate::recommend::market::MarketPool;
+use crate::recommend::started::{self, StartWindow};
 use crate::scoring::RotoScoring;
-use crate::valuation::dynasty::{apply_dynasty, keeper_count, mode_weights, DISCOUNT};
+use crate::valuation::dynasty::{apply_dynasty, keeper_count, mode_weights};
 use crate::valuation::picks::{
-    elapsed, expected_slots, holdings, keeper_slot_curve, keeper_spot_value, pick_value, picks_by_holder, roster_spot_value,
-    slot_curve,
+    elapsed, expected_slots, holdings, keeper_slot_curve, keeper_spot_curve, keeper_spot_value, pick_spot_cost, pick_value,
+    picks_by_holder, roster_spot_value, slot_curve,
 };
 use crate::valuation::valuate::replacement_for;
 
@@ -96,11 +97,11 @@ pub(crate) fn value_picks_v(ctx: &LeagueContext, values: &Map<Cid, PlayerValue>,
     let names: HashMap<&str, &str> = ctx.teams.iter().map(|t| (t.team_id.as_str(), t.name.as_str())).collect();
     let n = ctx.teams.len().max(1) as i64;
     let first = rows.iter().map(|r| r.1).min().expect("rows");
-    let (curve, spot) = if keeper_count(ctx).is_none() {
-        (slot_curve(ctx, v), roster_spot_value(ctx, values))
+    let (curve, spot, spot_curve) = if keeper_count(ctx).is_none() {
+        (slot_curve(ctx, v), roster_spot_value(ctx, values), None)
     } else {
         let full = apply_dynasty(values, ctx, None, None);
-        (keeper_slot_curve(ctx, values, &full), keeper_spot_value(ctx, values))
+        (keeper_slot_curve(ctx, values, &full), keeper_spot_value(ctx, values), keeper_spot_curve(ctx, values, &full))
     };
     let el = elapsed(ctx);
     let mut slots: HashMap<i64, Map<String, f64>> = HashMap::new();
@@ -121,7 +122,7 @@ pub(crate) fn value_picks_v(ctx: &LeagueContext, values: &Map<Cid, PlayerValue>,
             overall: (rnd - 1) as f64 * n as f64 + slot,
             value,
             inferred,
-            net: (value - spot * DISCOUNT.powf(ahead as f64)).max(0.0),
+            net: (value - pick_spot_cost(spot_curve.as_deref(), spot, n, rnd, slot, ahead, el)).max(0.0),
         });
     }
     out.sort_by(|a, b| cmp_f64(-a.value, -b.value).then(a.year.cmp(&b.year)).then(a.round.cmp(&b.round)));
@@ -193,6 +194,7 @@ pub struct EngineOpts<'o> {
     pub offered: Option<&'o Map<String, Vec<String>>>,
     /// `lineup_fn=False`: force the greedy solver (no exact re-solve)
     pub greedy_only: bool,
+    /// None: the league's installed parameters ([`accept_params_for`]), else the prior
     pub accept_params: Option<AcceptParams>,
 }
 
@@ -254,6 +256,10 @@ pub struct TradeEval<'a> {
     pub free_fill: Option<&'a Player>,
     pub give_picks: Vec<PickAsset>,
     pub get_picks: Vec<PickAsset>,
+    /// the league unit ([`league_unit`]) the FPG thresholds below are multiplied by
+    pub unit: f64,
+    /// half-width of the range of `my_edge()` from projection error ([`TradeEngine::edge_error`])
+    pub edge_error: f64,
 }
 
 pub fn me_weight(mode: &str) -> f64 {
@@ -304,34 +310,54 @@ impl<'a> TradeEval<'a> {
         self.acceptance.as_ref().map_or(0.0, |a| a.gets - a.gives)
     }
     pub fn overpay_cost(&self) -> f64 {
-        OVERPAY_COST_FPG * (self.market_overpay() - OVERPAY_FREE_PTS).max(0.0)
+        OVERPAY_COST_FPG * self.unit * (self.market_overpay() - OVERPAY_FREE_PTS).max(0.0)
     }
     pub fn clear_overpay(&self) -> bool {
         self.market_overpay() > CLEAR_FAVOR_PTS
     }
     pub fn listable(&self) -> bool {
-        self.score() > 0.0 && (!self.clear_overpay() || self.my_edge() >= OVERPAY_MIN_EDGE - 1e-9)
+        self.score() > 0.0 && (!self.clear_overpay() || self.my_edge() >= OVERPAY_MIN_EDGE * self.unit - 1e-9)
     }
     pub fn score(&self) -> f64 {
         self.ev() - self.overpay_cost()
     }
     pub fn sweet_spot_score(&self) -> f64 {
-        self.my_edge() - MARKET_PTS_TO_FPG * (-self.perceived()).max(0.0)
+        self.my_edge() - MARKET_PTS_TO_FPG * self.unit * (-self.perceived()).max(0.0)
     }
     pub fn sweet_spot(&self) -> bool {
-        self.accepted() && self.perceived().abs() <= SWEET_MAX_PERCEIVED + 1e-9 && self.my_edge() >= SWEET_MIN_EDGE - 1e-9
+        self.accepted() && self.perceived().abs() <= SWEET_MAX_PERCEIVED + 1e-9 && self.my_edge() >= SWEET_MIN_EDGE * self.unit - 1e-9
     }
     pub fn win_now_cost(&self) -> bool {
-        self.mode == Some("contend") && self.delta_me < -WIN_NOW_TOLERANCE
+        self.mode == Some("contend") && self.delta_me < -WIN_NOW_TOLERANCE * self.unit
+    }
+    /// Our own model would tell them to decline: in their seat the deal fails `verdict`'s decline
+    /// test (lineup change below EVAL_DECLINE_EDGE league units, and below zero even at the top of
+    /// the projection-error range). Such offers are never proposed (docs/knowledge/06, implication
+    /// 14: lowballs cause reactive devaluation). Their future value is not modelled, so a deal that
+    /// costs me future value (`delta_dyn_n < 0`, which they may be buying) or gives them draft
+    /// picks (compensation outside their lineup) is not judged here.
+    /// The error range is the lineup part of `edge_error` (which a dynasty mode scales by the sum of
+    /// its weights). Python had no such test.
+    pub fn they_would_decline(&self) -> bool {
+        let lineup_error = self.edge_error / self.mode.map_or(1.0, |m| me_weight(m) + dyn_weight(m));
+        !python_acceptance()
+            && self.delta_dyn_n >= 0.0
+            && self.give_picks.is_empty()
+            && self.delta_them < EVAL_DECLINE_EDGE * self.unit
+            && self.delta_them + lineup_error < 0.0
     }
     fn plausible(&self) -> bool {
-        !self.screened && self.blocked.is_none() && self.my_illegal.is_none() && self.p() >= MIN_P_ACCEPT - 1e-9
+        !self.screened
+            && self.blocked.is_none()
+            && self.my_illegal.is_none()
+            && self.p() >= MIN_P_ACCEPT - 1e-9
+            && !self.they_would_decline()
     }
     pub fn near_plausible(&self) -> bool {
         !self.screened && self.blocked.is_none() && self.my_illegal.is_none() && self.p() >= MIN_P_ACCEPT - 0.05
     }
     pub fn accepted_future(&self) -> bool {
-        self.plausible() && self.win_now_cost() && self.delta_dyn_n > MIN_GAIN_ME
+        self.plausible() && self.win_now_cost() && self.delta_dyn_n > MIN_GAIN_ME * self.unit
     }
     pub fn accepted(&self) -> bool {
         if !self.plausible() {
@@ -341,11 +367,11 @@ impl<'a> TradeEval<'a> {
             if self.win_now_cost() {
                 return false;
             }
-            if self.mode == Some("balanced") && self.delta_me < -BALANCED_TOLERANCE {
+            if self.mode == Some("balanced") && self.delta_me < -BALANCED_TOLERANCE * self.unit {
                 return false;
             }
         }
-        self.my_edge() > MIN_GAIN_ME
+        self.my_edge() > MIN_GAIN_ME * self.unit
     }
     /// `len(ev.me_base)` (DELTA_ME text).
     pub fn me_base_len(&self) -> usize {
@@ -376,6 +402,8 @@ pub struct TradeEngine<'a, 'd> {
     pub mode: Option<&'static str>,
     pub keepers: Option<i64>,
     pub scale: f64,
+    /// [`league_unit`]: league points per ESPN point, for the FPG thresholds
+    pub unit: f64,
     pub(crate) protected: HashMap<Pid, String>,
     wants: HashMap<String, Vec<String>>,
     offered: HashMap<String, Vec<String>>,
@@ -388,6 +416,8 @@ pub struct TradeEngine<'a, 'd> {
     fpg: Vec<f64>,
     elig: Vec<u16>,
     worth: Vec<f64>,
+    /// game days in the started-games window per player ([`StartWindow::mask`]); empty without one
+    masks: Vec<u32>,
     pub(crate) sides: Vec<Side<'a>>,
     pub(crate) side_of: HashMap<&'a str, usize>,
     pub(crate) me: usize,
@@ -399,6 +429,7 @@ pub struct TradeEngine<'a, 'd> {
     // memos
     greedy_memo: Memo<RosterKey, Arc<GreedySummary>>,
     exact_memo: Memo<RosterKey, f64>,
+    started_memo: Memo<RosterKey, f64>,
     free_memo: Memo<(RosterKey, RosterKey, usize), Option<(Pid, Arc<Vec<Pid>>)>>,
     base_memo: Memo<(usize, Pid), Arc<Vec<Vec<Pid>>>>,
 }
@@ -414,6 +445,21 @@ struct Settled {
 }
 
 impl<'a, 'd> TradeEngine<'a, 'd> {
+    /// Half-width of the range of a trade's edge: the moved players' projection errors
+    /// (`PlayerValue::fpg_error`) added in quadrature, sqrt(sum of squares), as independent errors
+    /// combine (for normal errors the mean absolute error scales like the standard deviation, so
+    /// this is the typical error of the summed values). In a dynasty mode the same per-game error
+    /// enters both the lineup part and the dynasty part of the edge, so it is times the sum of the
+    /// mode's two weights. Every moved player counts, started or not, so the range is a little wide.
+    pub fn edge_error(&self, give: &[Pid], get: &[Pid]) -> f64 {
+        let ss: f64 = give
+            .iter()
+            .chain(get.iter())
+            .map(|&p| self.values.get(&self.p(p).cid).map_or(0.0, |v| v.fpg_error).powi(2))
+            .sum();
+        self.mode.map_or(1.0, |m| me_weight(m) + dyn_weight(m)) * ss.sqrt()
+    }
+
     pub fn new(d: &'d TradeData<'a>, opts: &EngineOpts<'_>) -> anyhow::Result<Self> {
         let ctx = d.ctx;
         let values = d.values;
@@ -478,6 +524,7 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
         let fpg: Vec<f64> = rows.iter().map(|r| r.fpg).collect();
         let elig: Vec<u16> = rows.iter().map(|r| r.elig).collect();
         let worth: Vec<f64> = pl.iter().map(|p| market_worth(market.value(p))).collect();
+        let masks: Vec<u32> = StartWindow::of(ctx).map_or_else(Vec::new, |w| pl.iter().map(|p| w.mask(p)).collect());
 
         let mut cap: i64 = ctx.roster_shape.iter().filter(|(s, _)| !IR_SLOTS.contains(&s.as_str())).map(|(_, n)| *n).sum();
         if let Some(m) = ctx.max_roster_size.filter(|m| *m != 0) {
@@ -489,12 +536,13 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
             ctx,
             values,
             market,
-            params: opts.accept_params.clone().unwrap_or_default(),
+            params: opts.accept_params.clone().unwrap_or_else(|| accept_params_for(&ctx.provider)),
             standing: team_standing(ctx),
             rate,
             mode,
             keepers,
             scale,
+            unit: league_unit(ctx),
             protected,
             wants: opts.wants.map(|w| w.iter().map(|(k, v)| (k.clone(), v.clone())).collect()).unwrap_or_default(),
             offered: opts.offered.map(|w| w.iter().map(|(k, v)| (k.clone(), v.clone())).collect()).unwrap_or_default(),
@@ -507,6 +555,7 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
             fpg,
             elig,
             worth,
+            masks,
             sides: Vec::new(),
             side_of: HashMap::new(),
             me: 0,
@@ -517,6 +566,7 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
             totals: Vec::new(),
             greedy_memo: Memo::default(),
             exact_memo: Memo::default(),
+            started_memo: Memo::default(),
             free_memo: Memo::default(),
             base_memo: Memo::default(),
         };
@@ -678,7 +728,25 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
         v
     }
 
+    /// The started-games value of a roster ([`started::started_value`]), cached by roster.
+    fn started_value(&self, roster: &[Pid]) -> f64 {
+        let key = key_of([roster]);
+        if let Some(hit) = self.started_memo.get(&key) {
+            return *hit;
+        }
+        let v = started::started_value(&key, &self.spec, &self.fpg, &self.elig, &self.masks);
+        self.started_memo.insert(key, v);
+        v
+    }
+
+    /// A roster's rest-of-season value per team game. In a daily-lineup league with the schedule
+    /// loaded it is the started-games value, which credits bench players and a third goalie for the
+    /// games they would start; Python, and every other league, use the best starting lineup's sum.
+    /// The started-games total does not depend on `exact`: its daily greedy solve is already exact.
     fn lineup_value(&self, roster: &[Pid], exact: bool) -> f64 {
+        if !self.masks.is_empty() {
+            return self.started_value(roster);
+        }
         if exact && self.exact {
             self.exact_value(roster)
         } else {
@@ -755,6 +823,13 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
             }
             let tier = self.rows[pool[0] as usize].tier;
             let group: Vec<Pid> = pool.iter().copied().filter(|p| self.rows[*p as usize].tier == tier).collect();
+            if !self.masks.is_empty() {
+                let pick = self.cheapest_started_drop(&cur, ir, &group);
+                drops.push(pick);
+                pool.retain(|p| *p != pick);
+                cur.retain(|p| *p != pick);
+                continue;
+            }
             let starters = self.summary(&[&cur, ir]);
             let pick = match group.iter().copied().find(|p| !starters.is_starter(*p)) {
                 Some(b) => b,
@@ -776,7 +851,37 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
         drops
     }
 
-    /// `_pick_fill(players, outgoing, ir)`.
+    /// The member of `group` (non-empty, in drop order) whose loss costs the roster `cur` + `ir`
+    /// the least started-games value; ties go to the earliest. A player's loss is at most his own
+    /// credit (`fpg x started / games`), since the others can only gain the days he frees, so
+    /// candidates are tried by ascending credit and the search stops once no credit can beat the
+    /// best loss found. Python, and the best-lineup engine, drop the first non-starter instead.
+    fn cheapest_started_drop(&self, cur: &[Pid], ir: &[Pid], group: &[Pid]) -> Pid {
+        let all = key_of([cur, ir]);
+        let starts = started::started_days(&all, &self.spec, &self.fpg, &self.elig, &self.masks);
+        let base = started::value_of_starts(&all, &starts, &self.fpg, &self.masks);
+        let credit = |p: Pid| match all.binary_search(&p) {
+            Ok(i) if starts[i] > 0 => self.fpg(p) * starts[i] as f64 / self.masks[p as usize].count_ones() as f64,
+            _ => 0.0,
+        };
+        let mut order: Vec<(Pid, f64)> = group.iter().map(|&p| (p, credit(p))).collect();
+        order.sort_by(|a, b| cmp_f64(a.1, b.1));
+        let mut best: Option<(Pid, f64)> = None;
+        for (p, c) in order {
+            if best.is_some_and(|(_, l)| c >= l - 1e-12) {
+                break;
+            }
+            let without: Vec<Pid> = all.iter().copied().filter(|q| *q != p).collect();
+            let loss = base - self.started_value(&without);
+            if best.is_none_or(|(_, l)| loss < l - 1e-12) {
+                best = Some((p, loss));
+            }
+        }
+        best.expect("group").0
+    }
+
+    /// `_pick_fill(players, outgoing, ir)`. With a start window the gain is in started-games value
+    /// (which counts a bench fill's starts) rather than Python's best-lineup gain.
     fn pick_fill(&self, players: &[Pid], outgoing: &[Pid], ir: &[Pid]) -> Option<Pid> {
         let has_limits = !self.limit_keys.is_empty();
         let counts = if has_limits { self.counts(players.iter().chain(ir.iter()).copied()) } else { Vec::new() };
@@ -811,9 +916,11 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
             }
         }
         let lineup: Vec<Pid> = players.iter().chain(ir.iter()).copied().collect();
+        let started = !self.masks.is_empty();
         let starters = self.summary(&[&lineup]);
-        let base = starters.value;
-        let floor = if starters.starters.len() >= self.spec.n_slots {
+        let base = if started { self.started_value(&lineup) } else { starters.value };
+        // a free agent adds at most his own FPG, and in the best lineup only over its weakest starter
+        let floor = if !started && starters.starters.len() >= self.spec.n_slots {
             lineup
                 .iter()
                 .copied()
@@ -831,7 +938,12 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
             if self.fpg(fa) - floor <= best_gain + 1e-12 {
                 break;
             }
-            let gain = self.greedy(&[&lineup, &[fa]]) - base;
+            let gain = if started {
+                let with: Vec<Pid> = lineup.iter().copied().chain(std::iter::once(fa)).collect();
+                self.started_value(&with) - base
+            } else {
+                self.greedy(&[&lineup, &[fa]]) - base
+            };
             if gain > best_gain + 1e-12 {
                 best = Some(fa);
                 best_gain = gain;
@@ -1152,11 +1264,13 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
         let me_pool = self.with_free_fill(&mine.players, &me_ir_pool, me.capacity, Some(me));
         let me_base = self.baselines(self.me, mine.fill);
         let d_me = self.delta(&me_pool, &me_base, false);
+        let edge_error = self.edge_error(give, get);
+        let bar = (MIN_GAIN_ME - SCREEN_MARGIN) * self.unit;
         let mine_ok = match self.mode {
-            None => d_me > MIN_GAIN_ME - SCREEN_MARGIN,
+            None => d_me > bar,
             Some(m) => {
                 let core = me_weight(m) * d_me + dyn_weight(m) * d_dyn_n;
-                core > MIN_GAIN_ME - SCREEN_MARGIN || d_dyn_n > MIN_GAIN_ME - SCREEN_MARGIN
+                core > bar || d_dyn_n > bar
             }
         };
         let mut ev = TradeEval {
@@ -1203,6 +1317,8 @@ impl<'a, 'd> TradeEngine<'a, 'd> {
             free_fill: None,
             give_picks: Vec::new(),
             get_picks: Vec::new(),
+            unit: self.unit,
+            edge_error,
         };
         if screen && (!mine_ok || mine.blocked.is_some()) {
             ev.screened = true;

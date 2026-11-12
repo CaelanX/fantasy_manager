@@ -6,7 +6,11 @@
 use std::sync::Mutex;
 
 use fm_core::{DynastyValue, Map, PickAsset};
-use fm_engine::valuation::dynasty::apply_dynasty;
+use fm_engine::scoring::disable_point_scale;
+use fm_engine::recommend::started::disable_started_games;
+use fm_engine::valuation::dynasty::{apply_dynasty, disable_positional_dynasty};
+use fm_engine::valuation::adjust::{pin_season_length, SeasonLength};
+use fm_engine::valuation::valuate::{disable_ir_fill, disable_team_goalie};
 use fm_engine::valuation::params;
 use fm_engine::valuation::picks::{picks_by_holder, value_picks};
 use fm_parity::{assert_parity, skip, Fixtures, Tolerance};
@@ -40,6 +44,17 @@ fn pick_json(a: &PickAsset) -> Value {
 
 fn run_league(league: &str) {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // the fixtures come from Python, which assumed 82 games in 186 days whatever the schedule said
+    pin_season_length(Some(SeasonLength::DEFAULT));
+    // and valued an injured player's missed games at zero even when an IR slot held him
+    disable_ir_fill(true);
+    // and used the ESPN-point thresholds unscaled in every league, with no error ranges
+    disable_point_scale(true);
+    disable_started_games(true);
+    // and projected goalie wins and shots against from the goalie, not his team
+    disable_team_goalie(true);
+    // and valued the dynasty future with one replacement level and a rising goalie curve
+    disable_positional_dynasty(true);
     let test = format!("stage_dynasty_{league}");
     let fx = Fixtures::league(league);
     if !fx.available() {

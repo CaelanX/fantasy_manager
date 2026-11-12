@@ -98,7 +98,7 @@ impl SlotSpec {
 /// Per-type starters: `held[t]` in assignment order.
 pub type Held = Vec<SmallVec<[Pid; 8]>>;
 
-fn augment(p: Pid, seen: &mut u32, held: &mut Held, caps: &[usize], elig: &[u16]) -> bool {
+pub(crate) fn augment(p: Pid, seen: &mut u32, held: &mut Held, caps: &[usize], elig: &[u16]) -> bool {
     let nt = caps.len();
     let ts = (elig[p as usize] as u32) & !*seen;
     for t in 0..nt {

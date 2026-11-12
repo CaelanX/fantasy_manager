@@ -17,7 +17,7 @@ use fm_core::provider::LeagueProvider;
 use fm_core::values::PlayerValue;
 use fm_core::{Cid, Map};
 use fm_engine::analysis::matchup::{
-    current_matchup, parse_fantrax_schedule, Matchup, MatchupOpts, CHASE_BELOW, GOALIE_SD_K, PROTECT_ABOVE, SKATER_SD_K,
+    current_matchup, parse_fantrax_schedule, Matchup, MatchupOpts, SdFit, CHASE_BELOW, GOALIE_SD_K, PROTECT_ABOVE, SKATER_SD_K,
 };
 use fm_engine::valuation::schedule::ScheduleMemo;
 use fm_pycompat::fmt::fixed;
@@ -88,8 +88,8 @@ pub fn snapshot_row(league: &str, day: NaiveDate, m: &Matchup) -> Option<Row> {
     r.insert("their_sd".into(), json!(their_sd));
     r.insert("margin_sd".into(), json!((my_sd * my_sd + their_sd * their_sd).sqrt()));
     r.insert("win_prob".into(), json!(p));
-    r.insert("skater_sd_k".into(), json!(SKATER_SD_K));
-    r.insert("goalie_sd_k".into(), json!(GOALIE_SD_K));
+    r.insert("skater_sd_k".into(), json!(m.sd_model.skater_k));
+    r.insert("goalie_sd_k".into(), json!(m.sd_model.goalie_k));
     r.insert("source".into(), json!(m.source));
     r.insert("recorded_at".into(), json!(now_iso()));
     Some(r)
@@ -210,7 +210,54 @@ fn espn_finals(ctx: &LeagueContext, provider: &dyn LeagueProvider, periods: &[i6
     Ok(out)
 }
 
-fn fantrax_finals(ctx: &LeagueContext, provider: &dyn LeagueProvider, periods: &[i64]) -> Result<Map<i64, Final>> {
+/// Finals from the Fantrax official API, one `getMatchupScores` call per period. Verified on 2026-11-10
+/// for a finished period: period 6 gave 191.6 to 197.55, the final the private schedule view had stored.
+/// Periods it cannot answer (no official API, a failed read, playoff placeholders) are left out, and each
+/// failure adds its warning once.
+fn official_fantrax_finals(ctx: &LeagueContext, provider: &dyn LeagueProvider, periods: &[i64], warnings: &mut Vec<String>) -> Map<i64, Final> {
+    let mut out: Map<i64, Final> = Map::new();
+    let Ok(my) = ctx.my_team() else { return out };
+    for &period in periods {
+        match provider.official_matchup(&my.team_id, period) {
+            Ok(Some(m)) => {
+                out.insert(
+                    period,
+                    Final {
+                        mine: Some(m.my_points),
+                        theirs: Some(m.their_points),
+                        opponent_id: Some(m.opponent_id),
+                        source: Some("Fantrax official API".to_string()),
+                    },
+                );
+            }
+            Ok(None) => {}
+            Err(w) => {
+                if !warnings.contains(&w) {
+                    warnings.push(w);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Official finals first, then the private schedule view for the periods still missing; an error of that
+/// private call only fails the load when the official API gave nothing.
+fn fantrax_finals(ctx: &LeagueContext, provider: &dyn LeagueProvider, periods: &[i64], warnings: &mut Vec<String>) -> Result<Map<i64, Final>> {
+    let mut out = official_fantrax_finals(ctx, provider, periods, warnings);
+    let missing: Vec<i64> = periods.iter().copied().filter(|p| !out.contains_key(p)).collect();
+    if missing.is_empty() {
+        return Ok(out);
+    }
+    match private_fantrax_finals(ctx, provider, &missing) {
+        Ok(private) => out.extend(private),
+        Err(e) if out.is_empty() => return Err(e),
+        Err(_) => {}
+    }
+    Ok(out)
+}
+
+fn private_fantrax_finals(ctx: &LeagueContext, provider: &dyn LeagueProvider, periods: &[i64]) -> Result<Map<i64, Final>> {
     let mut params: Map<String, Value> = Map::new();
     params.insert("view".to_string(), Value::String("SCHEDULE".into()));
     let data = provider.fantrax_call(&[("getStandings".to_string(), params)], false)?;
@@ -240,15 +287,21 @@ fn fantrax_finals(ctx: &LeagueContext, provider: &dyn LeagueProvider, periods: &
 }
 
 /// `{period: Final}` for the given ended periods (errors on provider failures; the caller
-/// treats them as warnings).
-pub fn fetch_final_scores(ctx: &LeagueContext, provider: Option<&dyn LeagueProvider>, periods: &[i64]) -> Result<Map<i64, Final>> {
+/// treats them as warnings). `warnings` collects the Fantrax official API read failures that the
+/// private fallback covered.
+pub fn fetch_final_scores(
+    ctx: &LeagueContext,
+    provider: Option<&dyn LeagueProvider>,
+    periods: &[i64],
+    warnings: &mut Vec<String>,
+) -> Result<Map<i64, Final>> {
     let Some(provider) = provider else { return Ok(Map::new()) };
     if periods.is_empty() {
         return Ok(Map::new());
     }
     match ctx.provider.as_str() {
         "espn" => espn_finals(ctx, provider, periods),
-        "fantrax" => fantrax_finals(ctx, provider, periods),
+        "fantrax" => fantrax_finals(ctx, provider, periods, warnings),
         _ => Ok(Map::new()),
     }
 }
@@ -306,10 +359,12 @@ pub fn capture_matchup(
     match pending_periods(ledger, league, today) {
         Ok(pend) if !pend.is_empty() => {
             let periods: Vec<i64> = pend.iter().filter_map(|p| p.get("period").and_then(|v| v.as_i64())).collect();
+            let mut official_warnings: Vec<String> = Vec::new();
             let finals = match finals_fn {
                 Some(f) => f(&periods),
-                None => fetch_final_scores(ctx, provider, &periods),
+                None => fetch_final_scores(ctx, provider, &periods, &mut official_warnings),
             };
+            warnings.extend(official_warnings.into_iter().map(Value::from));
             match finals.and_then(|f| attach_results(ledger, league, &f, &pend)) {
                 Ok(n) => results = n,
                 Err(e) => warnings.push(json!(format!("matchup final scores unavailable: Error: {e}"))),
@@ -429,7 +484,39 @@ fn opt(x: Option<f64>) -> Value {
     x.map_or(Value::Null, |v| json!(v))
 }
 
-/// Brier, log loss, reliability bins and the fitted SD scale for one league.
+/// A snapshot's margin SD restated with the reference constants (SKATER_SD_K, GOALIE_SD_K), so
+/// the fitted scale is always a multiplier on those constants, whatever the snapshot used (the
+/// league point scale or an earlier fitted scale). The ratio is taken on the skater constant; it
+/// is exact when the snapshot scaled skaters and goalies alike (a fitted scale, or the reference)
+/// and approximate for the goalie share when the league's skater and goalie point scales differ.
+fn reference_margin_sd(r: &Row) -> f64 {
+    let used = opt_f(r, "skater_sd_k").filter(|k| *k > 0.0).unwrap_or(SKATER_SD_K);
+    fv(r, "margin_sd") * SKATER_SD_K / used
+}
+
+/// Weight of a scale fitted on `n` matchups against the league's default: n / (n + MIN_MATCHUPS).
+/// The default counts as a prior worth MIN_MATCHUPS matchups, the fewest the harness fits from, so
+/// a first fit gets half the weight (its SD estimate has about 1/sqrt(2n) = 25% sampling error at
+/// n = 8) and the default fades as matchups accrue (0.71 at RELIABLE_MATCHUPS).
+pub fn sd_fit_weight(n: usize) -> f64 {
+    n as f64 / (n + MIN_MATCHUPS) as f64
+}
+
+/// The fitted SD scale the matchup simulation should use for `league`: the report's scale and its
+/// weight once `MIN_MATCHUPS` matchups are graded, else None (the simulation keeps its default).
+/// Err when the ledger cannot be read, so the caller can keep what it had installed.
+pub fn applied_sd_scale(ledger: &Ledger, league: &str) -> Result<Option<SdFit>> {
+    let rep = calibration_report(ledger, league, MIN_MATCHUPS)?;
+    Ok(rep.get("scale").and_then(|sc| {
+        let s = sc.get("s")?.as_f64()?;
+        let n = sc.get("n_matchups")?.as_u64()? as usize;
+        Some(SdFit { scale: s, weight: sd_fit_weight(n) })
+    }))
+}
+
+/// Brier, log loss, reliability bins and the fitted SD scale for one league. The scale is a
+/// multiplier on the reference constants and is applied by the simulation (`applied_sd_scale`),
+/// blended with the league's default at `weight`; Python only suggested it for a manual change.
 pub fn calibration_report(ledger: &Ledger, league: &str, min_matchups: usize) -> Result<Value> {
     let rows = graded_rows(ledger, league)?;
     let n_snap = ledger.count("matchup_snapshots", "WHERE league=?", &[&league])?;
@@ -476,7 +563,7 @@ pub fn calibration_report(ledger: &Ledger, league: &str, min_matchups: usize) ->
     let fit_rows: Vec<&Row> = rows.iter().filter(|r| opt_f(r, "margin_sd").unwrap_or(0.0) >= SD_MIN).collect();
     for r in &fit_rows {
         let actual = fv(r, "my_final") - fv(r, "their_final");
-        groups.entry(matchup_key(r)).or_default().push((actual - fv(r, "margin")) / fv(r, "margin_sd"));
+        groups.entry(matchup_key(r)).or_default().push((actual - fv(r, "margin")) / reference_margin_sd(r));
     }
     if !rows.is_empty() && n_keys < min_matchups {
         rep.insert("status".into(), json!(format!("insufficient data ({n_keys} of {min_matchups} completed matchups)")));
@@ -488,7 +575,7 @@ pub fn calibration_report(ledger: &Ledger, league: &str, min_matchups: usize) ->
             Some(s) => {
                 let sk = rows.iter().rev().find_map(|r| opt_f(r, "skater_sd_k"));
                 let gk = rows.iter().rev().find_map(|r| opt_f(r, "goalie_sd_k"));
-                let ps2: Vec<f64> = fit_rows.iter().map(|r| phi(fv(r, "margin") / (s * fv(r, "margin_sd")))).collect();
+                let ps2: Vec<f64> = fit_rows.iter().map(|r| phi(fv(r, "margin") / (s * reference_margin_sd(r)))).collect();
                 let ys2: Vec<f64> = fit_rows.iter().map(|r| outcome_value(&result_of_row(r))).collect();
                 let verdict = if s > SCALE_OK.1 {
                     "overconfident"
@@ -501,9 +588,10 @@ pub fn calibration_report(ledger: &Ledger, league: &str, min_matchups: usize) ->
                     "scale".into(),
                     json!({"s": s, "n_matchups": groups.len(), "n_snapshots": fit_rows.len(), "verdict": verdict,
                            "skater_sd_k": opt(sk), "goalie_sd_k": opt(gk),
-                           "recommended_skater_sd_k": opt(sk.map(|k| k * s)),
-                           "recommended_goalie_sd_k": opt(gk.map(|k| k * s)),
-                           "brier_if_scaled": opt(brier(&ps2, &ys2)), "applied": false}),
+                           "recommended_skater_sd_k": SKATER_SD_K * s,
+                           "recommended_goalie_sd_k": GOALIE_SD_K * s,
+                           "brier_if_scaled": opt(brier(&ps2, &ys2)), "applied": true,
+                           "weight": sd_fit_weight(groups.len())}),
                 );
                 rep.insert("status".into(), json!(format!("SD scale {} ({verdict})", fixed(s, 2, false))));
             }
@@ -535,7 +623,12 @@ pub fn summary_line(rep: &Value) -> String {
         if let (Some(rs), Some(rg)) =
             (sc.get("recommended_skater_sd_k").and_then(|v| v.as_f64()), sc.get("recommended_goalie_sd_k").and_then(|v| v.as_f64()))
         {
-            rec = format!("; suggested SD constants {} skaters / {} goalies (not applied)", fixed(rs, 2, false), fixed(rg, 2, false));
+            rec = format!(
+                "; SD constants {} skaters / {} goalies (applied at weight {} against the league default)",
+                fixed(rs, 2, false),
+                fixed(rg, 2, false),
+                fixed(sc.get("weight").and_then(|v| v.as_f64()).unwrap_or(f64::NAN), 2, false)
+            );
         }
         return format!(
             "{base}; fitted SD scale {} ({}){rec}",
@@ -549,7 +642,8 @@ pub fn summary_line(rep: &Value) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fm_core::provider::LeagueProvider;
+    use fm_core::provider::{LeagueProvider, OfficialMatchup};
+    use fm_engine::analysis::matchup::SdModel;
     use fm_core::snapshot::ProviderExtras;
     use fm_core::models::{FantasyTeam, RosterSlot};
 
@@ -591,6 +685,7 @@ mod tests {
             lineup_basis: String::new(),
             warnings: vec![],
             draws: 0,
+            sd_model: fm_engine::analysis::matchup::SdModel::REFERENCE,
         }
     }
 
@@ -673,10 +768,17 @@ mod tests {
     }
 
     fn seed_matchups(l: &Ledger, n: i64, my_final: f64, their_final: f64) {
+        seed_matchups_with(l, n, my_final, their_final, SdModel::REFERENCE);
+    }
+
+    /// `n` graded matchups, each projected 80 - 75 with SDs (3, 4) (margin SD 5) computed with
+    /// `model`'s constants.
+    fn seed_matchups_with(l: &Ledger, n: i64, my_final: f64, their_final: f64, model: SdModel) {
         for i in 0..n {
             let start = d(2026, 10, 1) + Duration::days(7 * i);
             let end = start + Duration::days(6);
             let mut m = mu(i + 1, Some(0.6), (50.0, 30.0), (45.0, 30.0), (3.0, 4.0), 5, Some("Opp"));
+            m.sd_model = model;
             m.start = Some(start);
             m.end = Some(end);
             record_snapshot(l, "espn", start + Duration::days(2), &m).unwrap();
@@ -704,7 +806,7 @@ mod tests {
         assert_eq!(rep["trust"], "provisional");
         assert_eq!(rep["scale"]["verdict"], "underconfident");
         assert_eq!(rep["record"]["win"], 9);
-        assert_eq!(rep["scale"]["applied"], false);
+        assert_eq!(rep["scale"]["applied"], true);
         assert!(summary_line(&rep).contains("fitted SD scale"));
 
         let (_d3, l3) = led();
@@ -718,6 +820,37 @@ mod tests {
         let rep = calibration_report(&l4, "espn", MIN_MATCHUPS).unwrap();
         assert_eq!(rep["scale"]["verdict"], "about right");
         assert_eq!(rep["status"], "SD scale 1.00 (about right)");
+    }
+
+    #[test]
+    fn fitted_scale_is_relative_to_the_reference_constants_and_applied_from_eight_matchups() {
+        // snapshots taken with twice the reference constants (a league whose weights are 4x ESPN's):
+        // margin SD 5 there is 5 x 1.3 / 2.6 = 2.5 with the reference constants; the actual margin
+        // 15 misses the projected 5 by 10 = 4 reference SDs, so s = 4 (constants 5.2 / 10.0)
+        let doubled = SdModel { skater_k: 2.0 * SKATER_SD_K, goalie_k: 2.0 * GOALIE_SD_K };
+        let (_d, l) = led();
+        seed_matchups_with(&l, MIN_MATCHUPS as i64 - 1, 85.0, 70.0, doubled);
+        assert_eq!(applied_sd_scale(&l, "espn").unwrap(), None);
+        let (_d2, l2) = led();
+        seed_matchups_with(&l2, MIN_MATCHUPS as i64, 85.0, 70.0, doubled);
+        let rows = graded_rows(&l2, "espn").unwrap();
+        assert_eq!(rows[0]["skater_sd_k"].as_f64().unwrap(), 2.6);
+        // 8 matchups against a prior worth 8: half weight
+        let fit = applied_sd_scale(&l2, "espn").unwrap().unwrap();
+        assert!((fit.scale - 4.0).abs() < 1e-9 && (fit.weight - 0.5).abs() < 1e-12, "{fit:?}");
+        assert!((sd_fit_weight(RELIABLE_MATCHUPS) - 20.0 / 28.0).abs() < 1e-12);
+        // the league loader reads it through a read-only connection
+        let ro = Ledger::open_read_only(&l2.data_dir).expect("read-only ledger");
+        assert_eq!(applied_sd_scale(&ro, "espn").unwrap(), Some(fit));
+        assert!(ro.execute("DELETE FROM matchup_snapshots", &[]).is_err());
+        let rep = calibration_report(&l2, "espn", MIN_MATCHUPS).unwrap();
+        assert!((rep["scale"]["recommended_skater_sd_k"].as_f64().unwrap() - 5.2).abs() < 1e-9);
+        assert!((rep["scale"]["recommended_goalie_sd_k"].as_f64().unwrap() - 10.0).abs() < 1e-9);
+        assert!(
+            summary_line(&rep).ends_with("SD constants 5.20 skaters / 10.00 goalies (applied at weight 0.50 against the league default)"),
+            "{}",
+            summary_line(&rep)
+        );
     }
 
     #[test]
@@ -781,7 +914,7 @@ mod tests {
             {"matchupPeriodId": 2, "winner": "UNDECIDED", "home": {"teamId": 3, "totalPointsLive": 10.0}, "away": {"teamId": 5, "totalPointsLive": 9.0}},
             {"matchupPeriodId": 1, "winner": "HOME", "home": {"teamId": 8, "totalPoints": 1.0}, "away": {"teamId": 9, "totalPoints": 2.0}}]});
         let prov = Stub { extras: ProviderExtras::default(), espn, fantrax: Value::Null };
-        let out = fetch_final_scores(&ctx, Some(&prov), &[1, 2]).unwrap();
+        let out = fetch_final_scores(&ctx, Some(&prov), &[1, 2], &mut Vec::new()).unwrap();
         assert_eq!(out.len(), 1);
         assert_eq!(out[&1], Final { mine: Some(80.5), theirs: Some(70.0), opponent_id: Some("5".into()), source: Some("ESPN scoreboard".into()) });
     }
@@ -794,13 +927,93 @@ mod tests {
             "header": {"cells": [{"key": "away"}, {"key": "awayScore"}, {"key": "home"}, {"key": "homeScore"}]},
             "rows": [{"cells": [{"teamId": "me", "content": "Me"}, {"content": "81.5"}, {"teamId": "x", "content": "X"}, {"content": "70"}]}]}]});
         let prov = Stub { extras: ProviderExtras::default(), espn: Value::Null, fantrax: data };
-        let out = fetch_final_scores(&ctx, Some(&prov), &[4]).unwrap();
+        let out = fetch_final_scores(&ctx, Some(&prov), &[4], &mut Vec::new()).unwrap();
         if let Some(f) = out.get(&4) {
             assert_eq!(f.mine, Some(81.5));
             assert_eq!(f.theirs, Some(70.0));
             assert_eq!(f.opponent_id.as_deref(), Some("x"));
         }
-        assert!(fetch_final_scores(&ctx, None, &[4]).unwrap().is_empty());
+        assert!(fetch_final_scores(&ctx, None, &[4], &mut Vec::new()).unwrap().is_empty());
+    }
+
+    /// Official answers by period, and the private schedule view (None: it fails).
+    struct OfficialStub {
+        extras: ProviderExtras,
+        official: Map<i64, std::result::Result<Option<OfficialMatchup>, String>>,
+        private: Option<Value>,
+    }
+    impl LeagueProvider for OfficialStub {
+        fn name(&self) -> &str {
+            "stub"
+        }
+        fn load(&mut self) -> Result<LeagueContext> {
+            anyhow::bail!("no")
+        }
+        fn extras(&self) -> &ProviderExtras {
+            &self.extras
+        }
+        fn fantrax_call(&self, _c: &[(String, Map<String, Value>)], _f: bool) -> Result<Vec<Value>> {
+            Ok(vec![self.private.clone().ok_or_else(|| anyhow::anyhow!("private view down"))?])
+        }
+        fn official_matchup(&self, my_team_id: &str, period: i64) -> std::result::Result<Option<OfficialMatchup>, String> {
+            assert_eq!(my_team_id, "me");
+            self.official.get(&period).cloned().unwrap_or(Ok(None))
+        }
+    }
+
+    fn official_final(mine: f64, theirs: f64) -> std::result::Result<Option<OfficialMatchup>, String> {
+        Ok(Some(OfficialMatchup { opponent_id: "x".into(), my_points: mine, their_points: theirs, playoffs: false }))
+    }
+
+    fn private_period(number: i64, mine: f64, theirs: f64) -> Value {
+        json!({"caption": format!("Scoring Period {number}"), "subCaption": "(Mon Nov 2, 2026 - Sun Nov 8, 2026)",
+            "header": {"cells": [{"key": "away"}, {"key": "awayScore"}, {"key": "home"}, {"key": "homeScore"}]},
+            "rows": [{"cells": [{"teamId": "me", "content": "Me"}, {"content": mine.to_string()}, {"teamId": "y", "content": "Y"}, {"content": theirs.to_string()}]}]})
+    }
+
+    #[test]
+    fn fantrax_finals_come_from_the_official_api_with_the_private_view_for_the_rest() {
+        let ctx = ctx_for("fantrax", "me");
+        let warn = "Fantrax official API matchup scores unavailable (x); using the private data instead".to_string();
+        let mut prov = OfficialStub {
+            extras: ProviderExtras::default(),
+            official: [(4, official_final(191.6, 197.55)), (5, Ok(None)), (6, Err(warn.clone())), (7, Err(warn.clone()))].into_iter().collect(),
+            private: Some(json!({"tableList": [private_period(5, 60.0, 50.0), private_period(6, 70.0, 80.0), private_period(7, 1.0, 2.0)]})),
+        };
+        let mut warnings = Vec::new();
+        let out = fetch_final_scores(&ctx, Some(&prov), &[4, 5, 6, 7], &mut warnings).unwrap();
+        assert_eq!(out[&4], Final { mine: Some(191.6), theirs: Some(197.55), opponent_id: Some("x".into()), source: Some("Fantrax official API".into()) });
+        // periods the official API gave nothing for (a playoff placeholder, a failed read) use the private view
+        assert_eq!((out[&5].mine, out[&5].source.as_deref()), (Some(60.0), Some("Fantrax schedule")));
+        assert_eq!((out[&6].mine, out[&6].theirs, out[&7].mine), (Some(70.0), Some(80.0), Some(1.0)));
+        // both failed reads give the same text, so the warning appears once
+        assert_eq!(warnings, vec![warn]);
+        // all periods official: the private view is not asked at all
+        prov.private = None;
+        let only: Map<i64, _> = [(4, official_final(1.0, 2.0))].into_iter().collect();
+        prov.official = only;
+        let out = fetch_final_scores(&ctx, Some(&prov), &[4], &mut Vec::new()).unwrap();
+        assert_eq!(out[&4].mine, Some(1.0));
+    }
+
+    #[test]
+    fn fantrax_finals_survive_one_source_failing_but_not_both() {
+        let ctx = ctx_for("fantrax", "me");
+        let prov = OfficialStub {
+            extras: ProviderExtras::default(),
+            official: [(4, official_final(5.0, 3.0)), (5, Err("Fantrax official API matchup unavailable (z); using the private data instead".into()))]
+                .into_iter()
+                .collect(),
+            private: None,
+        };
+        // the private view is down: the official period is kept, the other stays pending
+        let mut warnings = Vec::new();
+        let out = fetch_final_scores(&ctx, Some(&prov), &[4, 5], &mut warnings).unwrap();
+        assert_eq!(out.keys().copied().collect::<Vec<_>>(), vec![4]);
+        assert_eq!(warnings.len(), 1);
+        // nothing official and the private view down: the old error, for the caller's warning
+        let err = fetch_final_scores(&ctx, Some(&prov), &[5], &mut Vec::new()).unwrap_err();
+        assert!(err.to_string().contains("private view down"), "{err}");
     }
 
     #[test]

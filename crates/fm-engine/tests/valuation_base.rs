@@ -247,8 +247,31 @@ fn blend_shrunk_rates() {
     let now = line("season", 6, &[("W", 6.0), ("GP", 6.0)]);
     assert_close!(shrunk_rates(Some(&now), Some(&prior), true, None)["W"], (6.0 * 1.0 + kg * 0.5) / (6.0 + kg));
     let now = line("season", 10, &[("G", 5.0), ("HIT", 30.0), ("GP", 10.0)]);
-    assert_close!(shrunk_rates(Some(&now), Some(&p), false, None)["HIT"], 3.0 * 10.0 / (10.0 + ks));
+    // HIT has its own packaged in-season k (8), so it is shrunk less than the scoring stats (25)
+    assert_eq!(vp::k_inseason_volume(None), st(&[("SOG", 5.0), ("HIT", 8.0), ("BLK", 30.0), ("PIM", 100.0)]));
+    assert_close!(shrunk_rates(Some(&now), Some(&p), false, None)["HIT"], 3.0 * 10.0 / (10.0 + 8.0));
     assert_eq!(params_k_baseline(), st(&[("F", 8.0), ("D", 14.0), ("G", 120.0)]));
+}
+
+#[test]
+fn shrink_inseason_uses_the_volume_stats_own_k() {
+    let params = json!({"inseason": {"k_skater": 25.0, "k_goalie": 40.0,
+        "k_skater_volume": {"SOG": 5.0, "BLK": 30.0, "G": 1.0, "HIT": -3.0}}});
+    // only volume stats with a valid k are kept: G is not a volume stat, a negative k is dropped
+    assert_eq!(vp::k_inseason_volume(Some(&params)), st(&[("SOG", 5.0), ("BLK", 30.0)]));
+    let cur = st(&[("G", 1.0), ("SOG", 4.0), ("HIT", 3.0), ("BLK", 2.0)]);
+    let prior = st(&[("G", 0.5), ("SOG", 2.0), ("HIT", 1.0), ("BLK", 1.0)]);
+    let r = shrink_inseason(&cur, 10.0, &prior, false, Some(&params));
+    assert_close!(r["G"], (10.0 * 1.0 + 25.0 * 0.5) / 35.0); // 0.642857
+    assert_close!(r["SOG"], (10.0 * 4.0 + 5.0 * 2.0) / 15.0); // 3.333333, was 2.571429 with k 25
+    assert_close!(r["HIT"], (10.0 * 3.0 + 25.0 * 1.0) / 35.0); // 1.571429, no own k
+    assert_close!(r["BLK"], (10.0 * 2.0 + 30.0 * 1.0) / 40.0); // 1.25
+    // goalies keep one k for every stat
+    let g = shrink_inseason(&cur, 10.0, &prior, true, Some(&params));
+    assert_close!(g["SOG"], (10.0 * 4.0 + 40.0 * 2.0) / 50.0);
+    // without the key every skater stat uses k_skater (the Python behaviour)
+    let plain = json!({"inseason": {"k_skater": 25.0, "k_goalie": 40.0}});
+    assert_eq!(shrink_inseason(&cur, 10.0, &prior, false, Some(&plain)), shrink_toward(&cur, 10.0, &prior, 25.0));
 }
 
 fn k_inseason_snapshot_now(g: &str) -> f64 {
@@ -901,7 +924,9 @@ fn snapshot_params_merged_and_hash() {
             }
             // load_params() on disk (packaged + active override) reproduces the merged dict when the
             // fixtures were produced without a harness version
-            let packaged = vp::load_packaged(None);
+            let mut packaged = vp::load_packaged(None);
+            // the per-stat in-season k of the volume stats was added after the Python port
+            packaged["inseason"].as_object_mut().unwrap().shift_remove("k_skater_volume");
             let expect = match sp.active.get("params") {
                 Some(p) if sp.active.is_object() => vp::deep_merge(&packaged, p),
                 _ => packaged,

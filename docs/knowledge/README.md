@@ -67,6 +67,7 @@ The research files list several league facts as unknown. The program already rea
 | Fantasy trade deadline | 2027-02-26 | none (the Rules page says "Not Used") |
 | Waivers | waiver priority (no budget); a dropped player stays on waivers 24 hours; processing Sunday 08:00 | not reported by `fm claims` |
 | Keepers | none (redraft) | each team keeps its top 3 players; everyone else is redrafted |
+| Standings tiebreak | points for (`playoffSeedingRule` is `TOTAL_POINTS_SCORED` in the league settings) | most points for, then head-to-head among the tied teams, then least points against, then random (Rules page, "Standings Tie Breakers") |
 
 - **Fantrax is a 3-keeper league, not a full dynasty** (confirmed by the owner on 2026-11-10: "we keep 3"; Fantrax's own label for the league type is "Dynasty"). Only three players per team carry over, so future value matters for a team's best three and almost nothing for the rest. Where [07](07-dynasty-and-keeper.md) reasons about full dynasty rosters, prospects held for years or deep rebuilds, apply it to the keeper slots only.
 - **More than half of each league makes the playoffs** (8 of 14 and 6 of 12). The playoff-odds figures in [08](08-h2h-objectives-and-game-theory.md) for a 1-5 team used guessed spot counts; the 8-spot case is the relevant one for ESPN.

@@ -88,15 +88,25 @@ pub(crate) fn local_now(cli: &Cli) -> NaiveDateTime {
 
 /// `_load_league_full` minus the recommendations: provider -> enrich -> valuate through the
 /// shared pipeline (snapshot mode loads the fixture). Typed [`LoadError`]s are kept.
+///
+/// Its only callers write archives and ledger rows, so a degraded Fantrax load (official API only: no
+/// statistics, projections or free agents) is refused as `Unavailable` with the private failure as the
+/// reason, the same skip as before the degraded load existed.
 pub(crate) fn load_league(cli: &Cli, league: &str, cache: &Arc<HttpCache>) -> Result<Loaded> {
-    match &cli.snapshot {
+    let d = match &cli.snapshot {
         Some(root) => pipeline::from_snapshot(&crate::app::snapshot_dir_for(root, league), Some(&cli.settings.fm_data_dir)),
         None => pipeline::load_all(
             league,
             &cli.settings,
             &LoadOptions { deep: false, mode: None, cache: Some(cache.clone()), clock: Some(cli.clock), ..LoadOptions::default() },
         ),
+    }?;
+    let warnings = d.provider.warnings();
+    if warnings.iter().any(|w| w == fm_providers::fantrax::DEGRADED_WARNING) {
+        let why = warnings.iter().find(|w| w.starts_with("Fantrax league data unavailable")).map_or("Fantrax league data unavailable", |w| w.as_str());
+        return Err(LoadError::Unavailable(format!("{why} (only the official API answered, which is too little to archive)")).into());
     }
+    Ok(d)
 }
 
 /// The advise() recommendations of `_load_league_full(with_recs=True)`; failures become warnings.
