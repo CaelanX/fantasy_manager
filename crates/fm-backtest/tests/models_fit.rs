@@ -10,8 +10,8 @@ use fm_backtest::evaluate::{
     evaluate_inseason, evaluate_preseason, head_to_head, inseason_observations, MIN_GP, INSEASON_MODELS,
 };
 use fm_backtest::fit::{
-    components, dynasty_anchors, fit_age_curve, fit_inseason, fit_shrinkage_k_default, inseason_projection,
-    inseason_projection_split, InseasonObs,
+    components, dynasty_anchors, fit_age_curve, fit_inseason, fit_k_toi, fit_shrinkage_k_default, inseason_projection,
+    inseason_projection_split, minutes_projection, InseasonObs,
     k_grid, mae_components, recency_weights_for, AgeCurveOpts, Pair,
 };
 use fm_backtest::models::{
@@ -464,14 +464,14 @@ fn install_python_params() {
     params::install_with_active(p, cur.active.clone());
 }
 
-/// Drop what the Rust port added to the backtest output (the `fm_fitted_stat` model and the
+/// Drop what the Rust port added to the backtest output (the `fm_fitted_stat` and `fm_minutes` models and the
 /// per-stat k fits), so the rest can be compared with the Python files.
 fn strip_per_stat_additions(v: &mut Value) {
     if let Some(ins) = v.get_mut("inseason").and_then(|x| x.as_object_mut()) {
         ins.shift_remove("k_skater_volume_fit");
     }
     if let Some(rows) = v.get_mut("rows").and_then(|x| x.as_array_mut()) {
-        rows.retain(|r| r["model"] != "fm_fitted_stat");
+        rows.retain(|r| r["model"] != "fm_fitted_stat" && r["model"] != "fm_minutes");
     }
     if let Some(fits) = v.get_mut("inseason_fits").and_then(|x| x.as_object_mut()) {
         for f in fits.values_mut().filter_map(|f| f.as_object_mut()) {
@@ -618,4 +618,70 @@ fn table_roundtrip_loads() {
     let dir = tempfile::tempdir().unwrap();
     synthetic_store(dir.path());
     assert_eq!(load_table(dir.path()).unwrap().seasons(), vec![S1, S2, S3, S4]);
+}
+
+#[test]
+fn minutes_projection_scales_by_fast_over_slow_minutes() {
+    // 10 GP at 18.0 min against a 14.0 min baseline. With the app's k = 25 the minutes behind the
+    // rates are (10*18 + 25*14) / 35 = 15.1429; with k_toi = 5 they are (10*18 + 5*14) / 15 =
+    // 16.6667, so 2.0 FPG becomes 2.0 * 16.6667 / 15.1429 = 2.20126.
+    let o = InseasonObs { gp_td: 10, fpg_app: 2.0, toi: Some((18.0, 14.0)), group: "F".into(), ..Default::default() };
+    assert!((minutes_projection(&o, 5.0, 25.0) - 2.201258).abs() < 1e-6);
+    // the app's own k changes nothing; no minutes or no games leave the app's FPG
+    assert!((minutes_projection(&o, 25.0, 25.0) - 2.0).abs() < 1e-12);
+    assert_eq!(minutes_projection(&InseasonObs { toi: None, ..o.clone() }, 5.0, 25.0), 2.0);
+    assert_eq!(minutes_projection(&InseasonObs { gp_td: 0, ..o }, 5.0, 25.0), 2.0);
+}
+
+#[test]
+fn fit_k_toi_picks_the_grid_k_that_matches_the_outcomes() {
+    let mk = |cur: f64, base: f64, rest: f64| InseasonObs {
+        gp_td: 10,
+        fpg_app: 2.0,
+        toi: Some((cur, base)),
+        fpg_rest: rest,
+        group: "F".into(),
+        ..Default::default()
+    };
+    // outcomes that follow the season-to-date minutes exactly: k = 0 (18 / 15.1429 and 12 / 12.8571)
+    let fast = [mk(18.0, 14.0, 2.0 * 18.0 / (530.0 / 35.0)), mk(12.0, 13.0, 2.0 * 12.0 / (445.0 / 35.0))];
+    assert_eq!(fit_k_toi(&fast.iter().collect::<Vec<_>>(), 25.0), 0.0);
+    // outcomes equal to the app's FPG: the app's own k (25 is on the grid)
+    let flat = [mk(18.0, 14.0, 2.0), mk(12.0, 13.0, 2.0)];
+    assert_eq!(fit_k_toi(&flat.iter().collect::<Vec<_>>(), 25.0), 25.0);
+    // no minutes at all: the app's k
+    assert_eq!(fit_k_toi(&[&InseasonObs::default()], 25.0), 25.0);
+}
+
+#[test]
+fn window_fetch_adds_minutes_and_the_assist_split() {
+    use fm_sources::nhl::NhlClient;
+    use serde_json::json;
+    let fetch = |url: &str, _p: &fm_http::Params, _ttl: f64| -> anyhow::Result<Value> {
+        let rows = if url.ends_with("/skater/summary") {
+            json!([
+                {"playerId": 1, "gamesPlayed": 10, "goals": 3, "assists": 5, "points": 8, "ppPoints": 2, "ppGoals": 1,
+                 "positionCode": "C", "skaterFullName": "A One"},
+                {"playerId": 2, "gamesPlayed": 4, "goals": 0, "assists": 1, "points": 1, "positionCode": "D",
+                 "skaterFullName": "B Two"}
+            ])
+        } else if url.ends_with("/skater/timeonice") {
+            // seconds: 10800 = 180 min, 1500 = 25 min
+            json!([{"playerId": 1, "timeOnIce": 10800, "ppTimeOnIce": 1500}])
+        } else if url.ends_with("/skater/scoringpergame") {
+            json!([{"playerId": 1, "totalPrimaryAssists": 3, "totalSecondaryAssists": 2}])
+        } else {
+            json!([])
+        };
+        let n = rows.as_array().map(|a| a.len()).unwrap_or(0);
+        Ok(json!({"data": rows, "total": n}))
+    };
+    let today = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+    let client = NhlClient::new(Box::new(fetch), None, today);
+    let w = fm_backtest::data::fetch_window(&client, S2, None, None, false).unwrap();
+    let one = &w[&1].stats;
+    assert_eq!((one["TOI"], one["PPTOI"], one["A1"], one["A2"]), (180.0, 25.0, 3.0, 2.0));
+    assert_eq!(w[&1].per_game()["TOI"], 18.0);
+    // no deployment row: the keys are missing (unknown), not zero
+    assert!(!["TOI", "PPTOI", "A1", "A2"].iter().any(|k| w[&2].stats.contains_key(*k)));
 }

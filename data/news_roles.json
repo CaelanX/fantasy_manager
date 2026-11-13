@@ -16,15 +16,15 @@
    }
   ]
  },
- "US-EN-50193214": {
-  "at": "2026-10-16T17:58:07+00:00",
-  "model": "poolside/laguna-s-2.1:free",
+ "US-EN-50390364": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
   "signals": [
    {
-    "confidence": 0.9,
-    "direction": 1,
-    "kind": "pp1",
-    "quote": "Connor Bedard's game-opening power-play goal"
+    "confidence": 0.6,
+    "direction": 0,
+    "kind": "injury",
+    "quote": "Marchand said Thursday he's glad his knee injury wasn't more serious as he rehabs."
    }
   ]
  },
@@ -47,18 +47,6 @@
     "direction": 1,
     "kind": "injury",
     "quote": "Rust (upper body) was activated off injured reserve ahead of Wednesday's game against the Capitals."
-   }
-  ]
- },
- "nhl595251": {
-  "at": "2026-10-10T02:20:15+00:00",
-  "model": "poolside/laguna-s-2.1:free",
-  "signals": [
-   {
-    "confidence": 0.8,
-    "direction": 1,
-    "kind": "pp1",
-    "quote": "Lafreniere scored a power-play goal on his lone shot in Friday's 3-1 loss to the Capitals."
    }
   ]
  },
@@ -85,5 +73,69 @@
     "quote": "will need some time before he makes his 2026-27 debut, according to Cory Lavalette of the North State Journal on Monday."
    }
   ]
+ },
+ "nhl598599": {
+  "at": "2026-11-13T00:00:15+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": [
+   {
+    "confidence": 0.9,
+    "direction": 1,
+    "kind": "injury",
+    "quote": "activated Cooley (lower body) off injured reserve"
+   }
+  ]
+ },
+ "nhl598690": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": []
+ },
+ "nhl598715": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": []
+ },
+ "nhl598716": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": []
+ },
+ "nhl598718": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": []
+ },
+ "nhl599031": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": [
+   {
+    "confidence": 0.9,
+    "direction": 1,
+    "kind": "injury",
+    "quote": "Ullmark (lower body) was removed from injured reserve on Sunday, per Bruce Garrioch of Postmedia."
+   }
+  ]
+ },
+ "nhl599113": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": []
+ },
+ "nhl599115": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": []
+ },
+ "nhl599369": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": []
+ },
+ "nhl599372": {
+  "at": "2026-11-12T23:59:31+00:00",
+  "model": "ifm/k2-horizon:7b",
+  "signals": []
  }
 }

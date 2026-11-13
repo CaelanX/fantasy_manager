@@ -297,7 +297,7 @@
   "headline": "\u26a1 Seven teams that could trade for Nikita Kucherov",
   "id": "US-EN-50382836",
   "player_name": null,
-  "published": "2026-11-12T05:15:21Z",
+  "published": "2026-11-12T15:46:49Z",
   "seen": "2026-11-05T17:43:02.145180+00:00",
   "source": "espn",
   "tags": [
@@ -474,7 +474,7 @@
   "headline": "NHL Awards Watch: Believe it or not, McDavid not the unanimous MVP pick right now",
   "id": "US-EN-50432982",
   "player_name": null,
-  "published": "2026-11-11T05:47:19Z",
+  "published": "2026-11-12T15:47:12Z",
   "seen": "2026-11-10T16:04:05.616628+00:00",
   "source": "espn",
   "tags": [],
@@ -549,7 +549,7 @@
   "headline": "Minutes turn into points: Ten players who have increased their ice time per game",
   "id": "US-EN-50444002",
   "player_name": null,
-  "published": "2026-11-10T19:19:36Z",
+  "published": "2026-11-12T20:37:07Z",
   "seen": "2026-11-10T20:34:44.660317+00:00",
   "source": "espn",
   "tags": [
@@ -586,7 +586,7 @@
   "headline": "Ovechkin doesn't weigh in on allowing Russian players in worlds: 'It's not up to us'",
   "id": "US-EN-50444702",
   "player_name": null,
-  "published": "2026-11-12T05:15:21Z",
+  "published": "2026-11-12T15:46:49Z",
   "seen": "2026-11-10T20:34:44.660317+00:00",
   "source": "espn",
   "tags": [],
@@ -610,7 +610,7 @@
   "headline": "Kings' Fiala to make season debut this week, sources say; Zuccarello back vs. Preds",
   "id": "US-EN-50444957",
   "player_name": null,
-  "published": "2026-11-12T05:15:21Z",
+  "published": "2026-11-12T15:46:49Z",
   "seen": "2026-11-10T20:34:44.660317+00:00",
   "source": "espn",
   "tags": [],
@@ -621,7 +621,7 @@
   "headline": "NHL GMs discuss how technology can help officials at fall meeting",
   "id": "US-EN-50447631",
   "player_name": null,
-  "published": "2026-11-12T05:15:21Z",
+  "published": "2026-11-12T15:46:49Z",
   "seen": "2026-11-11T18:18:52.020596+00:00",
   "source": "espn",
   "tags": [],
@@ -645,7 +645,7 @@
   "headline": "Hellebuyck booed pregame in Winnipeg return as Jets go on to beat Devils",
   "id": "US-EN-50449980",
   "player_name": null,
-  "published": "2026-11-12T05:15:21Z",
+  "published": "2026-11-12T15:46:49Z",
   "seen": "2026-11-11T18:18:52.020596+00:00",
   "source": "espn",
   "tags": [
@@ -660,7 +660,7 @@
   "headline": "Sens' Cousins out 7-10 days after legal hit from Caps' Chychrun",
   "id": "US-EN-50452880",
   "player_name": null,
-  "published": "2026-11-12T05:15:21Z",
+  "published": "2026-11-12T15:46:49Z",
   "seen": "2026-11-11T18:18:52.020596+00:00",
   "source": "espn",
   "tags": [
@@ -668,18 +668,53 @@
   ],
   "url": "https://www.espn.com/nhl/story/_/id/50452880/hit-capitals-chychrun-senators-cousins-deemed-clean"
  },
+ "US-EN-50453491": {
+  "blurb": "Find game previews, betting intel, broadcast information, stats and highlights here.",
+  "headline": "NHL Tonight: Bruins-Canadiens, Capitals-Devils highlight Thursday's 11-game slate",
+  "id": "US-EN-50453491",
+  "player_name": null,
+  "published": "2026-11-12T16:58:41Z",
+  "seen": "2026-11-13T00:45:00.928884+00:00",
+  "source": "espn",
+  "tags": [],
+  "url": "https://www.espn.com/nhl/story/_/id/50453491/nhl-2026-27-tonight-games-schedule-matchups-stats-top-players-betting"
+ },
  "US-EN-50454698": {
   "blurb": "Flyers coach Rick Tocchet said Wednesday that winger Matvei Michkov has not asked the organization for a trade.",
   "headline": "Flyers' Michkov didn't ask team for trade, Tocchet says",
   "id": "US-EN-50454698",
   "player_name": null,
-  "published": "2026-11-12T05:15:21Z",
+  "published": "2026-11-12T15:46:49Z",
   "seen": "2026-11-11T20:58:25.793068+00:00",
   "source": "espn",
   "tags": [
    "trade"
   ],
   "url": "https://www.espn.com/nhl/story/_/id/50454698/matvei-michkov-ask-flyers-trade-rick-tocchet-says"
+ },
+ "US-EN-50455027": {
+  "blurb": "Let's check in on the rookies around fantasy hockey, which the players you should be starting or monitoring.",
+  "headline": "Rookie watch: Jacob Fowler, Cole Hutson living up to expectations",
+  "id": "US-EN-50455027",
+  "player_name": null,
+  "published": "2026-11-12T20:37:07Z",
+  "seen": "2026-11-13T00:45:00.928884+00:00",
+  "source": "espn",
+  "tags": [
+   "start"
+  ],
+  "url": "https://www.espn.com/fantasy/hockey/story/_/id/50455027/fantasy-hockey-rookies-goalies-forwards-defensemen"
+ },
+ "US-EN-50455208": {
+  "blurb": "The Oilers superstar is on pace to break a benchmark that hasn't been hit since the 1980s.",
+  "headline": "Wysh List: Will Connor McDavid break 200 points? The cases for and against",
+  "id": "US-EN-50455208",
+  "player_name": null,
+  "published": "2026-11-12T16:58:41Z",
+  "seen": "2026-11-13T00:45:00.928884+00:00",
+  "source": "espn",
+  "tags": [],
+  "url": "https://www.espn.com/nhl/story/_/id/50455208/nhl-2026-27-connor-mcdavid-points-record-stats-200-wayne-gretzky"
  },
  "nhl596156": {
   "blurb": "Head coach Rod Brind'Amour said Friday that Hall (upper body) is considered week-to-week, Chip Alexander of The Raleigh News & Observer reports.",
@@ -1882,5 +1917,73 @@
   "source": "rotowire",
   "tags": [],
   "url": "https://www.rotowire.com/hockey/player/roman-josi-3037"
+ },
+ "nhl599466": {
+  "blurb": "Cirelli will miss Thursday's game versus the Blue Jackets, Mark Scheig of The Hockey Writers reports. Per the Lightning, Cirelli is dealing with a lower-body injury.",
+  "headline": "Not playing Thursday",
+  "id": "nhl599466",
+  "player_name": "Anthony Cirelli",
+  "published": "2026-11-12T23:05:00Z",
+  "seen": "2026-11-13T00:45:00.928884+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "lower-body"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/anthony-cirelli-4973"
+ },
+ "nhl599467": {
+  "blurb": "Thompson will guard the road goal versus the Devils on Thursday, Mike Vogel of the Capitals' official site reports.",
+  "headline": "Set to start Thursday",
+  "id": "nhl599467",
+  "player_name": "Logan Thompson",
+  "published": "2026-11-12T23:07:00Z",
+  "seen": "2026-11-13T00:45:00.928884+00:00",
+  "source": "rotowire",
+  "tags": [
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/logan-thompson-6355"
+ },
+ "nhl599468": {
+  "blurb": "Lyon (shoulder) is set to start on the road against Chicago on Thursday, per Mike Harrington of The Buffalo News.",
+  "headline": "Guarding road goal",
+  "id": "nhl599468",
+  "player_name": "Alex Lyon",
+  "published": "2026-11-12T23:12:00Z",
+  "seen": "2026-11-13T00:45:00.928884+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/alex-lyon-5087"
+ },
+ "nhl599470": {
+  "blurb": "Rielly (lower body) isn't expected to play Thursday versus Minnesota, per David Alter of The Hockey News.",
+  "headline": "Unavailable Thursday",
+  "id": "nhl599470",
+  "player_name": "Morgan Rielly",
+  "published": "2026-11-12T23:40:00Z",
+  "seen": "2026-11-13T00:45:00.928884+00:00",
+  "source": "rotowire",
+  "tags": [
+   "injury",
+   "lower-body"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/morgan-rielly-3974"
+ },
+ "nhl599471": {
+  "blurb": "Knight is expected to start at home against Buffalo on Wednesday, per Ben Pope of the Chicago Sun-Times.",
+  "headline": "Slated to face Buffalo",
+  "id": "nhl599471",
+  "player_name": "Spencer Knight",
+  "published": "2026-11-13T00:35:00Z",
+  "seen": "2026-11-13T00:45:00.928884+00:00",
+  "source": "rotowire",
+  "tags": [
+   "start"
+  ],
+  "url": "https://www.rotowire.com/hockey/player/spencer-knight-6003"
  }
 }

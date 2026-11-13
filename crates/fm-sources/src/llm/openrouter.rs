@@ -338,6 +338,12 @@ pub struct LLMClient {
     json_mode_supported: Cell<bool>,
     /// Free-only guard: real clients refuse paid models unless FM_LLM_ALLOW_PAID is truthy.
     pub free_only: bool,
+    /// Let a `FM_LLM_BASE_URL` model think before it answers (true by default). When false the
+    /// request asks the server to skip thinking (`reasoning_effort: "none"`) and reserves no
+    /// thinking tokens; used for short classification calls that must stay fast.
+    pub local_reasoning: bool,
+    /// HTTP retries after a timeout, connection error or retryable status (1 by default).
+    pub max_retries: u32,
 }
 
 impl std::fmt::Debug for LLMClient {
@@ -396,6 +402,8 @@ impl LLMClient {
             json_mode_supported: Cell::new(true),
             free_only: !injected && !allow_paid && base_url.is_none(),
             base_url,
+            local_reasoning: true,
+            max_retries: 1,
         }
     }
 
@@ -421,7 +429,8 @@ impl LLMClient {
                 (None, None) => return Err(LLMError::new("No OPENROUTER_API_KEY configured; LLM features are disabled.")),
             };
             let base = self.base_url.as_deref().unwrap_or(OPENROUTER_BASE_URL);
-            let sdk = HttpSdk::new(base, key, self.timeout).map_err(|e| LLMError::new(format!("LLM call failed: {e}")))?;
+            let mut sdk = HttpSdk::new(base, key, self.timeout).map_err(|e| LLMError::new(format!("LLM call failed: {e}")))?;
+            sdk.max_retries = self.max_retries;
             let _ = self.sdk.set(Box::new(sdk));
         }
         Ok(self.sdk.get().map(|b| b.as_ref()).expect("sdk set"))
@@ -464,8 +473,16 @@ impl LLMClient {
             m.insert("provider".into(), json!({"max_price": {"prompt": 0, "completion": 0}}));
             extra = Some(m);
         }
-        // a local reasoning model spends output tokens on thinking before it answers
-        let max_tokens = if self.base_url.is_some() { max_tokens + LOCAL_REASONING_TOKENS } else { max_tokens };
+        // a local reasoning model spends output tokens on thinking before it answers, unless the
+        // caller turned thinking off (Ollama and OpenAI read `reasoning_effort: "none"` that way)
+        let max_tokens = match (&self.base_url, self.local_reasoning) {
+            (Some(_), true) => max_tokens + LOCAL_REASONING_TOKENS,
+            (Some(_), false) => {
+                extra.get_or_insert_with(serde_json::Map::new).insert("reasoning_effort".into(), json!("none"));
+                max_tokens
+            }
+            (None, _) => max_tokens,
+        };
         Ok(ChatRequest {
             model,
             messages: messages.to_vec(),

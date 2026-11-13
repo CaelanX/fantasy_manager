@@ -592,7 +592,8 @@ fn obj(pairs: Vec<(&str, Value)>) -> serde_json::Map<String, Value> {
 /// Grade one subject. `lock` is the league's lineup lock ("daily" or "weekly"): a weekly-locked
 /// lineup rec is graded over the whole locked week from the next Monday, a daily one from its own
 /// day on the days both sides played. Python chose between the two by provider (Fantrax =
-/// weekly); this port uses the league's lock, because a Fantrax league can lock daily.
+/// weekly); this port uses the league's lock, because a Fantrax league can lock daily. Unlike
+/// Python, a lineup rec with a negative predicted gain (a win-probability start / sit) gets no hit.
 pub fn grade_subject(
     s: &Subject,
     players: &Players,
@@ -653,7 +654,11 @@ pub fn grade_subject(
             ("unmatched", json!(unmatched)),
             ("lock", json!(lock == "weekly")),
         ]);
-        out.push(row_of(s, &w, gain, hit_of(gain), pp, detail, None, None));
+        // a lineup rec predicted to lose points is an end-of-matchup start / sit made for win
+        // probability (the engine's WIN_PROB): its points say nothing about whether it was right,
+        // so it is not a hit or a miss; the realized gain still calibrates the prediction
+        let hit = if s.predicted_gain.is_some_and(|g| g < 0.0) { None } else { hit_of(gain) };
+        out.push(row_of(s, &w, gain, hit, pp, detail, None, None));
         return out;
     }
 

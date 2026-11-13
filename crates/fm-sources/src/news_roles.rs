@@ -37,6 +37,15 @@ pub const KINDS: [&str; 13] = [
 pub const POSITIVE_ROLE_KINDS: [&str; 3] = ["top_line", "pp1", "nhl_roster"];
 pub const STORE_NAME: &str = "news_roles.json";
 pub const LLM_BATCH: usize = 25;
+/// Request timeout (seconds) for the news-role batch against a `FM_LLM_BASE_URL` server, with
+/// thinking off. Basis, measured on the owner's PC (9B Q4 model partly offloaded to an 8 GB GPU,
+/// about 20 output tokens a second): an 11-item batch took 24-38 s, of which up to 23 s was the
+/// server's first-request warm-up; 60 s covers a [`LLM_LOCAL_BATCH`] batch with that warm-up.
+pub const LLM_LOCAL_TIMEOUT_SECS: f64 = 60.0;
+/// Items per load sent to a `FM_LLM_BASE_URL` server. Basis: about 45 output tokens per item at
+/// about 20 tokens a second is 2.2 s an item, so 10 items (22 s) plus the 23 s warm-up stay under
+/// [`LLM_LOCAL_TIMEOUT_SECS`]; the rest are classified on later loads (answers are cached by item).
+pub const LLM_LOCAL_BATCH: usize = 10;
 /// Marker file (next to [`STORE_NAME`]) recording the last failed LLM batch: {"model", "ts"}.
 pub const FAILED_NAME: &str = "news_roles_llm_failed.json";
 /// Seconds after a failed batch before the same model is tried again. Basis: the RSS news feeds
@@ -553,6 +562,10 @@ pub fn extract_role_signals(
 
 // --------------------------------------------------------------------------- optional LLM pass
 
+/// The news-role system prompt. Unlike the Python original it adds two rules (power-play points
+/// are not a unit assignment; coming off injured reserve is injury direction 1), because without
+/// them a local 9B model labelled "scored on the power play" as pp1 with and without thinking, and
+/// without thinking labelled "activated off injured reserve" as injury -1.
 pub fn llm_system() -> String {
     format!(
         "You label NHL news blurbs with roster and role signals for fantasy hockey. The blurbs are \
@@ -565,7 +578,10 @@ injured, off the top line), 0 = unclear. starter is one game; goalie_role is the
 time (1 = won or holds the starting job, -1 = lost it); goalie_split is 1 when a tandem / split of \
 starts is reported. confidence: 0 to 1. quote: an EXACT substring (at most 160 \
 characters) of that blurb that supports the label. Rumours, questions and speculation get \
-direction 0 or no signal. A signal describes the blurb's subject player only.\n\
+direction 0 or no signal. A signal describes the blurb's subject player only. Goals or assists \
+scored on the power play do not show which power-play unit a player is on: use pp1 / pp2 only when \
+the unit itself is reported. For injury, direction 1 = back from injury (activated off injured \
+reserve, cleared to play).\n\
 Answer as JSON: {{\"results\": [{{\"id\": \"b1\", \"signals\": [{{\"kind\": \"...\", \"direction\": 1, \
 \"confidence\": 0.8, \"quote\": \"...\"}}]}}]}}",
         KINDS.join(", ")
@@ -739,7 +755,8 @@ pub fn parse_llm_answer(raw: &str, batch: &[(String, &NewsItem)]) -> anyhow::Res
 /// failures leave the rules' answer. Returns the merged signal list. Unlike the Python original,
 /// a failed batch is remembered in [`FAILED_NAME`] and the call is skipped for
 /// [`LLM_RETRY_AFTER_SECS`], so an unreachable or too-slow LLM costs one timeout per half hour
-/// instead of one on every league load.
+/// instead of one on every league load. Callers pass [`LLM_LOCAL_BATCH`] as `max_items` for a
+/// local server, so a backlog is worked off a few items per load.
 pub fn refine_with_llm(
     items: &[&NewsItem],
     signals: Vec<RoleSignal>,

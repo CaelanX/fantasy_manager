@@ -1179,6 +1179,11 @@ pub fn enrich_context(
                 news: None,
                 fetch_text: Some(&news_fetch),
                 llm: llm.as_ref().map(|l| l as &dyn fm_sources::llm::SupportsComplete),
+                llm_batch: if llm.as_ref().is_some_and(|l| l.base_url.is_some()) {
+                    fm_sources::news_roles::LLM_LOCAL_BATCH
+                } else {
+                    fm_sources::news_roles::LLM_BATCH
+                },
                 store_dir: Some(settings.fm_data_dir.as_path()),
                 limit: HISTORY_LIMIT,
                 is_cached: Some(&is_cached),
@@ -1519,16 +1524,24 @@ pub fn xg_step(
     Ok(res)
 }
 
-/// `_rookie_llm(settings)`: the free-only LLM client for the news-role pass, or None (no key, or
-/// FM_NEWS_ROLES_LLM=0).
+/// `_rookie_llm(settings)`: the free-only LLM client for the news-role pass, or None (no
+/// OpenRouter key and no `FM_LLM_BASE_URL`, or FM_NEWS_ROLES_LLM=0). Unlike the Python original,
+/// a local `FM_LLM_BASE_URL` server is used without an OpenRouter key, with thinking off, no HTTP
+/// retry and a [`fm_sources::news_roles::LLM_LOCAL_TIMEOUT_SECS`] timeout instead of 30 s.
 pub fn rookie_llm(settings: &Settings) -> Option<fm_sources::llm::LLMClient> {
     use fm_sources::llm::SupportsComplete;
     let flag = std::env::var("FM_NEWS_ROLES_LLM").unwrap_or_else(|_| "1".into());
     if matches!(flag.trim().to_lowercase().as_str(), "0" | "false" | "no" | "off") {
         return None;
     }
-    settings.openrouter_api_key.as_ref().filter(|k| !k.expose().is_empty())?;
-    let client = fm_sources::llm::LLMClient::new(Some(settings), None, None, None, 30.0);
+    let mut client = fm_sources::llm::LLMClient::new(Some(settings), None, None, None, 30.0);
+    if client.base_url.is_some() {
+        client.timeout = fm_sources::news_roles::LLM_LOCAL_TIMEOUT_SECS;
+        client.local_reasoning = false;
+        // a timed-out local batch would redo the same generation on the same machine and time
+        // out again, so one attempt keeps the worst case at one timeout per failure-memory window
+        client.max_retries = 0;
+    }
     client.available().then_some(client)
 }
 
@@ -2729,6 +2742,22 @@ mod tests {
         let t = utc(Some(1_793_000_000.123_456_7)).unwrap();
         assert!(t.to_pydantic().ends_with(".123457Z"));
         assert_eq!(parse_local(Some("2026-10-27T05:53:59Z")), Some(1_793_080_439.0));
+    }
+
+    #[test]
+    fn rookie_llm_uses_a_local_server_without_a_key_and_without_thinking() {
+        use fm_core::config::Secret;
+        // FM_NEWS_ROLES_LLM=0 in the developer's shell turns the pass off; nothing to check then
+        if std::env::var("FM_NEWS_ROLES_LLM").is_ok_and(|v| matches!(v.trim().to_lowercase().as_str(), "0" | "false" | "no" | "off")) {
+            return;
+        }
+        assert!(rookie_llm(&Settings::default()).is_none());
+        let openrouter = rookie_llm(&Settings { openrouter_api_key: Some(Secret::new("sk-or-test")), ..Default::default() }).unwrap();
+        assert!(openrouter.base_url.is_none() && openrouter.timeout == 30.0 && openrouter.local_reasoning && openrouter.max_retries == 1);
+        let local = Settings { fm_llm_base_url: Some("http://localhost:11434/v1".into()), ..Default::default() };
+        let c = rookie_llm(&local).unwrap();
+        assert_eq!(c.base_url.as_deref(), Some("http://localhost:11434/v1"));
+        assert!(c.timeout == 60.0 && !c.local_reasoning && c.max_retries == 0);
     }
 }
 

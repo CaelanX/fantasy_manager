@@ -621,6 +621,21 @@ fn lineup_filling_an_empty_slot_counts_his_points() {
 }
 
 #[test]
+fn win_probability_start_is_not_graded_as_a_miss() {
+    let e = led();
+    let l = &e.led;
+    let start = d(2026, 10, 5);
+    // a last-day goalie start predicted at -0.57 pts (made for win probability): he scores 0
+    episode(l, "l", "lineup", start, Ep { adds: &["a"], gain: Some(-0.57), units: Some("day_pts"), ..Default::default() });
+    pull(l, &days(start, 7), &[(1, start, json!({"SOG": 0}))]);
+    grade_outcomes(l, "espn", d(2026, 10, 20)).unwrap();
+    let r = one(l, &[("episode_id", json!("l"))]);
+    assert_eq!(gain(&r), 0.0);
+    assert!(r["hit"].is_null());
+    assert_eq!(r["predicted_pts"], -0.57);
+}
+
+#[test]
 fn no_games_is_not_a_miss_and_unpulled_windows_wait() {
     let e = led();
     let l = &e.led;

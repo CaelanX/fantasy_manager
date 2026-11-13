@@ -197,6 +197,9 @@ pub struct RookieOptions<'a> {
     pub news: Option<Vec<NewsItem>>,
     pub fetch_text: Option<&'a FetchText<'a>>,
     pub llm: Option<&'a dyn SupportsComplete>,
+    /// most uncached news items sent to `llm` per call ([`LLM_BATCH`], or
+    /// `news_roles::LLM_LOCAL_BATCH` for a local server)
+    pub llm_batch: usize,
     pub store_dir: Option<&'a Path>,
     pub limit: usize,
     pub is_cached: Option<&'a dyn Fn(i64) -> bool>,
@@ -211,6 +214,7 @@ impl Default for RookieOptions<'_> {
             news: None,
             fetch_text: None,
             llm: None,
+            llm_batch: LLM_BATCH,
             store_dir: None,
             limit: HISTORY_LIMIT,
             is_cached: None,
@@ -241,7 +245,7 @@ pub fn enrich_rookies(ctx: &mut LeagueContext, client: Option<&NhlClient>, opts:
     let mut res = RookieResult { history: hist, ..Default::default() };
     let mut signals: Vec<news_roles::RoleSignal> = Vec::new();
     if !news.is_empty() {
-        signals = extract_role_signals(&news, opts.llm, opts.store_dir, LLM_BATCH, opts.now);
+        signals = extract_role_signals(&news, opts.llm, opts.store_dir, opts.llm_batch, opts.now);
         res.signal_players = attach_signals(ctx, &news, &signals) as i64;
     }
     res.news = news.len() as i64;

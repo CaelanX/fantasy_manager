@@ -648,7 +648,8 @@ pub fn render(
                    recency blend, `fm_current` = the app's shrinkage + recency blend (blend.py functions), \
                    `fm_fitted` = fitted k and recency weights (leave-one-season-out), `fm_fitted_stat` = \
                    `fm_fitted` with each volume stat (shots, hits, blocks, penalty minutes) shrunk with its own \
-                   fitted k."),
+                   fitted k, `fm_minutes` = `fm_current` scaled by the skater's minutes per game shrunk with \
+                   their own fitted k (leave-one-season-out)."),
                 s(""),
             ],
         );

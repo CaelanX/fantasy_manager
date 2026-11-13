@@ -29,15 +29,18 @@ use serde_json::Value;
 use std::cmp::Ordering;
 
 use crate::data::{prev_season, season_label, SeasonTable, WindowLine, Windows};
-use crate::fit::{fit_inseason, fit_preseason, inseason_projection, inseason_projection_split, InseasonFit, InseasonObs};
+use crate::fit::{
+    fit_inseason, fit_k_toi, fit_preseason, inseason_projection, inseason_projection_split, minutes_projection, InseasonFit,
+    InseasonObs,
+};
 use crate::models::{app_baseline_rates, get_models, group_means, make_context, prior_lines, prior_rows, Model};
 use crate::scoring::fpg;
 
 pub const MIN_GP: i64 = 20;
 pub const MIN_GP_REST: i64 = 10;
 pub const TOP_N: [usize; 2] = [50, 100];
-pub const INSEASON_MODELS: [&str; 6] =
-    ["preseason", "to_date", "fm_shrink_only", "fm_current", "fm_fitted", "fm_fitted_stat"];
+pub const INSEASON_MODELS: [&str; 7] =
+    ["preseason", "to_date", "fm_shrink_only", "fm_current", "fm_fitted", "fm_fitted_stat", "fm_minutes"];
 
 // --------------------------------------------------------------------------- metrics
 
@@ -388,6 +391,12 @@ pub fn inseason_observations(
                     .map(|((_, ln), sp)| ln.map(|l| l.statline(sp)))
                     .collect();
                 let mut app_rates = blend_recency(&shrunk, sl[0].as_ref(), sl[1].as_ref(), sl[2].as_ref(), None);
+                // the skater's minutes per game to date and in the baseline (see `minutes_projection`)
+                let toi = if is_goalie || !has_base {
+                    None
+                } else {
+                    cur_rates.get("TOI").zip(base.get("TOI")).map(|(c, b)| (*c, *b))
+                };
                 let team = if is_goalie { table.get(*pid, s).and_then(|r| r.team.as_ref()) } else { None };
                 if let Some(t) = team.and_then(|t| team_rates.get(t)) {
                     app_rates = apply_team_goalie_rates(&app_rates, t.wins_per_start, t.shots_per_start);
@@ -416,6 +425,7 @@ pub fn inseason_observations(
                     gp_rest: after.gp,
                     fpg_rest: fpg(Some(&after.per_game()), scoring),
                     fpg_app: fpg(Some(&app_rates), scoring),
+                    toi,
                     ..Default::default()
                 });
             }
@@ -437,8 +447,9 @@ fn volume_points(cur: &Map<String, f64>, base: &Map<String, f64>, scoring: &Poin
         .collect()
 }
 
-/// Rows per (season, checkpoint, model, pool); fm_fitted (one skater k) and fm_fitted_stat (a
-/// separate k for the volume stats) are fitted leave-one-season-out.
+/// Rows per (season, checkpoint, model, pool); fm_fitted (one skater k), fm_fitted_stat (a
+/// separate k for the volume stats) and fm_minutes (a separate k for minutes) are fitted
+/// leave-one-season-out.
 pub fn evaluate_inseason(obs: &[InseasonObs], cv: bool) -> (Vec<ResultRow>, Map<i64, InseasonFit>) {
     let mut seasons: Vec<i64> = obs.iter().map(|o| o.season).collect();
     seasons.sort();
@@ -455,6 +466,16 @@ pub fn evaluate_inseason(obs: &[InseasonObs], cv: bool) -> (Vec<ResultRow>, Map<
         })
         .collect();
     let fits: Map<i64, InseasonFit> = fitted.into_iter().collect();
+    // the minutes k of fm_minutes, fitted on the same training seasons
+    let k_app = shrink_k(false, None);
+    let k_toi: Map<i64, f64> = seasons
+        .iter()
+        .map(|&s| {
+            let train: Vec<&InseasonObs> =
+                obs.iter().filter(|o| o.group != "G" && (!cv || seasons.len() <= 1 || o.season != s)).collect();
+            (s, fit_k_toi(&train, k_app))
+        })
+        .collect();
     let mut groups: std::collections::BTreeMap<(i64, String, String), Vec<&InseasonObs>> = Default::default();
     for o in obs {
         let pool = if o.group == "G" { "goalies" } else { "skaters" };
@@ -474,7 +495,7 @@ pub fn evaluate_inseason(obs: &[InseasonObs], cv: bool) -> (Vec<ResultRow>, Map<
         let k_shrink = shrink_k(goalies, None);
         let app_volume = if goalies { &no_split } else { &app_k_volume };
         let k_volume = if goalies { &no_split } else { &f.k_skater_volume };
-        let preds: [(&str, Vec<f64>); 6] = [
+        let preds: [(&str, Vec<f64>); 7] = [
             ("preseason", os.iter().map(|o| if o.has_base { o.fpg_base } else { o.fpg_td }).collect()),
             ("to_date", os.iter().map(|o| o.fpg_td).collect()),
             ("fm_shrink_only", os.iter().map(|o| inseason_projection_split(o, k_shrink, app_volume, &so)).collect()),
@@ -484,6 +505,7 @@ pub fn evaluate_inseason(obs: &[InseasonObs], cv: bool) -> (Vec<ResultRow>, Map<
                 "fm_fitted_stat",
                 os.iter().map(|o| inseason_projection_split(o, k_fit, k_volume, &f.recency_weights)).collect(),
             ),
+            ("fm_minutes", os.iter().map(|o| minutes_projection(o, k_toi[&s], k_app)).collect()),
         ];
         let actual: Vec<f64> = os.iter().map(|o| o.fpg_rest).collect();
         for model in INSEASON_MODELS {

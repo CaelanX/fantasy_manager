@@ -698,6 +698,7 @@ fn hobs(i: i64, gp_td: i64, fpg_td: f64, fpg_rest: f64) -> InseasonObs {
         gp_rest: 40,
         fpg_rest,
         fpg_app: 0.0,
+        toi: None,
         fpg_proj: None,
         fpg_hist: None,
         status: None,

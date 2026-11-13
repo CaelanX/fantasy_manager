@@ -14,7 +14,11 @@ use fm_core::values::{Horizon, PickAsset};
 use fm_core::{DynastyValue, Map, PlayerValue};
 use fm_engine::recommend::base::{league_unit, move_scarcity_threshold, moves_left, BASE_MIN_GAIN, no_moves_text, position_limits_text};
 use fm_engine::recommend::injuries::{recommend_injuries, History};
-use fm_engine::recommend::lineup::{current_total, daily_plan, optimal_lineup, recommend_lineup, starting_slots, DailyPlan};
+use fm_engine::analysis::matchup::{current_matchup, MatchupOpts};
+use fm_engine::recommend::lineup::{
+    apply_endgame, current_total, daily_plan, endgame_goalies, optimal_lineup, recommend_lineup, recommend_lineup_in_matchup,
+    starting_slots, DailyPlan, RosterView, ENDGAME_DAYS,
+};
 use fm_engine::recommend::waivers::{recommend_waivers, WaiverDebug, WaiverOpts};
 use fm_engine::valuation::picks::{picks_by_holder, value_picks};
 use fm_engine::valuation::valuate::replacement_for;
@@ -626,8 +630,29 @@ pub fn lineup(cli: &mut Cli, a: &LineupArgs) -> Result<()> {
     let now = cli.now();
     let memo = cli.memo();
     let plan = if h == Horizon::Week { daily_plan(lc, team, values, None, &now, &memo) } else { None };
-    if let Some(plan) = plan {
-        let recs = recommend_lineup(lc, values, h, &now, &memo)?;
+    if let Some(mut plan) = plan {
+        // the last days of the matchup: today's goalies by win probability, which needs the score
+        let matchup = if plan.days.len() <= ENDGAME_DAYS {
+            let mopts = MatchupOpts { streaming: false, ..MatchupOpts::default() };
+            match current_matchup(lc, Some(d.provider.as_ref()), Some(values), mopts, &now, &memo) {
+                Ok(m) => Some(m),
+                Err(e) => {
+                    echo_err(format!("Matchup unavailable ({e}); today's goalies are chosen by expected points"));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let recs = recommend_lineup_in_matchup(lc, values, h, &now, &memo, matchup.as_ref())?;
+        if let Some(m) = &matchup {
+            let view = RosterView::of(team);
+            let today = &plan.days[0];
+            if let Some(choice) = endgame_goalies(lc, &memo, &view, &plan, values, &today.assign, &slots, m) {
+                let locked = today.locked.clone();
+                apply_endgame(&mut plan.days[0].assign, &slots, &locked, &choice);
+            }
+        }
         return daily_lineup(lc, team, &slots, &plan, &recs, as_json);
     }
     let (assign, total) = optimal_lineup(team, values, &lc.roster_shape, h);

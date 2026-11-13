@@ -341,6 +341,7 @@ impl ReplayObs {
             gp_rest: self.gp28,
             fpg_rest: self.real_fpg28.unwrap_or(0.0),
             fpg_app: self.fpg_archived.unwrap_or(0.0),
+            toi: None,
             fpg_proj: proj.filter(|p| p.gp > 0).map(|p| f(Some(p)).1),
             fpg_hist: (!hist_rates.is_empty()).then(|| self.sc.value(hist_rates)),
             status: Some(self.status.clone()),

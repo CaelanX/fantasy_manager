@@ -34,10 +34,17 @@ pub const DAY: f64 = 86400.0;
 pub const TTL_HISTORICAL: f64 = 30.0 * DAY;
 pub const TTL_CURRENT: f64 = 0.5 * DAY;
 
-pub const SKATER_KEYS: [&str; 18] = [
+/// `TOI` and `PPTOI` are total minutes (all situations, power play), `A1` / `A2` primary and
+/// secondary assists; these four are present only when the deployment reports have a row for the
+/// player (see [`DEPLOYMENT_REPORTS`]).
+pub const SKATER_KEYS: [&str; 22] = [
     "G", "A", "PTS", "PM", "PIM", "PPG", "PPA", "PPP", "SHG", "SHA", "SHP", "GWG", "SOG", "HIT", "BLK", "FOW", "FOL",
-    "ENG",
+    "ENG", "TOI", "PPTOI", "A1", "A2",
 ];
+/// NHL skater reports fetched (best effort) for time on ice and the assist split: `timeonice`
+/// (`timeOnIce`, `ppTimeOnIce`, seconds) and `scoringpergame` (`totalPrimaryAssists`,
+/// `totalSecondaryAssists`). Both accept the same `gameDate` window filter as `summary`.
+pub const DEPLOYMENT_REPORTS: [&str; 2] = ["timeonice", "scoringpergame"];
 pub const GOALIE_KEYS: [&str; 11] = ["GS", "W", "L", "OTL", "GA", "SA", "SV", "SO", "G", "A", "PIM"];
 
 /// In-season checkpoints (month, day) and the windows stored for each one.
@@ -240,9 +247,49 @@ impl WindowLine {
 
 type SkaterStats = (i64, Map<String, f64>, Option<String>, Option<String>);
 
-fn skater_stats(summary: &Value, realtime: Option<&Value>, faceoffs: Option<&Value>) -> Result<SkaterStats> {
+/// player_id -> row of each [`DEPLOYMENT_REPORTS`] report (a failing report is left empty).
+type DeploymentRows = [std::collections::HashMap<i64, Value>; 2];
+
+fn deployment_rows(client: &NhlClient, season: i64, extra: Option<&str>) -> Result<DeploymentRows> {
+    let mut out: DeploymentRows = Default::default();
+    for (i, rep) in DEPLOYMENT_REPORTS.iter().enumerate() {
+        if let Ok(rows) = report(client, "skater", rep, season, extra) {
+            out[i] = by_player(rows)?;
+        }
+    }
+    Ok(out)
+}
+
+/// `TOI` / `PPTOI` (minutes, from seconds) and `A1` / `A2` from the deployment report rows.
+/// Departs from the Python, which stored none of these; a player without a row keeps no key, so a
+/// missing report reads as unknown rather than zero.
+fn add_deployment(st: &mut Map<String, f64>, pid: i64, dep: &DeploymentRows) {
+    let val = |r: &Value, k: &str| r.get(k).and_then(Value::as_f64);
+    if let Some(r) = dep[0].get(&pid) {
+        for (src, canon) in [("timeOnIce", "TOI"), ("ppTimeOnIce", "PPTOI")] {
+            if let Some(s) = val(r, src) {
+                st.insert(canon.to_string(), round_to(s / 60.0, 2));
+            }
+        }
+    }
+    if let Some(r) = dep[1].get(&pid) {
+        for (src, canon) in [("totalPrimaryAssists", "A1"), ("totalSecondaryAssists", "A2")] {
+            if let Some(v) = val(r, src) {
+                st.insert(canon.to_string(), v);
+            }
+        }
+    }
+}
+
+fn skater_stats(
+    summary: &Value,
+    realtime: Option<&Value>,
+    faceoffs: Option<&Value>,
+    dep: &DeploymentRows,
+) -> Result<SkaterStats> {
     let row = skater_from_rows(summary, realtime, faceoffs, 2)?;
     let mut st = row.stats.clone();
+    add_deployment(&mut st, row.player_id, dep);
     for k in ["HIT", "BLK", "ENG"] {
         // no realtime row -> zero, not missing
         st.entry(k.to_string()).or_insert(0.0);
@@ -385,11 +432,13 @@ pub fn fetch_season(client: &NhlClient, season: i64) -> Result<Vec<PlayerSeason>
         Ok(rows) => by_player(rows)?,
         Err(_) => Default::default(),
     };
+    let dep = deployment_rows(client, season, None)?;
     let empty = json!({});
     let mut out = Vec::new();
     for r in report(client, "skater", "summary", season, None)? {
         let pid = player_id(&r)?;
-        let (gp, stats, pos, team) = skater_stats(&r, Some(realtime.get(&pid).unwrap_or(&empty)), faceoffs.get(&pid))?;
+        let (gp, stats, pos, team) =
+            skater_stats(&r, Some(realtime.get(&pid).unwrap_or(&empty)), faceoffs.get(&pid), &dep)?;
         let bd = births.get(&pid).cloned();
         out.push(PlayerSeason {
             player_id: pid,
@@ -425,7 +474,8 @@ pub fn fetch_season(client: &NhlClient, season: i64) -> Result<Vec<PlayerSeason>
 }
 
 /// player_id -> WindowLine for games in [start, end] (inclusive) of a regular season.
-/// `faceoffs` also fetches the faceoffwins report (FOW / FOL), best effort.
+/// `faceoffs` also fetches the faceoffwins report (FOW / FOL), best effort; the
+/// [`DEPLOYMENT_REPORTS`] are always fetched, best effort.
 pub fn fetch_window(
     client: &NhlClient,
     season: i64,
@@ -451,11 +501,12 @@ pub fn fetch_window(
     } else {
         Default::default()
     };
+    let dep = deployment_rows(client, season, extra)?;
     let empty = json!({});
     let mut out: Map<i64, WindowLine> = Map::new();
     for r in report(client, "skater", "summary", season, extra)? {
         let pid = player_id(&r)?;
-        let (gp, stats, _, _) = skater_stats(&r, Some(realtime.get(&pid).unwrap_or(&empty)), fo.get(&pid))?;
+        let (gp, stats, _, _) = skater_stats(&r, Some(realtime.get(&pid).unwrap_or(&empty)), fo.get(&pid), &dep)?;
         if gp > 0 {
             out.insert(pid, WindowLine { gp, stats });
         }

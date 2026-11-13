@@ -56,9 +56,11 @@ league-wide pulls of the NHL stats reports, cached 30 days.
 ## Data
 
 - **Season table** (`player_seasons.json`): one row per player per regular season with G, A,
-  PTS, PPG/PPA/PPP, SHG/SHA/SHP, SOG, HIT, BLK, PIM, FOW/FOL, ENG and GP. Goalie rows have
+  PTS, PPG/PPA/PPP, SHG/SHA/SHP, SOG, HIT, BLK, PIM, FOW/FOL, ENG and GP, plus TOI and PPTOI (total
+  and power-play minutes, from the `timeonice` report) and A1/A2 (primary and secondary assists, from
+  `scoringpergame`). Goalie rows have
   GS, W, L, OTL, GA, SA, SV, SO, G, A, PIM. Each row also has the age on Oct 1 and the position
-  group (F/D/G). Each season needs six stats-API reports (skater summary, realtime, faceoffwins
+  group (F/D/G). Each season needs eight stats-API reports (skater summary, realtime, faceoffwins, timeonice, scoringpergame
   and bios; goalie summary and bios). The `bios` report carries birth dates, so no per-player
   roster or landing calls are needed. Hits and blocks go back to at least 2009-10.
 - **In-season windows** (`windows.json`): for Nov 1, Dec 1 and Jan 1 of each season, the same
@@ -67,7 +69,7 @@ league-wide pulls of the NHL stats reports, cached 30 days.
   - last 30, 15 and 7 days
   - rest of season
 
-  This takes 15 requests per checkpoint. The per-player game-log endpoint would have needed about
+  This takes 25 requests per checkpoint (the timeonice and scoringpergame reports included). The per-player game-log endpoint would have needed about
   400 requests per season and doesn't include hits or blocks.
 - All requests go through `HttpCache`. Finished seasons are cached for 30 days and the current
   season for 12 hours. The first full build (16 seasons plus 15 checkpoints) made 317 sequential
@@ -102,6 +104,9 @@ Each model projects per-game rates for season N from seasons before N only.
 - `fm_fitted`: fitted k and recency weights, leave-one-season-out
 - `fm_fitted_stat`: `fm_fitted` with each volume stat (shots, hits, blocks, penalty minutes) shrunk
   with its own fitted k, leave-one-season-out
+- `fm_minutes`: `fm_current` times (minutes per game shrunk with a minutes k) / (minutes per game
+  shrunk with the app's k), both from season-to-date toward the baseline; the minutes k is fitted
+  leave-one-season-out on `INSEASON_K_GRID`. The app does not use it (see knowledge file 09, B4)
 
 ## Metrics
 

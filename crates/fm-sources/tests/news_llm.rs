@@ -627,9 +627,32 @@ fn prompt_sanitizes_delimiters_and_answer_parsing_is_strict() {
 }
 
 #[test]
-fn llm_system_prompt_matches_python() {
+fn llm_batches_for_a_local_server_work_off_the_backlog_per_load() {
+    // 23 ambiguous items, 10 per load: loads send 10, 10, 3, then nothing (all cached)
+    let tmp = tempfile::tempdir().unwrap();
+    let items: Vec<NewsItem> = (0..23)
+        .map(|i| ritem(200 + i, Some(&format!("P{i}")), "Could move up", &format!("P{i} could get a look on the top line."), "rotowire"))
+        .collect();
+    let llm = FakeLlm::new(json!({"results": []}));
+    for _ in 0..4 {
+        nr::extract_role_signals(&items, Some(&llm), Some(tmp.path()), nr::LLM_LOCAL_BATCH, now0());
+    }
+    let calls = llm.calls.borrow();
+    assert_eq!(calls.iter().map(|c| c.1.matches("[b").count()).collect::<Vec<_>>(), vec![10, 10, 3]);
+    assert!(calls[1].1.contains("player: P10 |") && !calls[1].1.contains("player: P9 |"));
+    let store: Map<String, Value> = serde_json::from_str(&std::fs::read_to_string(tmp.path().join(nr::STORE_NAME)).unwrap()).unwrap();
+    assert_eq!(store.len(), 23);
+}
+
+#[test]
+fn llm_system_prompt_matches_python_plus_the_pp_and_injury_rules() {
     let g = golden("llm");
-    assert_eq!(nr::llm_system(), g["roles_system"].as_str().unwrap());
+    let python = g["roles_system"].as_str().unwrap();
+    let anchor = "A signal describes the blurb's subject player only.";
+    let added = " Goals or assists scored on the power play do not show which power-play unit a player is on: \
+use pp1 / pp2 only when the unit itself is reported. For injury, direction 1 = back from injury \
+(activated off injured reserve, cleared to play).";
+    assert_eq!(nr::llm_system(), python.replace(anchor, &format!("{anchor}{added}")));
 }
 
 // =========================================================================== test_odds.py
@@ -1287,6 +1310,22 @@ fn local_server_needs_no_key_and_skips_the_free_guard() {
     let c = LLMClient::new(Some(&st), Some(s), None, None, 60.0);
     assert_eq!(c.complete_text("s", "u", CompleteOpts { max_tokens: 700, ..Default::default() }).unwrap(), "Keep Makar.");
     assert!(calls.borrow()[0].max_tokens == 700 + 4096 && calls.borrow()[0].model == "ifm/k2-horizon:7b");
+    assert!(calls.borrow()[0].body().get("reasoning_effort").is_none());
+
+    // thinking off: no reserved thinking tokens, and the server is told to skip thinking
+    let (s, calls) = sdk(vec![Ok(ChatResponse::text(r#"{"results": []}"#))]);
+    let mut c = LLMClient::new(Some(&st), Some(s), None, None, 60.0);
+    c.local_reasoning = false;
+    c.complete_text("s", "u", CompleteOpts { max_tokens: 1500, json_mode: true, ..Default::default() }).unwrap();
+    let body = calls.borrow()[0].body();
+    assert_eq!((body["max_tokens"].clone(), body["reasoning_effort"].clone()), (json!(1500), json!("none")));
+    assert_eq!(body["response_format"], json!({"type": "json_object"}));
+    // OpenRouter is never sent the local-only field
+    let (s, calls) = sdk(vec![Ok(ChatResponse::text("ok"))]);
+    let mut c = LLMClient::new(Some(&settings_with_key(Some("k"))), Some(s), None, None, 60.0);
+    c.local_reasoning = false;
+    c.complete_text("s", "u", CompleteOpts { max_tokens: 50, ..Default::default() }).unwrap();
+    assert!(calls.borrow()[0].body().get("reasoning_effort").is_none() && calls.borrow()[0].max_tokens == 50);
 
     // cut off mid-thought: no answer rather than the thinking
     let (s, _) = sdk(vec![Ok(ChatResponse::text("<think>Makar has"))]);

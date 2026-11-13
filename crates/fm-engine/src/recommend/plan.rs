@@ -44,7 +44,9 @@ use crate::recommend::base::{
 };
 use crate::recommend::headline::market_suffix;
 use crate::recommend::injuries::History;
-use crate::recommend::lineup::{day_value, dp_idx, plan_days, started, starting_slots, unavailable};
+use crate::recommend::lineup::{
+    day_value, dp_idx, plan_days, recommend_lineup_in_matchup, started, starting_slots, unavailable, ENDGAME_DAYS,
+};
 use crate::recommend::lineup_lock;
 use crate::recommend::waivers::{recommend_waivers, stream_dynasty_tolerance, WaiverOpts};
 use crate::recommend::{claims, plan_memory};
@@ -1155,7 +1157,9 @@ fn err_type(e: &CoreError) -> &'static str {
     }
 }
 
-/// The weekly action plan (see the Python module docstring).
+/// The weekly action plan (see the Python module docstring). Unlike Python, in the last
+/// [`ENDGAME_DAYS`] of the matchup today's items include a goalie start / sit made for win
+/// probability (`recommend_lineup_in_matchup`, off with `disable_goalie_matchup`).
 pub fn build_week_plan(
     ctx: &LeagueContext,
     values: &Map<Cid, PlayerValue>,
@@ -1249,6 +1253,21 @@ pub fn build_week_plan(
         });
         if ir {
             ir_items.push(plan.today.len() - 1);
+        }
+    }
+    // the last days of the matchup: a goalie start / sit made for win probability, which quick
+    // lineup (expected points) would not make
+    if let Some(m) = matchup.filter(|_| days.len() <= ENDGAME_DAYS) {
+        if let Ok(lineup) = recommend_lineup_in_matchup(ctx, values, fm_core::values::Horizon::Week, now, memo, Some(m)) {
+            for r in lineup.iter().filter(|r| r.reasons.iter().any(|x| x.code == "WIN_PROB")) {
+                plan.today.push(PlanAction {
+                    kind: r.kind.as_str().to_string(),
+                    title: r.title.clone(),
+                    headline: r.headline.clone(),
+                    gain: r.predicted_gain,
+                    gain_units: r.gain_units.map(|g| g.as_str().to_string()),
+                });
+            }
         }
     }
 

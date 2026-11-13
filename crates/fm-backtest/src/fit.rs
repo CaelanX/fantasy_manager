@@ -485,6 +485,9 @@ pub struct InseasonObs {
     pub fpg_rest: f64,
     /// the app's own pipeline (blend.py functions)
     pub fpg_app: f64,
+    /// skater's (season-to-date, baseline) minutes per game; None for a goalie, a skater without a
+    /// baseline, or a season without ice-time data
+    pub toi: Option<(f64, f64)>,
     // live (harness replay) rows only; historical checkpoints have no league projection
     pub fpg_proj: Option<f64>,
     pub fpg_hist: Option<f64>,
@@ -518,6 +521,41 @@ pub fn inseason_projection(o: &InseasonObs, k: f64, weights: &Map<String, f64>) 
         shrunk = o.fpg_base;
     }
     with_recency(o, shrunk, weights)
+}
+
+/// `fpg_app` with the skater's minutes updated faster than his scoring: every stat is scaled by
+/// (minutes shrunk with `k_toi`) / (minutes shrunk with `k_app`, the k the app's rates used), both
+/// shrinking season-to-date minutes toward the baseline's over `gp_td` games. Ice time is observed
+/// almost without noise, so it should update quickly while per-minute rates keep the slow k
+/// (knowledge file 04, section 6). Every scored stat scales, so the FPG scales by the same ratio.
+pub fn minutes_projection(o: &InseasonObs, k_toi: f64, k_app: f64) -> f64 {
+    let Some((cur, base)) = o.toi.filter(|_| o.gp_td > 0) else { return o.fpg_app };
+    let n = o.gp_td as f64;
+    let shrunk = |k: f64| (n * cur + k * base) / (n + k);
+    let slow = shrunk(k_app);
+    if slow > 0.0 {
+        o.fpg_app * shrunk(k_toi) / slow
+    } else {
+        o.fpg_app
+    }
+}
+
+/// The minutes k of [`minutes_projection`] on `INSEASON_K_GRID` minimizing skater MAE (ties to
+/// the smaller k); `k_app` when there are no observations with minutes.
+pub fn fit_k_toi(obs: &[&InseasonObs], k_app: f64) -> f64 {
+    let sk: Vec<&&InseasonObs> = obs.iter().filter(|o| o.toi.is_some()).collect();
+    if sk.is_empty() {
+        return k_app;
+    }
+    let mae = |k: f64| py_sum(sk.iter().map(|o| (minutes_projection(o, k, k_app) - o.fpg_rest).abs())) / sk.len() as f64;
+    let mut best = (f64::INFINITY, k_app);
+    for k in INSEASON_K_GRID {
+        let m = mae(k as f64);
+        if m < best.0 {
+            best = (m, k as f64);
+        }
+    }
+    best.1
 }
 
 /// The season-to-date rate `shrunk` blended with the recent splits (shortfall to 'season').

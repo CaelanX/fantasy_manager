@@ -35,12 +35,13 @@ use fm_pycompat::time::strftime_date;
 use regex::Regex;
 
 use crate::analysis::goalie_plan::{matchup as goalie_opp_matchup, start_points_signed};
+use crate::analysis::matchup::{Matchup, DRAWS};
 use crate::analysis::schedule_grid::per_game_value;
 use crate::analysis::team_factors::second_night_prob;
 use crate::recommend::base::league_unit;
 use crate::recommend::headline::day_swap_headline;
 use crate::recommend::lineup_lock;
-use crate::recommend::strength::{apply_ranks, apply_strength};
+use crate::recommend::strength::{apply_ranks, apply_strength, interp, DAY_SCALE};
 use crate::scoring::from_config;
 use crate::valuation::replacement::eligible_slots;
 use crate::valuation::schedule::{
@@ -63,6 +64,11 @@ pub const START_PROB_LIKELY: (f64, f64) = (0.8, 0.2);
 /// show OPP_ADJ when today's multiplier is at least this far from 1.0
 pub const OPP_REASON_MIN: f64 = 0.03;
 pub const WEEKLY_LOCK_TEXT: &str = "for this week's lineup (locks Monday)";
+/// Plan days left in the matchup (today included) at or below which today's goalie starts are
+/// chosen by the probability of winning the matchup instead of by expected points: the "last day
+/// or two" of 09-engine-gap-analysis B5, when one goalie start is a large share of the remaining
+/// spread (08 section 2).
+pub const ENDGAME_DAYS: usize = 2;
 
 /// >> number of players: placing everyone dominates keeping slot types
 const PLACE_ALL: f64 = 1000.0;
@@ -559,8 +565,9 @@ static GOALIE_MATCHUP_OFF: AtomicBool = AtomicBool::new(false);
 
 /// Turn the goalie matchup in [`day_value`] off (true) or back on for every later plan in this
 /// process. Off restores Python's goalie day value: the neutral per-start value times the start
-/// probability, floored at zero. Only the Python parity tests and the CLI's hidden
-/// `--from-snapshot` mode turn it off, because their fixtures come from Python.
+/// probability, floored at zero, and turns off the end-of-matchup goalie choice by win probability
+/// ([`endgame_goalies`]). Only the Python parity tests and the CLI's hidden `--from-snapshot` mode
+/// turn it off, because their fixtures come from Python.
 pub fn disable_goalie_matchup(off: bool) {
     GOALIE_MATCHUP_OFF.store(off, Ordering::Relaxed);
 }
@@ -854,6 +861,281 @@ pub fn daily_plan_view(
     let infos: Vec<Vec<DayInfo>> = pool.iter().map(|p| player_days(ctx, memo, p, values.get(&p.cid), &days, now)).collect();
     let refs: Vec<&[DayInfo]> = infos.iter().map(|v| v.as_slice()).collect();
     Some(plan_from(view, &slots, &days, &pool, &refs, true))
+}
+
+// ------------------------------------------------- end of a matchup: goalies by win probability
+
+/// Today's goalie starts chosen by the probability of winning the matchup ([`endgame_goalies`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct EndgameGoalies {
+    /// goalies to start today, in the order they fill the free G slots
+    pub start: Vec<Cid>,
+    /// today's goalies whose start / sit differs from the expected-points lineup
+    pub changed: Vec<Cid>,
+    /// P(win the matchup) with `start`
+    pub p_win: f64,
+    /// P(win) with the expected-points lineup
+    pub p_win_ev: f64,
+    /// projected final margin (mine minus theirs) with the expected-points lineup
+    pub margin_ev: f64,
+    /// how many points of mean the expected-points lineup would need to reach `p_win` (its own
+    /// spread unchanged): the win-probability gain expressed in points
+    pub equiv_pts: f64,
+    /// plan days left in the matchup, today included
+    pub days_left: usize,
+}
+
+/// Smallest win-probability gain that replaces the expected-points goalie choice: one standard
+/// error of the matchup's own Monte Carlo win probability at 50%, sqrt(0.25 / DRAWS) = 0.0112 with
+/// DRAWS = 2000. A smaller gain is below what the engine reports anywhere, and below it expected
+/// points decide, which also serves points for (the standings tiebreak in both leagues).
+pub fn endgame_min_win_gain() -> f64 {
+    (0.25 / DRAWS as f64).sqrt()
+}
+
+fn norm_cdf(z: f64) -> f64 {
+    0.5 * (1.0 + libm::erf(z / std::f64::consts::SQRT_2))
+}
+
+/// z with `norm_cdf(z) = p`, by bisection on [-9, 9] (beyond that the CDF is 0 or 1 in f64).
+fn norm_quantile(p: f64) -> f64 {
+    let (mut lo, mut hi) = (-9.0_f64, 9.0_f64);
+    for _ in 0..80 {
+        let mid = 0.5 * (lo + hi);
+        if norm_cdf(mid) < p {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    0.5 * (lo + hi)
+}
+
+/// P(my final total beats theirs) when the margin without today's goalie starts is normal
+/// (`base_mean`, `base_var`) and goalie i starts with probability p_i and then scores normal
+/// (m_i, s_i), else nothing: `goalies` = [(p, m, s)]. Exact over the 2^k start outcomes (normal
+/// within each), not a normal approximation of the mixture, as 08 section 4 asks for the last day.
+/// A margin with no spread wins at > 0, loses at < 0 and counts a tie as half, as
+/// `analysis::matchup::win_probability` does.
+pub fn win_prob_with_goalies(base_mean: f64, base_var: f64, goalies: &[(f64, f64, f64)]) -> f64 {
+    let mut total = 0.0;
+    for mask in 0..(1usize << goalies.len()) {
+        let (mut w, mut mean, mut var) = (1.0, base_mean, base_var.max(0.0));
+        for (i, &(p, m, s)) in goalies.iter().enumerate() {
+            if mask & (1 << i) != 0 {
+                w *= p;
+                mean += m;
+                var += s * s;
+            } else {
+                w *= 1.0 - p;
+            }
+        }
+        if w <= 0.0 {
+            continue;
+        }
+        let pw = if var > 0.0 {
+            norm_cdf(mean / var.sqrt())
+        } else if mean > 1e-9 {
+            1.0
+        } else if mean < -1e-9 {
+            0.0
+        } else {
+            0.5
+        };
+        total += w * pw;
+    }
+    total
+}
+
+/// In the last [`ENDGAME_DAYS`] of the matchup `m`, the set of today's goalie starts that maximises
+/// the probability of winning it, when that beats the expected-points lineup `assign` (today's
+/// {slot index: cid}) by more than [`endgame_min_win_gain`]; None otherwise, without an opponent,
+/// when `m` is not projected from today, or with the goalie matchup disabled (the Python path).
+///
+/// The margin is my score so far plus the expected-points lineup's remaining points (today's other
+/// starters, and the later days as `plan` sets them) minus the opponent's projected total, each
+/// player normal with the matchup's SD model (`m.sd_model`) as the matchup projection uses it. Each
+/// of today's goalies whose game has not started starts with probability p
+/// ([`night_start_probability`]; 1 without a start share) and then scores normal (m, s): m is his
+/// points per start against tonight's opponent (his day value / p, which can be negative) and s is
+/// the SD model's goalie SD of his per-start points against an average opponent, because a start's
+/// spread comes from the scoring weights rather than from tonight's mean (k x sqrt(FPG) would give
+/// a negative-mean start no spread at all). Skaters are left to expected points: in a points league
+/// without negative skater stats a skater cannot lower the total (08 section 4).
+#[allow(clippy::too_many_arguments)]
+pub fn endgame_goalies(
+    ctx: &LeagueContext,
+    memo: &ScheduleMemo,
+    view: &RosterView<'_>,
+    plan: &DailyPlan,
+    values: &Map<Cid, PlayerValue>,
+    assign: &Map<usize, Cid>,
+    slots: &[String],
+    m: &Matchup,
+) -> Option<EndgameGoalies> {
+    if GOALIE_MATCHUP_OFF.load(Ordering::Relaxed) || m.opponent_team.is_none() {
+        return None;
+    }
+    let end = m.end?;
+    let day0 = plan.days.first()?;
+    if m.from_day != Some(day0.day) {
+        return None;
+    }
+    let days: Vec<&PlanDay> = plan.days.iter().filter(|d| d.day <= end).collect();
+    if days.is_empty() || days.len() > ENDGAME_DAYS {
+        return None;
+    }
+    let sd = &m.sd_model;
+    let pool = view.candidates();
+    let by_cid: HashMap<&str, &Player> = pool.iter().map(|p| (p.cid.as_str(), *p)).collect();
+    let goalie = |c: &str| by_cid.get(c).is_some_and(|p| p.is_goalie());
+    let cands: Vec<&Player> = pool
+        .iter()
+        .copied()
+        .filter(|p| p.is_goalie() && day0.playing.contains(&p.cid) && !day0.locked.contains(&p.cid))
+        .collect();
+    if cands.is_empty() {
+        return None;
+    }
+    let is_cand = |c: &str| cands.iter().any(|p| p.cid == c);
+    let n_free = slots
+        .iter()
+        .enumerate()
+        .filter(|(i, s)| s.as_str() == "G" && !assign.get(i).is_some_and(|c| day0.locked.contains(c)))
+        .count();
+    // the margin without today's goalie candidates: mean and variance
+    let mut mean = m.my_points_so_far - m.their_projected_total();
+    let mut var = m.their_sd * m.their_sd;
+    for c in assign.values().filter(|c| !is_cand(c)) {
+        let v = day0.values.get(c).copied().unwrap_or(0.0);
+        mean += v;
+        var += sd.game_sd(v, goalie(c)).powi(2);
+    }
+    let mut later: Map<&str, (i64, f64)> = Map::new();
+    for d in &days[1..] {
+        for c in d.assign.values().filter(|c| !d.locked.contains(*c)) {
+            let e = later.entry(c.as_str()).or_insert((0, 0.0));
+            e.0 += 1;
+            e.1 += d.values.get(c).copied().unwrap_or(0.0);
+        }
+    }
+    for (c, (games, pts)) in &later {
+        mean += pts;
+        var += *games as f64 * sd.game_sd(pts / *games as f64, goalie(c)).powi(2);
+    }
+    let params: Vec<(f64, f64, f64)> = cands
+        .iter()
+        .map(|p| {
+            let pv = values.get(&p.cid);
+            let v = day0.values.get(&p.cid).copied().unwrap_or(0.0);
+            let prob = night_start_probability(ctx, p, pv, day0.day).unwrap_or(1.0).clamp(0.0, 1.0);
+            let per_start = if prob > 0.0 { v / prob } else { 0.0 };
+            let delta = pv.and_then(|pv| goalie_matchup(ctx, memo, p, pv, day0.day)).map_or(0.0, |g| g.pts_if_starts - g.neutral);
+            (prob, per_start, sd.game_sd(per_start - delta, true))
+        })
+        .collect();
+    let ev_mask = cands
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| assign.values().any(|c| *c == p.cid))
+        .fold(0usize, |acc, (i, _)| acc | (1 << i));
+    let pick = |mask: usize| -> Vec<(f64, f64, f64)> {
+        params.iter().enumerate().filter(|(i, _)| mask & (1 << i) != 0).map(|(_, x)| *x).collect()
+    };
+    let p_ev = win_prob_with_goalies(mean, var, &pick(ev_mask));
+    let (mut best_mask, mut best_p) = (ev_mask, p_ev);
+    for mask in 0..(1usize << cands.len()) {
+        if mask.count_ones() as usize > n_free {
+            continue;
+        }
+        let p = win_prob_with_goalies(mean, var, &pick(mask));
+        if p > best_p + 1e-12 {
+            (best_mask, best_p) = (mask, p);
+        }
+    }
+    if best_mask == ev_mask || best_p - p_ev <= endgame_min_win_gain() {
+        return None;
+    }
+    // the expected-points lineup as one normal (mixture moments) for the points-equivalent gain
+    let ev = pick(ev_mask);
+    let mean_ev = mean + py_sum(ev.iter().map(|(p, m, _)| p * m));
+    let var_ev = var + py_sum(ev.iter().map(|(p, m, s)| p * s * s + p * (1.0 - p) * m * m));
+    let equiv_pts = if var_ev > 0.0 {
+        (var_ev.sqrt() * norm_quantile(best_p) - mean_ev).max(0.0)
+    } else {
+        mean_ev.abs()
+    };
+    let in_mask = |mask: usize, i: usize| mask & (1 << i) != 0;
+    Some(EndgameGoalies {
+        start: cands.iter().enumerate().filter(|(i, _)| in_mask(best_mask, *i)).map(|(_, p)| p.cid.clone()).collect(),
+        changed: cands
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| in_mask(best_mask, *i) != in_mask(ev_mask, *i))
+            .map(|(_, p)| p.cid.clone())
+            .collect(),
+        p_win: best_p,
+        p_win_ev: p_ev,
+        margin_ev: mean_ev,
+        equiv_pts,
+        days_left: days.len(),
+    })
+}
+
+/// `assign` (today's {slot index: cid}) with its G slots that hold no started game refilled with
+/// `choice.start`, then with the players who were in them before and are not today's candidates.
+pub fn apply_endgame(assign: &mut Map<usize, Cid>, slots: &[String], locked: &Set<Cid>, choice: &EndgameGoalies) {
+    let free: Vec<usize> = slots
+        .iter()
+        .enumerate()
+        .filter(|(i, s)| s.as_str() == "G" && !assign.get(i).is_some_and(|c| locked.contains(c)))
+        .map(|(i, _)| i)
+        .collect();
+    let moved: Vec<&Cid> = choice.start.iter().chain(choice.changed.iter()).collect();
+    let kept: Vec<Cid> = free.iter().filter_map(|i| assign.get(i)).filter(|c| !moved.contains(c)).cloned().collect();
+    for i in &free {
+        assign.shift_remove(i);
+    }
+    for (i, c) in free.iter().zip(choice.start.iter().chain(kept.iter())) {
+        assign.insert(*i, c.clone());
+    }
+}
+
+fn endgame_reason(choice: &EndgameGoalies, by_cid: &HashMap<&str, &Player>) -> Reason {
+    let names = |sit: bool| -> Vec<String> {
+        choice
+            .changed
+            .iter()
+            .filter(|c| choice.start.contains(c) != sit)
+            .filter_map(|c| by_cid.get(c.as_str()).map(|p| p.name.clone()))
+            .collect()
+    };
+    let mut what: Vec<String> = Vec::new();
+    for (sit, verb) in [(false, "starting"), (true, "sitting")] {
+        let n = names(sit);
+        if !n.is_empty() {
+            what.push(format!("{verb} {}", n.join(" and ")));
+        }
+    }
+    let side = if choice.margin_ev >= 0.0 {
+        "you are ahead, so less variance helps"
+    } else {
+        "you trail, so more variance helps"
+    };
+    Reason::new(
+        "WIN_PROB",
+        format!(
+            "Win probability {} {} vs {} with the most expected points: projected margin {} with {} day{} left, and {side}",
+            percent(choice.p_win, 0, false),
+            what.join(", "),
+            percent(choice.p_win_ev, 0, false),
+            fixed(choice.margin_ev, 1, true),
+            choice.days_left,
+            if choice.days_left != 1 { "s" } else { "" },
+        ),
+    )
+    .with_value(Some(choice.p_win))
+    .with_baseline(Some(choice.p_win_ev))
 }
 
 // ------------------------------------------------------------------------------- reasons
@@ -1221,6 +1503,21 @@ pub fn recommend_lineup(
     now: &PyDateTime,
     memo: &ScheduleMemo,
 ) -> Result<Vec<Recommendation>, CoreError> {
+    recommend_lineup_in_matchup(ctx, values, horizon, now, memo, None)
+}
+
+/// [`recommend_lineup`] given the current matchup: in its last [`ENDGAME_DAYS`] today's goalie
+/// starts maximise the probability of winning it ([`endgame_goalies`]) rather than expected points,
+/// and a change made for that reason skips the points threshold and carries reason `WIN_PROB`.
+/// Python had no such step (it is off with [`disable_goalie_matchup`]).
+pub fn recommend_lineup_in_matchup(
+    ctx: &LeagueContext,
+    values: &Map<Cid, PlayerValue>,
+    horizon: Horizon,
+    now: &PyDateTime,
+    memo: &ScheduleMemo,
+    matchup: Option<&Matchup>,
+) -> Result<Vec<Recommendation>, CoreError> {
     let team = ctx.my_team()?;
     let unit = league_unit(ctx);
     let view = RosterView::of(team);
@@ -1248,6 +1545,7 @@ pub fn recommend_lineup(
         by_cid.insert(p.cid.as_str(), p);
     }
     let starters = view.starters();
+    let mut endgame: Option<EndgameGoalies> = None;
     let (assign, today_vals): (Map<usize, Cid>, Option<&Map<Cid, f64>>) = match &plan {
         None => (optimal_lineup(team, values, &ctx.roster_shape, horizon).0, None),
         Some(plan) => {
@@ -1255,7 +1553,12 @@ pub fn recommend_lineup(
             let today = &d0.values;
             let locked: HashSet<&str> = d0.locked.iter().map(|c| c.as_str()).collect();
             let vf = |c: &str| today.get(c).copied().unwrap_or(0.0);
-            (best(&view, &slots, &vf, &locked).0, Some(today))
+            let mut assign = best(&view, &slots, &vf, &locked).0;
+            endgame = matchup.and_then(|m| endgame_goalies(ctx, memo, &view, plan, values, &assign, &slots, m));
+            if let Some(choice) = &endgame {
+                apply_endgame(&mut assign, &slots, &d0.locked, choice);
+            }
+            (assign, Some(today))
         }
     };
     let vc = |c: &str| -> f64 {
@@ -1279,19 +1582,26 @@ pub fn recommend_lineup(
         let gain = pin.map_or(0.0, |p| vc(&p.cid)) - pout.map_or(0.0, |p| vc(&p.cid));
         let v_out = pout.map_or(0.0, |p| vc(&p.cid));
         let threshold = (MIN_GAIN_ABS * unit).max(MIN_GAIN_REL * v_out.abs());
-        if gain <= threshold {
+        // a goalie start / sit made for win probability: kept whatever it does to expected points
+        let for_win = endgame
+            .as_ref()
+            .filter(|e| [pin, pout].into_iter().flatten().any(|p| e.changed.contains(&p.cid)));
+        if for_win.is_none() && gain <= threshold {
             continue;
         }
         let mut reasons = vec![Reason::new(
             "LINEUP_GAIN",
             format!(
-                "+{} ({}) from this change",
-                fixed(gain, 2, false),
+                "{} ({}) from this change",
+                if for_win.is_some() { fixed(gain, 2, true) } else { format!("+{}", fixed(gain, 2, false)) },
                 if plan.is_none() { horizon.as_str() } else { "today" }
             ),
         )
         .with_value(Some(gain))
         .with_baseline(Some(threshold))];
+        if let Some(e) = for_win {
+            reasons.insert(0, endgame_reason(e, &by_cid));
+        }
         for x in [pin, pout].into_iter().flatten() {
             match &plan {
                 None => reasons.extend(week_reasons(x, values.get(&x.cid), horizon)),
@@ -1333,11 +1643,22 @@ pub fn recommend_lineup(
                     Some(chain[0].slot.as_str()),
                     opp,
                 );
-                headline = Some(h).filter(|h| !h.is_empty());
+                headline = match for_win {
+                    Some(e) => Some(format!(
+                        "Raises the chance of winning this matchup from {} to {}",
+                        percent(e.p_win_ev, 0, false),
+                        percent(e.p_win, 0, false)
+                    )),
+                    None => Some(h).filter(|h| !h.is_empty()),
+                };
                 (GainUnits::DayPts, Some(1), title)
             }
         };
-        let mut r = Recommendation::new(RecKind::Lineup, gain, title);
+        // ranked and graded by the win-probability gain in points when made for win probability
+        let mut r = Recommendation::new(RecKind::Lineup, for_win.map_or(gain, |e| e.equiv_pts), title);
+        if let Some(e) = for_win {
+            r.strength = Some(round_to(interp(e.equiv_pts, &DAY_SCALE), 2));
+        }
         r.headline = headline;
         r.add = pin.into_iter().cloned().collect();
         r.drop = pout.into_iter().cloned().collect();
@@ -2070,5 +2391,142 @@ pub(crate) mod tests {
             "g: today @BOS - win probability 25%, opponent implied 4.20 goals: -0.57 pts if he starts (1.90 against an \
              average opponent)"
         );
+    }
+
+    #[test]
+    fn win_prob_with_goalies_hand_numbers() {
+        let close = |a: f64, b: f64| (a - b).abs() < 1e-6;
+        // Phi(3 / 2) = 0.933193; a sure start of mean 1, SD 3: Phi(4 / sqrt 13) = 0.866371
+        assert!(close(win_prob_with_goalies(3.0, 4.0, &[]), 0.933193));
+        assert!(close(win_prob_with_goalies(3.0, 4.0, &[(1.0, 1.0, 3.0)]), 0.866371));
+        // trailing: Phi(-1.5) = 0.066807; a start of mean -0.5 still helps: Phi(-3.5 / sqrt 13) = 0.165843
+        assert!(close(win_prob_with_goalies(-3.0, 4.0, &[]), 0.066807));
+        assert!(close(win_prob_with_goalies(-3.0, 4.0, &[(1.0, -0.5, 3.0)]), 0.165843));
+        // a 50% start is a mixture: 0.5 Phi(0) + 0.5 Phi(2 / sqrt 8) = 0.630125
+        assert!(close(win_prob_with_goalies(0.0, 4.0, &[(0.5, 2.0, 2.0)]), 0.630125));
+        // no spread: decided by the sign, a tie is half
+        assert_eq!(win_prob_with_goalies(-3.0, 0.0, &[]), 0.0);
+        assert_eq!(win_prob_with_goalies(0.0, 0.0, &[]), 0.5);
+        assert!(close(endgame_min_win_gain(), 0.011180));
+    }
+
+    /// The matchup on Tue Oct 6, its last day: me `mine` so far, the opponent `theirs` so far plus
+    /// `their_rest` (SD `their_sd`) still to come; the reference SD model.
+    fn last_day_matchup(mine: f64, theirs: f64, their_rest: f64, their_sd: f64) -> Matchup {
+        Matchup {
+            league: "espn".into(),
+            my_team: "me".into(),
+            opponent_team: Some("them".into()),
+            opponent_id: Some("2".into()),
+            period: Some(1),
+            start: Some(d(10, 1)),
+            end: Some(d(10, 6)),
+            from_day: Some(d(10, 6)),
+            days_left: 1,
+            playoffs: false,
+            my_points_so_far: mine,
+            their_points_so_far: theirs,
+            my_projected_remaining: 0.0,
+            their_projected_remaining: their_rest,
+            my_games_left: 0,
+            their_games_left: 0,
+            my_sd: 0.0,
+            their_sd,
+            win_probability: Some(0.5),
+            stance: None,
+            key_players_theirs: vec![],
+            gap_by_position: Map::new(),
+            advice: vec![],
+            my_players: vec![],
+            their_players: vec![],
+            source: "test".into(),
+            lineup_basis: "test".into(),
+            warnings: vec![],
+            draws: crate::analysis::matchup::DRAWS,
+            sd_model: crate::analysis::matchup::SdModel::REFERENCE,
+        }
+    }
+
+    #[test]
+    fn trailing_on_the_last_day_starts_a_negative_goalie() {
+        let (mut ctx, v, memo) = tough_night();
+        ctx.period_end = Some(d(10, 6));
+        ctx.teams[0].slots[0].slot = "BN".into();
+        ctx.teams[0].slots[0].starting = false;
+        ctx.roster_shape = shape(&[("G", 1), ("BN", 1)]);
+        let now = now_at(12, 0, 1);
+        // by expected points he stays on the bench (-0.57 today): no change
+        assert!(recommend_lineup(&ctx, &v, Horizon::Week, &now, &memo).unwrap().is_empty());
+        // down 3 with nothing else to come: sitting loses for sure; starting him (mean -0.571372, SD
+        // 2.5 sqrt 1.9 = 3.446012) wins Phi(-3.571372 / 3.446012) = 0.150013
+        let m = last_day_matchup(100.0, 103.0, 0.0, 0.0);
+        let r = recommend_lineup_in_matchup(&ctx, &v, Horizon::Week, &now, &memo, Some(&m)).unwrap();
+        assert_eq!(titles(&r), vec!["Start g at G (empty slot) today"]);
+        let why = r[0].reason("WIN_PROB").unwrap();
+        assert!((why.value.unwrap() - 0.150013).abs() < 1e-6 && why.baseline == Some(0.0));
+        assert_eq!(
+            why.text,
+            "Win probability 15% starting g vs 0% with the most expected points: projected margin -3.0 with 1 day left, \
+             and you trail, so more variance helps"
+        );
+        assert!((r[0].predicted_gain.unwrap() - -0.571372).abs() < 1e-6);
+        assert_eq!(r[0].reason("LINEUP_GAIN").unwrap().text, "-0.57 (today) from this change");
+        // no spread in the expected-points lineup: the gain in points is the 3-point deficit
+        assert!((r[0].score - 3.0).abs() < 1e-9 && r[0].strength == Some(4.0));
+    }
+
+    #[test]
+    fn ahead_on_the_last_day_sits_a_positive_goalie_only_when_it_pays() {
+        // no odds: an average night, 1.9 pts per confirmed start, SD 3.446012
+        let (mut ctx, v, _) = tough_night();
+        let memo = ScheduleMemo::new(None);
+        ctx.period_end = Some(d(10, 6));
+        let now = now_at(12, 0, 1);
+        // up 5 on the opponent's projection (SD 3): sit Phi(5 / 3) = 0.952210, start
+        // Phi(6.9 / sqrt(9 + 11.875)) = 0.934504, a gain of 0.017705 > 0.011180
+        let m = last_day_matchup(110.0, 100.0, 5.0, 3.0);
+        let r = recommend_lineup_in_matchup(&ctx, &v, Horizon::Week, &now, &memo, Some(&m)).unwrap();
+        assert_eq!(titles(&r), vec!["Bench g (leave G empty) today"]);
+        let why = r[0].reason("WIN_PROB").unwrap();
+        assert!((why.value.unwrap() - 0.952210).abs() < 1e-6 && (why.baseline.unwrap() - 0.934504).abs() < 1e-6);
+        assert!(why.text.contains("sitting g") && why.text.ends_with("you are ahead, so less variance helps"));
+        assert!((r[0].predicted_gain.unwrap() - -1.9).abs() < 1e-9);
+        // in points: 4.568917 x 5/3 - 6.9 = 0.714861, strength 2 x 0.714861
+        assert!((r[0].score - 0.714861).abs() < 1e-5 && r[0].strength == Some(1.43));
+        assert_eq!(r[0].headline.as_deref(), Some("Raises the chance of winning this matchup from 93% to 95%"));
+        // an even matchup (margin 0 before him): starting is better, Phi(1.9 / 4.568917) = 0.661241
+        let even = last_day_matchup(105.0, 100.0, 5.0, 3.0);
+        assert!(recommend_lineup_in_matchup(&ctx, &v, Horizon::Week, &now, &memo, Some(&even)).unwrap().is_empty());
+        // three days left: expected points decide
+        ctx.period_end = Some(d(10, 8));
+        let mut early = m.clone();
+        early.end = Some(d(10, 8));
+        assert!(recommend_lineup_in_matchup(&ctx, &v, Horizon::Week, &now, &memo, Some(&early)).unwrap().is_empty());
+    }
+
+    #[test]
+    fn week_plan_lists_the_win_probability_goalie_start_on_the_last_day() {
+        use crate::recommend::plan::{build_week_plan, tests::no_goalies, PlanOpts};
+        let (mut ctx, v, memo) = tough_night();
+        ctx.period_end = Some(d(10, 6));
+        ctx.teams[0].slots[0].slot = "BN".into();
+        ctx.teams[0].slots[0].starting = false;
+        ctx.roster_shape = shape(&[("G", 1), ("BN", 1)]);
+        let now = now_at(12, 0, 1);
+        let g = no_goalies();
+        let plan = |m: &Matchup| {
+            let opts = PlanOpts { recs: Some(&[]), matchup: Some(m), goalies: Some(&g), ..PlanOpts::default() };
+            build_week_plan(&ctx, &v, &opts, &now, &memo)
+        };
+        // down 3 on the last day: the start that expected points skip is today's item
+        let p = plan(&last_day_matchup(100.0, 103.0, 0.0, 0.0));
+        let today: Vec<(&str, Option<&str>)> = p.today.iter().map(|a| (a.title.as_str(), a.headline.as_deref())).collect();
+        assert_eq!(
+            today,
+            vec![("Start g at G (empty slot) today", Some("Raises the chance of winning this matchup from 0% to 15%"))]
+        );
+        assert!((p.today[0].gain.unwrap() - -0.571372).abs() < 1e-6);
+        // up 3: sitting him is already the expected-points lineup, nothing to add
+        assert!(plan(&last_day_matchup(103.0, 100.0, 0.0, 0.0)).today.is_empty());
     }
 }
